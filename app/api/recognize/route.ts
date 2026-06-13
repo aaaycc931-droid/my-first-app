@@ -4,6 +4,7 @@ const mockRecognizedNotes = [
   { note: "C4", duration: "quarter" },
   { note: "D4", duration: "quarter" },
   { note: "E4", duration: "half" },
+  { note: "F4", duration: "whole" },
 ];
 
 export async function POST(request: Request) {
