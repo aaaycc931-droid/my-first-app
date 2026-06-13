@@ -4,7 +4,7 @@ import { ChangeEvent, useState } from "react";
 
 type RecognizedNote = {
   note: string;
-  duration: "quarter" | "half";
+  duration: "quarter" | "half" | "whole";
 };
 
 type ToneSynth = {
@@ -24,16 +24,19 @@ const toneModuleUrl = "https://esm.sh/tone@15.1.22";
 const durationToToneValue: Record<RecognizedNote["duration"], string> = {
   quarter: "4n",
   half: "2n",
+  whole: "1n",
 };
 
 const durationToSeconds: Record<RecognizedNote["duration"], number> = {
   quarter: 0.5,
   half: 1,
+  whole: 2,
 };
 
 const durationLabel: Record<RecognizedNote["duration"], string> = {
   quarter: "四分音符",
   half: "二分音符",
+  whole: "全音符",
 };
 
 const loadTone = async () =>
@@ -46,7 +49,9 @@ export default function Home() {
   const [recognizedNotes, setRecognizedNotes] = useState<RecognizedNote[]>([]);
   const [isRecognizing, setIsRecognizing] = useState(false);
   const [recognizeError, setRecognizeError] = useState("");
+  const [playError, setPlayError] = useState("");
   const [isPlaying, setIsPlaying] = useState(false);
+  const [playingNoteIndex, setPlayingNoteIndex] = useState<number | null>(null);
 
   const handleImageUpload = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -60,7 +65,9 @@ export default function Home() {
     setFileName(file.name);
     setRecognizedNotes([]);
     setRecognizeError("");
+    setPlayError("");
     setIsPlaying(false);
+    setPlayingNoteIndex(null);
   };
 
   const handleRecognize = async () => {
@@ -70,6 +77,7 @@ export default function Home() {
 
     setIsRecognizing(true);
     setRecognizeError("");
+    setPlayError("");
 
     const formData = new FormData();
     formData.append("image", selectedFile);
@@ -100,23 +108,38 @@ export default function Home() {
     }
 
     setIsPlaying(true);
+    setPlayError("");
+    setPlayingNoteIndex(null);
 
-    const Tone = await loadTone();
-    await Tone.start();
+    try {
+      const Tone = await loadTone();
+      await Tone.start();
 
-    const synth = new Tone.Synth().toDestination();
-    const startTime = Tone.now();
-    let offset = 0;
+      const synth = new Tone.Synth().toDestination();
+      const startTime = Tone.now();
+      let offset = 0;
 
-    recognizedNotes.forEach(({ note, duration }) => {
-      synth.triggerAttackRelease(note, durationToToneValue[duration], startTime + offset);
-      offset += durationToSeconds[duration];
-    });
+      recognizedNotes.forEach(({ note, duration }, index) => {
+        const noteOffset = offset;
 
-    window.setTimeout(() => {
-      synth.dispose();
+        synth.triggerAttackRelease(note, durationToToneValue[duration], startTime + noteOffset);
+        window.setTimeout(() => {
+          setPlayingNoteIndex(index);
+        }, noteOffset * 1000);
+
+        offset += durationToSeconds[duration];
+      });
+
+      window.setTimeout(() => {
+        synth.dispose();
+        setPlayingNoteIndex(null);
+        setIsPlaying(false);
+      }, offset * 1000 + 500);
+    } catch {
+      setPlayError("播放失败，请稍后再试。");
+      setPlayingNoteIndex(null);
       setIsPlaying(false);
-    }, offset * 1000 + 500);
+    }
   };
 
   return (
@@ -162,13 +185,23 @@ export default function Home() {
             {recognizedNotes.length > 0 ? (
               <>
                 <ul className="mt-4 grid gap-3 sm:grid-cols-3">
-                  {recognizedNotes.map(({ note, duration }, index) => (
-                    <li className="rounded-xl bg-blue-50 px-4 py-3 text-center text-blue-700" key={`${note}-${duration}-${index}`}>
-                      <span className="block font-semibold">{note}</span>
-                      <span className="mt-1 block text-sm text-blue-600">{durationLabel[duration]}</span>
-                    </li>
-                  ))}
+                  {recognizedNotes.map(({ note, duration }, index) => {
+                    const isCurrentNote = playingNoteIndex === index;
+
+                    return (
+                      <li
+                        className={`rounded-xl px-4 py-3 text-center transition ${
+                          isCurrentNote ? "bg-blue-600 text-white" : "bg-blue-50 text-blue-700"
+                        }`}
+                        key={`${note}-${duration}-${index}`}
+                      >
+                        <span className="block font-semibold">{note}</span>
+                        <span className={`mt-1 block text-sm ${isCurrentNote ? "text-blue-100" : "text-blue-600"}`}>{durationLabel[duration]}</span>
+                      </li>
+                    );
+                  })}
                 </ul>
+                {playError ? <p className="mt-4 text-red-600">{playError}</p> : null}
                 <button
                   className="mt-4 w-full rounded-xl bg-slate-900 px-5 py-3 font-semibold text-white transition hover:bg-slate-700 disabled:cursor-not-allowed disabled:bg-slate-300"
                   type="button"
