@@ -5,6 +5,9 @@ import { ChangeEvent, useState } from "react";
 type RecognizedNote = {
   note: string;
   duration: "quarter" | "half" | "whole";
+  confidence: number;
+  measure: number;
+  beat: number;
 };
 
 type RecognizeStatus = "未上传" | "已上传" | "识别中" | "识别完成" | "识别失败";
@@ -201,18 +204,25 @@ export default function Home() {
             {recognizedNotes.length > 0 ? (
               <>
                 <ul className="mt-4 grid gap-3 sm:grid-cols-3">
-                  {recognizedNotes.map(({ note, duration }, index) => {
+                  {recognizedNotes.map(({ note, duration, confidence, measure, beat }, index) => {
                     const isCurrentNote = playingNoteIndex === index;
+                    const isLowConfidence = confidence < 0.7;
 
                     return (
                       <li
                         className={`rounded-xl px-4 py-3 text-center transition ${
                           isCurrentNote ? "bg-blue-600 text-white" : "bg-blue-50 text-blue-700"
                         }`}
-                        key={`${note}-${duration}-${index}`}
+                        key={`${note}-${duration}-${measure}-${beat}-${index}`}
                       >
                         <span className="block font-semibold">{note}</span>
-                        <span className={`mt-1 block text-sm ${isCurrentNote ? "text-blue-100" : "text-blue-600"}`}>{durationLabel[duration]}</span>
+                        <span className={`mt-1 block text-sm ${isCurrentNote ? "text-blue-100" : "text-blue-600"}`}>时值：{durationLabel[duration]}</span>
+                        <span className={`mt-1 block text-sm ${isCurrentNote ? "text-blue-100" : "text-blue-600"}`}>小节：{measure}</span>
+                        <span className={`mt-1 block text-sm ${isCurrentNote ? "text-blue-100" : "text-blue-600"}`}>拍点：{beat}</span>
+                        <span className={`mt-1 block text-sm ${isCurrentNote ? "text-blue-100" : "text-blue-600"}`}>置信度：{confidence}</span>
+                        {isLowConfidence ? (
+                          <span className={`mt-2 block text-sm font-semibold ${isCurrentNote ? "text-yellow-100" : "text-yellow-700"}`}>低置信度</span>
+                        ) : null}
                       </li>
                     );
                   })}
