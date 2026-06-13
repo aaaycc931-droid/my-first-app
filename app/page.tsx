@@ -2,7 +2,10 @@
 
 import { ChangeEvent, useState } from "react";
 
-const mockNotes = ["C4", "D4", "E4"];
+type RecognizedNote = {
+  note: string;
+  duration: "quarter" | "half";
+};
 
 type ToneSynth = {
   toDestination: () => ToneSynth;
@@ -18,13 +21,31 @@ type ToneModule = {
 
 const toneModuleUrl = "https://esm.sh/tone@15.1.22";
 
+const durationToToneValue: Record<RecognizedNote["duration"], string> = {
+  quarter: "4n",
+  half: "2n",
+};
+
+const durationToSeconds: Record<RecognizedNote["duration"], number> = {
+  quarter: 0.5,
+  half: 1,
+};
+
+const durationLabel: Record<RecognizedNote["duration"], string> = {
+  quarter: "四分音符",
+  half: "二分音符",
+};
+
 const loadTone = async () =>
   (await import(/* webpackIgnore: true */ toneModuleUrl)) as ToneModule;
 
 export default function Home() {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [fileName, setFileName] = useState("");
-  const [recognizedNotes, setRecognizedNotes] = useState<string[]>([]);
+  const [recognizedNotes, setRecognizedNotes] = useState<RecognizedNote[]>([]);
+  const [isRecognizing, setIsRecognizing] = useState(false);
+  const [recognizeError, setRecognizeError] = useState("");
   const [isPlaying, setIsPlaying] = useState(false);
 
   const handleImageUpload = (event: ChangeEvent<HTMLInputElement>) => {
@@ -35,13 +56,42 @@ export default function Home() {
     }
 
     setPreviewUrl(URL.createObjectURL(file));
+    setSelectedFile(file);
     setFileName(file.name);
     setRecognizedNotes([]);
+    setRecognizeError("");
     setIsPlaying(false);
   };
 
-  const handleRecognize = () => {
-    setRecognizedNotes(mockNotes);
+  const handleRecognize = async () => {
+    if (!selectedFile || isRecognizing) {
+      return;
+    }
+
+    setIsRecognizing(true);
+    setRecognizeError("");
+
+    const formData = new FormData();
+    formData.append("image", selectedFile);
+
+    try {
+      const response = await fetch("/api/recognize", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!response.ok) {
+        throw new Error("识别接口调用失败");
+      }
+
+      const data = (await response.json()) as { notes: RecognizedNote[] };
+      setRecognizedNotes(data.notes);
+    } catch {
+      setRecognizeError("识别失败，请稍后再试。");
+      setRecognizedNotes([]);
+    } finally {
+      setIsRecognizing(false);
+    }
   };
 
   const handlePlayRecognizedNotes = async () => {
@@ -56,15 +106,17 @@ export default function Home() {
 
     const synth = new Tone.Synth().toDestination();
     const startTime = Tone.now();
+    let offset = 0;
 
-    recognizedNotes.forEach((note, index) => {
-      synth.triggerAttackRelease(note, "8n", startTime + index * 0.5);
+    recognizedNotes.forEach(({ note, duration }) => {
+      synth.triggerAttackRelease(note, durationToToneValue[duration], startTime + offset);
+      offset += durationToSeconds[duration];
     });
 
     window.setTimeout(() => {
       synth.dispose();
       setIsPlaying(false);
-    }, recognizedNotes.length * 500 + 500);
+    }, offset * 1000 + 500);
   };
 
   return (
@@ -99,19 +151,21 @@ export default function Home() {
             className="w-full rounded-xl bg-blue-600 px-5 py-3 font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-300"
             type="button"
             onClick={handleRecognize}
-            disabled={!previewUrl}
+            disabled={!previewUrl || isRecognizing}
           >
-            开始识别
+            {isRecognizing ? "识别中" : "开始识别"}
           </button>
 
           <div className="rounded-2xl border border-slate-200 bg-white p-5">
             <h2 className="text-lg font-semibold">识别结果</h2>
+            {recognizeError ? <p className="mt-3 text-red-600">{recognizeError}</p> : null}
             {recognizedNotes.length > 0 ? (
               <>
                 <ul className="mt-4 grid gap-3 sm:grid-cols-3">
-                  {recognizedNotes.map((note) => (
-                    <li className="rounded-xl bg-blue-50 px-4 py-3 text-center font-semibold text-blue-700" key={note}>
-                      {note}
+                  {recognizedNotes.map(({ note, duration }, index) => (
+                    <li className="rounded-xl bg-blue-50 px-4 py-3 text-center text-blue-700" key={`${note}-${duration}-${index}`}>
+                      <span className="block font-semibold">{note}</span>
+                      <span className="mt-1 block text-sm text-blue-600">{durationLabel[duration]}</span>
                     </li>
                   ))}
                 </ul>
