@@ -2,20 +2,9 @@
 
 import { ChangeEvent, useState } from "react";
 
-type RecognizedNote = {
-  note: string;
-  duration: "quarter" | "half" | "whole";
-  confidence: number;
-  measure: number;
-  beat: number;
-};
+import type { RecognizedNote, RecognizeResponse } from "../lib/recognition";
 
 type RecognizeStatus = "未上传" | "已上传" | "识别中" | "识别完成" | "识别失败";
-
-type RecognizeResponse = {
-  notes?: RecognizedNote[];
-  error?: string;
-};
 
 type ToneSynth = {
   toDestination: () => ToneSynth;

@@ -1,15 +1,9 @@
 import { NextResponse } from "next/server";
 
+import type { RecognizedNote } from "../../../lib/recognition";
+
 const maxImageSize = 10 * 1024 * 1024;
 const allowedImageTypes = new Set(["image/jpeg", "image/png"]);
-
-type RecognizedNote = {
-  note: string;
-  duration: "quarter" | "half" | "whole";
-  confidence: number;
-  measure: number;
-  beat: number;
-};
 
 const mockRecognizedNotes: RecognizedNote[] = [
   { note: "C4", duration: "quarter", confidence: 0.95, measure: 1, beat: 1 },
