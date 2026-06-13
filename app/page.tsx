@@ -2,11 +2,26 @@
 
 import { ChangeEvent, useState } from "react";
 
-const mockNotes = ["C4", "D4", "E4"];
+type RecognizedNote = {
+  pitch: string;
+  duration: "quarter" | "half" | "eighth";
+};
+
+const mockNotes: RecognizedNote[] = [
+  { pitch: "C4", duration: "quarter" },
+  { pitch: "D4", duration: "half" },
+  { pitch: "E4", duration: "eighth" },
+];
+
+const durationSeconds: Record<RecognizedNote["duration"], number> = {
+  quarter: 0.5,
+  half: 1,
+  eighth: 0.25,
+};
 
 type ToneSynth = {
   toDestination: () => ToneSynth;
-  triggerAttackRelease: (note: string, duration: string, time: number) => void;
+  triggerAttackRelease: (note: string, duration: number, time: number) => void;
   dispose: () => void;
 };
 
@@ -24,8 +39,9 @@ const loadTone = async () =>
 export default function Home() {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [fileName, setFileName] = useState("");
-  const [recognizedNotes, setRecognizedNotes] = useState<string[]>([]);
+  const [recognizedNotes, setRecognizedNotes] = useState<RecognizedNote[]>([]);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [playingNoteIndex, setPlayingNoteIndex] = useState<number | null>(null);
 
   const handleImageUpload = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -38,10 +54,12 @@ export default function Home() {
     setFileName(file.name);
     setRecognizedNotes([]);
     setIsPlaying(false);
+    setPlayingNoteIndex(null);
   };
 
   const handleRecognize = () => {
     setRecognizedNotes(mockNotes);
+    setPlayingNoteIndex(null);
   };
 
   const handlePlayRecognizedNotes = async () => {
@@ -56,15 +74,25 @@ export default function Home() {
 
     const synth = new Tone.Synth().toDestination();
     const startTime = Tone.now();
+    let elapsedSeconds = 0;
 
     recognizedNotes.forEach((note, index) => {
-      synth.triggerAttackRelease(note, "8n", startTime + index * 0.5);
+      const noteDuration = durationSeconds[note.duration];
+
+      synth.triggerAttackRelease(note.pitch, noteDuration, startTime + elapsedSeconds);
+
+      window.setTimeout(() => {
+        setPlayingNoteIndex(index);
+      }, elapsedSeconds * 1000);
+
+      elapsedSeconds += noteDuration;
     });
 
     window.setTimeout(() => {
       synth.dispose();
+      setPlayingNoteIndex(null);
       setIsPlaying(false);
-    }, recognizedNotes.length * 500 + 500);
+    }, elapsedSeconds * 1000 + 100);
   };
 
   return (
@@ -109,9 +137,14 @@ export default function Home() {
             {recognizedNotes.length > 0 ? (
               <>
                 <ul className="mt-4 grid gap-3 sm:grid-cols-3">
-                  {recognizedNotes.map((note) => (
-                    <li className="rounded-xl bg-blue-50 px-4 py-3 text-center font-semibold text-blue-700" key={note}>
-                      {note}
+                  {recognizedNotes.map((note, index) => (
+                    <li
+                      className={`rounded-xl px-4 py-3 text-center font-semibold transition ${
+                        playingNoteIndex === index ? "bg-blue-600 text-white" : "bg-blue-50 text-blue-700"
+                      }`}
+                      key={`${note.pitch}-${index}`}
+                    >
+                      {note.pitch}
                     </li>
                   ))}
                 </ul>
