@@ -21,18 +21,21 @@ type ToneModule = {
 const toneModuleUrl = "https://esm.sh/tone@15.1.22";
 
 const durationToToneValue: Record<RecognizedNote["duration"], string> = {
+  eighth: "8n",
   quarter: "4n",
   half: "2n",
   whole: "1n",
 };
 
 const durationToSeconds: Record<RecognizedNote["duration"], number> = {
+  eighth: 0.25,
   quarter: 0.5,
   half: 1,
   whole: 2,
 };
 
 const durationLabel: Record<RecognizedNote["duration"], string> = {
+  eighth: "八分音符",
   quarter: "四分音符",
   half: "二分音符",
   whole: "全音符",

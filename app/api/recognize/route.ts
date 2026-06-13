@@ -1,16 +1,9 @@
 import { NextResponse } from "next/server";
 
-import type { RecognizedNote } from "../../../lib/recognition";
+import { recognizeSheetMusic } from "../../../lib/recognition/recognizeSheetMusic";
 
 const maxImageSize = 10 * 1024 * 1024;
 const allowedImageTypes = new Set(["image/jpeg", "image/png"]);
-
-const mockRecognizedNotes: RecognizedNote[] = [
-  { note: "C4", duration: "quarter", confidence: 0.95, measure: 1, beat: 1 },
-  { note: "D4", duration: "quarter", confidence: 0.88, measure: 1, beat: 2 },
-  { note: "E4", duration: "half", confidence: 0.68, measure: 1, beat: 3 },
-  { note: "G4", duration: "quarter", confidence: 0.91, measure: 2, beat: 1 },
-];
 
 export async function POST(request: Request) {
   const formData = await request.formData();
@@ -28,5 +21,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "图片大小不能超过 10MB。" }, { status: 400 });
   }
 
-  return NextResponse.json({ notes: mockRecognizedNotes });
+  const notes = await recognizeSheetMusic(image);
+
+  return NextResponse.json({ notes });
 }
