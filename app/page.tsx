@@ -7,6 +7,13 @@ type RecognizedNote = {
   duration: "quarter" | "half" | "whole";
 };
 
+type RecognizeStatus = "未上传" | "已上传" | "识别中" | "识别完成" | "识别失败";
+
+type RecognizeResponse = {
+  notes?: RecognizedNote[];
+  error?: string;
+};
+
 type ToneSynth = {
   toDestination: () => ToneSynth;
   triggerAttackRelease: (note: string, duration: string, time: number) => void;
@@ -47,6 +54,7 @@ export default function Home() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [fileName, setFileName] = useState("");
   const [recognizedNotes, setRecognizedNotes] = useState<RecognizedNote[]>([]);
+  const [recognizeStatus, setRecognizeStatus] = useState<RecognizeStatus>("未上传");
   const [isRecognizing, setIsRecognizing] = useState(false);
   const [recognizeError, setRecognizeError] = useState("");
   const [playError, setPlayError] = useState("");
@@ -64,6 +72,7 @@ export default function Home() {
     setSelectedFile(file);
     setFileName(file.name);
     setRecognizedNotes([]);
+    setRecognizeStatus("已上传");
     setRecognizeError("");
     setPlayError("");
     setIsPlaying(false);
@@ -76,6 +85,7 @@ export default function Home() {
     }
 
     setIsRecognizing(true);
+    setRecognizeStatus("识别中");
     setRecognizeError("");
     setPlayError("");
 
@@ -88,14 +98,17 @@ export default function Home() {
         body: formData,
       });
 
+      const data = (await response.json()) as RecognizeResponse;
+
       if (!response.ok) {
-        throw new Error("识别接口调用失败");
+        throw new Error(data.error || "识别接口调用失败");
       }
 
-      const data = (await response.json()) as { notes: RecognizedNote[] };
-      setRecognizedNotes(data.notes);
-    } catch {
-      setRecognizeError("识别失败，请稍后再试。");
+      setRecognizedNotes(data.notes || []);
+      setRecognizeStatus("识别完成");
+    } catch (error) {
+      setRecognizeStatus("识别失败");
+      setRecognizeError(error instanceof Error ? error.message : "识别失败，请稍后再试。");
       setRecognizedNotes([]);
     } finally {
       setIsRecognizing(false);
@@ -155,7 +168,7 @@ export default function Home() {
           <label className="block rounded-2xl border-2 border-dashed border-slate-300 bg-slate-50 p-6 text-center transition hover:border-blue-400 hover:bg-blue-50/50">
             <span className="block text-base font-semibold text-slate-800">选择图片</span>
             <span className="mt-2 block text-sm text-slate-500">支持常见图片格式，用于预览和后续识别</span>
-            <input className="sr-only" type="file" accept="image/*" onChange={handleImageUpload} />
+            <input className="sr-only" type="file" accept="image/jpeg,image/png" onChange={handleImageUpload} />
           </label>
 
           {previewUrl ? (
@@ -180,7 +193,10 @@ export default function Home() {
           </button>
 
           <div className="rounded-2xl border border-slate-200 bg-white p-5">
-            <h2 className="text-lg font-semibold">识别结果</h2>
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <h2 className="text-lg font-semibold">识别结果</h2>
+              <p className="rounded-full bg-slate-100 px-3 py-1 text-sm font-medium text-slate-600">状态：{recognizeStatus}</p>
+            </div>
             {recognizeError ? <p className="mt-3 text-red-600">{recognizeError}</p> : null}
             {recognizedNotes.length > 0 ? (
               <>
