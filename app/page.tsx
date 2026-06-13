@@ -4,10 +4,28 @@ import { ChangeEvent, useState } from "react";
 
 const mockNotes = ["C4", "D4", "E4"];
 
+type ToneSynth = {
+  toDestination: () => ToneSynth;
+  triggerAttackRelease: (note: string, duration: string, time: number) => void;
+  dispose: () => void;
+};
+
+type ToneModule = {
+  Synth: new () => ToneSynth;
+  now: () => number;
+  start: () => Promise<void>;
+};
+
+const toneModuleUrl = "https://esm.sh/tone@15.1.22";
+
+const loadTone = async () =>
+  (await import(/* webpackIgnore: true */ toneModuleUrl)) as ToneModule;
+
 export default function Home() {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [fileName, setFileName] = useState("");
   const [recognizedNotes, setRecognizedNotes] = useState<string[]>([]);
+  const [isPlaying, setIsPlaying] = useState(false);
 
   const handleImageUpload = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -19,10 +37,34 @@ export default function Home() {
     setPreviewUrl(URL.createObjectURL(file));
     setFileName(file.name);
     setRecognizedNotes([]);
+    setIsPlaying(false);
   };
 
   const handleRecognize = () => {
     setRecognizedNotes(mockNotes);
+  };
+
+  const handlePlayRecognizedNotes = async () => {
+    if (recognizedNotes.length === 0 || isPlaying) {
+      return;
+    }
+
+    setIsPlaying(true);
+
+    const Tone = await loadTone();
+    await Tone.start();
+
+    const synth = new Tone.Synth().toDestination();
+    const startTime = Tone.now();
+
+    recognizedNotes.forEach((note, index) => {
+      synth.triggerAttackRelease(note, "8n", startTime + index * 0.5);
+    });
+
+    window.setTimeout(() => {
+      synth.dispose();
+      setIsPlaying(false);
+    }, recognizedNotes.length * 500 + 500);
   };
 
   return (
@@ -65,13 +107,23 @@ export default function Home() {
           <div className="rounded-2xl border border-slate-200 bg-white p-5">
             <h2 className="text-lg font-semibold">识别结果</h2>
             {recognizedNotes.length > 0 ? (
-              <ul className="mt-4 grid gap-3 sm:grid-cols-3">
-                {recognizedNotes.map((note) => (
-                  <li className="rounded-xl bg-blue-50 px-4 py-3 text-center font-semibold text-blue-700" key={note}>
-                    {note}
-                  </li>
-                ))}
-              </ul>
+              <>
+                <ul className="mt-4 grid gap-3 sm:grid-cols-3">
+                  {recognizedNotes.map((note) => (
+                    <li className="rounded-xl bg-blue-50 px-4 py-3 text-center font-semibold text-blue-700" key={note}>
+                      {note}
+                    </li>
+                  ))}
+                </ul>
+                <button
+                  className="mt-4 w-full rounded-xl bg-slate-900 px-5 py-3 font-semibold text-white transition hover:bg-slate-700 disabled:cursor-not-allowed disabled:bg-slate-300"
+                  type="button"
+                  onClick={handlePlayRecognizedNotes}
+                  disabled={isPlaying}
+                >
+                  {isPlaying ? "正在播放" : "播放识别结果"}
+                </button>
+              </>
             ) : (
               <p className="mt-3 text-slate-500">点击“开始识别”后，会显示识别到的音符列表。</p>
             )}
