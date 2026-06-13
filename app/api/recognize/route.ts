@@ -3,11 +3,19 @@ import { NextResponse } from "next/server";
 const maxImageSize = 10 * 1024 * 1024;
 const allowedImageTypes = new Set(["image/jpeg", "image/png"]);
 
-const mockRecognizedNotes = [
-  { note: "C4", duration: "quarter" },
-  { note: "D4", duration: "quarter" },
-  { note: "E4", duration: "half" },
-  { note: "G4", duration: "quarter" },
+type RecognizedNote = {
+  note: string;
+  duration: "quarter" | "half" | "whole";
+  confidence: number;
+  measure: number;
+  beat: number;
+};
+
+const mockRecognizedNotes: RecognizedNote[] = [
+  { note: "C4", duration: "quarter", confidence: 0.95, measure: 1, beat: 1 },
+  { note: "D4", duration: "quarter", confidence: 0.88, measure: 1, beat: 2 },
+  { note: "E4", duration: "half", confidence: 0.68, measure: 1, beat: 3 },
+  { note: "G4", duration: "quarter", confidence: 0.91, measure: 2, beat: 1 },
 ];
 
 export async function POST(request: Request) {
