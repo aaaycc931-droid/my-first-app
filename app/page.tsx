@@ -8,7 +8,7 @@ type RecognizeStatus = "未上传" | "已上传" | "识别中" | "识别完成" 
 
 type ToneSynth = {
   toDestination: () => ToneSynth;
-  triggerAttackRelease: (note: string, duration: string, time: number) => void;
+  triggerAttackRelease: (note: string, duration: number, time: number) => void;
   dispose: () => void;
 };
 
@@ -20,19 +20,19 @@ type ToneModule = {
 
 const toneModuleUrl = "https://esm.sh/tone@15.1.22";
 
-const durationToToneValue: Record<RecognizedNote["duration"], string> = {
-  eighth: "8n",
-  quarter: "4n",
-  half: "2n",
-  whole: "1n",
+const durationToBeats: Record<RecognizedNote["duration"], number> = {
+  eighth: 0.5,
+  quarter: 1,
+  half: 2,
+  whole: 4,
 };
 
-const durationToSeconds: Record<RecognizedNote["duration"], number> = {
-  eighth: 0.25,
-  quarter: 0.5,
-  half: 1,
-  whole: 2,
-};
+const minBpm = 40;
+const maxBpm = 240;
+const defaultBpm = 120;
+
+const calculateDurationSeconds = (duration: RecognizedNote["duration"], bpm: number) =>
+  durationToBeats[duration] * (60 / bpm);
 
 const durationLabel: Record<RecognizedNote["duration"], string> = {
   eighth: "八分音符",
@@ -55,6 +55,7 @@ export default function Home() {
   const [playError, setPlayError] = useState("");
   const [isPlaying, setIsPlaying] = useState(false);
   const [playingNoteIndex, setPlayingNoteIndex] = useState<number | null>(null);
+  const [bpm, setBpm] = useState(defaultBpm);
 
   const handleImageUpload = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -72,6 +73,16 @@ export default function Home() {
     setPlayError("");
     setIsPlaying(false);
     setPlayingNoteIndex(null);
+  };
+
+  const handleBpmChange = (event: ChangeEvent<HTMLInputElement>) => {
+    const nextBpm = Number(event.target.value);
+
+    if (Number.isNaN(nextBpm)) {
+      return;
+    }
+
+    setBpm(Math.min(maxBpm, Math.max(minBpm, nextBpm)));
   };
 
   const handleRecognize = async () => {
@@ -130,12 +141,14 @@ export default function Home() {
       recognizedNotes.forEach(({ note, duration }, index) => {
         const noteOffset = offset;
 
-        synth.triggerAttackRelease(note, durationToToneValue[duration], startTime + noteOffset);
+        const noteDuration = calculateDurationSeconds(duration, bpm);
+
+        synth.triggerAttackRelease(note, noteDuration, startTime + noteOffset);
         window.setTimeout(() => {
           setPlayingNoteIndex(index);
         }, noteOffset * 1000);
 
-        offset += durationToSeconds[duration];
+        offset += noteDuration;
       });
 
       window.setTimeout(() => {
@@ -219,6 +232,37 @@ export default function Home() {
                     );
                   })}
                 </ul>
+
+                <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                    <label className="font-semibold text-slate-800" htmlFor="bpm-control">
+                      当前速度：{bpm} BPM
+                    </label>
+                    <span className="text-sm text-slate-500">范围：{minBpm} 到 {maxBpm} BPM</span>
+                  </div>
+                  <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center">
+                    <input
+                      className="w-full accent-blue-600 disabled:cursor-not-allowed disabled:opacity-60"
+                      id="bpm-control"
+                      type="range"
+                      min={minBpm}
+                      max={maxBpm}
+                      value={bpm}
+                      onChange={handleBpmChange}
+                      disabled={isPlaying}
+                    />
+                    <input
+                      className="w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900 disabled:cursor-not-allowed disabled:bg-slate-100 sm:w-28"
+                      type="number"
+                      min={minBpm}
+                      max={maxBpm}
+                      value={bpm}
+                      onChange={handleBpmChange}
+                      disabled={isPlaying}
+                      aria-label="BPM 数值"
+                    />
+                  </div>
+                </div>
                 {playError ? <p className="mt-4 text-red-600">{playError}</p> : null}
                 <button
                   className="mt-4 w-full rounded-xl bg-slate-900 px-5 py-3 font-semibold text-white transition hover:bg-slate-700 disabled:cursor-not-allowed disabled:bg-slate-300"
