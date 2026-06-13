@@ -8,5 +8,5 @@ const mockRecognizedNotes: RecognizedNote[] = [
 ];
 
 export async function mockRecognizer(_image: File): Promise<RecognizedNote[]> {
-  return mockRecognizedNotes;
+  return mockRecognizedNotes.map((note) => ({ ...note }));
 }
