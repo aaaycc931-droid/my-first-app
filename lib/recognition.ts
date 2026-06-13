@@ -1,14 +1,3 @@
-export type RecognizedNoteDuration = "quarter" | "half" | "whole";
-
-export type RecognizedNote = {
-  note: string;
-  duration: RecognizedNoteDuration;
-  confidence: number;
-  measure: number;
-  beat: number;
-};
-
-export type RecognizeResponse = {
-  notes?: RecognizedNote[];
-  error?: string;
-};
+export type { RecognizedNote, RecognizedNoteDuration, RecognizeResponse } from "./recognition/recognitionTypes";
+export { mockRecognizer } from "./recognition/mockRecognizer";
+export { recognizeSheetMusic } from "./recognition/recognizeSheetMusic";
