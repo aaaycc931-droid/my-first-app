@@ -16,6 +16,8 @@ RecognizeResponse
 
 - 输入 fixture：`lib/musicxml/__fixtures__/simple-score.musicxml`
 - 预期 notes：`lib/musicxml/__fixtures__/simple-score.expected.json`
+- OMR-like fixture：`lib/musicxml/__fixtures__/omr-like-score.musicxml`
+- OMR-like 预期 notes：`lib/musicxml/__fixtures__/omr-like-score.expected.json`
 
 预期文件只固化 `notes`，因为这是 parser 和 recognizer 之间最重要的 MVP 数据边界。
 dev API 的完整响应还应包含顶层 `source: "musicxml"`、MusicXML metadata 和
@@ -74,6 +76,47 @@ process.stdin.on("end", () => {
 '
 ```
 
+## 验证 OMR-like MusicXML
+
+`omr-like-score.musicxml` 是手写的兼容性样本，用于模拟比基础样例更接近真实 OMR
+导出结果的 MusicXML 结构。它包含 metadata、`part-list`、`key`、`time`、`clef`、
+单个 part、两个 measure、休止符以及升降记号，但它不来自 Audiveris，也不代表完整的
+Audiveris 输出或完整 MusicXML 标准。
+
+这个样本用于验证 parser 能在额外导出结构存在时继续读取单声部、单 staff notes，并
+兼容：
+
+- `attributes` 中的 `divisions`、`key`、`time` 和 `clef`
+- `part-list` 与 `score-part`
+- 不输出 rest，但按其时值推进 beat
+- `alter=1` 的 `F#4` 和 `alter=-1` 的 `Bb4`
+- quarter、half 和 eighth 类型及两个 measure 的编号
+
+保持 dev API 已开启后，可以上传该 fixture 并将 notes 与 expected JSON 对比：
+
+```bash
+curl --fail-with-body --silent \
+  -X POST \
+  -F "file=@lib/musicxml/__fixtures__/omr-like-score.musicxml;type=application/vnd.recordare.musicxml+xml" \
+  http://localhost:3000/api/dev/recognize-musicxml \
+  | node -e '
+let body = "";
+process.stdin.on("data", (chunk) => body += chunk);
+process.stdin.on("end", () => {
+  process.stdout.write(JSON.stringify({ notes: JSON.parse(body).notes }, null, 2) + "\n");
+});
+' > /tmp/omr-like-score.actual.json
+
+diff -u \
+  lib/musicxml/__fixtures__/omr-like-score.expected.json \
+  /tmp/omr-like-score.actual.json
+```
+
+`diff` 没有输出且退出码为 `0` 表示实际 notes 与
+`omr-like-score.expected.json` 一致。预期结果包含 7 个音符、`F#4` 和 `Bb4`；
+measure 2 的 eighth rest 不出现在 notes 中，但其后的 `D5` 应位于 beat 2.5。所有
+notes 的 `source` 都应为 `"musicxml"`。
+
 ## 验证 API 默认关闭
 
 停止已开启的开发服务器，并在未设置环境变量时重新启动：
@@ -121,7 +164,8 @@ process.stdin.on("end", () => {
 
 ## 当前范围
 
-这组 fixture 只验证当前单声部、基础时值、升号和休止符拍点处理的 MVP MusicXML
-能力。它不代表完整 MusicXML 标准支持，也不代表图片到乐谱的完整 OMR 能力。未来接入
+这组 fixture 只验证当前单声部、单 staff、基础时值、升降号和休止符拍点处理的 MVP
+MusicXML 能力。OMR-like fixture 只是对常见导出层级的模拟，不代表完整 MusicXML
+标准支持，也不代表真实 Audiveris 输出或图片到乐谱的完整 OMR 能力。未来接入
 Audiveris 时，应继续让其 MusicXML 输出经过这里固化的 recognizer/parser 边界，并在
 获得真实输出样本后增量增加 fixture，而不是改坏现有样例行为。
