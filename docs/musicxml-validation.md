@@ -36,6 +36,28 @@ dev API 的完整响应还应包含顶层 `source: "musicxml"`、MusicXML metada
 未来真实样本的来源记录、命名、接入顺序和 parser 增强边界见
 `docs/audiveris-sample-intake.md`。
 
+## 自动回归验证
+
+使用 Node.js 内置能力运行全部 MusicXML fixture 的 parser 回归验证：
+
+```bash
+npm run validate:musicxml
+```
+
+当前脚本覆盖：
+
+- `lib/musicxml/__fixtures__/simple-score.musicxml`
+- `lib/musicxml/__fixtures__/omr-like-score.musicxml`
+- `lib/musicxml/__fixtures__/audiveris/audiveris-basic-01.musicxml`
+
+脚本会调用 `parseMusicXML`，并将每份输出与同名的 `expected.json` 对比。验证范围包括
+`notes.length`，以及每个 note 的 `pitch`、`note`、`duration`、`measure`、`beat`、
+`confidence` 和 `source`。任一字段不一致时命令以非零状态退出。
+
+该命令验证的是当前 parser 输出的稳定性，不验证图片识别流程，也不代表 OMR 准确率。
+新增真实 Audiveris fixture 时，必须同步新增或更新对应的 `expected.json`，将 fixture
+加入验证脚本，并运行 `npm run validate:musicxml`。
+
 ## 手动验证样例 MusicXML
 
 项目目前没有 test script 或已有测试框架，因此 Phase A6 不新增测试依赖。可以通过
