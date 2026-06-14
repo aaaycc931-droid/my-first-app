@@ -1,4 +1,4 @@
-# MusicXML 网页导入 UI（Phase A15）
+# MusicXML 网页导入 UI（Phase A15 / A16）
 
 ## 用途与边界
 
@@ -19,6 +19,9 @@ POST /api/dev/recognize-musicxml
 
 这不代表系统已经可以自动识别上传的五线谱图片。图片上传仍调用
 `POST /api/recognize`，默认 provider 仍然是 `mock`。
+
+换言之，这个入口是已有 MusicXML 文件的开发验证工具，不是自动 OMR 图片识别功能，
+也不会把图片转换成 MusicXML。
 
 ## 开启方式
 
@@ -42,6 +45,8 @@ npm run dev
 - 未设置 `NEXT_PUBLIC_MUSICXML_IMPORT_ENABLED=true` 时，页面不会显示实验导入区域。
 - 未设置 `MUSICXML_DEV_API_ENABLED=true` 时，dev API 返回 `404`；即使页面入口开启，也
   无法完成导入。
+- `NEXT_PUBLIC_MUSICXML_IMPORT_ENABLED` 只控制浏览器页面入口，
+  `MUSICXML_DEV_API_ENABLED` 只控制服务端 dev API；两者互不替代。
 
 ## 从 Audiveris GUI 准备文件
 
@@ -65,7 +70,21 @@ npm run dev
    Tone.js 播放按钮。
 
 如果选择 `.mxl`，页面会明确提示先将其改名为 `.zip` 并解压出内部 XML 文件，不会
-尝试上传或解压该文件。其他扩展名也会被拒绝。
+尝试上传或解压该文件。`.mxl` 解压仍是人工步骤，其他扩展名也会被拒绝。
+
+## QA 与静态验证
+
+Phase A16 的完整手动验证步骤见
+[`docs/musicxml-import-ui-qa.md`](./musicxml-import-ui-qa.md)，覆盖默认隐藏、开关开启、
+`.musicxml` / `.xml` 导入、`.mxl` 拒绝、API 未开启错误和图片上传回归。
+
+无需浏览器的轻量静态检查可通过以下命令运行：
+
+```bash
+npm run validate:musicxml-import-ui
+```
+
+该检查不会启动 Next.js server，也不会让 `validate:musicxml` 依赖 UI 或浏览器。
 
 ## 保持不变的行为
 
