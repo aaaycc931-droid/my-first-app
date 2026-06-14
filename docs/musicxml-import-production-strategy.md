@@ -43,9 +43,12 @@ Phase A20 的验收依据见
 9. 已明确评估 `POST /api/dev/recognize-musicxml` 在正式环境的暴露范围，包括访问对象、
    可发现性、上传限制、滥用风险、日志内容和关闭责任人。
 10. 已确认可接受的文件大小及请求限制，并验证超限文件会被安全、友好地拒绝。
-11. 发布负责人已确认该能力仍是 MusicXML 导入播放，而不是自动图片识别或完整 OMR，
+11. 已完成 fixture metrics / sample sizing 评估，记录样本文件大小、解析 notes 数量
+    和解析耗时，并用真实样本持续验证当前 2 MB 限制。当前指标见
+    [`docs/musicxml-fixture-metrics.md`](./musicxml-fixture-metrics.md)。
+12. 发布负责人已确认该能力仍是 MusicXML 导入播放，而不是自动图片识别或完整 OMR，
     且用户说明不会造成能力误解。
-12. 已在发布前演练环境变量关闭与重新部署流程，确认可以独立隐藏 UI 和关闭 dev API。
+13. 已在发布前演练环境变量关闭与重新部署流程，确认可以独立隐藏 UI 和关闭 dev API。
 
 任一条件未满足时，应继续保持 Preview-only，不进入 Production。
 
@@ -87,7 +90,10 @@ Phase A20 的验收依据见
 用户可能上传体积较大或结构复杂的 MusicXML，导致请求耗时、内存使用、解析时间或响应
 体积增加。明确且经过验证的上传限制是 Production 前置条件之一。当前 MVP/dev-only
 入口限制为 2 MB，并对超限文件显示友好错误；该数值应根据真实样本、解析耗时和运行
-环境资源继续评估和调整，不能替代未来对请求时长和并发限制的确认。
+环境资源继续评估和调整，不能替代未来对请求时长和并发限制的确认。仓库 fixture 的
+sample sizing 与轻量解析指标记录在
+[`docs/musicxml-fixture-metrics.md`](./musicxml-fixture-metrics.md)；2 MB 限制仍需随新增
+真实样本持续验证，不能只依据当前有限样本固定为 Production 长期限制。
 
 ### MVP 解析范围
 
