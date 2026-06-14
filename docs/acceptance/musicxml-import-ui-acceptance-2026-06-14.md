@@ -1,29 +1,24 @@
-# MusicXML 网页导入 UI 人工浏览器验收记录（Phase A17）
+# MusicXML 网页导入 UI 人工浏览器验收记录（2026-06-14）
 
-> 每次实际验收可以复制本模板到 `docs/acceptance/` 下，并在文件名中包含验收日期。
-> 验收记录可以先作为草稿提交，待实际测试后再补充 `Passed` / `Failed` 结果和截图链接。
-> 这是人工浏览器验收记录，不是自动化测试。
+## 记录状态
 
-## 用途
-
-本模板用于在本地浏览器中逐项验证 dev-only、experimental MusicXML 导入功能并记录结果。
-它是人工验收记录，不是自动化测试，也不会替代 Phase A16 的静态验证脚本。
-
-建议每次验收复制一份本模板，填写实际环境、结果、问题和截图位置。每个场景可填写
-`Passed`、`Failed` 或 `Not run`，并在备注中记录实际观察。
+- Status: Draft
+- 本记录基于 `docs/musicxml-import-ui-acceptance.md` 创建。
+- 这是人工浏览器验收记录，不是自动化测试。
+- 实际测试后填写各场景的 `Passed` / `Failed`、备注和截图链接。
 
 ## 1. 环境信息
 
 | 项目 | 记录 |
 | --- | --- |
-| Date |  |
-| OS |  |
-| Browser |  |
-| Node version |  |
-| Branch / commit |  |
+| Date | 2026-06-14 |
+| OS | 待填写 |
+| Browser | 待填写 |
+| Node version | 待填写 |
+| Commit | 待填写 |
 | URL | `http://localhost:3000` |
-| `NEXT_PUBLIC_MUSICXML_IMPORT_ENABLED` |  |
-| `MUSICXML_DEV_API_ENABLED` |  |
+| `NEXT_PUBLIC_MUSICXML_IMPORT_ENABLED` | 待按场景填写 |
+| `MUSICXML_DEV_API_ENABLED` | 待按场景填写 |
 
 ## 2. 场景 A：默认隐藏
 
@@ -39,10 +34,10 @@
 
 ### 验收记录
 
-- Result: [ ] Passed [ ] Failed [ ] Not run
-- Actual:
-- Notes:
-- Screenshot:
+- Passed: [ ]
+- Failed: [ ]
+- Notes: 待填写
+- Screenshot: 待填写
 
 ## 3. 场景 B：只开 UI，不开 API
 
@@ -67,12 +62,10 @@
 
 ### 验收记录
 
-- Result: [ ] Passed [ ] Failed [ ] Not run
-- Actual:
-- Error message:
-- Image upload regression result:
-- Notes:
-- Screenshot:
+- Passed: [ ]
+- Failed: [ ]
+- Notes: 待填写（包括实际错误信息和图片上传回归结果）
+- Screenshot: 待填写
 
 ## 4. 场景 C：UI 和 API 都开启
 
@@ -97,10 +90,10 @@
 
 ### 验收记录
 
-- Result: [ ] Passed [ ] Failed [ ] Not run
-- Actual note count:
-- Notes:
-- Screenshot:
+- Passed: [ ]
+- Failed: [ ]
+- Notes: 待填写（包括实际 note 数量）
+- Screenshot: 待填写
 
 ## 5. 场景 D：播放验证
 
@@ -122,12 +115,10 @@
 
 ### 验收记录
 
-- Result: [ ] Passed [ ] Failed [ ] Not run
-- BPM tested:
-- Playback result:
-- Highlight result:
-- Notes:
-- Screenshot:
+- Passed: [ ]
+- Failed: [ ]
+- Notes: 待填写（包括测试 BPM、播放结果和高亮结果）
+- Screenshot: 待填写
 
 ## 6. 场景 E：`.xml` 扩展名验证
 
@@ -149,10 +140,10 @@
 
 ### 验收记录
 
-- Result: [ ] Passed [ ] Failed [ ] Not run
-- Actual note count:
-- Notes:
-- Screenshot:
+- Passed: [ ]
+- Failed: [ ]
+- Notes: 待填写（包括实际 note 数量）
+- Screenshot: 待填写
 
 ## 7. 场景 F：`.mxl` 拒绝
 
@@ -167,11 +158,10 @@
 
 ### 验收记录
 
-- Result: [ ] Passed [ ] Failed [ ] Not run
-- Upload attempted: [ ] Yes [ ] No
-- Actual message:
-- Notes:
-- Screenshot:
+- Passed: [ ]
+- Failed: [ ]
+- Notes: 待填写（包括是否尝试上传和实际提示信息）
+- Screenshot: 待填写
 
 ## 8. 场景 G：图片上传回归
 
@@ -190,18 +180,19 @@
 
 ### 验收记录
 
-- Result: [ ] Passed [ ] Failed [ ] Not run
-- Request URL / method:
-- Mock result:
-- Notes:
-- Screenshot:
+- Passed: [ ]
+- Failed: [ ]
+- Notes: 待填写（包括请求 URL、方法和 mock 结果）
+- Screenshot: 待填写
 
-## 9. 结论
+## 9. 最终结果
 
-- Overall: [ ] Passed [ ] Failed
-- Issues found:
-  -
-- Screenshots collected:
-  -
-- Follow-up tasks:
-  -
+- Final result: [ ] Passed [ ] Failed [ ] Not run
+
+## 10. Issues found
+
+- 待填写
+
+## 11. Follow-up tasks
+
+- 待填写
