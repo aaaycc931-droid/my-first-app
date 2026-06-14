@@ -5,6 +5,11 @@
 本清单验证 dev-only、experimental MusicXML 导入入口的关键边界。它不替代自动化浏览器
 测试，也不验证自动 OMR 图片识别。执行前请确认仓库依赖已安装。
 
+Phase A17 新增了
+[`docs/musicxml-import-ui-acceptance.md`](./musicxml-import-ui-acceptance.md)，用于在本地浏览器
+中逐项执行场景并记录环境、实际结果、问题和截图。该文件是人工浏览器验收记录模板，
+不是自动化测试，也不会新增或运行浏览器自动化框架。
+
 ## A. 默认隐藏
 
 1. 确保没有设置 `NEXT_PUBLIC_MUSICXML_IMPORT_ENABLED`。
