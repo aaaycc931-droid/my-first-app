@@ -27,13 +27,36 @@ dev API 的完整响应还应包含顶层 `source: "musicxml"`、MusicXML metada
 
 - `simple-score` 是用于验证基础解析行为的 synthetic fixture。
 - `omr-like-score` 是手写的 OMR-like synthetic fixture，只模拟常见 OMR 导出层级。
-- `lib/musicxml/__fixtures__/audiveris/` 目录只用于未来加入有来源说明的真实
-  Audiveris fixture。
-- 当前仓库还没有真实 Audiveris 输出样本。
+- `lib/musicxml/__fixtures__/audiveris/` 目录用于存放有来源说明的真实 Audiveris
+  fixture。
+- `audiveris-basic-01.musicxml` 是第一份真实 Audiveris 5.10.2 导出样本，并配套
+  `audiveris-basic-01.expected.json` 和来源记录。
 - 不得把 `omr-like-score` 描述或用作真实 Audiveris 识别结果。
 
 未来真实样本的来源记录、命名、接入顺序和 parser 增强边界见
 `docs/audiveris-sample-intake.md`。
+
+## 自动回归验证
+
+使用 Node.js 内置能力运行全部 MusicXML fixture 的 parser 回归验证：
+
+```bash
+npm run validate:musicxml
+```
+
+当前脚本覆盖：
+
+- `lib/musicxml/__fixtures__/simple-score.musicxml`
+- `lib/musicxml/__fixtures__/omr-like-score.musicxml`
+- `lib/musicxml/__fixtures__/audiveris/audiveris-basic-01.musicxml`
+
+脚本会调用 `parseMusicXML`，并将每份输出与同名的 `expected.json` 对比。验证范围包括
+`notes.length`，以及每个 note 的 `pitch`、`note`、`duration`、`measure`、`beat`、
+`confidence` 和 `source`。任一字段不一致时命令以非零状态退出。
+
+该命令验证的是当前 parser 输出的稳定性，不验证图片识别流程，也不代表 OMR 准确率。
+新增真实 Audiveris fixture 时，必须同步新增或更新对应的 `expected.json`，将 fixture
+加入验证脚本，并运行 `npm run validate:musicxml`。
 
 ## 手动验证样例 MusicXML
 
@@ -128,6 +151,44 @@ diff -u \
 `omr-like-score.expected.json` 一致。预期结果包含 7 个音符、`F#4` 和 `Bb4`；
 measure 2 的 eighth rest 不出现在 notes 中，但其后的 `D5` 应位于 beat 2.5。所有
 notes 的 `source` 都应为 `"musicxml"`。
+
+## 验证真实 Audiveris MusicXML
+
+`lib/musicxml/__fixtures__/audiveris/audiveris-basic-01.musicxml` 是真实 Audiveris
+5.10.2 导出样本，不是 synthetic 或 OMR-like 手写样本。相同目录下的
+`audiveris-basic-01.source.md` 记录来源和 metadata 脱敏情况，
+`audiveris-basic-01.expected.json` 固化当前 MVP parser 输出的 notes。
+
+保持 dev API 已开启后，可以上传真实 fixture，并把响应中的 notes 与 expected JSON
+直接比较：
+
+```bash
+curl --fail-with-body --silent \
+  -X POST \
+  -F "file=@lib/musicxml/__fixtures__/audiveris/audiveris-basic-01.musicxml;type=application/vnd.recordare.musicxml+xml" \
+  http://localhost:3000/api/dev/recognize-musicxml \
+  | node -e '
+let body = "";
+process.stdin.on("data", (chunk) => body += chunk);
+process.stdin.on("end", () => {
+  process.stdout.write(JSON.stringify({ notes: JSON.parse(body).notes }, null, 2) + "\n");
+});
+' > /tmp/audiveris-basic-01.actual.json
+
+diff -u \
+  lib/musicxml/__fixtures__/audiveris/audiveris-basic-01.expected.json \
+  /tmp/audiveris-basic-01.actual.json
+```
+
+`diff` 没有输出且退出码为 `0` 表示 notes 数量以及每项的 `pitch`、`note`、
+`duration`、`measure`、`beat`、`confidence` 和 `source` 均与 expected 一致。当前
+expected 包含 226 个 notes，所有 note 的 `source` 都应为 `"musicxml"`。
+
+这份 expected 验证的是当前受限 parser 对真实导出文件的稳定解析结果，不是对原始
+乐谱的人工校正，也不代表最终 OMR 识别准确率。Audiveris 曾提示该样本原图的
+interline value 较低，因此这份样本尤其不应被用作最终 OMR 效果基准。当前 parser
+仍只承诺 MVP 子集；样本中的多 part、chord、dotted note 等结构不会在 A9 扩展为完整
+MusicXML 语义支持。
 
 ## 验证 API 默认关闭
 
