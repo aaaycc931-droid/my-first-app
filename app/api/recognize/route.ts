@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
-import { recognizeSheetMusic } from "../../../lib/recognition/recognizeSheetMusic";
+import { recognizeSheetMusic } from "../../../lib/recognition/recognizer";
+import type { RecognizeResponse } from "../../../lib/recognition/types";
 
 const maxImageSize = 10 * 1024 * 1024;
 const allowedImageTypes = new Set(["image/jpeg", "image/png"]);
@@ -23,5 +24,7 @@ export async function POST(request: Request) {
 
   const notes = await recognizeSheetMusic(image);
 
-  return NextResponse.json({ notes });
+  const response: RecognizeResponse = { notes };
+
+  return NextResponse.json(response);
 }

@@ -1,3 +1,3 @@
-export type { RecognizedNote, RecognizedNoteDuration, RecognizeResponse } from "./recognition/recognitionTypes";
+export type { RecognizedNote, RecognizedNoteDuration, RecognizedNoteSource, RecognizeResponse } from "./recognition/types";
 export { mockRecognizer } from "./recognition/mockRecognizer";
-export { recognizeSheetMusic } from "./recognition/recognizeSheetMusic";
+export { recognizeSheetMusic } from "./recognition/recognizer";
