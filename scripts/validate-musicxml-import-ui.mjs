@@ -25,8 +25,23 @@ try {
   );
   assert.match(
     pageSource,
-    /setRecognizedNotes\(data\.notes \|\| \[\]\)/,
+    /setRecognizedNotes\(importedNotes\)/,
     "Successful MusicXML imports must continue to reuse the recognized notes state.",
+  );
+  assert.match(
+    pageSource,
+    /正在解析 MusicXML\.\.\./,
+    "MusicXML import UI must show an importing status.",
+  );
+  assert.match(
+    pageSource,
+    /导入成功，已解析 \{importedMusicXMLNoteCount\} 个音符/,
+    "MusicXML import UI must show the imported note count.",
+  );
+  assert.match(
+    pageSource,
+    /disabled=\{!musicXMLFile \|\| isImportingMusicXML\}/,
+    "MusicXML import button must remain disabled without a valid file or while importing.",
   );
 
   await Promise.all([access(uiDocsUrl), access(qaDocsUrl)]);
@@ -35,6 +50,8 @@ try {
   console.log("✓ Dev-only MusicXML API endpoint found.");
   console.log("✓ .mxl rejection guidance found.");
   console.log("✓ Existing recognized notes state reuse found.");
+  console.log("✓ MusicXML importing and success status feedback found.");
+  console.log("✓ MusicXML import button disabled states found.");
   console.log("✓ MusicXML import UI documentation and QA checklist found.");
   console.log("MusicXML import UI static validation passed.");
 } catch (error) {

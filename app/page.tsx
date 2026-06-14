@@ -5,6 +5,7 @@ import { ChangeEvent, useState } from "react";
 import type { RecognizedNote, RecognizeResponse } from "../lib/recognition";
 
 type RecognizeStatus = "未上传" | "已上传" | "识别中" | "识别完成" | "识别失败";
+type MusicXMLImportStatus = "idle" | "importing" | "success" | "error";
 
 type ToneSynth = {
   toDestination: () => ToneSynth;
@@ -61,6 +62,9 @@ export default function Home() {
   const [musicXMLFile, setMusicXMLFile] = useState<File | null>(null);
   const [musicXMLImportError, setMusicXMLImportError] = useState("");
   const [isImportingMusicXML, setIsImportingMusicXML] = useState(false);
+  const [musicXMLImportStatus, setMusicXMLImportStatus] =
+    useState<MusicXMLImportStatus>("idle");
+  const [importedMusicXMLNoteCount, setImportedMusicXMLNoteCount] = useState(0);
 
   const handleImageUpload = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -95,6 +99,8 @@ export default function Home() {
 
     setMusicXMLFile(null);
     setMusicXMLImportError("");
+    setMusicXMLImportStatus("idle");
+    setImportedMusicXMLNoteCount(0);
 
     if (!file) {
       return;
@@ -106,12 +112,14 @@ export default function Home() {
       setMusicXMLImportError(
         "当前网页导入仅支持 .musicxml/.xml，请先将 .mxl 改名为 .zip 并解压出内部 XML 文件。",
       );
+      setMusicXMLImportStatus("error");
       event.target.value = "";
       return;
     }
 
     if (extension !== "musicxml" && extension !== "xml") {
       setMusicXMLImportError("请选择 .musicxml 或 .xml 文件。");
+      setMusicXMLImportStatus("error");
       event.target.value = "";
       return;
     }
@@ -125,6 +133,7 @@ export default function Home() {
     }
 
     setIsImportingMusicXML(true);
+    setMusicXMLImportStatus("importing");
     setMusicXMLImportError("");
     setRecognizeError("");
     setPlayError("");
@@ -143,11 +152,16 @@ export default function Home() {
         throw new Error(data.error || "MusicXML 导入接口调用失败。");
       }
 
-      setRecognizedNotes(data.notes || []);
+      const importedNotes = data.notes || [];
+
+      setRecognizedNotes(importedNotes);
+      setImportedMusicXMLNoteCount(importedNotes.length);
+      setMusicXMLImportStatus("success");
       setRecognizeStatus("识别完成");
       setIsPlaying(false);
       setPlayingNoteIndex(null);
     } catch (error) {
+      setMusicXMLImportStatus("error");
       setMusicXMLImportError(
         error instanceof Error
           ? error.message
@@ -298,16 +312,29 @@ export default function Home() {
                 />
               </label>
 
-              {musicXMLFile ? (
-                <p className="mt-2 text-sm text-slate-600">
-                  已选择：{musicXMLFile.name}
-                </p>
-              ) : null}
-              {musicXMLImportError ? (
-                <p className="mt-3 text-sm text-red-600">
-                  {musicXMLImportError}
-                </p>
-              ) : null}
+              <div className="mt-3 text-sm" aria-live="polite">
+                {musicXMLFile ? (
+                  <p className="text-slate-600">已选择：{musicXMLFile.name}</p>
+                ) : null}
+                {musicXMLImportStatus === "idle" && !musicXMLFile ? (
+                  <p className="text-slate-600">
+                    请选择 .musicxml 或 .xml 文件。
+                  </p>
+                ) : null}
+                {musicXMLImportStatus === "importing" ? (
+                  <p className="font-medium text-amber-700">
+                    正在解析 MusicXML...
+                  </p>
+                ) : null}
+                {musicXMLImportStatus === "success" ? (
+                  <p className="font-medium text-green-700">
+                    导入成功，已解析 {importedMusicXMLNoteCount} 个音符
+                  </p>
+                ) : null}
+                {musicXMLImportStatus === "error" && musicXMLImportError ? (
+                  <p className="text-red-600">{musicXMLImportError}</p>
+                ) : null}
+              </div>
 
               <button
                 className="mt-4 w-full rounded-xl bg-amber-600 px-5 py-3 font-semibold text-white transition hover:bg-amber-700 disabled:cursor-not-allowed disabled:bg-slate-300"
@@ -315,7 +342,11 @@ export default function Home() {
                 onClick={handleMusicXMLImport}
                 disabled={!musicXMLFile || isImportingMusicXML}
               >
-                {isImportingMusicXML ? "导入中" : "导入并验证播放"}
+                {isImportingMusicXML
+                  ? "正在导入..."
+                  : musicXMLImportStatus === "success"
+                    ? "重新导入 MusicXML"
+                    : "导入并验证播放"}
               </button>
             </div>
           ) : null}

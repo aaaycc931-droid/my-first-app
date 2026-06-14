@@ -1,4 +1,4 @@
-# MusicXML 网页导入 UI 手动 QA（Phase A16）
+# MusicXML 网页导入 UI 手动 QA（Phase A16 / A19）
 
 ## 范围
 
@@ -35,9 +35,11 @@ Phase A17 新增了
 1. 在两个开关均开启时，选择
    `lib/musicxml/__fixtures__/simple-score.musicxml`。
 2. 点击“导入并验证播放”。
-3. 确认现有“识别结果”区域显示 5 个 notes。
-4. 确认 BPM 滑块、BPM 数值输入框和“播放识别结果”按钮仍可用。
-5. 可将同一 fixture 复制为 `.xml` 后重复上述步骤，确认 `.xml` 扩展名也可进入导入流程。
+3. 确认导入期间显示“正在解析 MusicXML...”，按钮显示“正在导入...”且不可重复点击。
+4. 确认成功后显示“导入成功，已解析 5 个音符”，按钮变为“重新导入 MusicXML”。
+5. 确认现有“识别结果”区域显示 5 个 notes。
+6. 确认 BPM 滑块、BPM 数值输入框和“播放识别结果”按钮仍可用。
+7. 可将同一 fixture 复制为 `.xml` 后重复上述步骤，确认 `.xml` 扩展名也可进入导入流程。
 
 ## D. `.mxl` 拒绝
 
@@ -57,9 +59,16 @@ Phase A17 新增了
 
 2. 选择 `lib/musicxml/__fixtures__/simple-score.musicxml` 并尝试导入。
 3. 确认页面在 MusicXML 导入区域显示友好错误，页面其余区域仍可操作。
-4. 再选择一张图片并调用现有图片识别流程，确认 MusicXML 错误不会破坏图片上传 MVP。
+4. 确认错误状态下不显示成功文案，且可重新选择有效文件后再次导入。
+5. 再选择一张图片并调用现有图片识别流程，确认 MusicXML 错误不会破坏图片上传 MVP。
 
-## F. 回归确认
+## F. 初始与不支持文件状态
+
+1. 未选择文件时，确认页面提示“请选择 .musicxml 或 .xml 文件。”，导入按钮不可用。
+2. 选择 `.mxl` 或其他不支持的扩展名时，确认显示对应友好错误，导入按钮保持不可用。
+3. 重新选择有效的 `.musicxml` / `.xml` 文件后，确认旧错误消失且导入按钮恢复可用。
+
+## G. 回归确认
 
 - 图片上传仍调用 `POST /api/recognize` 并可正常显示 mock 识别结果。
 - `lib/recognition/recognizerFactory.ts` 中的 default provider 仍为 `mock`。
