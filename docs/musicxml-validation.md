@@ -23,6 +23,18 @@ RecognizeResponse
 dev API 的完整响应还应包含顶层 `source: "musicxml"`、MusicXML metadata 和
 `raw.musicXml`。
 
+## Fixture 来源分类
+
+- `simple-score` 是用于验证基础解析行为的 synthetic fixture。
+- `omr-like-score` 是手写的 OMR-like synthetic fixture，只模拟常见 OMR 导出层级。
+- `lib/musicxml/__fixtures__/audiveris/` 目录只用于未来加入有来源说明的真实
+  Audiveris fixture。
+- 当前仓库还没有真实 Audiveris 输出样本。
+- 不得把 `omr-like-score` 描述或用作真实 Audiveris 识别结果。
+
+未来真实样本的来源记录、命名、接入顺序和 parser 增强边界见
+`docs/audiveris-sample-intake.md`。
+
 ## 手动验证样例 MusicXML
 
 项目目前没有 test script 或已有测试框架，因此 Phase A6 不新增测试依赖。可以通过
