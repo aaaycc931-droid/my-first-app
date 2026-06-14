@@ -1,14 +1,1 @@
-export type RecognizedNoteDuration = "eighth" | "quarter" | "half" | "whole";
-
-export type RecognizedNote = {
-  note: string;
-  duration: RecognizedNoteDuration;
-  confidence: number;
-  measure: number;
-  beat: number;
-};
-
-export type RecognizeResponse = {
-  notes?: RecognizedNote[];
-  error?: string;
-};
+export type { RecognizedNote, RecognizedNoteDuration, RecognizedNoteSource, RecognizeResponse } from "./types";
