@@ -24,7 +24,14 @@ export async function POST(request: Request) {
 
   const notes = await recognizeSheetMusic(image);
 
-  const response: RecognizeResponse = { notes };
+  const response: RecognizeResponse = {
+    notes,
+    metadata: {
+      provider: "mock",
+      format: "json",
+      version: "2026-06-14",
+    },
+  };
 
   return NextResponse.json(response);
 }
