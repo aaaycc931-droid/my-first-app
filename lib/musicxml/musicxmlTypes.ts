@@ -7,11 +7,13 @@ export type MusicXMLNoteDuration = "eighth" | "quarter" | "half" | "whole";
  * enter the system without changing UI or playback code.
  */
 export type MusicXMLNote = {
+  pitch: string;
   note: string;
   duration: MusicXMLNoteDuration;
   measure: number;
   beat: number;
   confidence: number;
+  source?: "musicxml";
 };
 
 export type ParsedScore = {
