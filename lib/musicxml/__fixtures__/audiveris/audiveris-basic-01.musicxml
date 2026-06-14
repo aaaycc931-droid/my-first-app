@@ -12,9 +12,9 @@
       <software>ProxyMusic 4.0.3</software>
       <encoding-date>2026-06-14</encoding-date>
     </encoding>
-    <source>D:\A照片\bbb.jpg</source>
+    <source>[REDACTED_LOCAL_SOURCE_PATH]</source>
     <miscellaneous>
-      <miscellaneous-field name="source-file">D:\A照片\bbb.jpg</miscellaneous-field>
+      <miscellaneous-field name="source-file">[REDACTED_LOCAL_SOURCE_PATH]</miscellaneous-field>
       <miscellaneous-field name="source-sheet-1">1 2 3 4 5</miscellaneous-field>
     </miscellaneous>
   </identification>
