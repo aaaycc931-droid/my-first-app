@@ -16,17 +16,16 @@
   - Audiveris 5.10.2
   - ProxyMusic 4.0.3
 - Encoding date observed: 2026-06-14
-- Original source image path is present in the raw MusicXML export.
+- Original source image path was present in the raw MusicXML export.
 
 ## Privacy / commit note
 
-The raw MusicXML produced by Audiveris may include a local Windows source path from the user's computer.
-Before committing this fixture to a public GitHub repository, review whether that path is acceptable to expose.
-If the path must be removed, document that redaction explicitly and keep an uncommitted raw copy outside the repository.
+The raw MusicXML contained a local Windows source image path, including user-specific directory and filename information.
+For the committed fixture, only the two metadata values in `<source>` and the `source-file` miscellaneous field were replaced with `[REDACTED_LOCAL_SOURCE_PATH]`. The note, measure, pitch, duration, and other score structure were not changed. The unredacted raw export must remain outside the repository.
 
 ## Intended repository location
 
-Future fixture location:
+Fixture location:
 
 - `lib/musicxml/__fixtures__/audiveris/audiveris-basic-01.musicxml`
 - `lib/musicxml/__fixtures__/audiveris/audiveris-basic-01.expected.json`
