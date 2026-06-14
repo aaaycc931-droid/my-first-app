@@ -1,0 +1,49 @@
+{
+  "notes": [
+    {
+      "pitch": "C4",
+      "note": "C4",
+      "duration": "quarter",
+      "measure": 1,
+      "beat": 1,
+      "confidence": 0.8,
+      "source": "musicxml"
+    },
+    {
+      "pitch": "D4",
+      "note": "D4",
+      "duration": "quarter",
+      "measure": 1,
+      "beat": 2,
+      "confidence": 0.8,
+      "source": "musicxml"
+    },
+    {
+      "pitch": "E4",
+      "note": "E4",
+      "duration": "half",
+      "measure": 1,
+      "beat": 3,
+      "confidence": 0.8,
+      "source": "musicxml"
+    },
+    {
+      "pitch": "F#4",
+      "note": "F#4",
+      "duration": "quarter",
+      "measure": 2,
+      "beat": 1,
+      "confidence": 0.8,
+      "source": "musicxml"
+    },
+    {
+      "pitch": "G4",
+      "note": "G4",
+      "duration": "half",
+      "measure": 2,
+      "beat": 3,
+      "confidence": 0.8,
+      "source": "musicxml"
+    }
+  ]
+}
