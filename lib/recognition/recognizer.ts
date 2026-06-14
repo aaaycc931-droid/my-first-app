@@ -1,15 +1,14 @@
-import type { RecognizeResponse, Recognizer } from "./types";
-import { MockRecognizer } from "./mockRecognizer";
-
-const activeRecognizer: Recognizer = new MockRecognizer();
+import type { RecognizeResponse } from "./types";
+import { getRecognizer } from "./recognizerFactory";
 
 /**
  * Unified sheet music recognition entry point.
  *
- * The app currently uses MockRecognizer for the MVP flow. Keep API routes
- * calling this abstraction so future AIRecognizer or OCRRecognizer adapters can
- * be switched in here without changing the frontend or API response shape.
+ * The active recognizer is resolved through the factory so API routes depend on
+ * the Recognizer interface instead of a concrete mock implementation. Future
+ * AIRecognizer or OCRRecognizer adapters can be switched in the factory without
+ * changing the frontend or API response shape.
  */
 export async function recognizeSheetMusic(image: File): Promise<RecognizeResponse> {
-  return activeRecognizer.recognize(image);
+  return getRecognizer().recognize(image);
 }
