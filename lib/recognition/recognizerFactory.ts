@@ -1,7 +1,8 @@
+import { AIRecognizer } from "./aiRecognizer";
 import { MockRecognizer } from "./mockRecognizer";
 import type { Recognizer } from "./types";
 
-export type RecognizerProvider = "mock";
+export type RecognizerProvider = "mock" | "ai";
 
 const defaultProvider: RecognizerProvider = "mock";
 
@@ -9,6 +10,8 @@ export function createRecognizer(provider: RecognizerProvider = defaultProvider)
   switch (provider) {
     case "mock":
       return new MockRecognizer();
+    case "ai":
+      return new AIRecognizer();
   }
 }
 
