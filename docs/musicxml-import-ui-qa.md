@@ -22,6 +22,15 @@ Phase A20 的 Vercel Preview 人工验收记录草稿位于
 该记录用于 Vercel Preview 中的人工浏览器验收，不是自动化测试，也不改变 Production
 策略或现有自动化验证范围。
 
+## Phase A23 上传限制与错误提示人工验收
+
+Phase A23 的 Vercel Preview 人工验收记录草稿位于
+[`docs/acceptance/musicxml-upload-limits-2026-06-14.md`](./acceptance/musicxml-upload-limits-2026-06-14.md)。
+
+本轮重点验证 Phase A22 的 2 MB 文件大小限制、空文件拒绝、错误扩展名提示、`.mxl`
+拒绝、API 错误的友好展示，以及原图片上传 `/api/recognize`、mock 结果与 Tone.js
+播放的回归。该记录仅用于 Preview/dev-only 人工验收，不调整 Production 开关。
+
 ## A. 默认隐藏
 
 1. 确保没有设置 `NEXT_PUBLIC_MUSICXML_IMPORT_ENABLED`。
