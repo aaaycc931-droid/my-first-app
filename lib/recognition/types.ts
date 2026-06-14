@@ -61,3 +61,12 @@ export type RecognizeResponse = {
   };
   error?: string;
 };
+
+
+export type Recognizer = {
+  /**
+   * Recognizes sheet music from an uploaded image and returns the API response shape.
+   * Future AI/OCR adapters should implement this interface without changing UI or playback code.
+   */
+  recognize(image: File): Promise<RecognizeResponse>;
+};

@@ -1,1 +1,1 @@
-export type { RecognitionFormat, RecognitionMetadata, RecognitionProvider, RecognizedNote, RecognizedNoteDuration, RecognizedNoteSource, RecognizedPitch, RecognizeResponse } from "./types";
+export type { RecognitionFormat, RecognitionMetadata, RecognitionProvider, RecognizedNote, RecognizedNoteDuration, RecognizedNoteSource, RecognizedPitch, RecognizeResponse, Recognizer } from "./types";

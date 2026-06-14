@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 
 import { recognizeSheetMusic } from "../../../lib/recognition/recognizer";
-import type { RecognizeResponse } from "../../../lib/recognition/types";
 
 const maxImageSize = 10 * 1024 * 1024;
 const allowedImageTypes = new Set(["image/jpeg", "image/png"]);
@@ -22,16 +21,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "图片大小不能超过 10MB。" }, { status: 400 });
   }
 
-  const notes = await recognizeSheetMusic(image);
-
-  const response: RecognizeResponse = {
-    notes,
-    metadata: {
-      provider: "mock",
-      format: "json",
-      version: "2026-06-14",
-    },
-  };
+  const response = await recognizeSheetMusic(image);
 
   return NextResponse.json(response);
 }
