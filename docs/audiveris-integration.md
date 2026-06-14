@@ -419,3 +419,35 @@ Phase A2 的核心结论是：
 - 未来新增 `MusicXMLRecognizer`，负责调用 Audiveris、读取 MusicXML、调用 `musicxmlParser`，并输出稳定的 `RecognizeResponse`。
 - MVP 初期建议先用本地 Audiveris CLI 跑通链路，再考虑 Docker 和独立 Java 服务。
 - 本阶段不写代码、不接真实 Audiveris、不改 UI，只为下一步真实识别实现提供架构设计依据。
+
+## 10. Phase A11 当前进度与 Runner 缺口
+
+MusicXML 侧目前已经完成以下基础能力：
+
+- `parseMusicXML` parser。
+- `MusicXMLRecognizer`。
+- 默认关闭、通过环境变量显式启用的 dev-only MusicXML API。
+- `npm run validate:musicxml` fixture 回归验证。
+- 一份带来源和脱敏记录的真实 Audiveris MusicXML fixture。
+
+因此，当前下一项缺口不是继续扩展前端或播放器，而是建立“图片或 PDF →
+Audiveris → MusicXML”的 Runner。Runner 负责本地 CLI 或未来独立 OMR 服务的执行
+细节；现有 parser 和 `MusicXMLRecognizer` 继续负责 MusicXML 到统一识别结果的转换。
+
+Runner 必须与 parser 解耦：
+
+```text
+图片或 PDF 文件路径
+  ↓
+Audiveris Runner
+  ↓
+MusicXML / MXL 文件路径或文本
+  ↓
+MusicXMLRecognizer + parseMusicXML
+  ↓
+RecognizeResponse
+```
+
+Phase A11 只新增 Runner 的设计、最小类型和目录说明，不执行 Audiveris CLI，也不修改
+`/api/recognize`、默认 `mock` provider、UI 或播放器。详细边界见
+`docs/audiveris-runner.md`。
