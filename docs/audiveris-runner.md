@@ -1,4 +1,4 @@
-# Audiveris Local Runner 边界（Phase A11-A13）
+# Audiveris Local Runner 边界（Phase A11-A14）
 
 ## 1. Runner 的职责
 
@@ -56,9 +56,9 @@ API Route 不直接运行 Audiveris。
 3. **A13：准备真实 Audiveris CLI 本地调用 POC**
    - 增加 local-only 配置检查和操作文档。
    - 不执行 CLI，不改变现有识别流程。
-4. **A14：在本地机器手动验证 Audiveris CLI**
-   - 核对真实 CLI 参数，并把图片或 PDF 转换为 MusicXML。
-   - 验证退出状态、日志、输出文件和现有 parser 的兼容性。
+4. **A14：准备本地 CLI 手动验证 Runbook**
+   - 增加由用户在自己的本地机器上执行的操作步骤和结果记录模板。
+   - 仓库代码仍不执行 CLI；参数和真实输出必须由用户本地验证后记录。
 5. **A15：评估独立后端服务**
    - 根据耗时、并发、部署和隐私需求决定是否建设独立 OMR 服务。
    - 不默认把 Audiveris 放进 Vercel / Next.js API Route。
@@ -128,7 +128,19 @@ Next.js、Vercel、`/api/recognize` 或任何默认识别流程。
 Java、Audiveris 或 `AUDIVERIS_PATH`。本地 POC 操作边界见
 `docs/audiveris-local-poc.md`。
 
-## 8. 安全和隐私
+## 8. Phase A14 本地手动验证 Runbook
+
+Phase A14 只增加本地手动验证说明
+`docs/audiveris-cli-manual-verification.md` 和结果记录模板
+`docs/audiveris-cli-verification-template.md`。Runbook 帮助 Windows 本地用户确认安装
+入口、查看 dry-run 草案、手动核对真实 CLI 语法，并记录退出状态和输出文件。
+
+本阶段仍不在仓库代码中执行真实 Audiveris CLI，也不调用 `child_process`、`spawn`
+或 `exec`。真正的自动化执行留到后续 Phase，在取得并评估本地手动验证结果后再设计。
+`npm run build` 和 `npm run validate:musicxml` 仍不读取 `AUDIVERIS_PATH`，不依赖
+Java 或 Audiveris。
+
+## 9. 安全和隐私
 
 - Audiveris 输出、日志和 metadata 可能包含输入文件或本地工作目录的绝对路径。
 - 把生成结果提交为 fixture 前必须检查并移除私人路径、用户名及其他敏感 metadata。
@@ -137,7 +149,7 @@ Java、Audiveris 或 `AUDIVERIS_PATH`。本地 POC 操作边界见
 - 原始图片是否可保留、是否可提交，应继续遵守
   `docs/audiveris-sample-intake.md` 的来源与授权要求。
 
-## 9. Phase A11-A13 明确不做
+## 10. Phase A11-A14 明确不做
 
 - 不调用 `child_process`。
 - 不运行 Java 或 Audiveris。
