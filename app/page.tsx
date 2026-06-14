@@ -30,6 +30,8 @@ const durationToBeats: Record<RecognizedNote["duration"], number> = {
 const minBpm = 40;
 const maxBpm = 240;
 const defaultBpm = 120;
+const isMusicXMLImportEnabled =
+  process.env.NEXT_PUBLIC_MUSICXML_IMPORT_ENABLED === "true";
 
 const calculateDurationSeconds = (duration: RecognizedNote["duration"], bpm: number) =>
   durationToBeats[duration] * (60 / bpm);
@@ -56,6 +58,9 @@ export default function Home() {
   const [isPlaying, setIsPlaying] = useState(false);
   const [playingNoteIndex, setPlayingNoteIndex] = useState<number | null>(null);
   const [bpm, setBpm] = useState(defaultBpm);
+  const [musicXMLFile, setMusicXMLFile] = useState<File | null>(null);
+  const [musicXMLImportError, setMusicXMLImportError] = useState("");
+  const [isImportingMusicXML, setIsImportingMusicXML] = useState(false);
 
   const handleImageUpload = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -83,6 +88,74 @@ export default function Home() {
     }
 
     setBpm(Math.min(maxBpm, Math.max(minBpm, nextBpm)));
+  };
+
+  const handleMusicXMLSelection = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+
+    setMusicXMLFile(null);
+    setMusicXMLImportError("");
+
+    if (!file) {
+      return;
+    }
+
+    const extension = file.name.toLowerCase().split(".").pop();
+
+    if (extension === "mxl") {
+      setMusicXMLImportError(
+        "当前网页导入仅支持 .musicxml/.xml，请先将 .mxl 改名为 .zip 并解压出内部 XML 文件。",
+      );
+      event.target.value = "";
+      return;
+    }
+
+    if (extension !== "musicxml" && extension !== "xml") {
+      setMusicXMLImportError("请选择 .musicxml 或 .xml 文件。");
+      event.target.value = "";
+      return;
+    }
+
+    setMusicXMLFile(file);
+  };
+
+  const handleMusicXMLImport = async () => {
+    if (!musicXMLFile || isImportingMusicXML) {
+      return;
+    }
+
+    setIsImportingMusicXML(true);
+    setMusicXMLImportError("");
+    setRecognizeError("");
+    setPlayError("");
+
+    const formData = new FormData();
+    formData.append("file", musicXMLFile);
+
+    try {
+      const response = await fetch("/api/dev/recognize-musicxml", {
+        method: "POST",
+        body: formData,
+      });
+      const data = (await response.json()) as RecognizeResponse;
+
+      if (!response.ok || data.error) {
+        throw new Error(data.error || "MusicXML 导入接口调用失败。");
+      }
+
+      setRecognizedNotes(data.notes || []);
+      setRecognizeStatus("识别完成");
+      setIsPlaying(false);
+      setPlayingNoteIndex(null);
+    } catch (error) {
+      setMusicXMLImportError(
+        error instanceof Error
+          ? error.message
+          : "MusicXML 导入失败，请检查文件和开发 API 开关后重试。",
+      );
+    } finally {
+      setIsImportingMusicXML(false);
+    }
   };
 
   const handleRecognize = async () => {
@@ -199,6 +272,53 @@ export default function Home() {
           >
             {isRecognizing ? "识别中" : "开始识别"}
           </button>
+
+          {isMusicXMLImportEnabled ? (
+            <div className="rounded-2xl border border-amber-200 bg-amber-50 p-5">
+              <div>
+                <p className="text-sm font-semibold uppercase tracking-wide text-amber-700">
+                  Experimental
+                </p>
+                <h2 className="mt-1 text-lg font-semibold">
+                  Import MusicXML
+                </h2>
+                <p className="mt-2 text-sm text-slate-600">
+                  仅用于开发验证。支持 .musicxml/.xml；.mxl 请先改名为
+                  .zip，并解压出内部 XML 文件。
+                </p>
+              </div>
+
+              <label className="mt-4 block text-sm font-semibold text-slate-800">
+                选择 MusicXML 文件
+                <input
+                  className="mt-2 block w-full rounded-lg border border-amber-300 bg-white px-3 py-2 text-sm text-slate-700 file:mr-3 file:rounded-md file:border-0 file:bg-amber-100 file:px-3 file:py-2 file:font-semibold file:text-amber-800"
+                  type="file"
+                  accept=".musicxml,.xml,.mxl,application/xml,text/xml"
+                  onChange={handleMusicXMLSelection}
+                />
+              </label>
+
+              {musicXMLFile ? (
+                <p className="mt-2 text-sm text-slate-600">
+                  已选择：{musicXMLFile.name}
+                </p>
+              ) : null}
+              {musicXMLImportError ? (
+                <p className="mt-3 text-sm text-red-600">
+                  {musicXMLImportError}
+                </p>
+              ) : null}
+
+              <button
+                className="mt-4 w-full rounded-xl bg-amber-600 px-5 py-3 font-semibold text-white transition hover:bg-amber-700 disabled:cursor-not-allowed disabled:bg-slate-300"
+                type="button"
+                onClick={handleMusicXMLImport}
+                disabled={!musicXMLFile || isImportingMusicXML}
+              >
+                {isImportingMusicXML ? "导入中" : "导入并验证播放"}
+              </button>
+            </div>
+          ) : null}
 
           <div className="rounded-2xl border border-slate-200 bg-white p-5">
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
