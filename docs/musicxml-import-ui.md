@@ -83,6 +83,10 @@ Phase A16 的完整手动验证步骤见
 [`docs/musicxml-import-ui-qa.md`](./musicxml-import-ui-qa.md)，覆盖默认隐藏、开关开启、
 `.musicxml` / `.xml` 导入、`.mxl` 拒绝、API 未开启错误和图片上传回归。
 
+Production 启用前置条件、环境变量范围、主要风险和回退步骤见
+[`docs/musicxml-import-production-strategy.md`](./musicxml-import-production-strategy.md)。
+当前仍建议只在本地开发和 Vercel Preview 中按需开启两个开关，Production 保持关闭。
+
 无需浏览器的轻量静态检查可通过以下命令运行：
 
 ```bash
