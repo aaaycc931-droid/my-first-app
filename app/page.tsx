@@ -31,6 +31,7 @@ const durationToBeats: Record<RecognizedNote["duration"], number> = {
 const minBpm = 40;
 const maxBpm = 240;
 const defaultBpm = 120;
+const maxMusicXMLFileSizeBytes = 2 * 1024 * 1024;
 const isMusicXMLImportEnabled =
   process.env.NEXT_PUBLIC_MUSICXML_IMPORT_ENABLED === "true";
 
@@ -119,6 +120,20 @@ export default function Home() {
 
     if (extension !== "musicxml" && extension !== "xml") {
       setMusicXMLImportError("请选择 .musicxml 或 .xml 文件。");
+      setMusicXMLImportStatus("error");
+      event.target.value = "";
+      return;
+    }
+
+    if (file.size === 0) {
+      setMusicXMLImportError("MusicXML 文件为空，请选择包含乐谱内容的文件。");
+      setMusicXMLImportStatus("error");
+      event.target.value = "";
+      return;
+    }
+
+    if (file.size > maxMusicXMLFileSizeBytes) {
+      setMusicXMLImportError("MusicXML 文件过大，当前最大支持 2 MB。");
       setMusicXMLImportStatus("error");
       event.target.value = "";
       return;
@@ -297,7 +312,7 @@ export default function Home() {
                   Import MusicXML
                 </h2>
                 <p className="mt-2 text-sm text-slate-600">
-                  仅用于开发验证。支持 .musicxml/.xml；.mxl 请先改名为
+                  仅用于开发验证，文件最大 2 MB。支持 .musicxml/.xml；.mxl 请先改名为
                   .zip，并解压出内部 XML 文件。
                 </p>
               </div>
