@@ -10,6 +10,18 @@ Phase A17 新增了
 中逐项执行场景并记录环境、实际结果、问题和截图。该文件是人工浏览器验收记录模板，
 不是自动化测试，也不会新增或运行浏览器自动化框架。
 
+## Phase A20 状态反馈人工验收
+
+Phase A20 的 Vercel Preview 人工验收记录草稿位于
+[`docs/acceptance/musicxml-import-ui-status-feedback-2026-06-14.md`](./acceptance/musicxml-import-ui-status-feedback-2026-06-14.md)。
+
+本轮重点验证 Phase A19 新增的 `idle`、`importing`、`success`、`error` 状态反馈，包括
+初始提示、按钮禁用与 loading 文案、导入成功的 notes 数量、重新导入文案、错误提示，
+以及 `.mxl` 拒绝、Tone.js 播放和原图片上传流程的回归。
+
+该记录用于 Vercel Preview 中的人工浏览器验收，不是自动化测试，也不改变 Production
+策略或现有自动化验证范围。
+
 ## A. 默认隐藏
 
 1. 确保没有设置 `NEXT_PUBLIC_MUSICXML_IMPORT_ENABLED`。
