@@ -271,7 +271,7 @@ export default function Home() {
         <div className="border-b border-slate-200 pb-6">
           <p className="text-sm font-semibold text-blue-600">五线谱识别 MVP</p>
           <h1 className="mt-2 text-3xl font-bold tracking-tight sm:text-4xl">上传五线谱图片</h1>
-          <p className="mt-3 text-slate-600">先上传一张五线谱图片，预览确认后点击开始识别。当前版本会返回假数据。</p>
+          <p className="mt-3 text-slate-600">当前为 MVP 演示流程：图片识别接口仍返回模拟音符数据，用于验证上传、结果展示和播放链路；真实五线谱图片识别 / OMR 尚未完成。</p>
         </div>
 
         <div className="mt-6 space-y-6">
