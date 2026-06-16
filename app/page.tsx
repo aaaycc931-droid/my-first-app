@@ -13,6 +13,9 @@ type AudiverisDevSummary = {
   firstNotes: RecognizedNote[];
   source: string;
   inputType: string;
+  notes?: RecognizedNote[];
+  returnedNoteCount?: number;
+  notesTruncated?: boolean;
 };
 
 type ToneSynth = {
@@ -44,9 +47,13 @@ const isMusicXMLImportEnabled =
   process.env.NEXT_PUBLIC_MUSICXML_IMPORT_ENABLED === "true";
 const isAudiverisDevUIEnabled =
   process.env.NEXT_PUBLIC_AUDIVERIS_DEV_UI_ENABLED === "true";
+const isAudiverisDevFullNotesEnabled =
+  process.env.NEXT_PUBLIC_AUDIVERIS_DEV_FULL_NOTES_ENABLED === "true";
 
-const calculateDurationSeconds = (duration: RecognizedNote["duration"], bpm: number) =>
-  durationToBeats[duration] * (60 / bpm);
+const calculateDurationSeconds = (
+  duration: RecognizedNote["duration"],
+  bpm: number,
+) => durationToBeats[duration] * (60 / bpm);
 
 const durationLabel: Record<RecognizedNote["duration"], string> = {
   eighth: "八分音符",
@@ -63,7 +70,8 @@ export default function Home() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [fileName, setFileName] = useState("");
   const [recognizedNotes, setRecognizedNotes] = useState<RecognizedNote[]>([]);
-  const [recognizeStatus, setRecognizeStatus] = useState<RecognizeStatus>("未上传");
+  const [recognizeStatus, setRecognizeStatus] =
+    useState<RecognizeStatus>("未上传");
   const [isRecognizing, setIsRecognizing] = useState(false);
   const [recognizeError, setRecognizeError] = useState("");
   const [playError, setPlayError] = useState("");
@@ -125,7 +133,11 @@ export default function Home() {
 
     const extension = file.name.toLowerCase().split(".").pop();
 
-    if (extension !== "musicxml" && extension !== "xml" && extension !== "mxl") {
+    if (
+      extension !== "musicxml" &&
+      extension !== "xml" &&
+      extension !== "mxl"
+    ) {
       setMusicXMLImportError("请选择 .musicxml、.xml 或 .mxl 文件。");
       setMusicXMLImportStatus("error");
       event.target.value = "";
@@ -194,7 +206,9 @@ export default function Home() {
     }
   };
 
-  const handleAudiverisDevSelection = (event: ChangeEvent<HTMLInputElement>) => {
+  const handleAudiverisDevSelection = (
+    event: ChangeEvent<HTMLInputElement>,
+  ) => {
     const file = event.target.files?.[0];
 
     setAudiverisDevFile(null);
@@ -206,7 +220,10 @@ export default function Home() {
       return;
     }
 
-    if (file.type !== "application/pdf" && !file.name.toLowerCase().endsWith(".pdf")) {
+    if (
+      file.type !== "application/pdf" &&
+      !file.name.toLowerCase().endsWith(".pdf")
+    ) {
       setAudiverisDevStatus("error");
       setAudiverisDevError("Dev-only Local Audiveris 面板只接受 PDF 文件。");
       event.target.value = "";
@@ -227,6 +244,9 @@ export default function Home() {
 
     const formData = new FormData();
     formData.append("file", audiverisDevFile);
+    if (isAudiverisDevFullNotesEnabled) {
+      formData.append("includeNotes", "full");
+    }
 
     try {
       const response = await fetch("/api/dev/recognize-audiveris", {
@@ -238,7 +258,9 @@ export default function Home() {
       };
 
       if (!response.ok || data.error) {
-        throw new Error(data.error || "Dev-only Local Audiveris PDF 测试失败。");
+        throw new Error(
+          data.error || "Dev-only Local Audiveris PDF 测试失败。",
+        );
       }
 
       setAudiverisDevSummary({
@@ -246,12 +268,17 @@ export default function Home() {
         firstNotes: data.firstNotes ?? [],
         source: data.source ?? "unknown",
         inputType: data.inputType ?? "unknown",
+        notes: data.notes,
+        returnedNoteCount: data.returnedNoteCount,
+        notesTruncated: data.notesTruncated,
       });
       setAudiverisDevStatus("success");
     } catch (error) {
       setAudiverisDevStatus("error");
       setAudiverisDevError(
-        error instanceof Error ? error.message : "Dev-only Local Audiveris PDF 测试失败。",
+        error instanceof Error
+          ? error.message
+          : "Dev-only Local Audiveris PDF 测试失败。",
       );
     }
   };
@@ -285,14 +312,19 @@ export default function Home() {
       setRecognizeStatus("识别完成");
     } catch (error) {
       setRecognizeStatus("识别失败");
-      setRecognizeError(error instanceof Error ? error.message : "识别失败，请稍后再试。");
+      setRecognizeError(
+        error instanceof Error ? error.message : "识别失败，请稍后再试。",
+      );
       setRecognizedNotes([]);
     } finally {
       setIsRecognizing(false);
     }
   };
 
-  const playNotesPreview = async (notes: RecognizedNote[], trackMainResultIndex: boolean) => {
+  const playNotesPreview = async (
+    notes: RecognizedNote[],
+    trackMainResultIndex: boolean,
+  ) => {
     if (notes.length === 0 || isPlaying) {
       return;
     }
@@ -324,11 +356,14 @@ export default function Home() {
         offset += noteDuration;
       });
 
-      window.setTimeout(() => {
-        synth.dispose();
-        setPlayingNoteIndex(null);
-        setIsPlaying(false);
-      }, offset * 1000 + 500);
+      window.setTimeout(
+        () => {
+          synth.dispose();
+          setPlayingNoteIndex(null);
+          setIsPlaying(false);
+        },
+        offset * 1000 + 500,
+      );
     } catch {
       setPlayError("播放失败，请稍后再试。");
       setPlayingNoteIndex(null);
@@ -344,20 +379,39 @@ export default function Home() {
     await playNotesPreview(audiverisDevSummary?.firstNotes ?? [], false);
   };
 
+  const handlePlayAudiverisFullNotesPreview = async () => {
+    await playNotesPreview(audiverisDevSummary?.notes ?? [], false);
+  };
+
   return (
     <main className="min-h-screen bg-slate-50 px-4 py-10 text-slate-900 sm:px-6">
       <section className="mx-auto max-w-3xl rounded-3xl bg-white p-6 shadow-sm ring-1 ring-slate-200 sm:p-8">
         <div className="border-b border-slate-200 pb-6">
           <p className="text-sm font-semibold text-blue-600">五线谱识别 MVP</p>
-          <h1 className="mt-2 text-3xl font-bold tracking-tight sm:text-4xl">上传五线谱图片</h1>
-          <p className="mt-3 text-slate-600">当前为 MVP 演示流程：图片识别接口仍返回模拟音符数据，用于验证上传、结果展示和播放链路；真实五线谱图片识别 / OMR 尚未完成。</p>
+          <h1 className="mt-2 text-3xl font-bold tracking-tight sm:text-4xl">
+            上传五线谱图片
+          </h1>
+          <p className="mt-3 text-slate-600">
+            当前为 MVP
+            演示流程：图片识别接口仍返回模拟音符数据，用于验证上传、结果展示和播放链路；真实五线谱图片识别
+            / OMR 尚未完成。
+          </p>
         </div>
 
         <div className="mt-6 space-y-6">
           <label className="block rounded-2xl border-2 border-dashed border-slate-300 bg-slate-50 p-6 text-center transition hover:border-blue-400 hover:bg-blue-50/50">
-            <span className="block text-base font-semibold text-slate-800">选择图片</span>
-            <span className="mt-2 block text-sm text-slate-500">支持常见图片格式，用于预览和后续识别</span>
-            <input className="sr-only" type="file" accept="image/jpeg,image/png" onChange={handleImageUpload} />
+            <span className="block text-base font-semibold text-slate-800">
+              选择图片
+            </span>
+            <span className="mt-2 block text-sm text-slate-500">
+              支持常见图片格式，用于预览和后续识别
+            </span>
+            <input
+              className="sr-only"
+              type="file"
+              accept="image/jpeg,image/png"
+              onChange={handleImageUpload}
+            />
           </label>
 
           {previewUrl ? (
@@ -366,10 +420,16 @@ export default function Home() {
                 <h2 className="text-lg font-semibold">图片预览</h2>
                 <p className="text-sm text-slate-500">{fileName}</p>
               </div>
-              <img className="max-h-[420px] w-full rounded-xl object-contain ring-1 ring-slate-200" src={previewUrl} alt="上传的五线谱预览" />
+              <img
+                className="max-h-[420px] w-full rounded-xl object-contain ring-1 ring-slate-200"
+                src={previewUrl}
+                alt="上传的五线谱预览"
+              />
             </div>
           ) : (
-            <div className="rounded-2xl border border-slate-200 bg-white p-6 text-center text-slate-500">上传后会在这里显示图片预览。</div>
+            <div className="rounded-2xl border border-slate-200 bg-white p-6 text-center text-slate-500">
+              上传后会在这里显示图片预览。
+            </div>
           )}
 
           <button
@@ -387,11 +447,11 @@ export default function Home() {
                 <p className="text-sm font-semibold uppercase tracking-wide text-amber-700">
                   Experimental
                 </p>
-                <h2 className="mt-1 text-lg font-semibold">
-                  Import MusicXML
-                </h2>
+                <h2 className="mt-1 text-lg font-semibold">Import MusicXML</h2>
                 <p className="mt-2 text-sm text-slate-600">
-                  仅用于开发验证，文件最大 2 MB。支持 .musicxml、.xml、.mxl；.mxl 只会在 dev API 中解压验证，不影响图片上传主流程。
+                  {
+                    "仅用于开发验证，文件最大 2 MB。支持 .musicxml、.xml、.mxl；.mxl 只会在 dev API 中解压验证，不影响图片上传主流程。"
+                  }
                 </p>
               </div>
 
@@ -450,9 +510,13 @@ export default function Home() {
                 <p className="text-sm font-semibold uppercase tracking-wide text-purple-700">
                   Dev-only · Local Audiveris · PDF only
                 </p>
-                <h2 className="mt-1 text-lg font-semibold">Audiveris PDF 测试面板</h2>
+                <h2 className="mt-1 text-lg font-semibold">
+                  Audiveris PDF 测试面板
+                </h2>
                 <p className="mt-2 text-sm text-slate-600">
-                  Not production，Not `/api/recognize`。此入口只用于本地开发手动测试，点击按钮后才会调用 dev-only API，不影响主识别流程。
+                  Not production，Not
+                  `/api/recognize`。此入口只用于本地开发手动测试，点击按钮后才会调用
+                  dev-only API，不影响主识别流程。
                 </p>
               </div>
 
@@ -468,13 +532,17 @@ export default function Home() {
 
               <div className="mt-3 text-sm" aria-live="polite">
                 {audiverisDevFile ? (
-                  <p className="text-slate-600">已选择 PDF：{audiverisDevFile.name}</p>
+                  <p className="text-slate-600">
+                    已选择 PDF：{audiverisDevFile.name}
+                  </p>
                 ) : null}
                 {audiverisDevStatus === "idle" && !audiverisDevFile ? (
                   <p className="text-slate-600">请选择 PDF 后手动开始测试。</p>
                 ) : null}
                 {audiverisDevStatus === "processing" ? (
-                  <p className="font-medium text-purple-700">处理中，请等待 Local Audiveris 返回 summary...</p>
+                  <p className="font-medium text-purple-700">
+                    处理中，请等待 Local Audiveris 返回 summary...
+                  </p>
                 ) : null}
                 {audiverisDevStatus === "error" && audiverisDevError ? (
                   <p className="text-red-600">{audiverisDevError}</p>
@@ -484,28 +552,42 @@ export default function Home() {
               {audiverisDevSummary ? (
                 <>
                   <dl className="mt-4 grid gap-3 rounded-xl bg-white p-4 text-sm sm:grid-cols-2">
-                  <div>
-                    <dt className="font-semibold text-slate-700">noteCount</dt>
-                    <dd className="text-slate-600">{audiverisDevSummary.noteCount}</dd>
-                  </div>
-                  <div>
-                    <dt className="font-semibold text-slate-700">source</dt>
-                    <dd className="text-slate-600">{audiverisDevSummary.source}</dd>
-                  </div>
-                  <div>
-                    <dt className="font-semibold text-slate-700">inputType</dt>
-                    <dd className="text-slate-600">{audiverisDevSummary.inputType}</dd>
-                  </div>
-                  <div>
-                    <dt className="font-semibold text-slate-700">firstNotes</dt>
-                    <dd className="text-slate-600">
-                      {audiverisDevSummary.firstNotes.length > 0
-                        ? audiverisDevSummary.firstNotes
-                            .map(({ note, duration }) => `${note} (${duration})`)
-                            .join(", ")
-                        : "none"}
-                    </dd>
-                  </div>
+                    <div>
+                      <dt className="font-semibold text-slate-700">
+                        noteCount
+                      </dt>
+                      <dd className="text-slate-600">
+                        {audiverisDevSummary.noteCount}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt className="font-semibold text-slate-700">source</dt>
+                      <dd className="text-slate-600">
+                        {audiverisDevSummary.source}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt className="font-semibold text-slate-700">
+                        inputType
+                      </dt>
+                      <dd className="text-slate-600">
+                        {audiverisDevSummary.inputType}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt className="font-semibold text-slate-700">
+                        firstNotes
+                      </dt>
+                      <dd className="text-slate-600">
+                        {audiverisDevSummary.firstNotes.length > 0
+                          ? audiverisDevSummary.firstNotes
+                              .map(
+                                ({ note, duration }) => `${note} (${duration})`,
+                              )
+                              .join(", ")
+                          : "none"}
+                      </dd>
+                    </div>
                   </dl>
 
                   <div className="mt-4 rounded-xl bg-white p-4 text-sm text-slate-600">
@@ -519,12 +601,45 @@ export default function Home() {
                         onClick={handlePlayAudiverisFirstNotesPreview}
                         disabled={isPlaying}
                       >
-                        {isPlaying ? "正在播放" : "播放 Audiveris firstNotes 预览"}
+                        {isPlaying
+                          ? "正在播放"
+                          : "播放 Audiveris firstNotes 预览"}
                       </button>
                     ) : (
-                      <p className="mt-3 text-slate-500">没有可播放的 Audiveris firstNotes</p>
+                      <p className="mt-3 text-slate-500">
+                        没有可播放的 Audiveris firstNotes
+                      </p>
                     )}
                   </div>
+
+                  {audiverisDevSummary.notes &&
+                  audiverisDevSummary.notes.length > 0 ? (
+                    <div className="mt-4 rounded-xl bg-white p-4 text-sm text-slate-600">
+                      <p className="font-medium text-purple-700">
+                        Dev-only full notes preview；not `/api/recognize`，not
+                        production，may be truncated。
+                      </p>
+                      {audiverisDevSummary.notesTruncated ? (
+                        <p className="mt-2 text-amber-700">
+                          仅播放返回的前{" "}
+                          {audiverisDevSummary.returnedNoteCount ??
+                            audiverisDevSummary.notes.length}{" "}
+                          个 notes，完整 noteCount 为{" "}
+                          {audiverisDevSummary.noteCount}
+                        </p>
+                      ) : null}
+                      <button
+                        className="mt-3 w-full rounded-xl bg-purple-900 px-5 py-3 font-semibold text-white transition hover:bg-purple-950 disabled:cursor-not-allowed disabled:bg-slate-300"
+                        type="button"
+                        onClick={handlePlayAudiverisFullNotesPreview}
+                        disabled={isPlaying}
+                      >
+                        {isPlaying
+                          ? "正在播放"
+                          : "播放完整 Audiveris notes 预览"}
+                      </button>
+                    </div>
+                  ) : null}
                 </>
               ) : null}
 
@@ -532,9 +647,13 @@ export default function Home() {
                 className="mt-4 w-full rounded-xl bg-purple-600 px-5 py-3 font-semibold text-white transition hover:bg-purple-700 disabled:cursor-not-allowed disabled:bg-slate-300"
                 type="button"
                 onClick={handleAudiverisDevRecognize}
-                disabled={!audiverisDevFile || audiverisDevStatus === "processing"}
+                disabled={
+                  !audiverisDevFile || audiverisDevStatus === "processing"
+                }
               >
-                {audiverisDevStatus === "processing" ? "处理中..." : "手动调用 Local Audiveris PDF 测试"}
+                {audiverisDevStatus === "processing"
+                  ? "处理中..."
+                  : "手动调用 Local Audiveris PDF 测试"}
               </button>
             </div>
           ) : null}
@@ -542,42 +661,75 @@ export default function Home() {
           <div className="rounded-2xl border border-slate-200 bg-white p-5">
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
               <h2 className="text-lg font-semibold">识别结果</h2>
-              <p className="rounded-full bg-slate-100 px-3 py-1 text-sm font-medium text-slate-600">状态：{recognizeStatus}</p>
+              <p className="rounded-full bg-slate-100 px-3 py-1 text-sm font-medium text-slate-600">
+                状态：{recognizeStatus}
+              </p>
             </div>
-            {recognizeError ? <p className="mt-3 text-red-600">{recognizeError}</p> : null}
+            {recognizeError ? (
+              <p className="mt-3 text-red-600">{recognizeError}</p>
+            ) : null}
             {recognizedNotes.length > 0 ? (
               <>
                 <ul className="mt-4 grid gap-3 sm:grid-cols-3">
-                  {recognizedNotes.map(({ note, duration, confidence, measure, beat }, index) => {
-                    const isCurrentNote = playingNoteIndex === index;
-                    const isLowConfidence = confidence < 0.7;
+                  {recognizedNotes.map(
+                    ({ note, duration, confidence, measure, beat }, index) => {
+                      const isCurrentNote = playingNoteIndex === index;
+                      const isLowConfidence = confidence < 0.7;
 
-                    return (
-                      <li
-                        className={`rounded-xl px-4 py-3 text-center transition ${
-                          isCurrentNote ? "bg-blue-600 text-white" : "bg-blue-50 text-blue-700"
-                        }`}
-                        key={`${note}-${duration}-${measure}-${beat}-${index}`}
-                      >
-                        <span className="block font-semibold">{note}</span>
-                        <span className={`mt-1 block text-sm ${isCurrentNote ? "text-blue-100" : "text-blue-600"}`}>时值：{durationLabel[duration]}</span>
-                        <span className={`mt-1 block text-sm ${isCurrentNote ? "text-blue-100" : "text-blue-600"}`}>小节：{measure}</span>
-                        <span className={`mt-1 block text-sm ${isCurrentNote ? "text-blue-100" : "text-blue-600"}`}>拍点：{beat}</span>
-                        <span className={`mt-1 block text-sm ${isCurrentNote ? "text-blue-100" : "text-blue-600"}`}>置信度：{confidence}</span>
-                        {isLowConfidence ? (
-                          <span className={`mt-2 block text-sm font-semibold ${isCurrentNote ? "text-yellow-100" : "text-yellow-700"}`}>低置信度</span>
-                        ) : null}
-                      </li>
-                    );
-                  })}
+                      return (
+                        <li
+                          className={`rounded-xl px-4 py-3 text-center transition ${
+                            isCurrentNote
+                              ? "bg-blue-600 text-white"
+                              : "bg-blue-50 text-blue-700"
+                          }`}
+                          key={`${note}-${duration}-${measure}-${beat}-${index}`}
+                        >
+                          <span className="block font-semibold">{note}</span>
+                          <span
+                            className={`mt-1 block text-sm ${isCurrentNote ? "text-blue-100" : "text-blue-600"}`}
+                          >
+                            时值：{durationLabel[duration]}
+                          </span>
+                          <span
+                            className={`mt-1 block text-sm ${isCurrentNote ? "text-blue-100" : "text-blue-600"}`}
+                          >
+                            小节：{measure}
+                          </span>
+                          <span
+                            className={`mt-1 block text-sm ${isCurrentNote ? "text-blue-100" : "text-blue-600"}`}
+                          >
+                            拍点：{beat}
+                          </span>
+                          <span
+                            className={`mt-1 block text-sm ${isCurrentNote ? "text-blue-100" : "text-blue-600"}`}
+                          >
+                            置信度：{confidence}
+                          </span>
+                          {isLowConfidence ? (
+                            <span
+                              className={`mt-2 block text-sm font-semibold ${isCurrentNote ? "text-yellow-100" : "text-yellow-700"}`}
+                            >
+                              低置信度
+                            </span>
+                          ) : null}
+                        </li>
+                      );
+                    },
+                  )}
                 </ul>
 
                 <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4">
                   <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                    <label className="font-semibold text-slate-800" htmlFor="bpm-control">
+                    <label
+                      className="font-semibold text-slate-800"
+                      htmlFor="bpm-control"
+                    >
                       当前速度：{bpm} BPM
                     </label>
-                    <span className="text-sm text-slate-500">范围：{minBpm} 到 {maxBpm} BPM</span>
+                    <span className="text-sm text-slate-500">
+                      范围：{minBpm} 到 {maxBpm} BPM
+                    </span>
                   </div>
                   <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center">
                     <input
@@ -602,7 +754,9 @@ export default function Home() {
                     />
                   </div>
                 </div>
-                {playError ? <p className="mt-4 text-red-600">{playError}</p> : null}
+                {playError ? (
+                  <p className="mt-4 text-red-600">{playError}</p>
+                ) : null}
                 <button
                   className="mt-4 w-full rounded-xl bg-slate-900 px-5 py-3 font-semibold text-white transition hover:bg-slate-700 disabled:cursor-not-allowed disabled:bg-slate-300"
                   type="button"
@@ -613,7 +767,9 @@ export default function Home() {
                 </button>
               </>
             ) : (
-              <p className="mt-3 text-slate-500">点击“开始识别”后，会显示识别到的音符列表。</p>
+              <p className="mt-3 text-slate-500">
+                点击“开始识别”后，会显示识别到的音符列表。
+              </p>
             )}
           </div>
         </div>

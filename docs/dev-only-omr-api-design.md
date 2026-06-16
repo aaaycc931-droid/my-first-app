@@ -74,6 +74,24 @@ The main upload button remains connected to `/api/recognize`, and the default mo
 The dev-only panel also includes a manual firstNotes playback preview when the Audiveris summary returns at least one item in `firstNotes`. This preview is intentionally limited to `audiverisDevSummary.firstNotes` from the summary response only; it does not request complete notes, does not play a full score, and does not write any Audiveris result into the main recognition result area. The preview button and empty-state copy are displayed only inside the same `NEXT_PUBLIC_AUDIVERIS_DEV_UI_ENABLED === "true"` dev UI boundary, and this preview does not call or connect to `/api/recognize`.
 
 
+## Dev-only full notes playback preview
+
+The dev-only Audiveris path can now support a guarded full notes playback preview for local development only. This is still not production, not Vercel, and not `/api/recognize`. It does not change the default `mock` provider and does not add an Audiveris provider.
+
+The default response remains summary-only. Without additional flags and request opt-in, `/api/dev/recognize-audiveris` returns only `devOnly`, `implemented`, `source`, `inputType`, `noteCount`, and `firstNotes`; it does not return full `notes` by default. The UI also does not show a full notes playback button by default.
+
+Full notes preview requires both extra dev flags and an explicit request:
+
+- Server flag: `AUDIVERIS_DEV_API_RETURN_FULL_NOTES === "true"`.
+- Frontend flag: `NEXT_PUBLIC_AUDIVERIS_DEV_FULL_NOTES_ENABLED === "true"`.
+- Request form data: `includeNotes = "full"`.
+
+Only when the frontend flag is enabled does the dev-only Audiveris panel append `includeNotes = "full"`. Only when the server flag is also enabled may the dev-only API include `notes`, `returnedNoteCount`, and `notesTruncated` in the response. If either side is not enabled, the route remains summary-only and the UI falls back to the existing `firstNotes` preview.
+
+The returned full notes are used only for local/dev-only playback preview inside the Audiveris dev panel. They must not be written into the main recognition result area, must not be stored in localStorage, and must not affect the main upload flow. The main upload button remains connected to `/api/recognize`.
+
+To keep responses conservative, full notes may be truncated. The default maximum is 2000 notes. In that case `noteCount` remains the full parsed note total, `returnedNoteCount` is the number actually returned, and `notesTruncated` indicates whether only the first returned notes are available for preview. The UI copy must make clear that the full notes preview is dev-only, not `/api/recognize`, not production, and may be truncated.
+
 ## Developer-reported local dev-only Audiveris UI validation
 
 This section records a developer-reported local-only, dev-only UI validation result for the Audiveris PDF test panel calling the Phase 3 dev-only API. It is not Codex-verified because the Codex cloud environment cannot access the developer's local browser, local `localhost` Next.js dev server, or local Audiveris installation. It is also not production, not Vercel, not `/api/recognize`, not a new Audiveris provider, and not a change to the default `mock` provider.

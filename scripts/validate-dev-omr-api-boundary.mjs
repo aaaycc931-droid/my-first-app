@@ -53,9 +53,12 @@ const assertOrder = (filePath, source, earlier, later, description) => {
 };
 
 const assertFinallyReleasesLock = (filePath, source) => {
-  const finallyMatch = source.match(/finally\s*{[\s\S]*?isAudiverisRunning\s*=\s*false\s*;[\s\S]*?}/);
+  const finallyMatch = source.match(
+    /finally\s*{[\s\S]*?isAudiverisRunning\s*=\s*false\s*;[\s\S]*?}/,
+  );
   if (finallyMatch) pass(`${filePath} releases isAudiverisRunning in finally.`);
-  else fail(`${filePath} must release isAudiverisRunning = false inside finally.`);
+  else
+    fail(`${filePath} must release isAudiverisRunning = false inside finally.`);
 };
 
 const assertAudiverisDevUIBoundary = (filePath, source) => {
@@ -72,48 +75,139 @@ const assertAudiverisDevUIBoundary = (filePath, source) => {
     "calls the Audiveris dev API only from the explicit dev UI handler",
   );
 
-  const apiReferenceIndexes = [...source.matchAll(/\/api\/dev\/recognize-audiveris/g)].map(
-    (match) => match.index ?? -1,
-  );
+  const apiReferenceIndexes = [
+    ...source.matchAll(/\/api\/dev\/recognize-audiveris/g),
+  ].map((match) => match.index ?? -1);
 
   if (apiReferenceIndexes.length !== 1) {
-    fail(`${filePath} must reference /api/dev/recognize-audiveris exactly once.`, [
-      `found: ${apiReferenceIndexes.length}`,
-    ]);
+    fail(
+      `${filePath} must reference /api/dev/recognize-audiveris exactly once.`,
+      [`found: ${apiReferenceIndexes.length}`],
+    );
     return;
   }
 
   const referenceIndex = apiReferenceIndexes[0];
-  const nearbySource = source.slice(Math.max(0, referenceIndex - 2500), referenceIndex + 2500);
+  const nearbySource = source.slice(
+    Math.max(0, referenceIndex - 2500),
+    referenceIndex + 2500,
+  );
 
   if (
     nearbySource.includes("handleAudiverisDevRecognize") &&
-    nearbySource.includes("formData.append(\"file\", audiverisDevFile)") &&
+    nearbySource.includes('formData.append("file", audiverisDevFile)') &&
     source.includes("isAudiverisDevUIEnabled")
   ) {
-    pass(`${filePath} references /api/dev/recognize-audiveris only in the dev-only UI logic.`);
+    pass(
+      `${filePath} references /api/dev/recognize-audiveris only in the dev-only UI logic.`,
+    );
   } else {
-    fail(`${filePath} must keep /api/dev/recognize-audiveris inside the Audiveris dev-only UI logic.`);
+    fail(
+      `${filePath} must keep /api/dev/recognize-audiveris inside the Audiveris dev-only UI logic.`,
+    );
   }
 
-  assertNotContains(filePath, source, /\bfflate\b/, "does not import or use fflate");
-  assertNotContains(filePath, source, /\bunzipSync\b/, "does not import or use unzipSync");
-  assertNotContains(filePath, source, /\bmxlExtractor\b/, "does not import or use mxlExtractor");
-  assertNotContains(filePath, source, /\bextractMusicXMLFromMxl\b/, "does not import or use extractMusicXMLFromMxl");
-  assertNotContains(filePath, source, /child_process/, "does not reference child_process");
+  assertNotContains(
+    filePath,
+    source,
+    /\bfflate\b/,
+    "does not import or use fflate",
+  );
+  assertNotContains(
+    filePath,
+    source,
+    /\bunzipSync\b/,
+    "does not import or use unzipSync",
+  );
+  assertNotContains(
+    filePath,
+    source,
+    /\bmxlExtractor\b/,
+    "does not import or use mxlExtractor",
+  );
+  assertNotContains(
+    filePath,
+    source,
+    /\bextractMusicXMLFromMxl\b/,
+    "does not import or use extractMusicXMLFromMxl",
+  );
+  assertNotContains(
+    filePath,
+    source,
+    /child_process/,
+    "does not reference child_process",
+  );
   assertNotContains(filePath, source, /\bspawn\b/, "does not reference spawn");
   assertNotContains(filePath, source, /\bexec\b/, "does not reference exec");
-  assertNotContains(filePath, source, /\bexecFile\b/, "does not reference execFile");
-  assertContains(filePath, source, /fetch\(\s*["']\/api\/recognize["']/, "keeps the main upload flow calling /api/recognize");
-  assertContains(filePath, source, /播放 Audiveris firstNotes 预览/, "shows the Audiveris firstNotes playback preview button copy");
-  assertContains(filePath, source, /仅播放 Audiveris firstNotes 预览，不是完整曲谱/, "explains the preview is not full-score playback");
-  assertContains(filePath, source, /没有可播放的 Audiveris firstNotes/, "shows the empty firstNotes playback message");
+  assertNotContains(
+    filePath,
+    source,
+    /\bexecFile\b/,
+    "does not reference execFile",
+  );
+  assertContains(
+    filePath,
+    source,
+    /fetch\(\s*["']\/api\/recognize["']/,
+    "keeps the main upload flow calling /api/recognize",
+  );
+  assertContains(
+    filePath,
+    source,
+    /NEXT_PUBLIC_AUDIVERIS_DEV_FULL_NOTES_ENABLED/,
+    "includes the full notes preview dev flag",
+  );
+  assertContains(
+    filePath,
+    source,
+    /if\s*\(isAudiverisDevFullNotesEnabled\)\s*{[\s\S]*?formData\.append\(\s*["']includeNotes["']\s*,\s*["']full["']\s*\)/,
+    "appends includeNotes=full only when the full notes flag is enabled",
+  );
+  assertContains(
+    filePath,
+    source,
+    /播放完整 Audiveris notes 预览/,
+    "shows the Audiveris full notes playback preview button copy",
+  );
+  assertContains(
+    filePath,
+    source,
+    /播放 Audiveris firstNotes 预览/,
+    "shows the Audiveris firstNotes playback preview button copy",
+  );
+  assertContains(
+    filePath,
+    source,
+    /仅播放 Audiveris firstNotes 预览，不是完整曲谱/,
+    "explains the firstNotes preview is not full-score playback",
+  );
+  assertContains(
+    filePath,
+    source,
+    /没有可播放的 Audiveris firstNotes/,
+    "shows the empty firstNotes playback message",
+  );
+  assertContains(
+    filePath,
+    source,
+    /Dev-only full notes preview[\s\S]*\/api\/recognize[\s\S]*not[\s\S]*production[\s\S]*may be truncated/,
+    "explains full notes preview safety boundaries",
+  );
 
-  const audiverisSummarySetter = source.match(/setAudiverisDevSummary\([\s\S]*?\n\s*}\);/);
-  if (audiverisSummarySetter?.[0].includes("setRecognizedNotes") || audiverisSummarySetter?.[0].includes("setRecognizeStatus")) {
-    fail(`${filePath} must not write Audiveris dev results into the main recognition state.`);
+  const audiverisSummarySetter = source.match(
+    /setAudiverisDevSummary\([\s\S]*?\n\s*}\);/,
+  );
+  if (
+    audiverisSummarySetter?.[0].includes("setRecognizedNotes") ||
+    audiverisSummarySetter?.[0].includes("setRecognizeStatus")
+  ) {
+    fail(
+      `${filePath} must not write Audiveris dev results into the main recognition state.`,
+    );
   } else {
-    pass(`${filePath} keeps Audiveris dev results out of the main recognition state.`);
+    pass(
+      `${filePath} keeps Audiveris dev results out of the main recognition state.`,
+    );
   }
 };
 
@@ -124,47 +218,178 @@ if (!existsSync(routePath)) {
   const routeSource = readSource(routePath);
 
   assertContains(routePath, routeSource, /\bspawn\s*\(/, "call spawn");
-  assertContains(routePath, routeSource, /AUDIVERIS_DEV_API_ENABLED/, "include the AUDIVERIS_DEV_API_ENABLED gate");
-  assertContains(routePath, routeSource, /AUDIVERIS_DEV_API_ENABLED\s*!==\s*["']true["'][\s\S]*?status:\s*404/, "return 404 when the gate is not enabled");
-  assertContains(routePath, routeSource, /AUDIVERIS_PATH/, "mention AUDIVERIS_PATH");
-  assertContains(routePath, routeSource, /status:\s*429/, "return 429 when Audiveris is busy");
-  assertOrder(routePath, routeSource, "isAudiverisRunning = true", "await request.formData()", "set isAudiverisRunning = true before await request.formData()");
+  assertContains(
+    routePath,
+    routeSource,
+    /AUDIVERIS_DEV_API_ENABLED/,
+    "include the AUDIVERIS_DEV_API_ENABLED gate",
+  );
+  assertContains(
+    routePath,
+    routeSource,
+    /AUDIVERIS_DEV_API_ENABLED\s*!==\s*["']true["'][\s\S]*?status:\s*404/,
+    "return 404 when the gate is not enabled",
+  );
+  assertContains(
+    routePath,
+    routeSource,
+    /AUDIVERIS_PATH/,
+    "mention AUDIVERIS_PATH",
+  );
+  assertContains(
+    routePath,
+    routeSource,
+    /status:\s*429/,
+    "return 429 when Audiveris is busy",
+  );
+  assertOrder(
+    routePath,
+    routeSource,
+    "isAudiverisRunning = true",
+    "await request.formData()",
+    "set isAudiverisRunning = true before await request.formData()",
+  );
   assertContains(routePath, routeSource, /finally\s*{/, "include finally");
   assertFinallyReleasesLock(routePath, routeSource);
-  assertContains(routePath, routeSource, /application\/pdf|\.pdf/i, "include a PDF-only upload check");
-  assertContains(routePath, routeSource, /10\s*\*\s*1024\s*\*\s*1024|10485760|10 MB/i, "include a 10MB upload limit");
-  assertContains(routePath, routeSource, /tmpdir\s*\(/, "use the system temp dir via tmpdir");
-  assertContains(routePath, routeSource, /\brm\s*\([\s\S]*recursive:\s*true[\s\S]*force:\s*true/, "cleanup the temp dir");
-  assertContains(routePath, routeSource, /setTimeout|timeout/i, "include a timeout");
+  assertContains(
+    routePath,
+    routeSource,
+    /application\/pdf|\.pdf/i,
+    "include a PDF-only upload check",
+  );
+  assertContains(
+    routePath,
+    routeSource,
+    /10\s*\*\s*1024\s*\*\s*1024|10485760|10 MB/i,
+    "include a 10MB upload limit",
+  );
+  assertContains(
+    routePath,
+    routeSource,
+    /tmpdir\s*\(/,
+    "use the system temp dir via tmpdir",
+  );
+  assertContains(
+    routePath,
+    routeSource,
+    /\brm\s*\([\s\S]*recursive:\s*true[\s\S]*force:\s*true/,
+    "cleanup the temp dir",
+  );
+  assertContains(
+    routePath,
+    routeSource,
+    /setTimeout|timeout/i,
+    "include a timeout",
+  );
   assertContains(routePath, routeSource, /\.mxl/, "find generated .mxl output");
-  assertContains(routePath, routeSource, /extractMusicXMLFromMxl\s*\(/, "call extractMusicXMLFromMxl");
-  assertContains(routePath, routeSource, /parseMusicXML\s*\(/, "call parseMusicXML");
-  assertContains(routePath, routeSource, /implemented:\s*true/, "return implemented: true");
+  assertContains(
+    routePath,
+    routeSource,
+    /extractMusicXMLFromMxl\s*\(/,
+    "call extractMusicXMLFromMxl",
+  );
+  assertContains(
+    routePath,
+    routeSource,
+    /parseMusicXML\s*\(/,
+    "call parseMusicXML",
+  );
+  assertContains(
+    routePath,
+    routeSource,
+    /implemented:\s*true/,
+    "return implemented: true",
+  );
   assertContains(routePath, routeSource, /noteCount/, "return noteCount");
   assertContains(routePath, routeSource, /firstNotes/, "return firstNotes");
-  assertNotContains(routePath, routeSource, /\/api\/recognize/, "does not call /api/recognize");
+  assertContains(
+    routePath,
+    routeSource,
+    /AUDIVERIS_DEV_API_RETURN_FULL_NOTES/,
+    "include the full notes response env gate",
+  );
+  assertContains(
+    routePath,
+    routeSource,
+    /includeNotes\s*===\s*["']full["'][\s\S]*AUDIVERIS_DEV_API_RETURN_FULL_NOTES\s*===\s*["']true["']/,
+    "gate full notes on includeNotes=full and AUDIVERIS_DEV_API_RETURN_FULL_NOTES=true",
+  );
+  assertContains(
+    routePath,
+    routeSource,
+    /MAX_RETURNED_NOTES\s*=\s*2000|slice\(\s*0\s*,\s*2000\s*\)/,
+    "limit returned full notes to 2000",
+  );
+  assertContains(
+    routePath,
+    routeSource,
+    /notesTruncated/,
+    "return notesTruncated when full notes are included",
+  );
+  assertContains(
+    routePath,
+    routeSource,
+    /\.\.\.\(shouldReturnFullNotes[\s\S]*notes:/,
+    "return notes only conditionally",
+  );
+  assertNotContains(
+    routePath,
+    routeSource,
+    /notes:\s*parsedScore\.notes\s*[,}]/,
+    "does not unconditionally return all parsed notes",
+  );
+  assertNotContains(
+    routePath,
+    routeSource,
+    /\/api\/recognize/,
+    "does not call /api/recognize",
+  );
 }
 
 const changedFiles = gitChangedFiles();
-if (changedFiles.includes(routePath)) {
-  fail(`${routePath} must not be modified by this UI-only firstNotes preview task.`);
+if (changedFiles.includes(mainApiPath)) {
+  fail(
+    `${mainApiPath} must not be modified by this dev-only full notes preview task.`,
+  );
 } else {
-  pass(`${routePath} is not modified by this UI-only firstNotes preview task.`);
+  pass(
+    `${mainApiPath} is not modified by this dev-only full notes preview task.`,
+  );
 }
 
 const pageSource = readSource(pagePath);
 assertAudiverisDevUIBoundary(pagePath, pageSource);
 
 const mainApiSource = readSource(mainApiPath);
-assertNotContains(mainApiPath, mainApiSource, /recognize-audiveris/, "does not reference recognize-audiveris");
-assertNotContains(mainApiPath, mainApiSource, /Audiveris/i, "does not reference Audiveris");
+assertNotContains(
+  mainApiPath,
+  mainApiSource,
+  /recognize-audiveris/,
+  "does not reference recognize-audiveris",
+);
+assertNotContains(
+  mainApiPath,
+  mainApiSource,
+  /Audiveris/i,
+  "does not reference Audiveris",
+);
 
 const recognizerFactorySource = readSource(recognizerFactoryPath);
-assertContains(recognizerFactoryPath, recognizerFactorySource, /const\s+defaultProvider\s*:\s*RecognizerProvider\s*=\s*["']mock["']\s*;/, "keeps default provider set to mock");
-const providerMatch = recognizerFactorySource.match(/export\s+type\s+RecognizerProvider\s*=\s*([^;]+);/);
-if (!providerMatch) fail(`${recognizerFactoryPath} must define RecognizerProvider.`);
-else if (providerMatch[1].includes("audiveris")) fail(`${recognizerFactoryPath} provider union must not include audiveris.`);
-else pass(`${recognizerFactoryPath} provider union does not include audiveris.`);
+assertContains(
+  recognizerFactoryPath,
+  recognizerFactorySource,
+  /const\s+defaultProvider\s*:\s*RecognizerProvider\s*=\s*["']mock["']\s*;/,
+  "keeps default provider set to mock",
+);
+const providerMatch = recognizerFactorySource.match(
+  /export\s+type\s+RecognizerProvider\s*=\s*([^;]+);/,
+);
+if (!providerMatch)
+  fail(`${recognizerFactoryPath} must define RecognizerProvider.`);
+else if (providerMatch[1].includes("audiveris"))
+  fail(`${recognizerFactoryPath} provider union must not include audiveris.`);
+else
+  pass(`${recognizerFactoryPath} provider union does not include audiveris.`);
 
 console.log("Dev OMR API boundary validation results:");
 for (const check of checks) {
@@ -173,7 +398,9 @@ for (const check of checks) {
 }
 
 if (failures.length > 0) {
-  console.error(`\nDev OMR API boundary validation failed with ${failures.length} issue(s).`);
+  console.error(
+    `\nDev OMR API boundary validation failed with ${failures.length} issue(s).`,
+  );
   process.exit(1);
 }
 
