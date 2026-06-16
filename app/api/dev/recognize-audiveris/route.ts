@@ -12,7 +12,9 @@ export const runtime = "nodejs";
 
 const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
 const DEFAULT_TIMEOUT_MS = 300_000;
-const missingAudiverisPathMessage = "AUDIVERIS_PATH is required for dev-only Audiveris API.";
+const MAX_RETURNED_NOTES = 2000;
+const missingAudiverisPathMessage =
+  "AUDIVERIS_PATH is required for dev-only Audiveris API.";
 
 let isAudiverisRunning = false;
 
@@ -20,10 +22,16 @@ function parseTimeoutMs() {
   const rawTimeout = process.env.AUDIVERIS_DEV_API_TIMEOUT_MS;
   const timeoutMs = Number(rawTimeout);
 
-  return Number.isFinite(timeoutMs) && timeoutMs > 0 ? timeoutMs : DEFAULT_TIMEOUT_MS;
+  return Number.isFinite(timeoutMs) && timeoutMs > 0
+    ? timeoutMs
+    : DEFAULT_TIMEOUT_MS;
 }
 
-function runAudiveris(audiverisPath: string, inputPdfPath: string, outputDir: string) {
+function runAudiveris(
+  audiverisPath: string,
+  inputPdfPath: string,
+  outputDir: string,
+) {
   const timeoutMs = parseTimeoutMs();
   const args = ["-batch", "-export", "-output", outputDir, inputPdfPath];
 
@@ -97,17 +105,30 @@ export async function POST(request: Request) {
   try {
     const formData = await request.formData();
     const file = formData.get("file");
+    const includeNotes = formData.get("includeNotes");
 
     if (!(file instanceof File)) {
-      return NextResponse.json({ error: "PDF file is required." }, { status: 400 });
+      return NextResponse.json(
+        { error: "PDF file is required." },
+        { status: 400 },
+      );
     }
 
-    if (file.type !== "application/pdf" && !file.name.toLowerCase().endsWith(".pdf")) {
-      return NextResponse.json({ error: "Only PDF uploads are supported." }, { status: 400 });
+    if (
+      file.type !== "application/pdf" &&
+      !file.name.toLowerCase().endsWith(".pdf")
+    ) {
+      return NextResponse.json(
+        { error: "Only PDF uploads are supported." },
+        { status: 400 },
+      );
     }
 
     if (file.size > MAX_UPLOAD_BYTES) {
-      return NextResponse.json({ error: "PDF upload must be 10 MB or smaller." }, { status: 413 });
+      return NextResponse.json(
+        { error: "PDF upload must be 10 MB or smaller." },
+        { status: 413 },
+      );
     }
 
     tempRootDir = await mkdtemp(path.join(tmpdir(), "audiveris-dev-api-"));
@@ -120,11 +141,23 @@ export async function POST(request: Request) {
 
     const generatedMxlPath = await findGeneratedMxl(tempOutputDir);
     if (!generatedMxlPath) {
-      return NextResponse.json({ error: "Audiveris did not generate an .mxl file." }, { status: 502 });
+      return NextResponse.json(
+        { error: "Audiveris did not generate an .mxl file." },
+        { status: 502 },
+      );
     }
 
-    const musicXml = extractMusicXMLFromMxl(new Uint8Array(await readFile(generatedMxlPath)));
+    const musicXml = extractMusicXMLFromMxl(
+      new Uint8Array(await readFile(generatedMxlPath)),
+    );
     const parsedScore = parseMusicXML(musicXml);
+
+    const shouldReturnFullNotes =
+      includeNotes === "full" &&
+      process.env.AUDIVERIS_DEV_API_RETURN_FULL_NOTES === "true";
+    const returnedNotes = shouldReturnFullNotes
+      ? parsedScore.notes.slice(0, MAX_RETURNED_NOTES)
+      : [];
 
     return NextResponse.json({
       devOnly: true,
@@ -133,10 +166,21 @@ export async function POST(request: Request) {
       inputType: "pdf",
       noteCount: parsedScore.notes.length,
       firstNotes: parsedScore.notes.slice(0, 10),
+      ...(shouldReturnFullNotes
+        ? {
+            notes: returnedNotes,
+            returnedNoteCount: returnedNotes.length,
+            notesTruncated: parsedScore.notes.length > MAX_RETURNED_NOTES,
+          }
+        : {}),
     });
   } catch {
     return NextResponse.json(
-      { error: "Audiveris dev recognition failed.", devOnly: true, implemented: true },
+      {
+        error: "Audiveris dev recognition failed.",
+        devOnly: true,
+        implemented: true,
+      },
       { status: 500 },
     );
   } finally {
