@@ -6,6 +6,14 @@ import type { RecognizedNote, RecognizeResponse } from "../lib/recognition";
 
 type RecognizeStatus = "未上传" | "已上传" | "识别中" | "识别完成" | "识别失败";
 type MusicXMLImportStatus = "idle" | "importing" | "success" | "error";
+type AudiverisDevStatus = "idle" | "processing" | "success" | "error";
+
+type AudiverisDevSummary = {
+  noteCount: number;
+  firstNotes: RecognizedNote[];
+  source: string;
+  inputType: string;
+};
 
 type ToneSynth = {
   toDestination: () => ToneSynth;
@@ -34,6 +42,8 @@ const defaultBpm = 120;
 const maxMusicXMLFileSizeBytes = 2 * 1024 * 1024;
 const isMusicXMLImportEnabled =
   process.env.NEXT_PUBLIC_MUSICXML_IMPORT_ENABLED === "true";
+const isAudiverisDevUIEnabled =
+  process.env.NEXT_PUBLIC_AUDIVERIS_DEV_UI_ENABLED === "true";
 
 const calculateDurationSeconds = (duration: RecognizedNote["duration"], bpm: number) =>
   durationToBeats[duration] * (60 / bpm);
@@ -66,6 +76,12 @@ export default function Home() {
   const [musicXMLImportStatus, setMusicXMLImportStatus] =
     useState<MusicXMLImportStatus>("idle");
   const [importedMusicXMLNoteCount, setImportedMusicXMLNoteCount] = useState(0);
+  const [audiverisDevFile, setAudiverisDevFile] = useState<File | null>(null);
+  const [audiverisDevStatus, setAudiverisDevStatus] =
+    useState<AudiverisDevStatus>("idle");
+  const [audiverisDevError, setAudiverisDevError] = useState("");
+  const [audiverisDevSummary, setAudiverisDevSummary] =
+    useState<AudiverisDevSummary | null>(null);
 
   const handleImageUpload = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -175,6 +191,68 @@ export default function Home() {
       );
     } finally {
       setIsImportingMusicXML(false);
+    }
+  };
+
+  const handleAudiverisDevSelection = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+
+    setAudiverisDevFile(null);
+    setAudiverisDevStatus("idle");
+    setAudiverisDevError("");
+    setAudiverisDevSummary(null);
+
+    if (!file) {
+      return;
+    }
+
+    if (file.type !== "application/pdf" && !file.name.toLowerCase().endsWith(".pdf")) {
+      setAudiverisDevStatus("error");
+      setAudiverisDevError("Dev-only Local Audiveris 面板只接受 PDF 文件。");
+      event.target.value = "";
+      return;
+    }
+
+    setAudiverisDevFile(file);
+  };
+
+  const handleAudiverisDevRecognize = async () => {
+    if (!audiverisDevFile || audiverisDevStatus === "processing") {
+      return;
+    }
+
+    setAudiverisDevStatus("processing");
+    setAudiverisDevError("");
+    setAudiverisDevSummary(null);
+
+    const formData = new FormData();
+    formData.append("file", audiverisDevFile);
+
+    try {
+      const response = await fetch("/api/dev/recognize-audiveris", {
+        method: "POST",
+        body: formData,
+      });
+      const data = (await response.json()) as Partial<AudiverisDevSummary> & {
+        error?: string;
+      };
+
+      if (!response.ok || data.error) {
+        throw new Error(data.error || "Dev-only Local Audiveris PDF 测试失败。");
+      }
+
+      setAudiverisDevSummary({
+        noteCount: data.noteCount ?? 0,
+        firstNotes: data.firstNotes ?? [],
+        source: data.source ?? "unknown",
+        inputType: data.inputType ?? "unknown",
+      });
+      setAudiverisDevStatus("success");
+    } catch (error) {
+      setAudiverisDevStatus("error");
+      setAudiverisDevError(
+        error instanceof Error ? error.message : "Dev-only Local Audiveris PDF 测试失败。",
+      );
     }
   };
 
@@ -352,6 +430,81 @@ export default function Home() {
                   : musicXMLImportStatus === "success"
                     ? "重新导入 MusicXML"
                     : "导入并验证播放"}
+              </button>
+            </div>
+          ) : null}
+
+          {isAudiverisDevUIEnabled ? (
+            <div className="rounded-2xl border border-purple-200 bg-purple-50 p-5">
+              <div>
+                <p className="text-sm font-semibold uppercase tracking-wide text-purple-700">
+                  Dev-only · Local Audiveris · PDF only
+                </p>
+                <h2 className="mt-1 text-lg font-semibold">Audiveris PDF 测试面板</h2>
+                <p className="mt-2 text-sm text-slate-600">
+                  Not production，Not `/api/recognize`。此入口只用于本地开发手动测试，点击按钮后才会调用 dev-only API，不影响主识别流程。
+                </p>
+              </div>
+
+              <label className="mt-4 block text-sm font-semibold text-slate-800">
+                选择 PDF 文件
+                <input
+                  className="mt-2 block w-full rounded-lg border border-purple-300 bg-white px-3 py-2 text-sm text-slate-700 file:mr-3 file:rounded-md file:border-0 file:bg-purple-100 file:px-3 file:py-2 file:font-semibold file:text-purple-800"
+                  type="file"
+                  accept="application/pdf,.pdf"
+                  onChange={handleAudiverisDevSelection}
+                />
+              </label>
+
+              <div className="mt-3 text-sm" aria-live="polite">
+                {audiverisDevFile ? (
+                  <p className="text-slate-600">已选择 PDF：{audiverisDevFile.name}</p>
+                ) : null}
+                {audiverisDevStatus === "idle" && !audiverisDevFile ? (
+                  <p className="text-slate-600">请选择 PDF 后手动开始测试。</p>
+                ) : null}
+                {audiverisDevStatus === "processing" ? (
+                  <p className="font-medium text-purple-700">处理中，请等待 Local Audiveris 返回 summary...</p>
+                ) : null}
+                {audiverisDevStatus === "error" && audiverisDevError ? (
+                  <p className="text-red-600">{audiverisDevError}</p>
+                ) : null}
+              </div>
+
+              {audiverisDevSummary ? (
+                <dl className="mt-4 grid gap-3 rounded-xl bg-white p-4 text-sm sm:grid-cols-2">
+                  <div>
+                    <dt className="font-semibold text-slate-700">noteCount</dt>
+                    <dd className="text-slate-600">{audiverisDevSummary.noteCount}</dd>
+                  </div>
+                  <div>
+                    <dt className="font-semibold text-slate-700">source</dt>
+                    <dd className="text-slate-600">{audiverisDevSummary.source}</dd>
+                  </div>
+                  <div>
+                    <dt className="font-semibold text-slate-700">inputType</dt>
+                    <dd className="text-slate-600">{audiverisDevSummary.inputType}</dd>
+                  </div>
+                  <div>
+                    <dt className="font-semibold text-slate-700">firstNotes</dt>
+                    <dd className="text-slate-600">
+                      {audiverisDevSummary.firstNotes.length > 0
+                        ? audiverisDevSummary.firstNotes
+                            .map(({ note, duration }) => `${note} (${duration})`)
+                            .join(", ")
+                        : "none"}
+                    </dd>
+                  </div>
+                </dl>
+              ) : null}
+
+              <button
+                className="mt-4 w-full rounded-xl bg-purple-600 px-5 py-3 font-semibold text-white transition hover:bg-purple-700 disabled:cursor-not-allowed disabled:bg-slate-300"
+                type="button"
+                onClick={handleAudiverisDevRecognize}
+                disabled={!audiverisDevFile || audiverisDevStatus === "processing"}
+              >
+                {audiverisDevStatus === "processing" ? "处理中..." : "手动调用 Local Audiveris PDF 测试"}
               </button>
             </div>
           ) : null}

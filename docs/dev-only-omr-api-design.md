@@ -53,6 +53,24 @@ Required future boundary rules:
 - The route must not call, modify, wrap, or otherwise couple itself to `/api/recognize`.
 - `/api/recognize` must remain the mock-oriented main recognition boundary.
 
+## Dev-only UI entry point
+
+A small manual Audiveris PDF test panel is available on the home page only when `NEXT_PUBLIC_AUDIVERIS_DEV_UI_ENABLED === "true"`. The panel is hidden by default, so leaving the environment variable unset keeps the page behavior unchanged.
+
+This UI entry point is intentionally narrow:
+
+- It is dev-only, local-only, and manual-test-only.
+- It is not production and not for Vercel.
+- It accepts PDF input only.
+- It calls only `POST /api/dev/recognize-audiveris` with multipart field name `file`.
+- It does not call, replace, wrap, or affect `/api/recognize`.
+- It does not change the default `mock` provider and does not add an Audiveris provider.
+- It does not run Audiveris in the browser.
+- It does not move MXL decompression or MusicXML extraction into `app/page.tsx`.
+- It displays only the response summary fields `noteCount`, `firstNotes`, `source`, and `inputType`; it must not display full logs, local paths, generated file content, or download generated files.
+
+The main upload button remains connected to `/api/recognize`, and the default mock recognition flow remains separate from this dev-only Audiveris UI.
+
 ## 4. File and safety boundaries
 
 A future implementation must define and validate file and safety boundaries before executing Audiveris.
@@ -85,7 +103,7 @@ Before any future dev-only OMR API implementation, validation must confirm:
 - Phase 1: write only this dev-only API design document.
 - Phase 2: skeleton added. It is still no Audiveris execution, still not production, still not Vercel, still not `/api/recognize`, and still not connected to UI.
 - Phase 3: consider env-gated Audiveris execution only after safety, cleanup, timeout, and repository hygiene boundaries are validated.
-- Phase 4: add local manual testing steps and documentation.
+- Phase 4: add an env-gated local manual Audiveris PDF UI entry point for dev-only testing without changing `/api/recognize` or the default `mock` provider.
 - Phase 5: only after boundaries and cleanup strategy are stable, consider a formal provider design.
 
 Across every phase, `/api/recognize` should not be directly polluted with Audiveris, MXL extraction, or dev-only OMR concerns.
