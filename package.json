@@ -12,7 +12,8 @@
     "musicxml:metrics": "node scripts/collect-musicxml-fixture-metrics.mjs",
     "validate:musicxml": "node scripts/validate-musicxml-fixtures.mjs",
     "validate:musicxml-import-ui": "node scripts/validate-musicxml-import-ui.mjs",
-    "validate:recognition-boundary": "node scripts/validate-recognition-boundary.mjs"
+    "validate:recognition-boundary": "node scripts/validate-recognition-boundary.mjs",
+    "audiveris:probe-local": "node scripts/audiveris-probe-local.mjs"
   },
   "dependencies": {
     "next": "^14.2.0",
