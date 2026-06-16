@@ -90,3 +90,5 @@ npm run lint   # 运行 Next.js lint 检查
 4. 在 Vercel 中选择 **Add New... → Project** 并导入该仓库。
 5. 保持默认 Next.js 配置即可：Install Command 为 `npm install`，Build Command 为 `npm run build`，Output Directory 留空。
 6. 点击 **Deploy**。如项目后续需要环境变量，请在 Vercel Project Settings 的 **Environment Variables** 中添加后重新部署。
+
+Current MVP status: see docs/mvp-status.md
