@@ -153,3 +153,23 @@ The developer reported that:
 This result only demonstrates that the local-only POC succeeded on the developer's machine. It is **not production OMR**, **not Vercel-compatible**, and **not** evidence that `/api/recognize` has been connected to Audiveris. `/api/recognize` remains outside this local-only flow, and the default provider should remain `mock`.
 
 Generated PDF, MXL, XML, OMR, log, image files, or real score samples from this local developer-only validation must not be committed to the repository. No generated artifacts are included by this documentation note.
+
+## 10. Local-only MusicXML/MXL inspect
+
+`musicxml:inspect-local` 是开发者本机使用的 local-only inspect 命令，用于确认当前项目的 parser 是否能解析本地 `.mxl/.musicxml/.xml` 文件，并输出 note count 与前 5 个 notes 的简短摘要。
+
+PowerShell 示例：
+
+```powershell
+npm run musicxml:inspect-local -- --input "D:\omr-output-script\score.mxl"
+```
+
+说明：
+
+1. 这是 local-only inspect。
+2. 它不会运行 Audiveris。
+3. 它不会调用 `/api/recognize`。
+4. 它不会调用 dev import API。
+5. 它不会写出生成文件。
+6. 它只是确认当前 parser 能否解析本地 `.mxl/.musicxml/.xml` 并输出 note count。
+7. 不要提交被检查的 `.mxl/.xml/.musicxml` 文件。
