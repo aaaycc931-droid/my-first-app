@@ -14,7 +14,8 @@
     "validate:musicxml-import-ui": "node scripts/validate-musicxml-import-ui.mjs",
     "validate:recognition-boundary": "node scripts/validate-recognition-boundary.mjs",
     "audiveris:probe-local": "node scripts/audiveris-probe-local.mjs",
-    "validate:mxl-import": "node scripts/validate-mxl-import.mjs"
+    "validate:mxl-import": "node scripts/validate-mxl-import.mjs",
+    "validate:repository-hygiene": "node scripts/validate-repository-hygiene.mjs"
   },
   "dependencies": {
     "next": "^14.2.0",
