@@ -105,6 +105,26 @@ This developer-reported local UI validation indicates only that:
 
 This validation remains developer-reported, local-only, dev-only, not Codex-verified, not production, not Vercel, not `/api/recognize`, not a default mock provider change, and not an Audiveris provider. No generated PDF, MXL, XML, OMR, log, image, or real score sample artifacts are committed by this documentation note.
 
+
+## Developer-reported local Audiveris firstNotes playback preview validation
+
+This section records a developer-reported local-only, dev-only playback preview result for the Audiveris firstNotes UI. It is not Codex-verified because the Codex cloud environment cannot access the developer's local browser, audio output, local `localhost` Next.js dev server, or local Audiveris installation. It is also not production, not Vercel, not `/api/recognize`, not full-score playback, not a default provider change, and not evidence of an Audiveris provider.
+
+The developer reported enabling both the dev-only UI and the dev-only API locally with these environment variables:
+
+- `NEXT_PUBLIC_AUDIVERIS_DEV_UI_ENABLED = "true"`
+- `AUDIVERIS_DEV_API_ENABLED = "true"`
+- `AUDIVERIS_PATH = "D:\Audiveris.exe"`
+- `AUDIVERIS_DEV_API_TIMEOUT_MS = "300000"`
+
+The developer reported opening the local Next.js dev server in a browser. The Audiveris PDF test panel displayed `DEV-ONLY · LOCAL AUDIVERIS · PDF ONLY` and `Audiveris PDF 测试面板`. After the developer selected the local file `score.pdf`, the dev-only UI displayed `noteCount: 651`, `source: audiveris`, `inputType: pdf`, and a normal `firstNotes` summary.
+
+The developer also reported that the playback preview UI displayed `仅播放 Audiveris firstNotes 预览，不是完整曲谱` and `播放 Audiveris firstNotes 预览`, and that clicking `播放 Audiveris firstNotes 预览` played the firstNotes preview successfully on the developer's machine. The main recognition result area still displayed `状态：未上传`, so the dev-only Audiveris result was not written into the main recognition state.
+
+This developer-reported local result indicates only that the firstNotes playback preview is a dev-only UI internal behavior. It plays only the `firstNotes` from the returned summary, is not full-score playback, does not write the Audiveris result into the main recognition state, does not replace `/api/recognize`, does not change the default `mock` provider, and does not add an Audiveris provider.
+
+This remains developer-reported, local-only, dev-only, not Codex-verified, not production, not Vercel, not `/api/recognize`, not full-score playback, not a default provider change, and no Audiveris provider is added. No generated PDF, MXL, XML, OMR, log, image, or real score sample artifacts are committed by this documentation note.
+
 ## 4. File and safety boundaries
 
 A future implementation must define and validate file and safety boundaries before executing Audiveris.
