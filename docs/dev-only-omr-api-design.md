@@ -124,3 +124,33 @@ The developer reported starting the Next.js dev server locally and manually vali
 The developer also reported that no Audiveris execution logs were observed during these three checks and that no new `.mxl`, `.omr`, or `.log` files were generated. The local dev server may have used port `3001` because `3000` was occupied; that is only local Next.js dev server behavior and does not change the API boundary conclusion.
 
 This developer-reported result only indicates that the Phase 2 skeleton local behavior matched the expected 404, 500, and 501 boundaries. It does not mean real OMR is implemented. `/api/recognize` remains separate and must not be connected to Audiveris by this skeleton-only work. The default provider should remain `mock`, and no generated artifacts should be committed.
+
+## Developer-reported local Phase 3 Audiveris execution validation
+
+This section records a developer-reported local-only, dev-only manual validation result for Phase 3 Audiveris execution. It is not Codex-verified because the Codex cloud environment cannot access the developer's local Audiveris installation or local `localhost` Next.js dev server. It is also not production, not Vercel, not `/api/recognize`, not connected to UI, not a new Audiveris provider, and not a change to the default `mock` provider.
+
+The developer reported enabling the Phase 3 dev-only API in a local Next.js dev server with these environment variables:
+
+- `AUDIVERIS_DEV_API_ENABLED = "true"`
+- `AUDIVERIS_PATH = "D:\Audiveris.exe"`
+- `AUDIVERIS_DEV_API_TIMEOUT_MS = "300000"`
+
+The developer reported sending a multipart request to `POST /api/dev/recognize-audiveris` with local PDF input `D:\omr-test\score.pdf` using field name `file` and content type `application/pdf`.
+
+The developer reported that the response was successful and included:
+
+- HTTP `200`
+- `devOnly: true`
+- `implemented: true`
+- `source: "audiveris"`
+- `inputType: "pdf"`
+- `noteCount: 651`
+- `firstNotes` containing the first parsed notes
+
+The developer reported that this local result validates the dev-only route's local execution path: the route successfully called the developer's local Audiveris installation, server-side code read the MXL produced by Audiveris, `extractMusicXMLFromMxl` extracted MusicXML from that MXL, and `parseMusicXML` parsed notes from the extracted MusicXML.
+
+The developer also reported that temporary cleanup passed: running `Get-ChildItem "$env:TEMP" -Directory -Filter "audiveris-dev-api-*"` produced no output. The developer reported that a PowerShell repository search for `.mxl`, `.omr`, `.log`, `.pdf`, `.xml`, `.jpg`, `.jpeg`, `.png`, `.gif`, `.webp`, `.tif`, `.tiff`, `.bmp`, and `.heic` files, excluding `node_modules` and `.next`, also produced no output.
+
+The developer reported that `validate:repository-hygiene` could not run on the developer's machine because Git was not available there and failed with `spawnSync git ENOENT`. That is a developer-machine environment issue and does not represent a repository hygiene failure.
+
+This result must continue to be treated as local/dev-only and developer-reported only. It is not production, not Vercel, not Codex-verified, not `/api/recognize`, and not connected to UI. The default provider remains `mock`; no Audiveris provider is added by this validation note; and no generated PDF, MXL, XML, OMR, log, image, or real score sample artifacts are committed.
