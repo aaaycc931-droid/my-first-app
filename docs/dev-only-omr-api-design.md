@@ -2,6 +2,8 @@
 
 > Status: Phase 2 skeleton added. The dev-only route exists only as a safety-boundary skeleton; it still does not execute Audiveris, does not implement real OMR, and does not add production behavior.
 
+Related quickstart: [Dev-only Audiveris local quickstart](./audiveris-dev-quickstart.md).
+
 ## Scope and non-goals
 
 This document defines a future boundary for a possible Audiveris-backed OMR API that would be used only for local development experiments.
