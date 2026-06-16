@@ -1,6 +1,6 @@
 # Dev-only OMR API Design
 
-> Status: design-only. This document is not an implementation plan for this task, and no API, provider, route, dependency, generated artifact, or production behavior is added by this change.
+> Status: Phase 2 skeleton added. The dev-only route exists only as a safety-boundary skeleton; it still does not execute Audiveris, does not implement real OMR, and does not add production behavior.
 
 ## Scope and non-goals
 
@@ -9,7 +9,7 @@ This document defines a future boundary for a possible Audiveris-backed OMR API 
 It is explicitly:
 
 - local/dev-only.
-- not implemented.
+- not implemented for Audiveris execution; Phase 2 is skeleton-only.
 - not production.
 - not Vercel.
 - not `/api/recognize`.
@@ -40,7 +40,7 @@ A future dev-only OMR API, if added, should meet these goals:
 
 ## 3. Suggested future API boundary
 
-A possible future route could be `/api/dev/recognize-audiveris`, but that path is only a design suggestion. This task does not implement the route.
+Phase 2 adds `/api/dev/recognize-audiveris` as a dev-only skeleton route. It establishes the environment-variable gate and response boundary only; it does not execute Audiveris, does not perform OMR, and does not write generated files.
 
 Required future boundary rules:
 
@@ -83,8 +83,8 @@ Before any future dev-only OMR API implementation, validation must confirm:
 
 - Phase 0: current local-only export + inspect + dev import/playback has been completed and reported successful by a developer.
 - Phase 1: write only this dev-only API design document.
-- Phase 2: add a dev-only API skeleton, but do not execute Audiveris.
-- Phase 3: add dev-only Audiveris execution behind an environment gate.
+- Phase 2: skeleton added. It is still no Audiveris execution, still not production, still not Vercel, still not `/api/recognize`, and still not connected to UI.
+- Phase 3: consider env-gated Audiveris execution only after safety, cleanup, timeout, and repository hygiene boundaries are validated.
 - Phase 4: add local manual testing steps and documentation.
 - Phase 5: only after boundaries and cleanup strategy are stable, consider a formal provider design.
 

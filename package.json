@@ -17,7 +17,8 @@
     "validate:mxl-import": "node scripts/validate-mxl-import.mjs",
     "validate:repository-hygiene": "node scripts/validate-repository-hygiene.mjs",
     "audiveris:export-local": "node scripts/audiveris-export-local.mjs",
-    "musicxml:inspect-local": "node scripts/musicxml-inspect-local.mjs"
+    "musicxml:inspect-local": "node scripts/musicxml-inspect-local.mjs",
+    "validate:dev-omr-api-boundary": "node scripts/validate-dev-omr-api-boundary.mjs"
   },
   "dependencies": {
     "next": "^14.2.0",
