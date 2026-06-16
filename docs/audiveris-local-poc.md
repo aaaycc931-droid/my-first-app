@@ -173,3 +173,27 @@ npm run musicxml:inspect-local -- --input "D:\omr-output-script\score.mxl"
 5. 它不会写出生成文件。
 6. 它只是确认当前 parser 能否解析本地 `.mxl/.musicxml/.xml` 并输出 note count。
 7. 不要提交被检查的 `.mxl/.xml/.musicxml` 文件。
+
+## 11. Developer-reported local MusicXML/MXL inspect validation
+
+The following result is **developer-reported**, **local-only**, and **command-line inspect only**. It was manually run by the developer on a Windows machine, not by Codex in the cloud environment.
+
+Developer-reported command:
+
+```powershell
+npm run musicxml:inspect-local -- --input "D:\omr-output-script\score.mxl"
+```
+
+The developer reported that this command successfully parsed the local `.mxl` file and that the output included:
+
+```text
+Parsed note count: 651
+```
+
+This developer-reported inspect result is consistent with the previously reported dev-only MusicXML/MXL import UI playback result. It only shows that the locally exported `.mxl` can be parsed by the current parser in a developer machine command-line inspect flow.
+
+This result is **not production OMR**, **not Vercel validation**, and **not** evidence that `/api/recognize` has been connected to Audiveris. It also does not add an Audiveris provider or change the default `mock` provider.
+
+Codex did not access any `D:\` path, did not read `score.mxl`, did not run a real local inspect against that file, and did not inspect any generated output artifacts. Real inspect validation still requires the developer's local `.mxl` file on the developer's own machine.
+
+Generated PDF, MXL, XML, OMR, log, image files, or real score samples must not be committed to the repository. This documentation note does not include any generated file contents or generated artifacts.
