@@ -71,6 +71,37 @@ This UI entry point is intentionally narrow:
 
 The main upload button remains connected to `/api/recognize`, and the default mock recognition flow remains separate from this dev-only Audiveris UI.
 
+## Developer-reported local dev-only Audiveris UI validation
+
+This section records a developer-reported local-only, dev-only UI validation result for the Audiveris PDF test panel calling the Phase 3 dev-only API. It is not Codex-verified because the Codex cloud environment cannot access the developer's local browser, local `localhost` Next.js dev server, or local Audiveris installation. It is also not production, not Vercel, not `/api/recognize`, not a new Audiveris provider, and not a change to the default `mock` provider.
+
+The developer reported enabling both the dev-only UI and the dev-only API locally with these environment variables:
+
+- `NEXT_PUBLIC_AUDIVERIS_DEV_UI_ENABLED = "true"`
+- `AUDIVERIS_DEV_API_ENABLED = "true"`
+- `AUDIVERIS_PATH = "D:\Audiveris.exe"`
+- `AUDIVERIS_DEV_API_TIMEOUT_MS = "300000"`
+
+The developer reported opening the local Next.js dev server in a browser. The page displayed the dev-only panel labels `DEV-ONLY · LOCAL AUDIVERIS · PDF ONLY` and `Audiveris PDF 测试面板`. The developer selected the local PDF file `score.pdf` and clicked the independent button labeled `手动调用 Local Audiveris PDF 测试`.
+
+The developer reported that the dev-only UI displayed a successful summary from `/api/dev/recognize-audiveris`, including:
+
+- `noteCount: 651`
+- `source: audiveris`
+- `inputType: pdf`
+- `firstNotes` displayed normally, with examples such as E5, D5, A4, and other leading notes
+
+The developer also reported that the main recognition result area still showed the not-uploaded state and did not go through the main flow. This indicates that the main `/api/recognize` upload flow was not replaced by the dev-only UI.
+
+This developer-reported local UI validation indicates only that:
+
+- The dev-only UI can call `/api/dev/recognize-audiveris`.
+- The developer's local Audiveris API execution succeeded.
+- The UI displays only summary fields.
+- The UI did not display full logs, local paths, or generated files.
+
+This validation remains developer-reported, local-only, dev-only, not Codex-verified, not production, not Vercel, not `/api/recognize`, not a default mock provider change, and not an Audiveris provider. No generated PDF, MXL, XML, OMR, log, image, or real score sample artifacts are committed by this documentation note.
+
 ## 4. File and safety boundaries
 
 A future implementation must define and validate file and safety boundaries before executing Audiveris.
