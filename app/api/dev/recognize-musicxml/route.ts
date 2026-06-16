@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 
+import { extractMusicXMLFromMxl } from "../../../../lib/musicxml/mxlExtractor";
 import { createRecognizer } from "../../../../lib/recognition/recognizerFactory";
 
 const MAX_MUSICXML_FILE_SIZE_BYTES = 2 * 1024 * 1024;
@@ -22,19 +23,9 @@ export async function POST(request: Request) {
 
     const extension = file.name.toLowerCase().split(".").pop();
 
-    if (extension === "mxl") {
+    if (extension !== "musicxml" && extension !== "xml" && extension !== "mxl") {
       return NextResponse.json(
-        {
-          error:
-            "当前不支持 .mxl，请先将文件改名为 .zip 并解压内部 XML，再上传 .musicxml 或 .xml 文件。",
-        },
-        { status: 400 },
-      );
-    }
-
-    if (extension !== "musicxml" && extension !== "xml") {
-      return NextResponse.json(
-        { error: "仅支持 .musicxml 或 .xml 文件。" },
+        { error: "仅支持 .musicxml、.xml 或 .mxl 文件。" },
         { status: 400 },
       );
     }
@@ -54,12 +45,25 @@ export async function POST(request: Request) {
     }
 
     const recognizer = createRecognizer("musicxml");
-    const response = await recognizer.recognize(file);
+    const musicXMLFile =
+      extension === "mxl"
+        ? new File(
+            [extractMusicXMLFromMxl(new Uint8Array(await file.arrayBuffer()))],
+            file.name.replace(/\.mxl$/i, ".musicxml"),
+            { type: "application/xml" },
+          )
+        : file;
+    const response = await recognizer.recognize(musicXMLFile);
 
     return NextResponse.json(response);
-  } catch {
+  } catch (error) {
     return NextResponse.json(
-      { error: "无法读取上传的 MusicXML 文件，请检查请求格式后重试。" },
+      {
+        error:
+          error instanceof Error
+            ? error.message
+            : "无法读取上传的 MusicXML 文件，请检查请求格式后重试。",
+      },
       { status: 400 },
     );
   }

@@ -109,17 +109,8 @@ export default function Home() {
 
     const extension = file.name.toLowerCase().split(".").pop();
 
-    if (extension === "mxl") {
-      setMusicXMLImportError(
-        "当前网页导入仅支持 .musicxml/.xml，请先将 .mxl 改名为 .zip 并解压出内部 XML 文件。",
-      );
-      setMusicXMLImportStatus("error");
-      event.target.value = "";
-      return;
-    }
-
-    if (extension !== "musicxml" && extension !== "xml") {
-      setMusicXMLImportError("请选择 .musicxml 或 .xml 文件。");
+    if (extension !== "musicxml" && extension !== "xml" && extension !== "mxl") {
+      setMusicXMLImportError("请选择 .musicxml、.xml 或 .mxl 文件。");
       setMusicXMLImportStatus("error");
       event.target.value = "";
       return;
@@ -312,8 +303,7 @@ export default function Home() {
                   Import MusicXML
                 </h2>
                 <p className="mt-2 text-sm text-slate-600">
-                  仅用于开发验证，文件最大 2 MB。支持 .musicxml/.xml；.mxl 请先改名为
-                  .zip，并解压出内部 XML 文件。
+                  仅用于开发验证，文件最大 2 MB。支持 .musicxml、.xml、.mxl；.mxl 只会在 dev API 中解压验证，不影响图片上传主流程。
                 </p>
               </div>
 
@@ -333,7 +323,7 @@ export default function Home() {
                 ) : null}
                 {musicXMLImportStatus === "idle" && !musicXMLFile ? (
                   <p className="text-slate-600">
-                    请选择 .musicxml 或 .xml 文件。
+                    请选择 .musicxml、.xml 或 .mxl 文件。
                   </p>
                 ) : null}
                 {musicXMLImportStatus === "importing" ? (
