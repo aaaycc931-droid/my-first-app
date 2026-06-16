@@ -71,6 +71,9 @@ This UI entry point is intentionally narrow:
 
 The main upload button remains connected to `/api/recognize`, and the default mock recognition flow remains separate from this dev-only Audiveris UI.
 
+The dev-only panel also includes a manual firstNotes playback preview when the Audiveris summary returns at least one item in `firstNotes`. This preview is intentionally limited to `audiverisDevSummary.firstNotes` from the summary response only; it does not request complete notes, does not play a full score, and does not write any Audiveris result into the main recognition result area. The preview button and empty-state copy are displayed only inside the same `NEXT_PUBLIC_AUDIVERIS_DEV_UI_ENABLED === "true"` dev UI boundary, and this preview does not call or connect to `/api/recognize`.
+
+
 ## Developer-reported local dev-only Audiveris UI validation
 
 This section records a developer-reported local-only, dev-only UI validation result for the Audiveris PDF test panel calling the Phase 3 dev-only API. It is not Codex-verified because the Codex cloud environment cannot access the developer's local browser, local `localhost` Next.js dev server, or local Audiveris installation. It is also not production, not Vercel, not `/api/recognize`, not a new Audiveris provider, and not a change to the default `mock` provider.

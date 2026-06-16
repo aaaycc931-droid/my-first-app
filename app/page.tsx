@@ -292,8 +292,8 @@ export default function Home() {
     }
   };
 
-  const handlePlayRecognizedNotes = async () => {
-    if (recognizedNotes.length === 0 || isPlaying) {
+  const playNotesPreview = async (notes: RecognizedNote[], trackMainResultIndex: boolean) => {
+    if (notes.length === 0 || isPlaying) {
       return;
     }
 
@@ -309,15 +309,17 @@ export default function Home() {
       const startTime = Tone.now();
       let offset = 0;
 
-      recognizedNotes.forEach(({ note, duration }, index) => {
+      notes.forEach(({ note, duration }, index) => {
         const noteOffset = offset;
-
         const noteDuration = calculateDurationSeconds(duration, bpm);
 
         synth.triggerAttackRelease(note, noteDuration, startTime + noteOffset);
-        window.setTimeout(() => {
-          setPlayingNoteIndex(index);
-        }, noteOffset * 1000);
+
+        if (trackMainResultIndex) {
+          window.setTimeout(() => {
+            setPlayingNoteIndex(index);
+          }, noteOffset * 1000);
+        }
 
         offset += noteDuration;
       });
@@ -332,6 +334,14 @@ export default function Home() {
       setPlayingNoteIndex(null);
       setIsPlaying(false);
     }
+  };
+
+  const handlePlayRecognizedNotes = async () => {
+    await playNotesPreview(recognizedNotes, true);
+  };
+
+  const handlePlayAudiverisFirstNotesPreview = async () => {
+    await playNotesPreview(audiverisDevSummary?.firstNotes ?? [], false);
   };
 
   return (
@@ -472,7 +482,8 @@ export default function Home() {
               </div>
 
               {audiverisDevSummary ? (
-                <dl className="mt-4 grid gap-3 rounded-xl bg-white p-4 text-sm sm:grid-cols-2">
+                <>
+                  <dl className="mt-4 grid gap-3 rounded-xl bg-white p-4 text-sm sm:grid-cols-2">
                   <div>
                     <dt className="font-semibold text-slate-700">noteCount</dt>
                     <dd className="text-slate-600">{audiverisDevSummary.noteCount}</dd>
@@ -495,7 +506,26 @@ export default function Home() {
                         : "none"}
                     </dd>
                   </div>
-                </dl>
+                  </dl>
+
+                  <div className="mt-4 rounded-xl bg-white p-4 text-sm text-slate-600">
+                    <p className="font-medium text-purple-700">
+                      仅播放 Audiveris firstNotes 预览，不是完整曲谱
+                    </p>
+                    {audiverisDevSummary.firstNotes.length > 0 ? (
+                      <button
+                        className="mt-3 w-full rounded-xl bg-purple-700 px-5 py-3 font-semibold text-white transition hover:bg-purple-800 disabled:cursor-not-allowed disabled:bg-slate-300"
+                        type="button"
+                        onClick={handlePlayAudiverisFirstNotesPreview}
+                        disabled={isPlaying}
+                      >
+                        {isPlaying ? "正在播放" : "播放 Audiveris firstNotes 预览"}
+                      </button>
+                    ) : (
+                      <p className="mt-3 text-slate-500">没有可播放的 Audiveris firstNotes</p>
+                    )}
+                  </div>
+                </>
               ) : null}
 
               <button
