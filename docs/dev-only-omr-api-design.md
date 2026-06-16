@@ -100,3 +100,27 @@ Across every phase, `/api/recognize` should not be directly polluted with Audive
 - How should local paths in logs be redacted?
 - Is a separate temporary working directory required for every request?
 - Should the dev API restrict execution to one Audiveris process at a time?
+
+## Developer-reported local Phase 2 skeleton validation
+
+This section records a developer-reported local-only manual validation result for the Phase 2 `/api/dev/recognize-audiveris` skeleton. It is not Codex-verified because the Codex cloud environment cannot access the developer's local `localhost` dev server. It is also not production, not Vercel, not `/api/recognize`, and not evidence that real OMR or Audiveris execution has been implemented.
+
+The developer reported starting the Next.js dev server locally and manually validating the `/api/dev/recognize-audiveris` skeleton with these results:
+
+- With the gate closed:
+  - `AUDIVERIS_DEV_API_ENABLED` was not enabled.
+  - `POST /api/dev/recognize-audiveris` returned `404`.
+- With the gate open but `AUDIVERIS_PATH` missing:
+  - `AUDIVERIS_DEV_API_ENABLED = "true"`.
+  - `AUDIVERIS_PATH` was not set.
+  - `POST /api/dev/recognize-audiveris` returned `500`.
+  - The response included `AUDIVERIS_PATH is required for dev-only Audiveris API.`
+- With the gate open and a Windows Audiveris path configured:
+  - `AUDIVERIS_DEV_API_ENABLED = "true"`.
+  - `AUDIVERIS_PATH = "D:\Audiveris.exe"`.
+  - `POST /api/dev/recognize-audiveris` returned `501`.
+  - The response kept skeleton-only semantics, including `implemented: false` and `reason: "skeleton only"`.
+
+The developer also reported that no Audiveris execution logs were observed during these three checks and that no new `.mxl`, `.omr`, or `.log` files were generated. The local dev server may have used port `3001` because `3000` was occupied; that is only local Next.js dev server behavior and does not change the API boundary conclusion.
+
+This developer-reported result only indicates that the Phase 2 skeleton local behavior matched the expected 404, 500, and 501 boundaries. It does not mean real OMR is implemented. `/api/recognize` remains separate and must not be connected to Audiveris by this skeleton-only work. The default provider should remain `mock`, and no generated artifacts should be committed.
