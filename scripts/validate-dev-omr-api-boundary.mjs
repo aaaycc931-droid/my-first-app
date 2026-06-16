@@ -1,4 +1,5 @@
 import { existsSync, readFileSync } from "node:fs";
+import { execSync } from "node:child_process";
 
 const routePath = "app/api/dev/recognize-audiveris/route.ts";
 const mainApiPath = "app/api/recognize/route.ts";
@@ -15,6 +16,17 @@ const fail = (message, details = []) => {
 };
 
 const readSource = (filePath) => readFileSync(filePath, "utf8");
+
+const gitChangedFiles = () => {
+  try {
+    return execSync("git diff --name-only HEAD", { encoding: "utf8" })
+      .split("\n")
+      .map((filePath) => filePath.trim())
+      .filter(Boolean);
+  } catch {
+    return [];
+  }
+};
 
 const assertContains = (filePath, source, pattern, description) => {
   if (pattern.test(source)) pass(`${filePath} ${description}.`);
@@ -93,6 +105,16 @@ const assertAudiverisDevUIBoundary = (filePath, source) => {
   assertNotContains(filePath, source, /\bexec\b/, "does not reference exec");
   assertNotContains(filePath, source, /\bexecFile\b/, "does not reference execFile");
   assertContains(filePath, source, /fetch\(\s*["']\/api\/recognize["']/, "keeps the main upload flow calling /api/recognize");
+  assertContains(filePath, source, /播放 Audiveris firstNotes 预览/, "shows the Audiveris firstNotes playback preview button copy");
+  assertContains(filePath, source, /仅播放 Audiveris firstNotes 预览，不是完整曲谱/, "explains the preview is not full-score playback");
+  assertContains(filePath, source, /没有可播放的 Audiveris firstNotes/, "shows the empty firstNotes playback message");
+
+  const audiverisSummarySetter = source.match(/setAudiverisDevSummary\([\s\S]*?\n\s*}\);/);
+  if (audiverisSummarySetter?.[0].includes("setRecognizedNotes") || audiverisSummarySetter?.[0].includes("setRecognizeStatus")) {
+    fail(`${filePath} must not write Audiveris dev results into the main recognition state.`);
+  } else {
+    pass(`${filePath} keeps Audiveris dev results out of the main recognition state.`);
+  }
 };
 
 if (!existsSync(routePath)) {
@@ -121,6 +143,13 @@ if (!existsSync(routePath)) {
   assertContains(routePath, routeSource, /noteCount/, "return noteCount");
   assertContains(routePath, routeSource, /firstNotes/, "return firstNotes");
   assertNotContains(routePath, routeSource, /\/api\/recognize/, "does not call /api/recognize");
+}
+
+const changedFiles = gitChangedFiles();
+if (changedFiles.includes(routePath)) {
+  fail(`${routePath} must not be modified by this UI-only firstNotes preview task.`);
+} else {
+  pass(`${routePath} is not modified by this UI-only firstNotes preview task.`);
 }
 
 const pageSource = readSource(pagePath);
