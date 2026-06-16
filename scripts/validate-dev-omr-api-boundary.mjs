@@ -46,6 +46,55 @@ const assertFinallyReleasesLock = (filePath, source) => {
   else fail(`${filePath} must release isAudiverisRunning = false inside finally.`);
 };
 
+const assertAudiverisDevUIBoundary = (filePath, source) => {
+  assertContains(
+    filePath,
+    source,
+    /NEXT_PUBLIC_AUDIVERIS_DEV_UI_ENABLED/,
+    "includes the NEXT_PUBLIC_AUDIVERIS_DEV_UI_ENABLED gate",
+  );
+  assertContains(
+    filePath,
+    source,
+    /fetch\(\s*["']\/api\/dev\/recognize-audiveris["']/,
+    "calls the Audiveris dev API only from the explicit dev UI handler",
+  );
+
+  const apiReferenceIndexes = [...source.matchAll(/\/api\/dev\/recognize-audiveris/g)].map(
+    (match) => match.index ?? -1,
+  );
+
+  if (apiReferenceIndexes.length !== 1) {
+    fail(`${filePath} must reference /api/dev/recognize-audiveris exactly once.`, [
+      `found: ${apiReferenceIndexes.length}`,
+    ]);
+    return;
+  }
+
+  const referenceIndex = apiReferenceIndexes[0];
+  const nearbySource = source.slice(Math.max(0, referenceIndex - 2500), referenceIndex + 2500);
+
+  if (
+    nearbySource.includes("handleAudiverisDevRecognize") &&
+    nearbySource.includes("formData.append(\"file\", audiverisDevFile)") &&
+    source.includes("isAudiverisDevUIEnabled")
+  ) {
+    pass(`${filePath} references /api/dev/recognize-audiveris only in the dev-only UI logic.`);
+  } else {
+    fail(`${filePath} must keep /api/dev/recognize-audiveris inside the Audiveris dev-only UI logic.`);
+  }
+
+  assertNotContains(filePath, source, /\bfflate\b/, "does not import or use fflate");
+  assertNotContains(filePath, source, /\bunzipSync\b/, "does not import or use unzipSync");
+  assertNotContains(filePath, source, /\bmxlExtractor\b/, "does not import or use mxlExtractor");
+  assertNotContains(filePath, source, /\bextractMusicXMLFromMxl\b/, "does not import or use extractMusicXMLFromMxl");
+  assertNotContains(filePath, source, /child_process/, "does not reference child_process");
+  assertNotContains(filePath, source, /\bspawn\b/, "does not reference spawn");
+  assertNotContains(filePath, source, /\bexec\b/, "does not reference exec");
+  assertNotContains(filePath, source, /\bexecFile\b/, "does not reference execFile");
+  assertContains(filePath, source, /fetch\(\s*["']\/api\/recognize["']/, "keeps the main upload flow calling /api/recognize");
+};
+
 if (!existsSync(routePath)) {
   fail(`${routePath} must exist.`);
 } else {
@@ -74,10 +123,12 @@ if (!existsSync(routePath)) {
   assertNotContains(routePath, routeSource, /\/api\/recognize/, "does not call /api/recognize");
 }
 
-for (const filePath of [pagePath, mainApiPath]) {
-  const source = readSource(filePath);
-  assertNotContains(filePath, source, /recognize-audiveris/, "does not reference recognize-audiveris");
-}
+const pageSource = readSource(pagePath);
+assertAudiverisDevUIBoundary(pagePath, pageSource);
+
+const mainApiSource = readSource(mainApiPath);
+assertNotContains(mainApiPath, mainApiSource, /recognize-audiveris/, "does not reference recognize-audiveris");
+assertNotContains(mainApiPath, mainApiSource, /Audiveris/i, "does not reference Audiveris");
 
 const recognizerFactorySource = readSource(recognizerFactoryPath);
 assertContains(recognizerFactoryPath, recognizerFactorySource, /const\s+defaultProvider\s*:\s*RecognizerProvider\s*=\s*["']mock["']\s*;/, "keeps default provider set to mock");
