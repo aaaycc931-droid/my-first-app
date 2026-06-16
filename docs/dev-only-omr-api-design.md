@@ -92,6 +92,25 @@ The returned full notes are used only for local/dev-only playback preview inside
 
 To keep responses conservative, full notes may be truncated. The default maximum is 2000 notes. In that case `noteCount` remains the full parsed note total, `returnedNoteCount` is the number actually returned, and `notesTruncated` indicates whether only the first returned notes are available for preview. The UI copy must make clear that the full notes preview is dev-only, not `/api/recognize`, not production, and may be truncated.
 
+## Developer-reported local full notes playback success
+
+This section records a developer-reported local-only, dev-only Audiveris full notes preview playback success. This is not Codex-verified: Codex cannot access the developer's local browser, audio output, local `localhost` Next.js dev server, or local Audiveris installation. This is not production, not Vercel, not `/api/recognize`, not an Audiveris provider, and not a default provider change. No generated PDF, MXL, XML, OMR, log, image, or real score sample artifacts are committed by this documentation note.
+
+The developer reported enabling the complete local dev-only Audiveris full notes flow with these flags and local path settings:
+
+- `NEXT_PUBLIC_AUDIVERIS_DEV_UI_ENABLED = "true"`
+- `NEXT_PUBLIC_AUDIVERIS_DEV_FULL_NOTES_ENABLED = "true"`
+- `AUDIVERIS_DEV_API_ENABLED = "true"`
+- `AUDIVERIS_DEV_API_RETURN_FULL_NOTES = "true"`
+- `AUDIVERIS_PATH = "D:\Audiveris.exe"`
+- `AUDIVERIS_DEV_API_TIMEOUT_MS = "300000"`
+
+The developer reported opening the local Next.js dev server in a browser, selecting a local `score.pdf`, and clicking `手动调用 Local Audiveris PDF 测试`. The developer reported that the dev-only UI displayed `noteCount: 651`, `source: audiveris`, `inputType: pdf`, and `firstNotes`. The developer also reported that the full notes preview UI displayed `播放完整 Audiveris notes 预览`, and that clicking it played the full notes preview successfully on the developer's machine.
+
+The developer reported that the main recognition result area was not replaced, so the main `/api/recognize` flow remained independent. This developer-reported result indicates only that the dev-only API can return notes when explicit full notes flags are enabled and the request opts in with `includeNotes=full`, and that the dev-only UI can play those returned notes as a local/dev-only full notes playback preview. It is not production or Vercel validation, does not connect Audiveris to `/api/recognize`, does not add an Audiveris provider, and does not change the default `mock` provider.
+
+Full notes return remains restricted: full notes are not returned by default, require the server flag, frontend flag, and `includeNotes=full` opt-in, and are capped at 2000 notes. Returned notes may be truncated. The full notes preview remains behind explicit dev flags and remains developer-reported, local-only, dev-only, not Codex-verified, not production, not Vercel, not `/api/recognize`, not a default provider change, and not an Audiveris provider.
+
 ## Developer-reported local Audiveris full notes playback preview validation
 
 This section records a developer-reported local-only, dev-only full notes playback preview result for the Audiveris dev panel. It is not Codex-verified because the Codex cloud environment cannot access the developer's local browser, audio output, local `localhost` Next.js dev server, or local Audiveris installation. It is also not production, not Vercel, not `/api/recognize`, not a default provider change, and not evidence of an Audiveris provider. No generated PDF, MXL, XML, OMR, log, image, or real score sample artifacts are committed by this documentation note.
