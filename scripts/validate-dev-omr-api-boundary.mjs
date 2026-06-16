@@ -3,6 +3,8 @@ import { existsSync, readFileSync } from "node:fs";
 const routePath = "app/api/dev/recognize-audiveris/route.ts";
 const mainApiPath = "app/api/recognize/route.ts";
 const pagePath = "app/page.tsx";
+const packagePath = "package.json";
+const recognizerFactoryPath = "lib/recognition/recognizerFactory.ts";
 
 const checks = [];
 const failures = [];
@@ -24,6 +26,21 @@ const assertContains = (filePath, source, pattern, description) => {
   } else {
     fail(`${filePath} must ${description}.`);
   }
+};
+
+const assertOrdered = (filePath, source, firstPattern, secondPattern, description) => {
+  const firstIndex = source.search(firstPattern);
+  const secondIndex = source.search(secondPattern);
+
+  if (firstIndex !== -1 && secondIndex !== -1 && firstIndex < secondIndex) {
+    pass(`${filePath} ${description}.`);
+    return;
+  }
+
+  fail(`${filePath} must ${description}.`, [
+    `first pattern index: ${firstIndex}`,
+    `second pattern index: ${secondIndex}`,
+  ]);
 };
 
 const forbiddenPatterns = [
@@ -73,6 +90,22 @@ if (!existsSync(routePath)) {
     "return 404 when the gate is not enabled",
   );
   assertContains(routePath, routeSource, /AUDIVERIS_PATH/, "mention AUDIVERIS_PATH");
+  assertContains(routePath, routeSource, /status:\s*429/, "return a 429 busy response");
+  assertContains(routePath, routeSource, /maxUploadBytes|10\s*\*\s*1024\s*\*\s*1024/, "define an upload size limit");
+  assertContains(routePath, routeSource, /upload\.size\s*>\s*maxUploadBytes/, "enforce the upload size limit");
+  assertContains(routePath, routeSource, /application\/pdf|\.pdf/, "accept PDF-only uploads");
+  assertContains(routePath, routeSource, /mkdtemp|tmpdir/, "use an isolated temp dir");
+  assertContains(routePath, routeSource, /rm\([^)]*recursive:\s*true[\s\S]*force:\s*true/, "cleanup the temp dir");
+  assertContains(routePath, routeSource, /timeoutMs|devApiTimeoutMs|AUDIVERIS_EXPORT_TIMEOUT_MS/, "record a timeout boundary");
+  assertContains(routePath, routeSource, /finally\s*{/, "use a finally block");
+  assertContains(routePath, routeSource, /finally\s*{[\s\S]*isAudiverisRunning\s*=\s*false[\s\S]*}/, "release the busy lock in finally");
+  assertOrdered(
+    routePath,
+    routeSource,
+    /isAudiverisRunning\s*=\s*true/,
+    /await\s+request\.formData\(\)/,
+    "sets isAudiverisRunning = true before awaiting request.formData()",
+  );
   assertContains(
     routePath,
     routeSource,
@@ -93,6 +126,21 @@ for (const filePath of [mainApiPath, pagePath]) {
     pass(`${filePath} does not reference recognize-audiveris.`);
   }
 }
+
+const packageSource = readSource(packagePath);
+if (/"fflate"\s*:/.test(packageSource) && !/"audiveris"\s*:/.test(packageSource)) {
+  pass(`${packagePath} has no audiveris provider dependency.`);
+} else {
+  fail(`${packagePath} must not add an audiveris provider dependency.`);
+}
+
+const recognizerFactorySource = readSource(recognizerFactoryPath);
+assertContains(
+  recognizerFactoryPath,
+  recognizerFactorySource,
+  /const\s+defaultProvider\s*:\s*RecognizerProvider\s*=\s*["']mock["']\s*;/,
+  "keep the default provider as mock",
+);
 
 console.log("Dev OMR API boundary validation results:");
 for (const check of checks) {
