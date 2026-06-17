@@ -95,4 +95,6 @@ Current MVP status: see docs/mvp-status.md
 
 Real OMR production architecture plan: see docs/real-omr-architecture-plan.md
 
+OMR sample and fixture strategy: see docs/omr-sample-fixture-strategy.md
+
 Public demo checklist: see docs/public-demo-checklist.md

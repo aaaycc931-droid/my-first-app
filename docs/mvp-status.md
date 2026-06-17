@@ -111,6 +111,8 @@ Public demo checklist: see `docs/public-demo-checklist.md`.
 
 Real OMR production architecture plan: see `docs/real-omr-architecture-plan.md`.
 
+OMR sample and fixture strategy: see `docs/omr-sample-fixture-strategy.md`.
+
 Public demo polish is complete for the production-safe MVP page. Production/Vercel demos still use the mock recognition flow only, and Local Audiveris remains dev-only/local-only behind explicit flags. This does not change `/api/recognize`, the provider union, or the default mock provider.
 
 ## 7. Current known non-goals
