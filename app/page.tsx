@@ -1,6 +1,6 @@
 "use client";
 
-import { ChangeEvent, useState } from "react";
+import { ChangeEvent, useEffect, useRef, useState } from "react";
 
 import type { RecognizedNote, RecognizeResponse } from "../lib/recognition";
 
@@ -90,6 +90,33 @@ export default function Home() {
   const [audiverisDevError, setAudiverisDevError] = useState("");
   const [audiverisDevSummary, setAudiverisDevSummary] =
     useState<AudiverisDevSummary | null>(null);
+  const playbackSynthRef = useRef<ToneSynth | null>(null);
+  const playbackTimeoutIdsRef = useRef<number[]>([]);
+
+  const stopPlaybackPreview = () => {
+    playbackTimeoutIdsRef.current.forEach((timeoutId) => {
+      window.clearTimeout(timeoutId);
+    });
+    playbackTimeoutIdsRef.current = [];
+
+    playbackSynthRef.current?.dispose();
+    playbackSynthRef.current = null;
+
+    setIsPlaying(false);
+    setPlayingNoteIndex(null);
+  };
+
+  useEffect(
+    () => () => {
+      playbackTimeoutIdsRef.current.forEach((timeoutId) => {
+        window.clearTimeout(timeoutId);
+      });
+      playbackTimeoutIdsRef.current = [];
+      playbackSynthRef.current?.dispose();
+      playbackSynthRef.current = null;
+    },
+    [],
+  );
 
   const handleImageUpload = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -105,8 +132,7 @@ export default function Home() {
     setRecognizeStatus("已上传");
     setRecognizeError("");
     setPlayError("");
-    setIsPlaying(false);
-    setPlayingNoteIndex(null);
+    stopPlaybackPreview();
   };
 
   const handleBpmChange = (event: ChangeEvent<HTMLInputElement>) => {
@@ -192,8 +218,7 @@ export default function Home() {
       setImportedMusicXMLNoteCount(importedNotes.length);
       setMusicXMLImportStatus("success");
       setRecognizeStatus("识别完成");
-      setIsPlaying(false);
-      setPlayingNoteIndex(null);
+      stopPlaybackPreview();
     } catch (error) {
       setMusicXMLImportStatus("error");
       setMusicXMLImportError(
@@ -325,10 +350,11 @@ export default function Home() {
     notes: RecognizedNote[],
     trackMainResultIndex: boolean,
   ) => {
-    if (notes.length === 0 || isPlaying) {
+    if (notes.length === 0) {
       return;
     }
 
+    stopPlaybackPreview();
     setIsPlaying(true);
     setPlayError("");
     setPlayingNoteIndex(null);
@@ -338,6 +364,7 @@ export default function Home() {
       await Tone.start();
 
       const synth = new Tone.Synth().toDestination();
+      playbackSynthRef.current = synth;
       const startTime = Tone.now();
       let offset = 0;
 
@@ -348,26 +375,31 @@ export default function Home() {
         synth.triggerAttackRelease(note, noteDuration, startTime + noteOffset);
 
         if (trackMainResultIndex) {
-          window.setTimeout(() => {
+          const noteTimeoutId = window.setTimeout(() => {
             setPlayingNoteIndex(index);
           }, noteOffset * 1000);
+          playbackTimeoutIdsRef.current.push(noteTimeoutId);
         }
 
         offset += noteDuration;
       });
 
-      window.setTimeout(
+      const completionTimeoutId = window.setTimeout(
         () => {
           synth.dispose();
+          if (playbackSynthRef.current === synth) {
+            playbackSynthRef.current = null;
+          }
+          playbackTimeoutIdsRef.current = [];
           setPlayingNoteIndex(null);
           setIsPlaying(false);
         },
         offset * 1000 + 500,
       );
+      playbackTimeoutIdsRef.current.push(completionTimeoutId);
     } catch {
       setPlayError("播放失败，请稍后再试。");
-      setPlayingNoteIndex(null);
-      setIsPlaying(false);
+      stopPlaybackPreview();
     }
   };
 
@@ -656,6 +688,16 @@ export default function Home() {
                   : "手动调用 Local Audiveris PDF 测试"}
               </button>
             </div>
+          ) : null}
+
+          {isPlaying ? (
+            <button
+              className="w-full rounded-xl bg-red-600 px-5 py-3 font-semibold text-white transition hover:bg-red-700"
+              type="button"
+              onClick={stopPlaybackPreview}
+            >
+              停止播放
+            </button>
           ) : null}
 
           <div className="rounded-2xl border border-slate-200 bg-white p-5">

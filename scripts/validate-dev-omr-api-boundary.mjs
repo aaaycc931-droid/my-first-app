@@ -172,6 +172,12 @@ const assertAudiverisDevUIBoundary = (filePath, source) => {
   assertContains(
     filePath,
     source,
+    /停止播放/,
+    "shows the explicit stop playback control copy",
+  );
+  assertContains(
+    filePath,
+    source,
     /播放 Audiveris firstNotes 预览/,
     "shows the Audiveris firstNotes playback preview button copy",
   );
