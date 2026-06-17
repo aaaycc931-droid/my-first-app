@@ -11,6 +11,15 @@ type AudioAnalysisResult = {
   simpleLevelHint: string;
 };
 
+type PitchEstimateResult = {
+  estimatedFrequencyHz: number;
+  nearestNote: string;
+  centsOffset: number;
+  confidence: number;
+  framesAnalyzed: number;
+  validPitchFrames: number;
+};
+
 const mockExercise = {
   title: "Mock Melody: Stepwise Warmup",
   targetNotes: ["C4", "D4", "E4", "G4", "E4", "D4", "C4"],
@@ -41,6 +50,124 @@ const noteFrequencies: Record<string, number> = {
   G4: 392,
 };
 
+const pitchNoteNames = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+
+const calculateRms = (samples: Float32Array, startIndex: number, frameSize: number) => {
+  let squaredSampleSum = 0;
+
+  for (let index = 0; index < frameSize; index += 1) {
+    const sample = samples[startIndex + index] ?? 0;
+    squaredSampleSum += sample * sample;
+  }
+
+  return Math.sqrt(squaredSampleSum / frameSize);
+};
+
+const estimateFrameFrequency = (
+  samples: Float32Array,
+  startIndex: number,
+  frameSize: number,
+  sampleRate: number,
+) => {
+  const minLag = Math.floor(sampleRate / 1000);
+  const maxLag = Math.min(Math.ceil(sampleRate / 80), frameSize - 1);
+  let bestLag = 0;
+  let bestCorrelation = -Infinity;
+
+  for (let lag = minLag; lag <= maxLag; lag += 1) {
+    let correlation = 0;
+
+    for (let index = 0; index < frameSize - lag; index += 1) {
+      correlation += samples[startIndex + index] * samples[startIndex + index + lag];
+    }
+
+    const normalizedCorrelation = correlation / (frameSize - lag);
+
+    if (normalizedCorrelation > bestCorrelation) {
+      bestCorrelation = normalizedCorrelation;
+      bestLag = lag;
+    }
+  }
+
+  return bestLag > 0 ? sampleRate / bestLag : null;
+};
+
+const calculateMedian = (values: number[]) => {
+  const sortedValues = [...values].sort((first, second) => first - second);
+  const middleIndex = Math.floor(sortedValues.length / 2);
+
+  if (sortedValues.length % 2 === 0) {
+    return (sortedValues[middleIndex - 1] + sortedValues[middleIndex]) / 2;
+  }
+
+  return sortedValues[middleIndex];
+};
+
+const getNearestPitchNote = (frequency: number) => {
+  const midiFloat = 69 + 12 * Math.log2(frequency / 440);
+  const nearestMidi = Math.round(midiFloat);
+  const centsOffset = (midiFloat - nearestMidi) * 100;
+  const octave = Math.floor(nearestMidi / 12) - 1;
+  const noteName = pitchNoteNames[((nearestMidi % 12) + 12) % 12];
+
+  return {
+    nearestNote: `${noteName}${octave}`,
+    centsOffset,
+  };
+};
+
+const estimateLocalPitch = (audioBuffer: AudioBuffer): PitchEstimateResult => {
+  const frameSize = 4096;
+  const hopSize = 2048;
+
+  if (audioBuffer.length < frameSize) {
+    throw new Error("Recording is too short for local pitch estimation. Try recording a longer sustained note.");
+  }
+
+  const monoSamples = new Float32Array(audioBuffer.length);
+
+  for (let channelIndex = 0; channelIndex < audioBuffer.numberOfChannels; channelIndex += 1) {
+    const channelData = audioBuffer.getChannelData(channelIndex);
+
+    for (let sampleIndex = 0; sampleIndex < audioBuffer.length; sampleIndex += 1) {
+      monoSamples[sampleIndex] += channelData[sampleIndex] / audioBuffer.numberOfChannels;
+    }
+  }
+
+  const frameFrequencies: number[] = [];
+  let framesAnalyzed = 0;
+
+  for (let startIndex = 0; startIndex + frameSize <= monoSamples.length; startIndex += hopSize) {
+    framesAnalyzed += 1;
+
+    if (calculateRms(monoSamples, startIndex, frameSize) < 0.015) {
+      continue;
+    }
+
+    const frequency = estimateFrameFrequency(monoSamples, startIndex, frameSize, audioBuffer.sampleRate);
+
+    if (frequency !== null && frequency >= 80 && frequency <= 1000) {
+      frameFrequencies.push(frequency);
+    }
+  }
+
+  if (framesAnalyzed === 0 || frameFrequencies.length === 0) {
+    throw new Error("No usable pitch frames were found. Try a louder, steadier single note.");
+  }
+
+  const estimatedFrequencyHz = calculateMedian(frameFrequencies);
+  const { nearestNote, centsOffset } = getNearestPitchNote(estimatedFrequencyHz);
+
+  return {
+    estimatedFrequencyHz,
+    nearestNote,
+    centsOffset,
+    confidence: frameFrequencies.length / framesAnalyzed,
+    framesAnalyzed,
+    validPitchFrames: frameFrequencies.length,
+  };
+};
+
 const calculateTargetNoteSeconds = () => 60 / mockExercise.suggestedBpm;
 
 const stopOscillator = (oscillator: OscillatorNode) => {
@@ -64,6 +191,9 @@ export default function PracticePage() {
   const [audioAnalysisResult, setAudioAnalysisResult] = useState<AudioAnalysisResult | null>(null);
   const [audioAnalysisError, setAudioAnalysisError] = useState("");
   const [isAnalyzingAudio, setIsAnalyzingAudio] = useState(false);
+  const [pitchEstimateResult, setPitchEstimateResult] = useState<PitchEstimateResult | null>(null);
+  const [pitchEstimateError, setPitchEstimateError] = useState("");
+  const [isEstimatingPitch, setIsEstimatingPitch] = useState(false);
   const [recordingSeconds, setRecordingSeconds] = useState(0);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const mediaStreamRef = useRef<MediaStream | null>(null);
@@ -206,6 +336,9 @@ export default function PracticePage() {
     setAudioAnalysisError("");
     setAudioAnalysisResult(null);
     setIsAnalyzingAudio(false);
+    setPitchEstimateResult(null);
+    setPitchEstimateError("");
+    setIsEstimatingPitch(false);
     setRecordingSeconds(0);
     revokeRecordedAudioUrl(recordedAudioUrl);
     setRecordedAudioUrl(null);
@@ -356,6 +489,43 @@ export default function PracticePage() {
     }
   };
 
+
+  const handleEstimatePitchLocally = async () => {
+    if (!recordedAudioBlob) {
+      setPitchEstimateError("Record a local attempt before estimating pitch locally.");
+      return;
+    }
+
+    setPitchEstimateError("");
+    setPitchEstimateResult(null);
+    setIsEstimatingPitch(true);
+
+    let audioContext: AudioContext | null = null;
+
+    try {
+      audioContext = new AudioContext();
+      const audioData = await recordedAudioBlob.arrayBuffer();
+      const audioBuffer = await audioContext.decodeAudioData(audioData);
+      const result = estimateLocalPitch(audioBuffer);
+
+      if (isMountedRef.current) {
+        setPitchEstimateResult(result);
+      }
+    } catch (error) {
+      if (isMountedRef.current) {
+        setPitchEstimateError(error instanceof Error ? error.message : "Local pitch estimation failed in this browser.");
+      }
+    } finally {
+      if (audioContext) {
+        await audioContext.close().catch(() => undefined);
+      }
+
+      if (isMountedRef.current) {
+        setIsEstimatingPitch(false);
+      }
+    }
+  };
+
   const handlePlayRecordedAttempt = () => {
     if (!recordedAudioUrl) {
       return;
@@ -386,6 +556,9 @@ export default function PracticePage() {
     setAudioAnalysisError("");
     setAudioAnalysisResult(null);
     setIsAnalyzingAudio(false);
+    setPitchEstimateResult(null);
+    setPitchEstimateError("");
+    setIsEstimatingPitch(false);
     setRecordingSeconds(0);
     recordingChunksRef.current = [];
   };
@@ -488,7 +661,8 @@ export default function PracticePage() {
               <button type="button" onClick={handleStopLocalRecording} disabled={!isRecording} className="rounded-full border border-emerald-300 bg-white px-4 py-2 text-sm font-semibold text-emerald-800 disabled:text-slate-400">Stop recording</button>
               <button type="button" onClick={handlePlayRecordedAttempt} disabled={!recordedAudioUrl || isRecording} className="rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white disabled:bg-slate-300">Play recorded attempt</button>
               <button type="button" onClick={handleAnalyzeLocalRecording} disabled={!recordedAudioBlob || isRecording || isAnalyzingAudio} className="rounded-full bg-emerald-900 px-4 py-2 text-sm font-semibold text-white disabled:bg-slate-300">{isAnalyzingAudio ? "Analyzing locally..." : "Analyze local recording"}</button>
-              <button type="button" onClick={handleClearRecording} disabled={!recordedAudioUrl && !recordedAudioBlob && !isRecording && !recordingError && !audioAnalysisError && !audioAnalysisResult} className="rounded-full border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 disabled:text-slate-400">Clear recording</button>
+              <button type="button" onClick={handleEstimatePitchLocally} disabled={!recordedAudioBlob || isRecording || isEstimatingPitch} className="rounded-full bg-indigo-700 px-4 py-2 text-sm font-semibold text-white disabled:bg-slate-300">{isEstimatingPitch ? "Estimating locally..." : "Estimate pitch locally"}</button>
+              <button type="button" onClick={handleClearRecording} disabled={!recordedAudioUrl && !recordedAudioBlob && !isRecording && !recordingError && !audioAnalysisError && !audioAnalysisResult && !pitchEstimateError && !pitchEstimateResult} className="rounded-full border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 disabled:text-slate-400">Clear recording</button>
             </div>
           </div>
           <div className="mt-4 rounded-xl border border-emerald-200 bg-white p-4 text-sm text-emerald-900">
@@ -502,7 +676,27 @@ export default function PracticePage() {
           </div>
           {recordingError ? <p className="mt-3 text-sm font-semibold text-red-700">{recordingError}</p> : null}
           {audioAnalysisError ? <p className="mt-3 text-sm font-semibold text-red-700">{audioAnalysisError}</p> : null}
+          {pitchEstimateError ? <p className="mt-3 text-sm font-semibold text-red-700">{pitchEstimateError}</p> : null}
           {recordedAudioUrl ? <audio className="mt-4 w-full" controls src={recordedAudioUrl}>Your browser does not support audio playback.</audio> : null}
+          <div className="mt-4 rounded-xl border border-indigo-200 bg-white p-4 text-sm text-indigo-900">
+            <p className="font-semibold">Experimental local pitch estimate</p>
+            <ul className="mt-2 list-disc space-y-1 pl-5">
+              <li>This is not a formal pitch score.</li>
+              <li>This is not rhythm evaluation.</li>
+              <li>Audio is not uploaded.</li>
+              <li>No AI API call.</li>
+            </ul>
+          </div>
+          {pitchEstimateResult ? (
+            <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
+              <div className="rounded-xl bg-white p-4 ring-1 ring-indigo-200"><dt className="font-semibold text-indigo-950">Estimated frequency Hz</dt><dd className="mt-1 text-indigo-800">{pitchEstimateResult.estimatedFrequencyHz.toFixed(2)}</dd></div>
+              <div className="rounded-xl bg-white p-4 ring-1 ring-indigo-200"><dt className="font-semibold text-indigo-950">Nearest note</dt><dd className="mt-1 text-indigo-800">{pitchEstimateResult.nearestNote}</dd></div>
+              <div className="rounded-xl bg-white p-4 ring-1 ring-indigo-200"><dt className="font-semibold text-indigo-950">Cents offset</dt><dd className="mt-1 text-indigo-800">{pitchEstimateResult.centsOffset.toFixed(1)}</dd></div>
+              <div className="rounded-xl bg-white p-4 ring-1 ring-indigo-200"><dt className="font-semibold text-indigo-950">Confidence</dt><dd className="mt-1 text-indigo-800">{pitchEstimateResult.confidence.toFixed(2)}</dd></div>
+              <div className="rounded-xl bg-white p-4 ring-1 ring-indigo-200"><dt className="font-semibold text-indigo-950">Frames analyzed</dt><dd className="mt-1 text-indigo-800">{pitchEstimateResult.framesAnalyzed}</dd></div>
+              <div className="rounded-xl bg-white p-4 ring-1 ring-indigo-200"><dt className="font-semibold text-indigo-950">Valid pitch frames</dt><dd className="mt-1 text-indigo-800">{pitchEstimateResult.validPitchFrames}</dd></div>
+            </dl>
+          ) : null}
           {audioAnalysisResult ? (
             <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
               <div className="rounded-xl bg-white p-4 ring-1 ring-emerald-200"><dt className="font-semibold text-emerald-950">Duration seconds</dt><dd className="mt-1 text-emerald-800">{audioAnalysisResult.durationSeconds.toFixed(2)}</dd></div>
