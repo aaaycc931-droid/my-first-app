@@ -4,20 +4,6 @@ import { useEffect, useRef, useState } from "react";
 
 type PracticeFlowState = "idle" | "listening" | "attempting" | "feedback";
 
-type ToneSynth = {
-  toDestination: () => ToneSynth;
-  triggerAttackRelease: (note: string, duration: number, time: number) => void;
-  dispose: () => void;
-};
-
-type ToneModule = {
-  Synth: new () => ToneSynth;
-  now: () => number;
-  start: () => Promise<void>;
-};
-
-const toneModuleUrl = "https://esm.sh/tone@15.1.22";
-
 const mockExercise = {
   title: "Mock Melody: Stepwise Warmup",
   targetNotes: ["C4", "D4", "E4", "G4", "E4", "D4", "C4"],
@@ -41,17 +27,31 @@ const practiceSteps = [
   "Retry",
 ];
 
-const loadTone = async () =>
-  (await import(/* webpackIgnore: true */ toneModuleUrl)) as ToneModule;
+const noteFrequencies: Record<string, number> = {
+  C4: 261.63,
+  D4: 293.66,
+  E4: 329.63,
+  G4: 392,
+};
 
 const calculateTargetNoteSeconds = () => 60 / mockExercise.suggestedBpm;
+
+const stopOscillator = (oscillator: OscillatorNode) => {
+  try {
+    oscillator.stop();
+  } catch {
+    // The oscillator may have already ended naturally.
+  }
+  oscillator.disconnect();
+};
 
 export default function PracticePage() {
   const [flowState, setFlowState] = useState<PracticeFlowState>("idle");
   const [playError, setPlayError] = useState("");
   const [activeNoteIndex, setActiveNoteIndex] = useState<number | null>(null);
   const [hasMockFeedback, setHasMockFeedback] = useState(false);
-  const playbackSynthRef = useRef<ToneSynth | null>(null);
+  const playbackAudioContextRef = useRef<AudioContext | null>(null);
+  const playbackOscillatorsRef = useRef<OscillatorNode[]>([]);
   const playbackTimeoutIdsRef = useRef<number[]>([]);
 
   const stopPlayback = () => {
@@ -59,8 +59,10 @@ export default function PracticePage() {
       window.clearTimeout(timeoutId);
     });
     playbackTimeoutIdsRef.current = [];
-    playbackSynthRef.current?.dispose();
-    playbackSynthRef.current = null;
+    playbackOscillatorsRef.current.forEach(stopOscillator);
+    playbackOscillatorsRef.current = [];
+    void playbackAudioContextRef.current?.close();
+    playbackAudioContextRef.current = null;
     setActiveNoteIndex(null);
     setFlowState((currentState) =>
       currentState === "listening" ? "idle" : currentState,
@@ -72,7 +74,10 @@ export default function PracticePage() {
       playbackTimeoutIdsRef.current.forEach((timeoutId) => {
         window.clearTimeout(timeoutId);
       });
-      playbackSynthRef.current?.dispose();
+      playbackOscillatorsRef.current.forEach(stopOscillator);
+      playbackOscillatorsRef.current = [];
+      void playbackAudioContextRef.current?.close();
+      playbackAudioContextRef.current = null;
     },
     [],
   );
@@ -83,17 +88,28 @@ export default function PracticePage() {
     setPlayError("");
 
     try {
-      const Tone = await loadTone();
-      await Tone.start();
-
-      const synth = new Tone.Synth().toDestination();
-      playbackSynthRef.current = synth;
-      const startTime = Tone.now();
+      const audioContext = new AudioContext();
+      playbackAudioContextRef.current = audioContext;
+      const startTime = audioContext.currentTime + 0.05;
       const noteSeconds = calculateTargetNoteSeconds();
 
       mockExercise.targetNotes.forEach((note, index) => {
         const noteOffset = index * noteSeconds;
-        synth.triggerAttackRelease(note, noteSeconds * 0.9, startTime + noteOffset);
+        const noteStartTime = startTime + noteOffset;
+        const oscillator = audioContext.createOscillator();
+        const gain = audioContext.createGain();
+
+        oscillator.type = "sine";
+        oscillator.frequency.value = noteFrequencies[note] ?? noteFrequencies.C4;
+        gain.gain.setValueAtTime(0.0001, noteStartTime);
+        gain.gain.exponentialRampToValueAtTime(0.18, noteStartTime + 0.02);
+        gain.gain.exponentialRampToValueAtTime(0.0001, noteStartTime + noteSeconds * 0.9);
+
+        oscillator.connect(gain);
+        gain.connect(audioContext.destination);
+        oscillator.start(noteStartTime);
+        oscillator.stop(noteStartTime + noteSeconds * 0.95);
+        playbackOscillatorsRef.current.push(oscillator);
 
         const noteTimeoutId = window.setTimeout(() => {
           setActiveNoteIndex(index);
@@ -104,9 +120,10 @@ export default function PracticePage() {
       const totalSeconds = mockExercise.targetNotes.length * noteSeconds;
       const completionTimeoutId = window.setTimeout(
         () => {
-          synth.dispose();
-          if (playbackSynthRef.current === synth) {
-            playbackSynthRef.current = null;
+          playbackOscillatorsRef.current = [];
+          void audioContext.close();
+          if (playbackAudioContextRef.current === audioContext) {
+            playbackAudioContextRef.current = null;
           }
           playbackTimeoutIdsRef.current = [];
           setActiveNoteIndex(null);
