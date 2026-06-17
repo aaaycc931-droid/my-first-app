@@ -13,7 +13,11 @@ type AudioAnalysisResult = {
 
 type PitchEstimateResult = {
   estimatedFrequencyHz: number;
+  nearestNote: string;
+  centsOffset: number;
   confidence: number;
+  framesAnalyzed: number;
+  validPitchFrames: number;
 };
 
 type PitchComparisonResult = {
@@ -75,33 +79,63 @@ const getComparisonHint = (centsFromTarget: number) => {
   return centsFromTarget > 25 ? "A little sharp" : "A little flat";
 };
 
-const estimateDominantPitch = (
-  audioBuffer: AudioBuffer,
-): PitchEstimateResult | null => {
-  const sampleRate = audioBuffer.sampleRate;
-  const channelData = audioBuffer.getChannelData(0);
+const calculateNearestNote = (frequencyHz: number) => {
+  let nearestNote = "C4";
+  let nearestFrequencyHz = noteFrequencies.C4;
+
+  Object.entries(noteFrequencies).forEach(([note, noteFrequencyHz]) => {
+    if (
+      Math.abs(frequencyHz - noteFrequencyHz) <
+      Math.abs(frequencyHz - nearestFrequencyHz)
+    ) {
+      nearestNote = note;
+      nearestFrequencyHz = noteFrequencyHz;
+    }
+  });
+
+  return {
+    nearestNote,
+    centsOffset: calculateCentsFromTarget(frequencyHz, nearestFrequencyHz),
+  };
+};
+
+const estimatePitchForFrame = (
+  frameData: Float32Array,
+  sampleRate: number,
+): { frequencyHz: number; confidence: number } | null => {
   const minimumFrequencyHz = 80;
   const maximumFrequencyHz = 1000;
   const minimumLag = Math.floor(sampleRate / maximumFrequencyHz);
   const maximumLag = Math.floor(sampleRate / minimumFrequencyHz);
   let bestLag = 0;
   let bestCorrelation = 0;
+  let frameEnergy = 0;
+
+  for (let sampleIndex = 0; sampleIndex < frameData.length; sampleIndex += 1) {
+    frameEnergy += frameData[sampleIndex] ** 2;
+  }
+
+  if (frameEnergy / frameData.length < 0.0001) {
+    return null;
+  }
 
   for (let lag = minimumLag; lag <= maximumLag; lag += 1) {
     let correlation = 0;
-    let sampleCount = 0;
+    let comparisonEnergy = 0;
 
     for (
       let sampleIndex = 0;
-      sampleIndex + lag < channelData.length;
+      sampleIndex + lag < frameData.length;
       sampleIndex += 1
     ) {
-      correlation += channelData[sampleIndex] * channelData[sampleIndex + lag];
-      sampleCount += 1;
+      correlation += frameData[sampleIndex] * frameData[sampleIndex + lag];
+      comparisonEnergy += frameData[sampleIndex + lag] ** 2;
     }
 
     const normalizedCorrelation =
-      sampleCount > 0 ? correlation / sampleCount : 0;
+      comparisonEnergy > 0
+        ? correlation / Math.sqrt(frameEnergy * comparisonEnergy)
+        : 0;
 
     if (normalizedCorrelation > bestCorrelation) {
       bestCorrelation = normalizedCorrelation;
@@ -109,13 +143,65 @@ const estimateDominantPitch = (
     }
   }
 
-  if (bestLag === 0 || bestCorrelation <= 0.0001) {
+  if (bestLag === 0 || bestCorrelation < 0.35) {
     return null;
   }
 
   return {
-    estimatedFrequencyHz: sampleRate / bestLag,
+    frequencyHz: sampleRate / bestLag,
     confidence: bestCorrelation,
+  };
+};
+
+const estimateLocalPitchFromAudioBuffer = (
+  audioBuffer: AudioBuffer,
+): PitchEstimateResult | null => {
+  const sampleRate = audioBuffer.sampleRate;
+  const channelData = audioBuffer.getChannelData(0);
+  const frameSize = 2048;
+  const hopSize = 1024;
+  const pitchFrames: Array<{ frequencyHz: number; confidence: number }> = [];
+  let framesAnalyzed = 0;
+
+  for (
+    let frameStart = 0;
+    frameStart + frameSize <= channelData.length;
+    frameStart += hopSize
+  ) {
+    framesAnalyzed += 1;
+    const framePitch = estimatePitchForFrame(
+      channelData.slice(frameStart, frameStart + frameSize),
+      sampleRate,
+    );
+
+    if (framePitch) {
+      pitchFrames.push(framePitch);
+    }
+  }
+
+  if (pitchFrames.length === 0) {
+    return null;
+  }
+
+  const sortedFrequencies = pitchFrames
+    .map((frame) => frame.frequencyHz)
+    .sort((leftFrequency, rightFrequency) => leftFrequency - rightFrequency);
+  const medianFrequencyHz =
+    sortedFrequencies[Math.floor(sortedFrequencies.length / 2)];
+  const averageConfidence =
+    pitchFrames.reduce(
+      (confidenceSum, frame) => confidenceSum + frame.confidence,
+      0,
+    ) / pitchFrames.length;
+  const nearestNoteResult = calculateNearestNote(medianFrequencyHz);
+
+  return {
+    estimatedFrequencyHz: medianFrequencyHz,
+    nearestNote: nearestNoteResult.nearestNote,
+    centsOffset: nearestNoteResult.centsOffset,
+    confidence: averageConfidence,
+    framesAnalyzed,
+    validPitchFrames: pitchFrames.length,
   };
 };
 
@@ -432,16 +518,11 @@ export default function PracticePage() {
     }
 
     const audioAnalysisRunId = audioAnalysisRunIdRef.current + 1;
-    const pitchEstimateRunId = pitchEstimateRunIdRef.current + 1;
     audioAnalysisRunIdRef.current = audioAnalysisRunId;
-    pitchEstimateRunIdRef.current = pitchEstimateRunId;
 
     setAudioAnalysisError("");
     setAudioAnalysisResult(null);
     setIsAnalyzingAudio(true);
-    setPitchEstimateError("");
-    setPitchEstimateResult(null);
-    setIsEstimatingPitch(true);
 
     try {
       const audioContext = new AudioContext();
@@ -480,8 +561,6 @@ export default function PracticePage() {
         simpleLevelHint = "Recording may be too quiet";
       }
 
-      const pitchEstimate = estimateDominantPitch(audioBuffer);
-
       await audioContext.close();
 
       if (
@@ -497,28 +576,12 @@ export default function PracticePage() {
         rmsLevel,
         simpleLevelHint,
       });
-
-      if (pitchEstimateRunIdRef.current === pitchEstimateRunId) {
-        if (pitchEstimate) {
-          setPitchEstimateResult(pitchEstimate);
-        } else {
-          setPitchEstimateError(
-            "Local pitch estimate could not find a dominant pitch.",
-          );
-        }
-      }
     } catch {
       if (
         isMountedRef.current &&
         audioAnalysisRunIdRef.current === audioAnalysisRunId
       ) {
         setAudioAnalysisError("Local audio analysis failed in this browser.");
-      }
-      if (
-        isMountedRef.current &&
-        pitchEstimateRunIdRef.current === pitchEstimateRunId
-      ) {
-        setPitchEstimateError("Local pitch estimate failed in this browser.");
       }
     } finally {
       if (
@@ -527,6 +590,54 @@ export default function PracticePage() {
       ) {
         setIsAnalyzingAudio(false);
       }
+    }
+  };
+
+  const handleEstimatePitchLocally = async () => {
+    if (!recordedAudioBlob) {
+      setPitchEstimateError(
+        "Record a local attempt before estimating pitch locally.",
+      );
+      return;
+    }
+
+    const pitchEstimateRunId = pitchEstimateRunIdRef.current + 1;
+    pitchEstimateRunIdRef.current = pitchEstimateRunId;
+
+    setPitchEstimateError("");
+    setPitchEstimateResult(null);
+    setIsEstimatingPitch(true);
+
+    try {
+      const audioContext = new AudioContext();
+      const audioData = await recordedAudioBlob.arrayBuffer();
+      const audioBuffer = await audioContext.decodeAudioData(audioData);
+      const pitchEstimate = estimateLocalPitchFromAudioBuffer(audioBuffer);
+
+      await audioContext.close();
+
+      if (
+        !isMountedRef.current ||
+        pitchEstimateRunIdRef.current !== pitchEstimateRunId
+      ) {
+        return;
+      }
+
+      if (pitchEstimate) {
+        setPitchEstimateResult(pitchEstimate);
+      } else {
+        setPitchEstimateError(
+          "Local pitch estimate could not find a dominant pitch.",
+        );
+      }
+    } catch {
+      if (
+        isMountedRef.current &&
+        pitchEstimateRunIdRef.current === pitchEstimateRunId
+      ) {
+        setPitchEstimateError("Local pitch estimate failed in this browser.");
+      }
+    } finally {
       if (
         isMountedRef.current &&
         pitchEstimateRunIdRef.current === pitchEstimateRunId
@@ -780,17 +891,24 @@ export default function PracticePage() {
               <button
                 type="button"
                 onClick={handleAnalyzeLocalRecording}
-                disabled={
-                  !recordedAudioBlob ||
-                  isRecording ||
-                  isAnalyzingAudio ||
-                  isEstimatingPitch
-                }
+                disabled={!recordedAudioBlob || isRecording || isAnalyzingAudio}
                 className="rounded-full bg-emerald-900 px-4 py-2 text-sm font-semibold text-white disabled:bg-slate-300"
               >
-                {isAnalyzingAudio || isEstimatingPitch
+                {isAnalyzingAudio
                   ? "Analyzing locally..."
                   : "Analyze local recording"}
+              </button>
+              <button
+                type="button"
+                onClick={handleEstimatePitchLocally}
+                disabled={
+                  !recordedAudioBlob || isRecording || isEstimatingPitch
+                }
+                className="rounded-full bg-violet-700 px-4 py-2 text-sm font-semibold text-white disabled:bg-slate-300"
+              >
+                {isEstimatingPitch
+                  ? "Estimating pitch..."
+                  : "Estimate pitch locally"}
               </button>
               <button
                 type="button"
@@ -860,6 +978,31 @@ export default function PracticePage() {
                 </span>
               </label>
             </div>
+            {pitchEstimateResult ? (
+              <dl className="mt-4 grid gap-3 sm:grid-cols-3">
+                <div className="rounded-xl bg-violet-50 p-3 ring-1 ring-violet-200">
+                  <dt className="font-semibold">Local estimated pitch</dt>
+                  <dd className="mt-1">
+                    {pitchEstimateResult.estimatedFrequencyHz.toFixed(2)} Hz
+                  </dd>
+                </div>
+                <div className="rounded-xl bg-violet-50 p-3 ring-1 ring-violet-200">
+                  <dt className="font-semibold">Nearest note</dt>
+                  <dd className="mt-1">
+                    {pitchEstimateResult.nearestNote} (
+                    {pitchEstimateResult.centsOffset.toFixed(1)} cents)
+                  </dd>
+                </div>
+                <div className="rounded-xl bg-violet-50 p-3 ring-1 ring-violet-200">
+                  <dt className="font-semibold">Frames</dt>
+                  <dd className="mt-1">
+                    {pitchEstimateResult.validPitchFrames}/
+                    {pitchEstimateResult.framesAnalyzed} valid · confidence{" "}
+                    {pitchEstimateResult.confidence.toFixed(2)}
+                  </dd>
+                </div>
+              </dl>
+            ) : null}
             {pitchEstimateError ? (
               <p className="mt-3 font-semibold text-red-700">
                 {pitchEstimateError}
