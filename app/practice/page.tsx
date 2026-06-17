@@ -4,6 +4,13 @@ import { useEffect, useRef, useState } from "react";
 
 type PracticeFlowState = "idle" | "listening" | "attempting" | "feedback";
 
+type AudioAnalysisResult = {
+  durationSeconds: number;
+  peakLevel: number;
+  rmsLevel: number;
+  simpleLevelHint: string;
+};
+
 const mockExercise = {
   title: "Mock Melody: Stepwise Warmup",
   targetNotes: ["C4", "D4", "E4", "G4", "E4", "D4", "C4"],
@@ -53,6 +60,10 @@ export default function PracticePage() {
   const [isRecording, setIsRecording] = useState(false);
   const [recordingError, setRecordingError] = useState("");
   const [recordedAudioUrl, setRecordedAudioUrl] = useState<string | null>(null);
+  const [recordedAudioBlob, setRecordedAudioBlob] = useState<Blob | null>(null);
+  const [audioAnalysisResult, setAudioAnalysisResult] = useState<AudioAnalysisResult | null>(null);
+  const [audioAnalysisError, setAudioAnalysisError] = useState("");
+  const [isAnalyzingAudio, setIsAnalyzingAudio] = useState(false);
   const [recordingSeconds, setRecordingSeconds] = useState(0);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const mediaStreamRef = useRef<MediaStream | null>(null);
@@ -192,9 +203,13 @@ export default function PracticePage() {
     stopPlayback();
     setHasMockFeedback(false);
     setRecordingError("");
+    setAudioAnalysisError("");
+    setAudioAnalysisResult(null);
+    setIsAnalyzingAudio(false);
     setRecordingSeconds(0);
     revokeRecordedAudioUrl(recordedAudioUrl);
     setRecordedAudioUrl(null);
+    setRecordedAudioBlob(null);
 
     if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") {
       setRecordingError("Local recording is not available in this browser.");
@@ -243,6 +258,7 @@ export default function PracticePage() {
           const audioBlob = new Blob(recordingChunksRef.current, {
             type: recorder.mimeType || "audio/webm",
           });
+          setRecordedAudioBlob(audioBlob);
           setRecordedAudioUrl(URL.createObjectURL(audioBlob));
         }
 
@@ -279,6 +295,67 @@ export default function PracticePage() {
     }
   };
 
+  const handleAnalyzeLocalRecording = async () => {
+    if (!recordedAudioBlob) {
+      setAudioAnalysisError("Record a local attempt before running local audio analysis.");
+      return;
+    }
+
+    setAudioAnalysisError("");
+    setAudioAnalysisResult(null);
+    setIsAnalyzingAudio(true);
+
+    try {
+      const audioContext = new AudioContext();
+      const audioData = await recordedAudioBlob.arrayBuffer();
+      const audioBuffer = await audioContext.decodeAudioData(audioData);
+      let peakLevel = 0;
+      let squaredSampleSum = 0;
+      let sampleCount = 0;
+
+      for (let channelIndex = 0; channelIndex < audioBuffer.numberOfChannels; channelIndex += 1) {
+        const channelData = audioBuffer.getChannelData(channelIndex);
+
+        for (let sampleIndex = 0; sampleIndex < channelData.length; sampleIndex += 1) {
+          const sampleLevel = Math.abs(channelData[sampleIndex]);
+          peakLevel = Math.max(peakLevel, sampleLevel);
+          squaredSampleSum += channelData[sampleIndex] ** 2;
+          sampleCount += 1;
+        }
+      }
+
+      const rmsLevel = sampleCount > 0 ? Math.sqrt(squaredSampleSum / sampleCount) : 0;
+      let simpleLevelHint = "Recording level looks usable";
+
+      if (peakLevel >= 0.98) {
+        simpleLevelHint = "Recording may be clipped";
+      } else if (peakLevel < 0.08 || rmsLevel < 0.015) {
+        simpleLevelHint = "Recording may be too quiet";
+      }
+
+      await audioContext.close();
+
+      if (!isMountedRef.current) {
+        return;
+      }
+
+      setAudioAnalysisResult({
+        durationSeconds: audioBuffer.duration,
+        peakLevel,
+        rmsLevel,
+        simpleLevelHint,
+      });
+    } catch {
+      if (isMountedRef.current) {
+        setAudioAnalysisError("Local audio analysis failed in this browser.");
+      }
+    } finally {
+      if (isMountedRef.current) {
+        setIsAnalyzingAudio(false);
+      }
+    }
+  };
+
   const handlePlayRecordedAttempt = () => {
     if (!recordedAudioUrl) {
       return;
@@ -304,7 +381,11 @@ export default function PracticePage() {
 
     revokeRecordedAudioUrl(recordedAudioUrl);
     setRecordedAudioUrl(null);
+    setRecordedAudioBlob(null);
     setRecordingError("");
+    setAudioAnalysisError("");
+    setAudioAnalysisResult(null);
+    setIsAnalyzingAudio(false);
     setRecordingSeconds(0);
     recordingChunksRef.current = [];
   };
@@ -406,11 +487,30 @@ export default function PracticePage() {
               <button type="button" onClick={handleStartLocalRecording} disabled={isRecording} className="rounded-full bg-emerald-700 px-4 py-2 text-sm font-semibold text-white disabled:bg-emerald-300">Start local recording</button>
               <button type="button" onClick={handleStopLocalRecording} disabled={!isRecording} className="rounded-full border border-emerald-300 bg-white px-4 py-2 text-sm font-semibold text-emerald-800 disabled:text-slate-400">Stop recording</button>
               <button type="button" onClick={handlePlayRecordedAttempt} disabled={!recordedAudioUrl || isRecording} className="rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white disabled:bg-slate-300">Play recorded attempt</button>
-              <button type="button" onClick={handleClearRecording} disabled={!recordedAudioUrl && !isRecording && !recordingError} className="rounded-full border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 disabled:text-slate-400">Clear recording</button>
+              <button type="button" onClick={handleAnalyzeLocalRecording} disabled={!recordedAudioBlob || isRecording || isAnalyzingAudio} className="rounded-full bg-emerald-900 px-4 py-2 text-sm font-semibold text-white disabled:bg-slate-300">{isAnalyzingAudio ? "Analyzing locally..." : "Analyze local recording"}</button>
+              <button type="button" onClick={handleClearRecording} disabled={!recordedAudioUrl && !recordedAudioBlob && !isRecording && !recordingError && !audioAnalysisError && !audioAnalysisResult} className="rounded-full border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 disabled:text-slate-400">Clear recording</button>
             </div>
           </div>
+          <div className="mt-4 rounded-xl border border-emerald-200 bg-white p-4 text-sm text-emerald-900">
+            <p className="font-semibold">Local audio analysis scope</p>
+            <ul className="mt-2 list-disc space-y-1 pl-5">
+              <li>This is not pitch detection.</li>
+              <li>This is not rhythm evaluation.</li>
+              <li>This is only local recording quality analysis.</li>
+              <li>Audio is not uploaded.</li>
+            </ul>
+          </div>
           {recordingError ? <p className="mt-3 text-sm font-semibold text-red-700">{recordingError}</p> : null}
+          {audioAnalysisError ? <p className="mt-3 text-sm font-semibold text-red-700">{audioAnalysisError}</p> : null}
           {recordedAudioUrl ? <audio className="mt-4 w-full" controls src={recordedAudioUrl}>Your browser does not support audio playback.</audio> : null}
+          {audioAnalysisResult ? (
+            <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
+              <div className="rounded-xl bg-white p-4 ring-1 ring-emerald-200"><dt className="font-semibold text-emerald-950">Duration seconds</dt><dd className="mt-1 text-emerald-800">{audioAnalysisResult.durationSeconds.toFixed(2)}</dd></div>
+              <div className="rounded-xl bg-white p-4 ring-1 ring-emerald-200"><dt className="font-semibold text-emerald-950">Peak level</dt><dd className="mt-1 text-emerald-800">{audioAnalysisResult.peakLevel.toFixed(4)}</dd></div>
+              <div className="rounded-xl bg-white p-4 ring-1 ring-emerald-200"><dt className="font-semibold text-emerald-950">RMS level</dt><dd className="mt-1 text-emerald-800">{audioAnalysisResult.rmsLevel.toFixed(4)}</dd></div>
+              <div className="rounded-xl bg-white p-4 ring-1 ring-emerald-200"><dt className="font-semibold text-emerald-950">Simple level hint</dt><dd className="mt-1 text-emerald-800">{audioAnalysisResult.simpleLevelHint}</dd></div>
+            </dl>
+          ) : null}
         </section>
 
         {hasMockFeedback ? (
