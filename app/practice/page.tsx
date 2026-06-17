@@ -205,6 +205,8 @@ export default function PracticePage() {
   const playbackAudioContextRef = useRef<AudioContext | null>(null);
   const playbackOscillatorsRef = useRef<OscillatorNode[]>([]);
   const playbackTimeoutIdsRef = useRef<number[]>([]);
+  const audioAnalysisRunIdRef = useRef(0);
+  const pitchEstimateRunIdRef = useRef(0);
 
   const revokeRecordedAudioUrl = (url: string | null) => {
     if (url) {
@@ -241,6 +243,11 @@ export default function PracticePage() {
     );
   };
 
+  const invalidateLocalAudioAsyncWork = () => {
+    audioAnalysisRunIdRef.current += 1;
+    pitchEstimateRunIdRef.current += 1;
+  };
+
   useEffect(() => {
     recordedAudioUrlRef.current = recordedAudioUrl;
   }, [recordedAudioUrl]);
@@ -249,6 +256,8 @@ export default function PracticePage() {
     () => () => {
       isMountedRef.current = false;
       shouldDiscardRecordingRef.current = true;
+      audioAnalysisRunIdRef.current += 1;
+      pitchEstimateRunIdRef.current += 1;
       playbackTimeoutIdsRef.current.forEach((timeoutId) => {
         window.clearTimeout(timeoutId);
       });
@@ -331,6 +340,7 @@ export default function PracticePage() {
 
   const handleStartLocalRecording = async () => {
     stopPlayback();
+    invalidateLocalAudioAsyncWork();
     setHasMockFeedback(false);
     setRecordingError("");
     setAudioAnalysisError("");
@@ -438,8 +448,13 @@ export default function PracticePage() {
     setAudioAnalysisResult(null);
     setIsAnalyzingAudio(true);
 
+    const audioAnalysisRunId = audioAnalysisRunIdRef.current + 1;
+    audioAnalysisRunIdRef.current = audioAnalysisRunId;
+
+    let audioContext: AudioContext | null = null;
+
     try {
-      const audioContext = new AudioContext();
+      audioContext = new AudioContext();
       const audioData = await recordedAudioBlob.arrayBuffer();
       const audioBuffer = await audioContext.decodeAudioData(audioData);
       let peakLevel = 0;
@@ -466,9 +481,7 @@ export default function PracticePage() {
         simpleLevelHint = "Recording may be too quiet";
       }
 
-      await audioContext.close();
-
-      if (!isMountedRef.current) {
+      if (!isMountedRef.current || audioAnalysisRunId !== audioAnalysisRunIdRef.current) {
         return;
       }
 
@@ -479,11 +492,15 @@ export default function PracticePage() {
         simpleLevelHint,
       });
     } catch {
-      if (isMountedRef.current) {
+      if (isMountedRef.current && audioAnalysisRunId === audioAnalysisRunIdRef.current) {
         setAudioAnalysisError("Local audio analysis failed in this browser.");
       }
     } finally {
-      if (isMountedRef.current) {
+      if (audioContext) {
+        await audioContext.close().catch(() => undefined);
+      }
+
+      if (isMountedRef.current && audioAnalysisRunId === audioAnalysisRunIdRef.current) {
         setIsAnalyzingAudio(false);
       }
     }
@@ -500,6 +517,8 @@ export default function PracticePage() {
     setPitchEstimateResult(null);
     setIsEstimatingPitch(true);
 
+    const pitchEstimateRunId = pitchEstimateRunIdRef.current + 1;
+    pitchEstimateRunIdRef.current = pitchEstimateRunId;
     let audioContext: AudioContext | null = null;
 
     try {
@@ -508,11 +527,11 @@ export default function PracticePage() {
       const audioBuffer = await audioContext.decodeAudioData(audioData);
       const result = estimateLocalPitch(audioBuffer);
 
-      if (isMountedRef.current) {
+      if (isMountedRef.current && pitchEstimateRunId === pitchEstimateRunIdRef.current) {
         setPitchEstimateResult(result);
       }
     } catch (error) {
-      if (isMountedRef.current) {
+      if (isMountedRef.current && pitchEstimateRunId === pitchEstimateRunIdRef.current) {
         setPitchEstimateError(error instanceof Error ? error.message : "Local pitch estimation failed in this browser.");
       }
     } finally {
@@ -520,7 +539,7 @@ export default function PracticePage() {
         await audioContext.close().catch(() => undefined);
       }
 
-      if (isMountedRef.current) {
+      if (isMountedRef.current && pitchEstimateRunId === pitchEstimateRunIdRef.current) {
         setIsEstimatingPitch(false);
       }
     }
@@ -539,6 +558,7 @@ export default function PracticePage() {
 
   const handleClearRecording = () => {
     shouldDiscardRecordingRef.current = true;
+    invalidateLocalAudioAsyncWork();
 
     if (mediaRecorderRef.current?.state === "recording") {
       mediaRecorderRef.current.stop();
