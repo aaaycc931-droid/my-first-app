@@ -13,6 +13,7 @@ The current main user-facing flow is:
 * The upload limit is 10MB.
 * The current default recognizer provider is `mock`.
 * Recognition results can be displayed on the page as notes and played back.
+* Playback now has an explicit stop control for stopping long previews without refreshing the page.
 * This main flow is currently not Audiveris and is not real PDF OMR.
 
 Important boundaries for the main flow:
@@ -34,6 +35,9 @@ A local dev-only Audiveris flow has been completed for developer validation:
 * The dev-only UI displays `noteCount`, `source`, `inputType`, and `firstNotes`.
 * The dev-only UI can play a `firstNotes` preview.
 * The dev-only UI can play a full notes preview when explicit full notes flags are enabled.
+* The explicit stop playback control applies to the main mock notes playback, the dev-only `firstNotes` preview, and the dev-only full notes preview.
+
+This playback stop control does not change `/api/recognize`, provider behavior, or dev-only Audiveris boundaries.
 
 This Audiveris flow is:
 
