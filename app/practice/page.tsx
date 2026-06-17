@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 type PracticeFlowState = "idle" | "listening" | "attempting" | "feedback";
 
@@ -18,6 +18,14 @@ type PitchEstimateResult = {
   confidence: number;
   framesAnalyzed: number;
   validPitchFrames: number;
+};
+
+type PitchComparisonResult = {
+  targetNote: string;
+  targetFrequencyHz: number;
+  estimatedFrequencyHz: number;
+  centsFromTarget: number;
+  comparisonHint: string;
 };
 
 const mockExercise = {
@@ -116,6 +124,27 @@ const getNearestPitchNote = (frequency: number) => {
   };
 };
 
+const calculateCentsFromTarget = (estimatedFrequencyHz: number, targetFrequencyHz: number) =>
+  1200 * Math.log2(estimatedFrequencyHz / targetFrequencyHz);
+
+const getComparisonHint = (centsFromTarget: number) => {
+  const absoluteCents = Math.abs(centsFromTarget);
+
+  if (absoluteCents <= 25) {
+    return "Close to target";
+  }
+
+  if (absoluteCents > 75) {
+    return "Far from target";
+  }
+
+  if (centsFromTarget > 25) {
+    return "A little sharp";
+  }
+
+  return "A little flat";
+};
+
 const estimateLocalPitch = (audioBuffer: AudioBuffer): PitchEstimateResult => {
   const frameSize = 4096;
   const hopSize = 2048;
@@ -194,6 +223,7 @@ export default function PracticePage() {
   const [pitchEstimateResult, setPitchEstimateResult] = useState<PitchEstimateResult | null>(null);
   const [pitchEstimateError, setPitchEstimateError] = useState("");
   const [isEstimatingPitch, setIsEstimatingPitch] = useState(false);
+  const [selectedTargetNote, setSelectedTargetNote] = useState("C4");
   const [recordingSeconds, setRecordingSeconds] = useState(0);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const mediaStreamRef = useRef<MediaStream | null>(null);
@@ -207,6 +237,32 @@ export default function PracticePage() {
   const playbackTimeoutIdsRef = useRef<number[]>([]);
   const audioAnalysisRunIdRef = useRef(0);
   const pitchEstimateRunIdRef = useRef(0);
+
+  const targetNoteOptions = useMemo(
+    () => Array.from(new Set(mockExercise.targetNotes)),
+    [],
+  );
+
+  const pitchComparisonResult = useMemo<PitchComparisonResult | null>(() => {
+    const targetFrequencyHz = noteFrequencies[selectedTargetNote];
+
+    if (!pitchEstimateResult || !targetFrequencyHz) {
+      return null;
+    }
+
+    const centsFromTarget = calculateCentsFromTarget(
+      pitchEstimateResult.estimatedFrequencyHz,
+      targetFrequencyHz,
+    );
+
+    return {
+      targetNote: selectedTargetNote,
+      targetFrequencyHz,
+      estimatedFrequencyHz: pitchEstimateResult.estimatedFrequencyHz,
+      centsFromTarget,
+      comparisonHint: getComparisonHint(centsFromTarget),
+    };
+  }, [pitchEstimateResult, selectedTargetNote]);
 
   const revokeRecordedAudioUrl = (url: string | null) => {
     if (url) {
@@ -717,6 +773,46 @@ export default function PracticePage() {
               <div className="rounded-xl bg-white p-4 ring-1 ring-indigo-200"><dt className="font-semibold text-indigo-950">Valid pitch frames</dt><dd className="mt-1 text-indigo-800">{pitchEstimateResult.validPitchFrames}</dd></div>
             </dl>
           ) : null}
+          <div className="mt-4 rounded-xl border border-violet-200 bg-white p-4 text-sm text-violet-900">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <p className="font-semibold">Experimental target-aware pitch comparison</p>
+                <ul className="mt-2 list-disc space-y-1 pl-5">
+                  <li>This is not a formal score.</li>
+                  <li>This is not rhythm evaluation.</li>
+                  <li>Audio is not uploaded.</li>
+                  <li>No AI API call.</li>
+                  <li>This only compares the local estimated pitch to one selected target note.</li>
+                </ul>
+              </div>
+              <label className="text-sm font-semibold text-violet-950">
+                Target note selector
+                <select
+                  className="mt-2 block rounded-full border border-violet-200 bg-white px-4 py-2 text-sm font-semibold text-violet-900"
+                  value={selectedTargetNote}
+                  onChange={(event) => setSelectedTargetNote(event.target.value)}
+                >
+                  {targetNoteOptions.map((note) => (
+                    <option key={note} value={note}>{note}</option>
+                  ))}
+                </select>
+              </label>
+            </div>
+            {pitchComparisonResult && pitchEstimateResult ? (
+              <dl className="mt-4 grid gap-3 sm:grid-cols-2">
+                <div className="rounded-xl bg-violet-50 p-4 ring-1 ring-violet-200"><dt className="font-semibold text-violet-950">Target frequency</dt><dd className="mt-1 text-violet-800">{pitchComparisonResult.targetFrequencyHz.toFixed(2)} Hz ({pitchComparisonResult.targetNote})</dd></div>
+                <div className="rounded-xl bg-violet-50 p-4 ring-1 ring-violet-200"><dt className="font-semibold text-violet-950">Local estimated pitch</dt><dd className="mt-1 text-violet-800">{pitchComparisonResult.estimatedFrequencyHz.toFixed(2)} Hz</dd></div>
+                <div className="rounded-xl bg-violet-50 p-4 ring-1 ring-violet-200"><dt className="font-semibold text-violet-950">Nearest note</dt><dd className="mt-1 text-violet-800">{pitchEstimateResult.nearestNote}</dd></div>
+                <div className="rounded-xl bg-violet-50 p-4 ring-1 ring-violet-200"><dt className="font-semibold text-violet-950">Frames analyzed / valid pitch frames</dt><dd className="mt-1 text-violet-800">{pitchEstimateResult.framesAnalyzed} / {pitchEstimateResult.validPitchFrames}</dd></div>
+                <div className="rounded-xl bg-violet-50 p-4 ring-1 ring-violet-200"><dt className="font-semibold text-violet-950">Cents from target</dt><dd className="mt-1 text-violet-800">{pitchComparisonResult.centsFromTarget.toFixed(1)}</dd></div>
+                <div className="rounded-xl bg-violet-50 p-4 ring-1 ring-violet-200"><dt className="font-semibold text-violet-950">Comparison hint</dt><dd className="mt-1 text-violet-800">{pitchComparisonResult.comparisonHint}</dd></div>
+              </dl>
+            ) : (
+              <p className="mt-4 rounded-xl bg-violet-50 p-4 font-medium text-violet-800">
+                Estimate pitch locally to compare the local estimated pitch against the selected target note.
+              </p>
+            )}
+          </div>
           {audioAnalysisResult ? (
             <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
               <div className="rounded-xl bg-white p-4 ring-1 ring-emerald-200"><dt className="font-semibold text-emerald-950">Duration seconds</dt><dd className="mt-1 text-emerald-800">{audioAnalysisResult.durationSeconds.toFixed(2)}</dd></div>
