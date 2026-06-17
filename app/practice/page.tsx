@@ -22,7 +22,7 @@ const mockFeedback = {
 
 const practiceSteps = [
   "Listen to target",
-  "Start a mock attempt without recording",
+  "Record one local practice attempt",
   "Review mock feedback",
   "Retry",
 ];
@@ -50,9 +50,37 @@ export default function PracticePage() {
   const [playError, setPlayError] = useState("");
   const [activeNoteIndex, setActiveNoteIndex] = useState<number | null>(null);
   const [hasMockFeedback, setHasMockFeedback] = useState(false);
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordingError, setRecordingError] = useState("");
+  const [recordedAudioUrl, setRecordedAudioUrl] = useState<string | null>(null);
+  const [recordingSeconds, setRecordingSeconds] = useState(0);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const mediaStreamRef = useRef<MediaStream | null>(null);
+  const recordingChunksRef = useRef<Blob[]>([]);
+  const recordingTimerIdRef = useRef<number | null>(null);
   const playbackAudioContextRef = useRef<AudioContext | null>(null);
   const playbackOscillatorsRef = useRef<OscillatorNode[]>([]);
   const playbackTimeoutIdsRef = useRef<number[]>([]);
+
+  const revokeRecordedAudioUrl = (url: string | null) => {
+    if (url) {
+      URL.revokeObjectURL(url);
+    }
+  };
+
+  const stopRecordingTimer = () => {
+    if (recordingTimerIdRef.current !== null) {
+      window.clearInterval(recordingTimerIdRef.current);
+      recordingTimerIdRef.current = null;
+    }
+  };
+
+  const stopRecordingTracks = () => {
+    mediaStreamRef.current?.getTracks().forEach((track) => {
+      track.stop();
+    });
+    mediaStreamRef.current = null;
+  };
 
   const stopPlayback = () => {
     playbackTimeoutIdsRef.current.forEach((timeoutId) => {
@@ -78,8 +106,14 @@ export default function PracticePage() {
       playbackOscillatorsRef.current = [];
       void playbackAudioContextRef.current?.close();
       playbackAudioContextRef.current = null;
+      stopRecordingTimer();
+      if (mediaRecorderRef.current?.state === "recording") {
+        mediaRecorderRef.current.stop();
+      }
+      stopRecordingTracks();
+      revokeRecordedAudioUrl(recordedAudioUrl);
     },
-    [],
+    [recordedAudioUrl],
   );
 
   const handleListenToTarget = async () => {
@@ -133,7 +167,7 @@ export default function PracticePage() {
       );
       playbackTimeoutIdsRef.current.push(completionTimeoutId);
     } catch {
-      setPlayError("Target playback failed. This prototype still does not record or score audio.");
+      setPlayError("Target playback failed. This prototype still uses mock scoring only.");
       stopPlayback();
     }
   };
@@ -142,6 +176,92 @@ export default function PracticePage() {
     stopPlayback();
     setHasMockFeedback(false);
     setFlowState("attempting");
+  };
+
+  const handleStartLocalRecording = async () => {
+    stopPlayback();
+    setHasMockFeedback(false);
+    setRecordingError("");
+    setRecordingSeconds(0);
+    revokeRecordedAudioUrl(recordedAudioUrl);
+    setRecordedAudioUrl(null);
+
+    if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") {
+      setRecordingError("Local recording is not available in this browser.");
+      return;
+    }
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const recorder = new MediaRecorder(stream);
+
+      mediaStreamRef.current = stream;
+      mediaRecorderRef.current = recorder;
+      recordingChunksRef.current = [];
+
+      recorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          recordingChunksRef.current.push(event.data);
+        }
+      };
+
+      recorder.onstop = () => {
+        stopRecordingTimer();
+        stopRecordingTracks();
+        setIsRecording(false);
+
+        if (recordingChunksRef.current.length > 0) {
+          const audioBlob = new Blob(recordingChunksRef.current, {
+            type: recorder.mimeType || "audio/webm",
+          });
+          setRecordedAudioUrl(URL.createObjectURL(audioBlob));
+        }
+      };
+
+      recorder.start();
+      setIsRecording(true);
+      setFlowState("attempting");
+      recordingTimerIdRef.current = window.setInterval(() => {
+        setRecordingSeconds((seconds) => seconds + 1);
+      }, 1000);
+    } catch {
+      stopRecordingTimer();
+      stopRecordingTracks();
+      setIsRecording(false);
+      setRecordingError("Microphone permission is required to record a local attempt.");
+    }
+  };
+
+  const handleStopLocalRecording = () => {
+    if (mediaRecorderRef.current?.state === "recording") {
+      mediaRecorderRef.current.stop();
+    } else {
+      stopRecordingTimer();
+      stopRecordingTracks();
+      setIsRecording(false);
+    }
+  };
+
+  const handlePlayRecordedAttempt = () => {
+    if (!recordedAudioUrl) {
+      return;
+    }
+
+    const audio = new Audio(recordedAudioUrl);
+    void audio.play().catch(() => {
+      setRecordingError("Recorded attempt playback failed in this browser.");
+    });
+  };
+
+  const handleClearRecording = () => {
+    if (isRecording) {
+      handleStopLocalRecording();
+    }
+    revokeRecordedAudioUrl(recordedAudioUrl);
+    setRecordedAudioUrl(null);
+    setRecordingError("");
+    setRecordingSeconds(0);
+    recordingChunksRef.current = [];
   };
 
   const handleShowMockFeedback = () => {
@@ -169,7 +289,7 @@ export default function PracticePage() {
             This page is an interactive mock practice flow for a future recognition + practice + assessment learning tool.
           </p>
           <p className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm font-medium text-amber-800">
-            Current status: no recording, no real scoring, no AI API call, and no real pitch/rhythm evaluation. Feedback is mock-only.
+            Current status: browser local-only recording prototype, no upload, no real scoring, no AI API call, and no real pitch/rhythm evaluation. Feedback is mock-only.
           </p>
         </div>
 
@@ -213,13 +333,39 @@ export default function PracticePage() {
           </div>
 
           {playError ? <p className="mt-3 text-sm font-semibold text-red-700">{playError}</p> : null}
-          {flowState === "attempting" ? <p className="mt-4 rounded-xl border border-emerald-200 bg-white p-4 text-sm font-semibold text-emerald-800">No microphone recording in this prototype. This state only simulates a user attempt.</p> : null}
+          {flowState === "attempting" ? <p className="mt-4 rounded-xl border border-emerald-200 bg-white p-4 text-sm font-semibold text-emerald-800">This attempt can include one browser local-only recording. Audio is not uploaded, not saved to a server, and not scored.</p> : null}
 
           <div className="mt-4 flex flex-wrap gap-2">
             {mockExercise.targetNotes.map((note, index) => (
               <span key={`${note}-${index}`} className={`rounded-full px-4 py-2 text-sm font-semibold ring-1 ${activeNoteIndex === index ? "bg-blue-700 text-white ring-blue-700" : "bg-white text-blue-800 ring-blue-200"}`}>{note}</span>
             ))}
           </div>
+        </section>
+
+
+        <section className="mt-6 rounded-2xl border border-emerald-200 bg-emerald-50 p-5">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <h2 className="text-xl font-bold text-emerald-950">Local recording prototype</h2>
+              <p className="mt-1 text-sm font-medium text-emerald-800">
+                Recording is local-only. Audio is not uploaded. No real pitch/rhythm scoring yet. No AI API call.
+              </p>
+              <p className="mt-2 text-sm text-emerald-800">
+                Start local recording asks your browser for microphone permission with navigator.mediaDevices.getUserMedia({"{ audio: true }"}).
+              </p>
+              <p className="mt-2 text-sm font-semibold text-emerald-900">
+                Status: {isRecording ? `Recording locally for ${recordingSeconds}s` : recordedAudioUrl ? "Recorded attempt ready for local playback" : "No local recording yet"}
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <button type="button" onClick={handleStartLocalRecording} disabled={isRecording} className="rounded-full bg-emerald-700 px-4 py-2 text-sm font-semibold text-white disabled:bg-emerald-300">Start local recording</button>
+              <button type="button" onClick={handleStopLocalRecording} disabled={!isRecording} className="rounded-full border border-emerald-300 bg-white px-4 py-2 text-sm font-semibold text-emerald-800 disabled:text-slate-400">Stop recording</button>
+              <button type="button" onClick={handlePlayRecordedAttempt} disabled={!recordedAudioUrl || isRecording} className="rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white disabled:bg-slate-300">Play recorded attempt</button>
+              <button type="button" onClick={handleClearRecording} disabled={!recordedAudioUrl && !isRecording && !recordingError} className="rounded-full border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 disabled:text-slate-400">Clear recording</button>
+            </div>
+          </div>
+          {recordingError ? <p className="mt-3 text-sm font-semibold text-red-700">{recordingError}</p> : null}
+          {recordedAudioUrl ? <audio className="mt-4 w-full" controls src={recordedAudioUrl}>Your browser does not support audio playback.</audio> : null}
         </section>
 
         {hasMockFeedback ? (
