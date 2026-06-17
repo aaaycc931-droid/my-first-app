@@ -421,13 +421,20 @@ export default function Home() {
         <div className="border-b border-slate-200 pb-6">
           <p className="text-sm font-semibold text-blue-600">五线谱识别 MVP</p>
           <h1 className="mt-2 text-3xl font-bold tracking-tight sm:text-4xl">
-            上传五线谱图片
+            Sheet Music Recognition MVP
           </h1>
           <p className="mt-3 text-slate-600">
-            当前为 MVP
-            演示流程：图片识别接口仍返回模拟音符数据，用于验证上传、结果展示和播放链路；真实五线谱图片识别
-            / OMR 尚未完成。
+            公开页面用于展示五线谱识别 MVP 的完整 mock recognition
+            flow：上传 JPG/PNG、调用 `/api/recognize`、查看 notes，并播放或停止播放结果。
           </p>
+          <div className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
+            <p className="rounded-2xl border border-blue-200 bg-blue-50 p-4 font-medium text-blue-800">
+              当前公开演示使用 mock recognition result；默认 provider 仍是 mock。
+            </p>
+            <p className="rounded-2xl border border-amber-200 bg-amber-50 p-4 font-medium text-amber-800">
+              真实 Audiveris 识别仅限本地 dev-only 测试；Production/Vercel 不运行 Audiveris，`/api/recognize` 当前不处理 PDF。
+            </p>
+          </div>
         </div>
 
         <div className="mt-6 space-y-6">
@@ -436,7 +443,7 @@ export default function Home() {
               选择图片
             </span>
             <span className="mt-2 block text-sm text-slate-500">
-              支持常见图片格式，用于预览和后续识别
+              支持 JPG/PNG，10MB limit。上传后点击“开始识别”，主流程会调用 `/api/recognize`。
             </span>
             <input
               className="sr-only"
@@ -702,7 +709,12 @@ export default function Home() {
 
           <div className="rounded-2xl border border-slate-200 bg-white p-5">
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-              <h2 className="text-lg font-semibold">识别结果</h2>
+              <div>
+                <h2 className="text-lg font-semibold">识别结果 / Notes Preview</h2>
+                <p className="mt-1 text-sm text-slate-500">
+                  这里展示 mock recognition result 返回的 notes；有 notes 后可以播放，播放中可以点击“停止播放”。
+                </p>
+              </div>
               <p className="rounded-full bg-slate-100 px-3 py-1 text-sm font-medium text-slate-600">
                 状态：{recognizeStatus}
               </p>
@@ -762,6 +774,9 @@ export default function Home() {
                 </ul>
 
                 <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                  <p className="mb-3 text-sm text-slate-600">
+                    可以播放识别出的 notes；如果播放时间较长，播放中会显示“停止播放”按钮。
+                  </p>
                   <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                     <label
                       className="font-semibold text-slate-800"
