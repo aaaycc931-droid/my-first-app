@@ -69,6 +69,8 @@ This plan does not add an Audiveris provider. The default provider remains `mock
 
 Future real OMR work should preserve this boundary until a separate implementation PR intentionally changes it with tests, migration notes, and production safety review.
 
+For sample and fixture handling, see `docs/omr-sample-fixture-strategy.md`.
+
 ## Future decision points
 
 Future productization should decide:
