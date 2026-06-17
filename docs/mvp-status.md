@@ -135,3 +135,5 @@ These are candidates only and are not implemented here:
 2. Add a production-safe architecture plan before connecting any real OMR to `/api/recognize`.
 3. Improve UI copy and demo flow for the public mock MVP.
 4. Keep dev-only Audiveris strictly behind explicit flags.
+
+- 2026-06-17: Practice Mode skeleton started with mock-only front-end placeholders; no recording, scoring, AI, or real pitch/rhythm evaluation.

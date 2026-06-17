@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { ChangeEvent, useEffect, useRef, useState } from "react";
 
 import type { RecognizedNote, RecognizeResponse } from "../lib/recognition";
@@ -434,6 +435,12 @@ export default function Home() {
             <p className="rounded-2xl border border-amber-200 bg-amber-50 p-4 font-medium text-amber-800">
               真实 Audiveris 识别仅限本地 dev-only 测试；Production/Vercel 不运行 Audiveris，`/api/recognize` 当前不处理 PDF。
             </p>
+            <Link
+              className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 font-medium text-emerald-800 transition hover:border-emerald-300 hover:bg-emerald-100 sm:col-span-2"
+              href="/practice"
+            >
+              Try Practice Mode prototype — an early mock learning flow for future practice feedback.
+            </Link>
           </div>
         </div>
 
