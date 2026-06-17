@@ -92,3 +92,5 @@ npm run lint   # 运行 Next.js lint 检查
 6. 点击 **Deploy**。如项目后续需要环境变量，请在 Vercel Project Settings 的 **Environment Variables** 中添加后重新部署。
 
 Current MVP status: see docs/mvp-status.md
+
+Public demo checklist: see docs/public-demo-checklist.md
