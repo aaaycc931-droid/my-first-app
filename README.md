@@ -93,4 +93,6 @@ npm run lint   # 运行 Next.js lint 检查
 
 Current MVP status: see docs/mvp-status.md
 
+Real OMR production architecture plan: see docs/real-omr-architecture-plan.md
+
 Public demo checklist: see docs/public-demo-checklist.md
