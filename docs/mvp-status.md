@@ -36,6 +36,7 @@ A local dev-only Audiveris flow has been completed for developer validation:
 * The dev-only UI can play a `firstNotes` preview.
 * The dev-only UI can play a full notes preview when explicit full notes flags are enabled.
 * The explicit stop playback control applies to the main mock notes playback, the dev-only `firstNotes` preview, and the dev-only full notes preview.
+* The dev-only Audiveris panel copy now states that it is a local developer tool, not production/Vercel, not `/api/recognize`, and that PDF input is only for the dev-only route.
 
 This playback stop control does not change `/api/recognize`, provider behavior, or dev-only Audiveris boundaries.
 

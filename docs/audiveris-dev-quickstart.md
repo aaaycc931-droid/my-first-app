@@ -18,6 +18,8 @@ This workflow is strictly:
 - not an Audiveris provider.
 - not permission to commit real score samples.
 
+The optional dev-only UI panel is only a local developer tool for the dev-only Audiveris PDF route; it does not call `/api/recognize`, does not change the public JPG/PNG mock flow, and is hidden unless `NEXT_PUBLIC_AUDIVERIS_DEV_UI_ENABLED` is set to `"true"`.
+
 Do not commit PDF, MXL, XML, OMR, log, image, generated Audiveris output, or real score sample files to the repository.
 
 ## Prerequisites

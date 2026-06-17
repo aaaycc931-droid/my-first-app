@@ -553,9 +553,13 @@ export default function Home() {
                   Audiveris PDF 测试面板
                 </h2>
                 <p className="mt-2 text-sm text-slate-600">
-                  Not production，Not
-                  `/api/recognize`。此入口只用于本地开发手动测试，点击按钮后才会调用
-                  dev-only API，不影响主识别流程。
+                  这是 local developer tool，只在本机开发环境手动验证 PDF
+                  OMR。Production/Vercel 不运行 Audiveris；此面板调用
+                  dev-only route，不调用 `/api/recognize`，也不影响主识别流程。
+                </p>
+                <p className="mt-2 rounded-xl border border-purple-200 bg-white/70 p-3 text-sm text-purple-800">
+                  Public flow 仍是 JPG/PNG mock recognition flow；PDF 只用于
+                  dev-only Audiveris route。
                 </p>
               </div>
 
@@ -576,11 +580,21 @@ export default function Home() {
                   </p>
                 ) : null}
                 {audiverisDevStatus === "idle" && !audiverisDevFile ? (
-                  <p className="text-slate-600">请选择 PDF 后手动开始测试。</p>
+                  <p className="text-slate-600">
+                    请选择本地 PDF 后手动开始 dev-only 测试；不会调用
+                    `/api/recognize`。
+                  </p>
                 ) : null}
                 {audiverisDevStatus === "processing" ? (
                   <p className="font-medium text-purple-700">
-                    处理中，请等待 Local Audiveris 返回 summary...
+                    正在调用本机 Local Audiveris dev-only route，请等待
+                    summary；Production/Vercel 与 `/api/recognize` 不参与。
+                  </p>
+                ) : null}
+                {audiverisDevStatus === "success" && audiverisDevSummary ? (
+                  <p className="font-medium text-green-700">
+                    Dev-only Local Audiveris summary 已返回；主 public
+                    JPG/PNG mock flow 未改变。
                   </p>
                 ) : null}
                 {audiverisDevStatus === "error" && audiverisDevError ? (
@@ -631,7 +645,7 @@ export default function Home() {
 
                   <div className="mt-4 rounded-xl bg-white p-4 text-sm text-slate-600">
                     <p className="font-medium text-purple-700">
-                      仅播放 Audiveris firstNotes 预览，不是完整曲谱
+                      仅播放 Audiveris firstNotes 预览，不是完整曲谱；dev-only local result，不是 `/api/recognize` 结果
                     </p>
                     {audiverisDevSummary.firstNotes.length > 0 ? (
                       <button
@@ -655,8 +669,8 @@ export default function Home() {
                   audiverisDevSummary.notes.length > 0 ? (
                     <div className="mt-4 rounded-xl bg-white p-4 text-sm text-slate-600">
                       <p className="font-medium text-purple-700">
-                        Dev-only full notes preview；not `/api/recognize`，not
-                        production，may be truncated。
+                        Dev-only full notes preview；local-only、PDF-only、not
+                        `/api/recognize`、not production，may be truncated。
                       </p>
                       {audiverisDevSummary.notesTruncated ? (
                         <p className="mt-2 text-amber-700">
