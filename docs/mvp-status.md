@@ -105,6 +105,10 @@ A local developer demo can show the complete dev-only Audiveris flow:
 
 `score.pdf` is a developer local file and is not stored in this repository.
 
+## Public demo polish
+
+Public demo polish is complete for the production-safe MVP page. Production/Vercel demos still use the mock recognition flow only, and Local Audiveris remains dev-only/local-only behind explicit flags. This does not change `/api/recognize`, the provider union, or the default mock provider.
+
 ## 7. Current known non-goals
 
 Current known non-goals are:
