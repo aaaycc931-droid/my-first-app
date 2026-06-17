@@ -140,3 +140,5 @@ This PR does not:
 * Modify `/api/recognize`.
 * Modify provider behavior.
 * Commit sample files.
+
+Practice Mode skeleton started: added a mock-only /practice page to validate the future recognition + practice + assessment flow without recording, scoring, AI, or real evaluation.
