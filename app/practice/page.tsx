@@ -58,6 +58,9 @@ export default function PracticePage() {
   const mediaStreamRef = useRef<MediaStream | null>(null);
   const recordingChunksRef = useRef<Blob[]>([]);
   const recordingTimerIdRef = useRef<number | null>(null);
+  const shouldDiscardRecordingRef = useRef(false);
+  const isMountedRef = useRef(true);
+  const recordedAudioUrlRef = useRef<string | null>(null);
   const playbackAudioContextRef = useRef<AudioContext | null>(null);
   const playbackOscillatorsRef = useRef<OscillatorNode[]>([]);
   const playbackTimeoutIdsRef = useRef<number[]>([]);
@@ -97,8 +100,14 @@ export default function PracticePage() {
     );
   };
 
+  useEffect(() => {
+    recordedAudioUrlRef.current = recordedAudioUrl;
+  }, [recordedAudioUrl]);
+
   useEffect(
     () => () => {
+      isMountedRef.current = false;
+      shouldDiscardRecordingRef.current = true;
       playbackTimeoutIdsRef.current.forEach((timeoutId) => {
         window.clearTimeout(timeoutId);
       });
@@ -111,9 +120,10 @@ export default function PracticePage() {
         mediaRecorderRef.current.stop();
       }
       stopRecordingTracks();
-      revokeRecordedAudioUrl(recordedAudioUrl);
+      recordingChunksRef.current = [];
+      revokeRecordedAudioUrl(recordedAudioUrlRef.current);
     },
-    [recordedAudioUrl],
+    [],
   );
 
   const handleListenToTarget = async () => {
@@ -193,11 +203,20 @@ export default function PracticePage() {
 
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+
+      if (!isMountedRef.current) {
+        stream.getTracks().forEach((track) => {
+          track.stop();
+        });
+        return;
+      }
+
       const recorder = new MediaRecorder(stream);
 
       mediaStreamRef.current = stream;
       mediaRecorderRef.current = recorder;
       recordingChunksRef.current = [];
+      shouldDiscardRecordingRef.current = false;
 
       recorder.ondataavailable = (event) => {
         if (event.data.size > 0) {
@@ -206,9 +225,19 @@ export default function PracticePage() {
       };
 
       recorder.onstop = () => {
+        const shouldDiscardRecording = shouldDiscardRecordingRef.current;
+
         stopRecordingTimer();
         stopRecordingTracks();
-        setIsRecording(false);
+        mediaRecorderRef.current = null;
+
+        if (shouldDiscardRecording || !isMountedRef.current) {
+          recordingChunksRef.current = [];
+          if (isMountedRef.current) {
+            setIsRecording(false);
+          }
+          return;
+        }
 
         if (recordingChunksRef.current.length > 0) {
           const audioBlob = new Blob(recordingChunksRef.current, {
@@ -216,6 +245,9 @@ export default function PracticePage() {
           });
           setRecordedAudioUrl(URL.createObjectURL(audioBlob));
         }
+
+        recordingChunksRef.current = [];
+        setIsRecording(false);
       };
 
       recorder.start();
@@ -227,14 +259,19 @@ export default function PracticePage() {
     } catch {
       stopRecordingTimer();
       stopRecordingTracks();
-      setIsRecording(false);
-      setRecordingError("Microphone permission is required to record a local attempt.");
+      if (isMountedRef.current) {
+        setIsRecording(false);
+        setRecordingError("Microphone permission is required to record a local attempt.");
+      }
     }
   };
 
   const handleStopLocalRecording = () => {
+    shouldDiscardRecordingRef.current = false;
+
     if (mediaRecorderRef.current?.state === "recording") {
       mediaRecorderRef.current.stop();
+      setIsRecording(false);
     } else {
       stopRecordingTimer();
       stopRecordingTracks();
@@ -254,9 +291,17 @@ export default function PracticePage() {
   };
 
   const handleClearRecording = () => {
-    if (isRecording) {
-      handleStopLocalRecording();
+    shouldDiscardRecordingRef.current = true;
+
+    if (mediaRecorderRef.current?.state === "recording") {
+      mediaRecorderRef.current.stop();
+      setIsRecording(false);
+    } else {
+      stopRecordingTimer();
+      stopRecordingTracks();
+      setIsRecording(false);
     }
+
     revokeRecordedAudioUrl(recordedAudioUrl);
     setRecordedAudioUrl(null);
     setRecordingError("");
