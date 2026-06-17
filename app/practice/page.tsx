@@ -276,6 +276,11 @@ export default function PracticePage() {
     };
   }, [pitchEstimateResult, selectedTargetNote]);
 
+  const invalidateLocalAudioAsyncWork = () => {
+    audioAnalysisRunIdRef.current += 1;
+    pitchEstimateRunIdRef.current += 1;
+  };
+
   const revokeRecordedAudioUrl = (url: string | null) => {
     if (url) {
       URL.revokeObjectURL(url);
@@ -317,6 +322,7 @@ export default function PracticePage() {
 
   useEffect(
     () => () => {
+      invalidateLocalAudioAsyncWork();
       isMountedRef.current = false;
       shouldDiscardRecordingRef.current = true;
       playbackTimeoutIdsRef.current.forEach((timeoutId) => {
@@ -406,6 +412,7 @@ export default function PracticePage() {
   };
 
   const handleStartLocalRecording = async () => {
+    invalidateLocalAudioAsyncWork();
     stopPlayback();
     setHasMockFeedback(false);
     setRecordingError("");
@@ -524,8 +531,10 @@ export default function PracticePage() {
     setAudioAnalysisResult(null);
     setIsAnalyzingAudio(true);
 
+    let audioContext: AudioContext | null = null;
+
     try {
-      const audioContext = new AudioContext();
+      audioContext = new AudioContext();
       const audioData = await recordedAudioBlob.arrayBuffer();
       const audioBuffer = await audioContext.decodeAudioData(audioData);
       let peakLevel = 0;
@@ -561,8 +570,6 @@ export default function PracticePage() {
         simpleLevelHint = "Recording may be too quiet";
       }
 
-      await audioContext.close();
-
       if (
         !isMountedRef.current ||
         audioAnalysisRunIdRef.current !== audioAnalysisRunId
@@ -584,6 +591,8 @@ export default function PracticePage() {
         setAudioAnalysisError("Local audio analysis failed in this browser.");
       }
     } finally {
+      await audioContext?.close().catch(() => undefined);
+
       if (
         isMountedRef.current &&
         audioAnalysisRunIdRef.current === audioAnalysisRunId
@@ -608,13 +617,13 @@ export default function PracticePage() {
     setPitchEstimateResult(null);
     setIsEstimatingPitch(true);
 
+    let audioContext: AudioContext | null = null;
+
     try {
-      const audioContext = new AudioContext();
+      audioContext = new AudioContext();
       const audioData = await recordedAudioBlob.arrayBuffer();
       const audioBuffer = await audioContext.decodeAudioData(audioData);
       const pitchEstimate = estimateLocalPitchFromAudioBuffer(audioBuffer);
-
-      await audioContext.close();
 
       if (
         !isMountedRef.current ||
@@ -638,6 +647,8 @@ export default function PracticePage() {
         setPitchEstimateError("Local pitch estimate failed in this browser.");
       }
     } finally {
+      await audioContext?.close().catch(() => undefined);
+
       if (
         isMountedRef.current &&
         pitchEstimateRunIdRef.current === pitchEstimateRunId
@@ -659,6 +670,7 @@ export default function PracticePage() {
   };
 
   const handleClearRecording = () => {
+    invalidateLocalAudioAsyncWork();
     shouldDiscardRecordingRef.current = true;
 
     if (mediaRecorderRef.current?.state === "recording") {
