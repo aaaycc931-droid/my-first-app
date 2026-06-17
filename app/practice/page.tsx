@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 type PracticeFlowState = "idle" | "listening" | "attempting" | "feedback";
 
@@ -9,6 +9,19 @@ type AudioAnalysisResult = {
   peakLevel: number;
   rmsLevel: number;
   simpleLevelHint: string;
+};
+
+type PitchEstimateResult = {
+  estimatedFrequencyHz: number;
+  confidence: number;
+};
+
+type PitchComparisonResult = {
+  targetNote: string;
+  targetFrequencyHz: number;
+  estimatedFrequencyHz: number;
+  centsFromTarget: number;
+  comparisonHint: string;
 };
 
 const mockExercise = {
@@ -43,6 +56,69 @@ const noteFrequencies: Record<string, number> = {
 
 const calculateTargetNoteSeconds = () => 60 / mockExercise.suggestedBpm;
 
+const calculateCentsFromTarget = (
+  estimatedFrequencyHz: number,
+  targetFrequencyHz: number,
+) => 1200 * Math.log2(estimatedFrequencyHz / targetFrequencyHz);
+
+const getComparisonHint = (centsFromTarget: number) => {
+  const absoluteCentsFromTarget = Math.abs(centsFromTarget);
+
+  if (absoluteCentsFromTarget > 75) {
+    return "Far from target";
+  }
+
+  if (absoluteCentsFromTarget <= 25) {
+    return "Close to target";
+  }
+
+  return centsFromTarget > 25 ? "A little sharp" : "A little flat";
+};
+
+const estimateDominantPitch = (
+  audioBuffer: AudioBuffer,
+): PitchEstimateResult | null => {
+  const sampleRate = audioBuffer.sampleRate;
+  const channelData = audioBuffer.getChannelData(0);
+  const minimumFrequencyHz = 80;
+  const maximumFrequencyHz = 1000;
+  const minimumLag = Math.floor(sampleRate / maximumFrequencyHz);
+  const maximumLag = Math.floor(sampleRate / minimumFrequencyHz);
+  let bestLag = 0;
+  let bestCorrelation = 0;
+
+  for (let lag = minimumLag; lag <= maximumLag; lag += 1) {
+    let correlation = 0;
+    let sampleCount = 0;
+
+    for (
+      let sampleIndex = 0;
+      sampleIndex + lag < channelData.length;
+      sampleIndex += 1
+    ) {
+      correlation += channelData[sampleIndex] * channelData[sampleIndex + lag];
+      sampleCount += 1;
+    }
+
+    const normalizedCorrelation =
+      sampleCount > 0 ? correlation / sampleCount : 0;
+
+    if (normalizedCorrelation > bestCorrelation) {
+      bestCorrelation = normalizedCorrelation;
+      bestLag = lag;
+    }
+  }
+
+  if (bestLag === 0 || bestCorrelation <= 0.0001) {
+    return null;
+  }
+
+  return {
+    estimatedFrequencyHz: sampleRate / bestLag,
+    confidence: bestCorrelation,
+  };
+};
+
 const stopOscillator = (oscillator: OscillatorNode) => {
   try {
     oscillator.stop();
@@ -61,9 +137,15 @@ export default function PracticePage() {
   const [recordingError, setRecordingError] = useState("");
   const [recordedAudioUrl, setRecordedAudioUrl] = useState<string | null>(null);
   const [recordedAudioBlob, setRecordedAudioBlob] = useState<Blob | null>(null);
-  const [audioAnalysisResult, setAudioAnalysisResult] = useState<AudioAnalysisResult | null>(null);
+  const [audioAnalysisResult, setAudioAnalysisResult] =
+    useState<AudioAnalysisResult | null>(null);
   const [audioAnalysisError, setAudioAnalysisError] = useState("");
   const [isAnalyzingAudio, setIsAnalyzingAudio] = useState(false);
+  const [selectedTargetNote, setSelectedTargetNote] = useState("C4");
+  const [pitchEstimateResult, setPitchEstimateResult] =
+    useState<PitchEstimateResult | null>(null);
+  const [pitchEstimateError, setPitchEstimateError] = useState("");
+  const [isEstimatingPitch, setIsEstimatingPitch] = useState(false);
   const [recordingSeconds, setRecordingSeconds] = useState(0);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const mediaStreamRef = useRef<MediaStream | null>(null);
@@ -75,6 +157,38 @@ export default function PracticePage() {
   const playbackAudioContextRef = useRef<AudioContext | null>(null);
   const playbackOscillatorsRef = useRef<OscillatorNode[]>([]);
   const playbackTimeoutIdsRef = useRef<number[]>([]);
+  const audioAnalysisRunIdRef = useRef(0);
+  const pitchEstimateRunIdRef = useRef(0);
+
+  const targetNoteOptions = useMemo(
+    () => Array.from(new Set(mockExercise.targetNotes)),
+    [],
+  );
+
+  const pitchComparisonResult = useMemo<PitchComparisonResult | null>(() => {
+    if (!pitchEstimateResult) {
+      return null;
+    }
+
+    const targetFrequencyHz = noteFrequencies[selectedTargetNote];
+
+    if (!targetFrequencyHz) {
+      return null;
+    }
+
+    const centsFromTarget = calculateCentsFromTarget(
+      pitchEstimateResult.estimatedFrequencyHz,
+      targetFrequencyHz,
+    );
+
+    return {
+      targetNote: selectedTargetNote,
+      targetFrequencyHz,
+      estimatedFrequencyHz: pitchEstimateResult.estimatedFrequencyHz,
+      centsFromTarget,
+      comparisonHint: getComparisonHint(centsFromTarget),
+    };
+  }, [pitchEstimateResult, selectedTargetNote]);
 
   const revokeRecordedAudioUrl = (url: string | null) => {
     if (url) {
@@ -155,10 +269,14 @@ export default function PracticePage() {
         const gain = audioContext.createGain();
 
         oscillator.type = "sine";
-        oscillator.frequency.value = noteFrequencies[note] ?? noteFrequencies.C4;
+        oscillator.frequency.value =
+          noteFrequencies[note] ?? noteFrequencies.C4;
         gain.gain.setValueAtTime(0.0001, noteStartTime);
         gain.gain.exponentialRampToValueAtTime(0.18, noteStartTime + 0.02);
-        gain.gain.exponentialRampToValueAtTime(0.0001, noteStartTime + noteSeconds * 0.9);
+        gain.gain.exponentialRampToValueAtTime(
+          0.0001,
+          noteStartTime + noteSeconds * 0.9,
+        );
 
         oscillator.connect(gain);
         gain.connect(audioContext.destination);
@@ -188,7 +306,9 @@ export default function PracticePage() {
       );
       playbackTimeoutIdsRef.current.push(completionTimeoutId);
     } catch {
-      setPlayError("Target playback failed. This prototype still uses mock scoring only.");
+      setPlayError(
+        "Target playback failed. This prototype still uses mock scoring only.",
+      );
       stopPlayback();
     }
   };
@@ -206,12 +326,18 @@ export default function PracticePage() {
     setAudioAnalysisError("");
     setAudioAnalysisResult(null);
     setIsAnalyzingAudio(false);
+    setPitchEstimateResult(null);
+    setPitchEstimateError("");
+    setIsEstimatingPitch(false);
     setRecordingSeconds(0);
     revokeRecordedAudioUrl(recordedAudioUrl);
     setRecordedAudioUrl(null);
     setRecordedAudioBlob(null);
 
-    if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") {
+    if (
+      !navigator.mediaDevices?.getUserMedia ||
+      typeof MediaRecorder === "undefined"
+    ) {
       setRecordingError("Local recording is not available in this browser.");
       return;
     }
@@ -277,7 +403,9 @@ export default function PracticePage() {
       stopRecordingTracks();
       if (isMountedRef.current) {
         setIsRecording(false);
-        setRecordingError("Microphone permission is required to record a local attempt.");
+        setRecordingError(
+          "Microphone permission is required to record a local attempt.",
+        );
       }
     }
   };
@@ -297,13 +425,23 @@ export default function PracticePage() {
 
   const handleAnalyzeLocalRecording = async () => {
     if (!recordedAudioBlob) {
-      setAudioAnalysisError("Record a local attempt before running local audio analysis.");
+      setAudioAnalysisError(
+        "Record a local attempt before running local audio analysis.",
+      );
       return;
     }
+
+    const audioAnalysisRunId = audioAnalysisRunIdRef.current + 1;
+    const pitchEstimateRunId = pitchEstimateRunIdRef.current + 1;
+    audioAnalysisRunIdRef.current = audioAnalysisRunId;
+    pitchEstimateRunIdRef.current = pitchEstimateRunId;
 
     setAudioAnalysisError("");
     setAudioAnalysisResult(null);
     setIsAnalyzingAudio(true);
+    setPitchEstimateError("");
+    setPitchEstimateResult(null);
+    setIsEstimatingPitch(true);
 
     try {
       const audioContext = new AudioContext();
@@ -313,10 +451,18 @@ export default function PracticePage() {
       let squaredSampleSum = 0;
       let sampleCount = 0;
 
-      for (let channelIndex = 0; channelIndex < audioBuffer.numberOfChannels; channelIndex += 1) {
+      for (
+        let channelIndex = 0;
+        channelIndex < audioBuffer.numberOfChannels;
+        channelIndex += 1
+      ) {
         const channelData = audioBuffer.getChannelData(channelIndex);
 
-        for (let sampleIndex = 0; sampleIndex < channelData.length; sampleIndex += 1) {
+        for (
+          let sampleIndex = 0;
+          sampleIndex < channelData.length;
+          sampleIndex += 1
+        ) {
           const sampleLevel = Math.abs(channelData[sampleIndex]);
           peakLevel = Math.max(peakLevel, sampleLevel);
           squaredSampleSum += channelData[sampleIndex] ** 2;
@@ -324,7 +470,8 @@ export default function PracticePage() {
         }
       }
 
-      const rmsLevel = sampleCount > 0 ? Math.sqrt(squaredSampleSum / sampleCount) : 0;
+      const rmsLevel =
+        sampleCount > 0 ? Math.sqrt(squaredSampleSum / sampleCount) : 0;
       let simpleLevelHint = "Recording level looks usable";
 
       if (peakLevel >= 0.98) {
@@ -333,9 +480,14 @@ export default function PracticePage() {
         simpleLevelHint = "Recording may be too quiet";
       }
 
+      const pitchEstimate = estimateDominantPitch(audioBuffer);
+
       await audioContext.close();
 
-      if (!isMountedRef.current) {
+      if (
+        !isMountedRef.current ||
+        audioAnalysisRunIdRef.current !== audioAnalysisRunId
+      ) {
         return;
       }
 
@@ -345,13 +497,41 @@ export default function PracticePage() {
         rmsLevel,
         simpleLevelHint,
       });
+
+      if (pitchEstimateRunIdRef.current === pitchEstimateRunId) {
+        if (pitchEstimate) {
+          setPitchEstimateResult(pitchEstimate);
+        } else {
+          setPitchEstimateError(
+            "Local pitch estimate could not find a dominant pitch.",
+          );
+        }
+      }
     } catch {
-      if (isMountedRef.current) {
+      if (
+        isMountedRef.current &&
+        audioAnalysisRunIdRef.current === audioAnalysisRunId
+      ) {
         setAudioAnalysisError("Local audio analysis failed in this browser.");
       }
+      if (
+        isMountedRef.current &&
+        pitchEstimateRunIdRef.current === pitchEstimateRunId
+      ) {
+        setPitchEstimateError("Local pitch estimate failed in this browser.");
+      }
     } finally {
-      if (isMountedRef.current) {
+      if (
+        isMountedRef.current &&
+        audioAnalysisRunIdRef.current === audioAnalysisRunId
+      ) {
         setIsAnalyzingAudio(false);
+      }
+      if (
+        isMountedRef.current &&
+        pitchEstimateRunIdRef.current === pitchEstimateRunId
+      ) {
+        setIsEstimatingPitch(false);
       }
     }
   };
@@ -386,6 +566,9 @@ export default function PracticePage() {
     setAudioAnalysisError("");
     setAudioAnalysisResult(null);
     setIsAnalyzingAudio(false);
+    setPitchEstimateResult(null);
+    setPitchEstimateError("");
+    setIsEstimatingPitch(false);
     setRecordingSeconds(0);
     recordingChunksRef.current = [];
   };
@@ -409,24 +592,46 @@ export default function PracticePage() {
     <main className="min-h-screen bg-slate-50 px-4 py-10 text-slate-900 sm:px-6">
       <section className="mx-auto max-w-4xl rounded-3xl bg-white p-6 shadow-sm ring-1 ring-slate-200 sm:p-8">
         <div className="border-b border-slate-200 pb-6">
-          <p className="text-sm font-semibold text-emerald-600">Early learning prototype</p>
-          <h1 className="mt-2 text-3xl font-bold tracking-tight sm:text-4xl">Practice Mode</h1>
+          <p className="text-sm font-semibold text-emerald-600">
+            Early learning prototype
+          </p>
+          <h1 className="mt-2 text-3xl font-bold tracking-tight sm:text-4xl">
+            Practice Mode
+          </h1>
           <p className="mt-3 text-slate-600">
-            This page is an interactive mock practice flow for a future recognition + practice + assessment learning tool.
+            This page is an interactive mock practice flow for a future
+            recognition + practice + assessment learning tool.
           </p>
           <p className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm font-medium text-amber-800">
-            Current status: browser local-only recording prototype, no upload, no real scoring, no AI API call, and no real pitch/rhythm evaluation. Feedback is mock-only.
+            Current status: browser local-only recording prototype, no upload,
+            no real scoring, no AI API call, and no real pitch/rhythm
+            evaluation. Feedback is mock-only.
           </p>
         </div>
 
         <div className="mt-6 grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
           <section className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
-            <p className="text-sm font-semibold uppercase tracking-wide text-slate-500">Mock melody exercise</p>
+            <p className="text-sm font-semibold uppercase tracking-wide text-slate-500">
+              Mock melody exercise
+            </p>
             <h2 className="mt-2 text-2xl font-bold">{mockExercise.title}</h2>
             <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
-              <div className="rounded-xl bg-white p-4 ring-1 ring-slate-200"><dt className="font-semibold text-slate-700">Target notes</dt><dd className="mt-1 text-slate-600">{mockExercise.targetNotes.join(" · ")}</dd></div>
-              <div className="rounded-xl bg-white p-4 ring-1 ring-slate-200"><dt className="font-semibold text-slate-700">Suggested BPM</dt><dd className="mt-1 text-slate-600">{mockExercise.suggestedBpm} BPM</dd></div>
-              <div className="rounded-xl bg-white p-4 ring-1 ring-slate-200 sm:col-span-2"><dt className="font-semibold text-slate-700">Practice goal</dt><dd className="mt-1 text-slate-600">{mockExercise.goal}</dd></div>
+              <div className="rounded-xl bg-white p-4 ring-1 ring-slate-200">
+                <dt className="font-semibold text-slate-700">Target notes</dt>
+                <dd className="mt-1 text-slate-600">
+                  {mockExercise.targetNotes.join(" · ")}
+                </dd>
+              </div>
+              <div className="rounded-xl bg-white p-4 ring-1 ring-slate-200">
+                <dt className="font-semibold text-slate-700">Suggested BPM</dt>
+                <dd className="mt-1 text-slate-600">
+                  {mockExercise.suggestedBpm} BPM
+                </dd>
+              </div>
+              <div className="rounded-xl bg-white p-4 ring-1 ring-slate-200 sm:col-span-2">
+                <dt className="font-semibold text-slate-700">Practice goal</dt>
+                <dd className="mt-1 text-slate-600">{mockExercise.goal}</dd>
+              </div>
             </dl>
           </section>
 
@@ -434,8 +639,13 @@ export default function PracticePage() {
             <h2 className="text-xl font-bold">Practice steps</h2>
             <ol className="mt-4 space-y-3">
               {practiceSteps.map((step, index) => (
-                <li key={step} className="flex gap-3 rounded-xl bg-slate-50 p-3">
-                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-sm font-bold text-emerald-700">{index + 1}</span>
+                <li
+                  key={step}
+                  className="flex gap-3 rounded-xl bg-slate-50 p-3"
+                >
+                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-sm font-bold text-emerald-700">
+                    {index + 1}
+                  </span>
                   <span className="font-medium text-slate-700">{step}</span>
                 </li>
               ))}
@@ -446,49 +656,159 @@ export default function PracticePage() {
         <section className="mt-6 rounded-2xl border border-blue-200 bg-blue-50 p-5">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <h2 className="text-xl font-bold text-blue-950">Interactive mock flow</h2>
-              <p className="mt-1 text-sm font-medium text-blue-800">State: {flowState}</p>
+              <h2 className="text-xl font-bold text-blue-950">
+                Interactive mock flow
+              </h2>
+              <p className="mt-1 text-sm font-medium text-blue-800">
+                State: {flowState}
+              </p>
             </div>
             <div className="flex flex-wrap gap-2">
-              <button type="button" onClick={handleListenToTarget} disabled={isListening} className="rounded-full bg-blue-700 px-4 py-2 text-sm font-semibold text-white disabled:bg-blue-300">{isListening ? "Playing target..." : "Listen to target"}</button>
-              <button type="button" onClick={stopPlayback} disabled={!isListening} className="rounded-full border border-blue-300 bg-white px-4 py-2 text-sm font-semibold text-blue-800 disabled:text-slate-400">Stop playback</button>
-              <button type="button" onClick={handleStartMockAttempt} className="rounded-full bg-emerald-600 px-4 py-2 text-sm font-semibold text-white">Start mock attempt</button>
-              <button type="button" onClick={handleShowMockFeedback} className="rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white">Show mock feedback</button>
-              <button type="button" onClick={handleRetry} className="rounded-full border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700">Retry</button>
+              <button
+                type="button"
+                onClick={handleListenToTarget}
+                disabled={isListening}
+                className="rounded-full bg-blue-700 px-4 py-2 text-sm font-semibold text-white disabled:bg-blue-300"
+              >
+                {isListening ? "Playing target..." : "Listen to target"}
+              </button>
+              <button
+                type="button"
+                onClick={stopPlayback}
+                disabled={!isListening}
+                className="rounded-full border border-blue-300 bg-white px-4 py-2 text-sm font-semibold text-blue-800 disabled:text-slate-400"
+              >
+                Stop playback
+              </button>
+              <button
+                type="button"
+                onClick={handleStartMockAttempt}
+                className="rounded-full bg-emerald-600 px-4 py-2 text-sm font-semibold text-white"
+              >
+                Start mock attempt
+              </button>
+              <button
+                type="button"
+                onClick={handleShowMockFeedback}
+                className="rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white"
+              >
+                Show mock feedback
+              </button>
+              <button
+                type="button"
+                onClick={handleRetry}
+                className="rounded-full border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700"
+              >
+                Retry
+              </button>
             </div>
           </div>
 
-          {playError ? <p className="mt-3 text-sm font-semibold text-red-700">{playError}</p> : null}
-          {flowState === "attempting" ? <p className="mt-4 rounded-xl border border-emerald-200 bg-white p-4 text-sm font-semibold text-emerald-800">This attempt can include one browser local-only recording. Audio is not uploaded, not saved to a server, and not scored.</p> : null}
+          {playError ? (
+            <p className="mt-3 text-sm font-semibold text-red-700">
+              {playError}
+            </p>
+          ) : null}
+          {flowState === "attempting" ? (
+            <p className="mt-4 rounded-xl border border-emerald-200 bg-white p-4 text-sm font-semibold text-emerald-800">
+              This attempt can include one browser local-only recording. Audio
+              is not uploaded, not saved to a server, and not scored.
+            </p>
+          ) : null}
 
           <div className="mt-4 flex flex-wrap gap-2">
             {mockExercise.targetNotes.map((note, index) => (
-              <span key={`${note}-${index}`} className={`rounded-full px-4 py-2 text-sm font-semibold ring-1 ${activeNoteIndex === index ? "bg-blue-700 text-white ring-blue-700" : "bg-white text-blue-800 ring-blue-200"}`}>{note}</span>
+              <span
+                key={`${note}-${index}`}
+                className={`rounded-full px-4 py-2 text-sm font-semibold ring-1 ${activeNoteIndex === index ? "bg-blue-700 text-white ring-blue-700" : "bg-white text-blue-800 ring-blue-200"}`}
+              >
+                {note}
+              </span>
             ))}
           </div>
         </section>
 
-
         <section className="mt-6 rounded-2xl border border-emerald-200 bg-emerald-50 p-5">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div>
-              <h2 className="text-xl font-bold text-emerald-950">Local recording prototype</h2>
+              <h2 className="text-xl font-bold text-emerald-950">
+                Local recording prototype
+              </h2>
               <p className="mt-1 text-sm font-medium text-emerald-800">
-                Recording is local-only. Audio is not uploaded. No real pitch/rhythm scoring yet. No AI API call.
+                Recording is local-only. Audio is not uploaded. No real
+                pitch/rhythm scoring yet. No AI API call.
               </p>
               <p className="mt-2 text-sm text-emerald-800">
-                Start local recording asks your browser for microphone permission with navigator.mediaDevices.getUserMedia({"{ audio: true }"}).
+                Start local recording asks your browser for microphone
+                permission with navigator.mediaDevices.getUserMedia(
+                {"{ audio: true }"}).
               </p>
               <p className="mt-2 text-sm font-semibold text-emerald-900">
-                Status: {isRecording ? `Recording locally for ${recordingSeconds}s` : recordedAudioUrl ? "Recorded attempt ready for local playback" : "No local recording yet"}
+                Status:{" "}
+                {isRecording
+                  ? `Recording locally for ${recordingSeconds}s`
+                  : recordedAudioUrl
+                    ? "Recorded attempt ready for local playback"
+                    : "No local recording yet"}
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
-              <button type="button" onClick={handleStartLocalRecording} disabled={isRecording} className="rounded-full bg-emerald-700 px-4 py-2 text-sm font-semibold text-white disabled:bg-emerald-300">Start local recording</button>
-              <button type="button" onClick={handleStopLocalRecording} disabled={!isRecording} className="rounded-full border border-emerald-300 bg-white px-4 py-2 text-sm font-semibold text-emerald-800 disabled:text-slate-400">Stop recording</button>
-              <button type="button" onClick={handlePlayRecordedAttempt} disabled={!recordedAudioUrl || isRecording} className="rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white disabled:bg-slate-300">Play recorded attempt</button>
-              <button type="button" onClick={handleAnalyzeLocalRecording} disabled={!recordedAudioBlob || isRecording || isAnalyzingAudio} className="rounded-full bg-emerald-900 px-4 py-2 text-sm font-semibold text-white disabled:bg-slate-300">{isAnalyzingAudio ? "Analyzing locally..." : "Analyze local recording"}</button>
-              <button type="button" onClick={handleClearRecording} disabled={!recordedAudioUrl && !recordedAudioBlob && !isRecording && !recordingError && !audioAnalysisError && !audioAnalysisResult} className="rounded-full border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 disabled:text-slate-400">Clear recording</button>
+              <button
+                type="button"
+                onClick={handleStartLocalRecording}
+                disabled={isRecording}
+                className="rounded-full bg-emerald-700 px-4 py-2 text-sm font-semibold text-white disabled:bg-emerald-300"
+              >
+                Start local recording
+              </button>
+              <button
+                type="button"
+                onClick={handleStopLocalRecording}
+                disabled={!isRecording}
+                className="rounded-full border border-emerald-300 bg-white px-4 py-2 text-sm font-semibold text-emerald-800 disabled:text-slate-400"
+              >
+                Stop recording
+              </button>
+              <button
+                type="button"
+                onClick={handlePlayRecordedAttempt}
+                disabled={!recordedAudioUrl || isRecording}
+                className="rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white disabled:bg-slate-300"
+              >
+                Play recorded attempt
+              </button>
+              <button
+                type="button"
+                onClick={handleAnalyzeLocalRecording}
+                disabled={
+                  !recordedAudioBlob ||
+                  isRecording ||
+                  isAnalyzingAudio ||
+                  isEstimatingPitch
+                }
+                className="rounded-full bg-emerald-900 px-4 py-2 text-sm font-semibold text-white disabled:bg-slate-300"
+              >
+                {isAnalyzingAudio || isEstimatingPitch
+                  ? "Analyzing locally..."
+                  : "Analyze local recording"}
+              </button>
+              <button
+                type="button"
+                onClick={handleClearRecording}
+                disabled={
+                  !recordedAudioUrl &&
+                  !recordedAudioBlob &&
+                  !isRecording &&
+                  !recordingError &&
+                  !audioAnalysisError &&
+                  !audioAnalysisResult &&
+                  !pitchEstimateResult &&
+                  !pitchEstimateError
+                }
+                className="rounded-full border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 disabled:text-slate-400"
+              >
+                Clear recording
+              </button>
             </div>
           </div>
           <div className="mt-4 rounded-xl border border-emerald-200 bg-white p-4 text-sm text-emerald-900">
@@ -500,30 +820,173 @@ export default function PracticePage() {
               <li>Audio is not uploaded.</li>
             </ul>
           </div>
-          {recordingError ? <p className="mt-3 text-sm font-semibold text-red-700">{recordingError}</p> : null}
-          {audioAnalysisError ? <p className="mt-3 text-sm font-semibold text-red-700">{audioAnalysisError}</p> : null}
-          {recordedAudioUrl ? <audio className="mt-4 w-full" controls src={recordedAudioUrl}>Your browser does not support audio playback.</audio> : null}
+          <div className="mt-4 rounded-xl border border-violet-200 bg-white p-4 text-sm text-violet-950">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <p className="font-semibold">
+                  Experimental target-aware pitch comparison
+                </p>
+                <p className="mt-1 text-violet-800">
+                  This is not a formal score.
+                </p>
+                <ul className="mt-2 list-disc space-y-1 pl-5 text-violet-800">
+                  <li>
+                    This only compares the estimated dominant pitch to one
+                    selected target note.
+                  </li>
+                  <li>This is not rhythm evaluation.</li>
+                  <li>Audio is not uploaded.</li>
+                  <li>No AI API call.</li>
+                </ul>
+              </div>
+              <label className="text-sm font-semibold text-violet-950">
+                Target note for pitch comparison
+                <select
+                  className="mt-2 block w-full rounded-xl border border-violet-200 bg-white px-3 py-2 text-violet-950"
+                  value={selectedTargetNote}
+                  onChange={(event) =>
+                    setSelectedTargetNote(event.target.value)
+                  }
+                >
+                  {targetNoteOptions.map((note) => (
+                    <option key={note} value={note}>
+                      {note}
+                    </option>
+                  ))}
+                </select>
+                <span className="mt-2 block text-violet-800">
+                  Current target frequency:{" "}
+                  {noteFrequencies[selectedTargetNote].toFixed(2)} Hz
+                </span>
+              </label>
+            </div>
+            {pitchEstimateError ? (
+              <p className="mt-3 font-semibold text-red-700">
+                {pitchEstimateError}
+              </p>
+            ) : null}
+            {pitchComparisonResult ? (
+              <dl className="mt-4 grid gap-3 sm:grid-cols-2">
+                <div className="rounded-xl bg-violet-50 p-3 ring-1 ring-violet-200">
+                  <dt className="font-semibold">Target note</dt>
+                  <dd className="mt-1">{pitchComparisonResult.targetNote}</dd>
+                </div>
+                <div className="rounded-xl bg-violet-50 p-3 ring-1 ring-violet-200">
+                  <dt className="font-semibold">Target frequency</dt>
+                  <dd className="mt-1">
+                    {pitchComparisonResult.targetFrequencyHz.toFixed(2)} Hz
+                  </dd>
+                </div>
+                <div className="rounded-xl bg-violet-50 p-3 ring-1 ring-violet-200">
+                  <dt className="font-semibold">Estimated pitch</dt>
+                  <dd className="mt-1">
+                    {pitchComparisonResult.estimatedFrequencyHz.toFixed(2)} Hz
+                  </dd>
+                </div>
+                <div className="rounded-xl bg-violet-50 p-3 ring-1 ring-violet-200">
+                  <dt className="font-semibold">Cents from target</dt>
+                  <dd className="mt-1">
+                    {pitchComparisonResult.centsFromTarget.toFixed(1)} cents ·{" "}
+                    {pitchComparisonResult.comparisonHint}
+                  </dd>
+                </div>
+              </dl>
+            ) : null}
+          </div>
+          {recordingError ? (
+            <p className="mt-3 text-sm font-semibold text-red-700">
+              {recordingError}
+            </p>
+          ) : null}
+          {audioAnalysisError ? (
+            <p className="mt-3 text-sm font-semibold text-red-700">
+              {audioAnalysisError}
+            </p>
+          ) : null}
+          {recordedAudioUrl ? (
+            <audio className="mt-4 w-full" controls src={recordedAudioUrl}>
+              Your browser does not support audio playback.
+            </audio>
+          ) : null}
           {audioAnalysisResult ? (
             <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
-              <div className="rounded-xl bg-white p-4 ring-1 ring-emerald-200"><dt className="font-semibold text-emerald-950">Duration seconds</dt><dd className="mt-1 text-emerald-800">{audioAnalysisResult.durationSeconds.toFixed(2)}</dd></div>
-              <div className="rounded-xl bg-white p-4 ring-1 ring-emerald-200"><dt className="font-semibold text-emerald-950">Peak level</dt><dd className="mt-1 text-emerald-800">{audioAnalysisResult.peakLevel.toFixed(4)}</dd></div>
-              <div className="rounded-xl bg-white p-4 ring-1 ring-emerald-200"><dt className="font-semibold text-emerald-950">RMS level</dt><dd className="mt-1 text-emerald-800">{audioAnalysisResult.rmsLevel.toFixed(4)}</dd></div>
-              <div className="rounded-xl bg-white p-4 ring-1 ring-emerald-200"><dt className="font-semibold text-emerald-950">Simple level hint</dt><dd className="mt-1 text-emerald-800">{audioAnalysisResult.simpleLevelHint}</dd></div>
+              <div className="rounded-xl bg-white p-4 ring-1 ring-emerald-200">
+                <dt className="font-semibold text-emerald-950">
+                  Duration seconds
+                </dt>
+                <dd className="mt-1 text-emerald-800">
+                  {audioAnalysisResult.durationSeconds.toFixed(2)}
+                </dd>
+              </div>
+              <div className="rounded-xl bg-white p-4 ring-1 ring-emerald-200">
+                <dt className="font-semibold text-emerald-950">Peak level</dt>
+                <dd className="mt-1 text-emerald-800">
+                  {audioAnalysisResult.peakLevel.toFixed(4)}
+                </dd>
+              </div>
+              <div className="rounded-xl bg-white p-4 ring-1 ring-emerald-200">
+                <dt className="font-semibold text-emerald-950">RMS level</dt>
+                <dd className="mt-1 text-emerald-800">
+                  {audioAnalysisResult.rmsLevel.toFixed(4)}
+                </dd>
+              </div>
+              <div className="rounded-xl bg-white p-4 ring-1 ring-emerald-200">
+                <dt className="font-semibold text-emerald-950">
+                  Simple level hint
+                </dt>
+                <dd className="mt-1 text-emerald-800">
+                  {audioAnalysisResult.simpleLevelHint}
+                </dd>
+              </div>
             </dl>
           ) : null}
         </section>
 
         {hasMockFeedback ? (
           <div className="mt-6 grid gap-4 md:grid-cols-3">
-            <section className="rounded-2xl border border-slate-200 bg-white p-5"><h2 className="text-lg font-bold">Mock pitch feedback</h2><p className="mt-2 text-sm text-slate-600">{mockFeedback.pitch} This is not real pitch detection or scoring.</p></section>
-            <section className="rounded-2xl border border-slate-200 bg-white p-5"><h2 className="text-lg font-bold">Mock rhythm feedback</h2><p className="mt-2 text-sm text-slate-600">{mockFeedback.rhythm} This is not real rhythm evaluation or scoring.</p></section>
-            <section className="rounded-2xl border border-slate-200 bg-white p-5"><h2 className="text-lg font-bold">Mock AI-style learning feedback</h2><p className="mt-2 text-sm text-slate-600">{mockFeedback.learning} No AI API is called.</p></section>
+            <section className="rounded-2xl border border-slate-200 bg-white p-5">
+              <h2 className="text-lg font-bold">Mock pitch feedback</h2>
+              <p className="mt-2 text-sm text-slate-600">
+                {mockFeedback.pitch} This is not real pitch detection or
+                scoring.
+              </p>
+            </section>
+            <section className="rounded-2xl border border-slate-200 bg-white p-5">
+              <h2 className="text-lg font-bold">Mock rhythm feedback</h2>
+              <p className="mt-2 text-sm text-slate-600">
+                {mockFeedback.rhythm} This is not real rhythm evaluation or
+                scoring.
+              </p>
+            </section>
+            <section className="rounded-2xl border border-slate-200 bg-white p-5">
+              <h2 className="text-lg font-bold">
+                Mock AI-style learning feedback
+              </h2>
+              <p className="mt-2 text-sm text-slate-600">
+                {mockFeedback.learning} No AI API is called.
+              </p>
+            </section>
           </div>
         ) : (
           <div className="mt-6 grid gap-4 md:grid-cols-3">
-            <section className="rounded-2xl border border-slate-200 bg-white p-5"><h2 className="text-lg font-bold">Pitch feedback placeholder</h2><p className="mt-2 text-sm text-slate-600">No real pitch detection is implemented here.</p></section>
-            <section className="rounded-2xl border border-slate-200 bg-white p-5"><h2 className="text-lg font-bold">Rhythm feedback placeholder</h2><p className="mt-2 text-sm text-slate-600">No real rhythm evaluation is implemented here.</p></section>
-            <section className="rounded-2xl border border-slate-200 bg-white p-5"><h2 className="text-lg font-bold">AI feedback placeholder</h2><p className="mt-2 text-sm text-slate-600">This page does not call any AI API.</p></section>
+            <section className="rounded-2xl border border-slate-200 bg-white p-5">
+              <h2 className="text-lg font-bold">Pitch feedback placeholder</h2>
+              <p className="mt-2 text-sm text-slate-600">
+                No real pitch detection is implemented here.
+              </p>
+            </section>
+            <section className="rounded-2xl border border-slate-200 bg-white p-5">
+              <h2 className="text-lg font-bold">Rhythm feedback placeholder</h2>
+              <p className="mt-2 text-sm text-slate-600">
+                No real rhythm evaluation is implemented here.
+              </p>
+            </section>
+            <section className="rounded-2xl border border-slate-200 bg-white p-5">
+              <h2 className="text-lg font-bold">AI feedback placeholder</h2>
+              <p className="mt-2 text-sm text-slate-600">
+                This page does not call any AI API.
+              </p>
+            </section>
           </div>
         )}
       </section>
