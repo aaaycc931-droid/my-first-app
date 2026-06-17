@@ -142,3 +142,5 @@ This PR does not:
 * Commit sample files.
 
 Practice Mode skeleton started: added a mock-only /practice page to validate the future recognition + practice + assessment flow without recording, scoring, AI, or real evaluation.
+
+Practice Mode mock flow update: /practice now supports target playback plus mock attempt, mock feedback, and retry states without recording, real scoring, AI, or real OMR.

@@ -137,3 +137,5 @@ These are candidates only and are not implemented here:
 4. Keep dev-only Audiveris strictly behind explicit flags.
 
 - 2026-06-17: Practice Mode skeleton started with mock-only front-end placeholders; no recording, scoring, AI, or real pitch/rhythm evaluation.
+
+- 2026-06-17: Practice Mode now includes target playback and an interactive mock attempt/feedback/retry flow; still no recording, real scoring, AI API calls, or real pitch/rhythm evaluation.
