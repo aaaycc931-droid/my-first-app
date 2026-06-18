@@ -118,7 +118,9 @@ Manual QA findings should distinguish subjective usefulness from measured benchm
 
 ## 9. Automated benchmark direction
 
-Synthetic pitch benchmark support has started with CI-safe generated `Float32Array` sine-wave buffers that can exercise the extracted pitch estimate helper without committing binary audio fixtures. This support is infrastructure only and does not yet establish production accuracy claims.
+Synthetic pitch benchmark support has started with CI-safe generated `Float32Array` sine-wave buffers that can exercise the extracted pitch estimate helper without committing binary audio fixtures. Synthetic no-pitch benchmark support has also started for validating expected failure behavior only.
+
+The no-pitch direction generates silent buffers and too-short buffers in memory, so no binary audio fixtures are committed. Silent sustained buffers validate the no usable pitch frames path, and too-short buffers validate the recording length error path. This support is infrastructure only: it validates no-pitch failure behavior, does not change pitch estimation, and does not establish production scoring accuracy.
 
 Future automated benchmark work may add more CI-safe tests without committing binary audio files. Possible directions include:
 
@@ -126,11 +128,12 @@ Future automated benchmark work may add more CI-safe tests without committing bi
 - generated `Float32Array` sine-wave input
 - known frequency expected output
 - no-pitch silent buffer
+- too-short no-pitch buffer
 - noisy synthetic buffer
 - future test helper for pitch estimate
 - future CI-safe benchmark without binary audio files
 
-This document now records the first synthetic helper direction while keeping benchmark output separate from product accuracy claims.
+This document now records the synthetic helper direction while keeping benchmark output separate from product accuracy claims.
 
 ## 10. Product accuracy language
 
@@ -166,7 +169,7 @@ A safe future sequence is:
 1. docs: add pitch benchmark plan
 2. code: extract pitch helper only if needed (started by extracting the local pitch estimate helper)
 3. code: add synthetic pitch benchmark helper (started with generated `Float32Array` sine-wave buffers and no binary audio fixtures)
-4. code: add synthetic no-pitch benchmark
+4. code: add synthetic no-pitch benchmark (started with in-memory silent and too-short buffers; validates expected no-pitch failure behavior only)
 5. code: improve no-pitch / quiet recording feedback
 6. code: add confidence display polish
 7. docs: record benchmark results before changing product claims
