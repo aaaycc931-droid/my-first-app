@@ -210,6 +210,9 @@ export default function PracticePage() {
   const audioAnalysisRunIdRef = useRef(0);
   const pitchEstimateRunIdRef = useRef(0);
   const practiceAttemptIdRef = useRef(0);
+  const recordingAttemptKeyCounterRef = useRef(0);
+  const currentRecordingAttemptKeyRef = useRef<number | null>(null);
+  const recordedPracticeAttemptKeyRef = useRef<number | null>(null);
 
   const targetNoteOptions = useMemo(
     () => Array.from(new Set(mockExercise.targetNotes)),
@@ -447,6 +450,8 @@ export default function PracticePage() {
     revokeRecordedAudioUrl(recordedAudioUrl);
     setRecordedAudioUrl(null);
     setRecordedAudioBlob(null);
+    currentRecordingAttemptKeyRef.current = null;
+    recordedPracticeAttemptKeyRef.current = null;
 
     if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") {
       setRecordingError("Local recording is not available in this browser.");
@@ -495,6 +500,10 @@ export default function PracticePage() {
           const audioBlob = new Blob(recordingChunksRef.current, {
             type: recorder.mimeType || "audio/webm",
           });
+          const nextRecordingAttemptKey = recordingAttemptKeyCounterRef.current + 1;
+          recordingAttemptKeyCounterRef.current = nextRecordingAttemptKey;
+          currentRecordingAttemptKeyRef.current = nextRecordingAttemptKey;
+          recordedPracticeAttemptKeyRef.current = null;
           setRecordedAudioBlob(audioBlob);
           setRecordedAudioUrl(URL.createObjectURL(audioBlob));
         }
@@ -607,6 +616,8 @@ export default function PracticePage() {
       return;
     }
 
+    const recordingAttemptKey = currentRecordingAttemptKeyRef.current;
+
     setPitchEstimateError("");
     setPitchEstimateResult(null);
     setIsEstimatingPitch(true);
@@ -621,19 +632,24 @@ export default function PracticePage() {
       const audioBuffer = await audioContext.decodeAudioData(audioData);
       const result = estimateLocalPitch(audioBuffer);
 
-      if (isMountedRef.current && pitchEstimateRunId === pitchEstimateRunIdRef.current) {
+      if (
+        isMountedRef.current &&
+        pitchEstimateRunId === pitchEstimateRunIdRef.current &&
+        recordingAttemptKey === currentRecordingAttemptKeyRef.current
+      ) {
         const targetNote = selectedTargetNote;
         const targetFrequencyHz = noteFrequencies[targetNote];
 
         setPitchEstimateResult(result);
 
-        if (targetFrequencyHz) {
+        if (targetFrequencyHz && recordedPracticeAttemptKeyRef.current !== recordingAttemptKey) {
           const centsFromTarget = calculateCentsFromTarget(
             result.estimatedFrequencyHz,
             targetFrequencyHz,
           );
           const nextAttemptId = practiceAttemptIdRef.current + 1;
           practiceAttemptIdRef.current = nextAttemptId;
+          recordedPracticeAttemptKeyRef.current = recordingAttemptKey;
 
           setPracticeAttempts((currentAttempts) => [
             {
@@ -678,6 +694,7 @@ export default function PracticePage() {
 
   const handleClearPracticeAttempts = () => {
     setPracticeAttempts([]);
+    recordedPracticeAttemptKeyRef.current = null;
   };
 
   const handleClearRecording = () => {
@@ -696,6 +713,8 @@ export default function PracticePage() {
     revokeRecordedAudioUrl(recordedAudioUrl);
     setRecordedAudioUrl(null);
     setRecordedAudioBlob(null);
+    currentRecordingAttemptKeyRef.current = null;
+    recordedPracticeAttemptKeyRef.current = null;
     setRecordingError("");
     setAudioAnalysisError("");
     setAudioAnalysisResult(null);
