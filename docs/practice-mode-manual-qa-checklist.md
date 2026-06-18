@@ -84,7 +84,17 @@ Keep these boundaries visible during manual QA:
 * Cents offset appears.
 * Confidence appears.
 * Frames analyzed / valid pitch frames appear.
-* Too short / too quiet / no dominant pitch cases show a friendly hint.
+* Too-short recording case shows friendly retry guidance:
+  * what happened: recording ended before enough local audio was available
+  * what to try next: try recording a longer sustained note
+  * what to try next: hold one note for about 1 second or more
+* Quiet / no-usable-pitch recording case shows friendly retry guidance:
+  * what happened: no clear, steady usable pitch frames were found
+  * what to try next: sing or play a louder, steadier single note
+  * what to try next: move closer to the microphone
+  * what to try next: avoid background noise
+* Pitch estimate failure UI still explains this is an experimental local pitch estimate.
+* Pitch estimate failure UI still says there is no formal score, no rhythm evaluation, no audio upload, and no AI API call.
 * Clear recording removes the pitch estimate.
 * Starting a new recording removes the old pitch estimate.
 * This is not formal scoring.
@@ -116,7 +126,7 @@ Keep these boundaries visible during manual QA:
 * Single-note practice loop card is visible.
 * It shows the selected target note and target frequency.
 * It reflects recording ready / no recording state.
-* It reflects pitch estimate ready / not estimated state.
+* It reflects pitch estimate ready / not estimated / needs a clearer local recording state.
 * It reflects comparison ready / waiting state.
 * It does not claim formal scoring.
 * It keeps local-only / no upload / no AI / no rhythm boundaries visible.

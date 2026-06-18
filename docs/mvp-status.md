@@ -147,3 +147,5 @@ These are candidates only and are not implemented here:
 - 2026-06-18: Added `npm run validate:synthetic-pitch-benchmark` for the default synthetic pitch benchmark suite using generated in-memory buffers only; this does not change UI, pitch algorithms, target comparison, scoring, audio upload, AI API calls, default provider, provider union, or dependencies.
 
 - 2026-06-18: Updated `npm run validate:synthetic-pitch-benchmark` to be baseline-safe: no-pitch behavior is the blocking validation gate, while known-frequency pitch results are currently exploratory/non-blocking and do not establish any product accuracy claim.
+
+- 2026-06-18: Improved Practice Mode no-pitch / quiet recording feedback for the experimental local pitch estimate. The UI now separates too-short recordings from no-usable-pitch-frame cases and gives retry guidance while keeping the behavior local-only. This does not change the pitch estimate algorithm, target comparison thresholds, formal scoring, rhythm evaluation, AI API calls, audio upload, providers, default `mock` provider, provider union, package dependencies, `/api/recognize`, or Audiveris boundaries.

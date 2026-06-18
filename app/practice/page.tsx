@@ -24,6 +24,12 @@ type PitchComparisonResult = {
   comparisonHint: string;
 };
 
+type PitchEstimateErrorFeedback = {
+  title: string;
+  whatHappened: string;
+  suggestions: string[];
+};
+
 const mockExercise = {
   title: "Mock Melody: Stepwise Warmup",
   targetNotes: ["C4", "D4", "E4", "G4", "E4", "D4", "C4"],
@@ -56,6 +62,51 @@ const noteFrequencies: Record<string, number> = {
 
 const calculateCentsFromTarget = (estimatedFrequencyHz: number, targetFrequencyHz: number) =>
   1200 * Math.log2(estimatedFrequencyHz / targetFrequencyHz);
+
+
+const getPitchEstimateErrorFeedback = (
+  errorMessage: string,
+): PitchEstimateErrorFeedback => {
+  const normalizedMessage = errorMessage.toLowerCase();
+
+  if (normalizedMessage.includes("too short")) {
+    return {
+      title: "Recording is too short for the experimental local pitch estimate",
+      whatHappened:
+        "The recording ended before there was enough local audio for a stable pitch estimate.",
+      suggestions: [
+        "Try recording a longer sustained note.",
+        "Hold one note for about 1 second or more.",
+      ],
+    };
+  }
+
+  if (
+    normalizedMessage.includes("no usable pitch frames") ||
+    normalizedMessage.includes("louder") ||
+    normalizedMessage.includes("steadier")
+  ) {
+    return {
+      title: "No usable pitch frames were found",
+      whatHappened:
+        "The local estimate could not find a clear, steady pitch. The recording may be too quiet, noisy, or unstable.",
+      suggestions: [
+        "Try singing or playing a louder, steadier single note.",
+        "Move closer to the microphone.",
+        "Avoid background noise.",
+      ],
+    };
+  }
+
+  return {
+    title: "Local pitch estimate could not be completed",
+    whatHappened: errorMessage,
+    suggestions: [
+      "Try recording one clear sustained note again.",
+      "Keep the audio local; no upload or AI API call is used.",
+    ],
+  };
+};
 
 const getComparisonHint = (centsFromTarget: number) => {
   const absoluteCents = Math.abs(centsFromTarget);
@@ -120,6 +171,11 @@ export default function PracticePage() {
   const targetNoteOptions = useMemo(
     () => Array.from(new Set(mockExercise.targetNotes)),
     [],
+  );
+
+  const pitchEstimateErrorFeedback = useMemo(
+    () => (pitchEstimateError ? getPitchEstimateErrorFeedback(pitchEstimateError) : null),
+    [pitchEstimateError],
   );
 
   const pitchComparisonResult = useMemo<PitchComparisonResult | null>(() => {
@@ -684,7 +740,7 @@ export default function PracticePage() {
             <div className="rounded-xl bg-slate-50 p-4 ring-1 ring-slate-200"><dt className="font-semibold text-slate-700">Target note</dt><dd className="mt-1 text-slate-600">{selectedTargetNote}</dd></div>
             <div className="rounded-xl bg-slate-50 p-4 ring-1 ring-slate-200"><dt className="font-semibold text-slate-700">Target frequency</dt><dd className="mt-1 text-slate-600">{noteFrequencies[selectedTargetNote].toFixed(2)} Hz</dd></div>
             <div className="rounded-xl bg-slate-50 p-4 ring-1 ring-slate-200"><dt className="font-semibold text-slate-700">Recording</dt><dd className="mt-1 text-slate-600">{recordedAudioBlob ? "Recorded attempt ready" : "No recording yet"}</dd></div>
-            <div className="rounded-xl bg-slate-50 p-4 ring-1 ring-slate-200"><dt className="font-semibold text-slate-700">Pitch estimate</dt><dd className="mt-1 text-slate-600">{pitchEstimateResult ? "Pitch estimate ready" : "Not estimated yet"}</dd></div>
+            <div className="rounded-xl bg-slate-50 p-4 ring-1 ring-slate-200"><dt className="font-semibold text-slate-700">Pitch estimate</dt><dd className="mt-1 text-slate-600">{pitchEstimateResult ? "Pitch estimate ready" : pitchEstimateErrorFeedback ? "Needs a clearer local recording" : "Not estimated yet"}</dd></div>
             <div className="rounded-xl bg-slate-50 p-4 ring-1 ring-slate-200"><dt className="font-semibold text-slate-700">Comparison</dt><dd className="mt-1 text-slate-600">{pitchComparisonResult ? "Comparison ready" : "Waiting for pitch estimate"}</dd></div>
           </dl>
 
@@ -737,7 +793,23 @@ export default function PracticePage() {
           </div>
           {recordingError ? <p className="mt-3 text-sm font-semibold text-red-700">{recordingError}</p> : null}
           {audioAnalysisError ? <p className="mt-3 text-sm font-semibold text-red-700">{audioAnalysisError}</p> : null}
-          {pitchEstimateError ? <p className="mt-3 text-sm font-semibold text-red-700">{pitchEstimateError}</p> : null}
+          {pitchEstimateErrorFeedback ? (
+            <div className="mt-3 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-900">
+              <p className="font-semibold">{pitchEstimateErrorFeedback.title}</p>
+              <p className="mt-2">What happened: {pitchEstimateErrorFeedback.whatHappened}</p>
+              <div className="mt-3">
+                <p className="font-semibold">What to try next:</p>
+                <ul className="mt-1 list-disc space-y-1 pl-5">
+                  {pitchEstimateErrorFeedback.suggestions.map((suggestion) => (
+                    <li key={suggestion}>{suggestion}</li>
+                  ))}
+                </ul>
+              </div>
+              <p className="mt-3 font-medium">
+                This is only an experimental local pitch estimate: no formal score, no rhythm evaluation, audio is not uploaded, and no AI API call is made.
+              </p>
+            </div>
+          ) : null}
           {recordedAudioUrl ? <audio className="mt-4 w-full" controls src={recordedAudioUrl}>Your browser does not support audio playback.</audio> : null}
           <div className="mt-4 rounded-xl border border-indigo-200 bg-white p-4 text-sm text-indigo-900">
             <p className="font-semibold">Experimental local pitch estimate</p>
