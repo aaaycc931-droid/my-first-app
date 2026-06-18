@@ -224,6 +224,7 @@ export default function PracticePage() {
   const [pitchEstimateError, setPitchEstimateError] = useState("");
   const [isEstimatingPitch, setIsEstimatingPitch] = useState(false);
   const [selectedTargetNote, setSelectedTargetNote] = useState("C4");
+  const [isSelectedTargetNotePlaying, setIsSelectedTargetNotePlaying] = useState(false);
   const [recordingSeconds, setRecordingSeconds] = useState(0);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const mediaStreamRef = useRef<MediaStream | null>(null);
@@ -294,6 +295,7 @@ export default function PracticePage() {
     void playbackAudioContextRef.current?.close();
     playbackAudioContextRef.current = null;
     setActiveNoteIndex(null);
+    setIsSelectedTargetNotePlaying(false);
     setFlowState((currentState) =>
       currentState === "listening" ? "idle" : currentState,
     );
@@ -384,6 +386,60 @@ export default function PracticePage() {
       playbackTimeoutIdsRef.current.push(completionTimeoutId);
     } catch {
       setPlayError("Target playback failed. This prototype still uses mock scoring only.");
+      stopPlayback();
+    }
+  };
+
+  const handlePlaySelectedTargetNote = async () => {
+    stopPlayback();
+    setPlayError("");
+
+    const targetFrequency = noteFrequencies[selectedTargetNote];
+
+    if (!targetFrequency) {
+      setPlayError(`Target note ${selectedTargetNote} is not available for playback yet.`);
+      return;
+    }
+
+    try {
+      const audioContext = new AudioContext();
+      const oscillator = audioContext.createOscillator();
+      const gain = audioContext.createGain();
+      const startTime = audioContext.currentTime + 0.05;
+      const noteSeconds = 1;
+
+      playbackAudioContextRef.current = audioContext;
+      playbackOscillatorsRef.current = [oscillator];
+      setIsSelectedTargetNotePlaying(true);
+
+      oscillator.type = "sine";
+      oscillator.frequency.value = targetFrequency;
+      gain.gain.setValueAtTime(0.0001, startTime);
+      gain.gain.exponentialRampToValueAtTime(0.18, startTime + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.0001, startTime + noteSeconds * 0.9);
+
+      oscillator.connect(gain);
+      gain.connect(audioContext.destination);
+      oscillator.start(startTime);
+      oscillator.stop(startTime + noteSeconds);
+
+      const completionTimeoutId = window.setTimeout(() => {
+        playbackOscillatorsRef.current = playbackOscillatorsRef.current.filter(
+          (currentOscillator) => currentOscillator !== oscillator,
+        );
+        void audioContext.close();
+        if (playbackAudioContextRef.current === audioContext) {
+          playbackAudioContextRef.current = null;
+        }
+        playbackTimeoutIdsRef.current = playbackTimeoutIdsRef.current.filter(
+          (timeoutId) => timeoutId !== completionTimeoutId,
+        );
+        setIsSelectedTargetNotePlaying(false);
+      }, noteSeconds * 1000 + 200);
+
+      playbackTimeoutIdsRef.current.push(completionTimeoutId);
+    } catch {
+      setPlayError("Selected target note playback failed in this browser.");
       stopPlayback();
     }
   };
@@ -653,6 +709,7 @@ export default function PracticePage() {
   };
 
   const isListening = flowState === "listening";
+  const isAnyTargetPlaybackActive = isListening || isSelectedTargetNotePlaying;
 
   return (
     <main className="min-h-screen bg-slate-50 px-4 py-10 text-slate-900 sm:px-6">
@@ -700,7 +757,7 @@ export default function PracticePage() {
             </div>
             <div className="flex flex-wrap gap-2">
               <button type="button" onClick={handleListenToTarget} disabled={isListening} className="rounded-full bg-blue-700 px-4 py-2 text-sm font-semibold text-white disabled:bg-blue-300">{isListening ? "Playing target..." : "Listen to target"}</button>
-              <button type="button" onClick={stopPlayback} disabled={!isListening} className="rounded-full border border-blue-300 bg-white px-4 py-2 text-sm font-semibold text-blue-800 disabled:text-slate-400">Stop playback</button>
+              <button type="button" onClick={stopPlayback} disabled={!isAnyTargetPlaybackActive} className="rounded-full border border-blue-300 bg-white px-4 py-2 text-sm font-semibold text-blue-800 disabled:text-slate-400">Stop playback</button>
               <button type="button" onClick={handleStartMockAttempt} className="rounded-full bg-emerald-600 px-4 py-2 text-sm font-semibold text-white">Start mock attempt</button>
               <button type="button" onClick={handleShowMockFeedback} className="rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white">Show mock feedback</button>
               <button type="button" onClick={handleRetry} className="rounded-full border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700">Retry</button>
@@ -785,18 +842,28 @@ export default function PracticePage() {
                   <li>This only compares the local estimated pitch to one selected target note.</li>
                 </ul>
               </div>
-              <label className="text-sm font-semibold text-violet-950">
-                Target note selector
-                <select
-                  className="mt-2 block rounded-full border border-violet-200 bg-white px-4 py-2 text-sm font-semibold text-violet-900"
-                  value={selectedTargetNote}
-                  onChange={(event) => setSelectedTargetNote(event.target.value)}
+              <div className="flex flex-col gap-3 sm:items-end">
+                <label className="text-sm font-semibold text-violet-950">
+                  Target note selector
+                  <select
+                    className="mt-2 block rounded-full border border-violet-200 bg-white px-4 py-2 text-sm font-semibold text-violet-900"
+                    value={selectedTargetNote}
+                    onChange={(event) => setSelectedTargetNote(event.target.value)}
+                  >
+                    {targetNoteOptions.map((note) => (
+                      <option key={note} value={note}>{note}</option>
+                    ))}
+                  </select>
+                </label>
+                <button
+                  type="button"
+                  onClick={handlePlaySelectedTargetNote}
+                  disabled={isSelectedTargetNotePlaying}
+                  className="rounded-full bg-violet-700 px-4 py-2 text-sm font-semibold text-white disabled:bg-violet-300"
                 >
-                  {targetNoteOptions.map((note) => (
-                    <option key={note} value={note}>{note}</option>
-                  ))}
-                </select>
-              </label>
+                  {isSelectedTargetNotePlaying ? "Playing selected note..." : "Play selected target note"}
+                </button>
+              </div>
             </div>
             {pitchComparisonResult && pitchEstimateResult ? (
               <dl className="mt-4 grid gap-3 sm:grid-cols-2">
