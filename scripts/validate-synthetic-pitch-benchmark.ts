@@ -9,7 +9,7 @@ console.log(
   `Synthetic pitch benchmark validation completed: ${result.noPitchResults.length} blocking no-pitch case(s), ${result.pitchResults.length} blocking synthetic known-frequency pitch regression case(s), ${result.extendedPitchDiagnosticResults.length} extended exploratory pitch diagnostic case(s).`,
 );
 console.log(
-  "Known-frequency pitch cases are blocking synthetic pitch regression cases; any A4/C4/G4/E4 failure exits 1.",
+  "Known-frequency pitch cases are blocking synthetic pitch regression cases; any A3/C3/E3/A4/C4/E4/G4/C5/A5 failure exits 1.",
 );
 console.log(
   "This command is a synthetic regression gate, not production accuracy proof, not formal scoring, and not proof of real singing accuracy.",
@@ -33,26 +33,28 @@ for (const pitchResult of result.pitchResults) {
   );
 }
 
-console.log("Extended exploratory pitch diagnostics (non-blocking):");
-console.log(
-  "Extended diagnostics are exploratory and guide future estimator work; they are not product failures, not formal scoring, not production accuracy proof, and do not affect this command's exit code.",
-);
-
-for (const pitchResult of result.extendedPitchDiagnosticResults) {
-  const status = pitchResult.passed ? "passed" : "exploratory-failed";
-
+if (result.extendedPitchDiagnosticResults.length > 0) {
+  console.log("Extended exploratory pitch diagnostics (non-blocking):");
   console.log(
-    [
-      `- caseName=${pitchResult.caseName}`,
-      `targetFrequencyHz=${formatNumber(pitchResult.targetFrequencyHz)}`,
-      `estimatedFrequencyHz=${formatNumber(pitchResult.estimatedFrequencyHz)}`,
-      `centsError=${formatNumber(pitchResult.centsError)}`,
-      `nearestNote=${pitchResult.nearestNote}`,
-      `confidence=${formatNumber(pitchResult.confidence, 3)}`,
-      `frames=${pitchResult.validPitchFrames}/${pitchResult.framesAnalyzed}`,
-      `status=${status}`,
-    ].join(" | "),
+    "Extended diagnostics are exploratory and guide future estimator work; they are not product failures, not formal scoring, not production accuracy proof, and do not affect this command's exit code.",
   );
+
+  for (const pitchResult of result.extendedPitchDiagnosticResults) {
+    const status = pitchResult.passed ? "passed" : "exploratory-failed";
+
+    console.log(
+      [
+        `- caseName=${pitchResult.caseName}`,
+        `targetFrequencyHz=${formatNumber(pitchResult.targetFrequencyHz)}`,
+        `estimatedFrequencyHz=${formatNumber(pitchResult.estimatedFrequencyHz)}`,
+        `centsError=${formatNumber(pitchResult.centsError)}`,
+        `nearestNote=${pitchResult.nearestNote}`,
+        `confidence=${formatNumber(pitchResult.confidence, 3)}`,
+        `frames=${pitchResult.validPitchFrames}/${pitchResult.framesAnalyzed}`,
+        `status=${status}`,
+      ].join(" | "),
+    );
+  }
 }
 
 if (result.pitchPassed) {
@@ -83,6 +85,6 @@ if (result.blockingPassed) {
 
 console.error(`Blocking failed cases: ${result.blockingFailedCaseNames.join(", ")}`);
 console.error(
-  "Blocking pitch failures, blocking no-pitch failures, script exceptions, or compilation failures make this command exit 1; extended exploratory diagnostics do not affect the exit code.",
+  "Blocking pitch failures, blocking no-pitch failures, script exceptions, or compilation failures make this command exit 1; extended exploratory diagnostics, if any, do not affect the exit code.",
 );
 process.exit(1);

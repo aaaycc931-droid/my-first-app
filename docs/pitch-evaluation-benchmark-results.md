@@ -134,3 +134,9 @@ Summary from the command output:
 - Blocking synthetic pitch regression cases passed: 4/4.
 - Blocking no-pitch validation passed: 2/2 cases.
 - Extended exploratory pitch diagnostics do not affect the exit code.
+
+## Promotion note after PR #116 extended diagnostics
+
+The passing A3 220Hz, C3 130.81Hz, E3 164.81Hz, C5 523.25Hz, and A5 880Hz extended synthetic cases above are now promoted to the blocking synthetic pitch regression gate. This promotion only expands synthetic regression coverage; it is not production accuracy proof, not formal scoring, and does not prove real singing accuracy.
+
+No tolerance was relaxed. The synthetic pitch tolerance remains 50 cents, and the target frequencies were not changed.
