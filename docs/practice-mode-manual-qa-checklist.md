@@ -99,7 +99,16 @@ Keep these boundaries visible during manual QA:
 * Starting a new recording removes the old pitch estimate.
 * This is not formal scoring.
 
-## 9. Experimental target-aware pitch comparison checklist
+## 9. Confidence display checklist
+
+* Successful pitch estimate UI explains confidence as valid pitch frames / analyzed frames.
+* Confidence is presented as an experimental local estimate signal.
+* Confidence is not called a score, grade, pass/fail result, or proof of pitch accuracy.
+* Confidence status labels use non-scoring language such as more, limited, or low usable pitch frames.
+* Frames analyzed and valid pitch frames remain visible next to the confidence explanation.
+* The UI still says there is no formal score, no rhythm evaluation, audio is not uploaded, and no AI API call is made.
+
+## 10. Experimental target-aware pitch comparison checklist
 
 * Target note selector is visible.
 * Target options come from mock target notes, for example C4, D4, E4, and G4.
@@ -121,7 +130,7 @@ Keep these boundaries visible during manual QA:
 * This is not full melody alignment.
 * This is not rhythm evaluation.
 
-## 10. Single-note practice loop checklist
+## 11. Single-note practice loop checklist
 
 * Single-note practice loop card is visible.
 * It shows the selected target note and target frequency.
@@ -131,7 +140,7 @@ Keep these boundaries visible during manual QA:
 * It does not claim formal scoring.
 * It keeps local-only / no upload / no AI / no rhythm boundaries visible.
 
-## 11. Async cleanup / stale result checklist
+## 12. Async cleanup / stale result checklist
 
 * Starting recording while local analysis is running should not show a stale old result afterward.
 * Clearing recording while local analysis is running should not show a stale old result afterward.
@@ -139,14 +148,14 @@ Keep these boundaries visible during manual QA:
 * Clearing recording while pitch estimate is running should not show a stale old result afterward.
 * Navigating away should not leave obvious stuck audio or stale recording state.
 
-## 12. Mock feedback checklist
+## 13. Mock feedback checklist
 
 * Start mock attempt changes flow state.
 * Show mock feedback displays mock pitch/rhythm/AI-style feedback.
 * Copy clearly says feedback is mock-only, not real rhythm evaluation, and not an AI API call.
 * Retry resets the expected mock flow state.
 
-## 13. Regression boundaries
+## 14. Regression boundaries
 
 * Public `/api/recognize` still only supports the image upload mock flow.
 * Practice Mode recording does not touch `/api/recognize`.
@@ -154,7 +163,7 @@ Keep these boundaries visible during manual QA:
 * The default provider remains `mock`.
 * The provider union remains `"mock" | "ai" | "musicxml"`.
 
-## 14. Known limitations
+## 15. Known limitations
 
 * Pitch estimate is experimental.
 * Target comparison uses estimated dominant/local pitch against one selected target note.
@@ -165,7 +174,7 @@ Keep these boundaries visible during manual QA:
 * There is no backend storage.
 * There is no AI feedback generation.
 
-## 15. Suggested next QA expansion
+## 16. Suggested next QA expansion
 
 * Single-note target playback QA.
 * Browser compatibility notes.

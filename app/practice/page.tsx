@@ -30,6 +30,11 @@ type PitchEstimateErrorFeedback = {
   suggestions: string[];
 };
 
+type PitchConfidenceFeedback = {
+  label: string;
+  explanation: string;
+};
+
 const mockExercise = {
   title: "Mock Melody: Stepwise Warmup",
   targetNotes: ["C4", "D4", "E4", "G4", "E4", "D4", "C4"],
@@ -63,6 +68,29 @@ const noteFrequencies: Record<string, number> = {
 const calculateCentsFromTarget = (estimatedFrequencyHz: number, targetFrequencyHz: number) =>
   1200 * Math.log2(estimatedFrequencyHz / targetFrequencyHz);
 
+const getPitchConfidenceFeedback = (confidence: number): PitchConfidenceFeedback => {
+  if (confidence >= 0.75) {
+    return {
+      label: "More usable pitch frames",
+      explanation:
+        "Most analyzed frames produced usable pitch data for this experimental local estimate.",
+    };
+  }
+
+  if (confidence >= 0.4) {
+    return {
+      label: "Limited usable pitch frames",
+      explanation:
+        "Some analyzed frames produced usable pitch data; this can still be affected by noise or unstable audio.",
+    };
+  }
+
+  return {
+    label: "Low usable pitch frames",
+    explanation:
+      "Only a small share of analyzed frames produced usable pitch data; try a clearer sustained note if needed.",
+  };
+};
 
 const getPitchEstimateErrorFeedback = (
   errorMessage: string,
@@ -176,6 +204,11 @@ export default function PracticePage() {
   const pitchEstimateErrorFeedback = useMemo(
     () => (pitchEstimateError ? getPitchEstimateErrorFeedback(pitchEstimateError) : null),
     [pitchEstimateError],
+  );
+
+  const pitchConfidenceFeedback = useMemo(
+    () => (pitchEstimateResult ? getPitchConfidenceFeedback(pitchEstimateResult.confidence) : null),
+    [pitchEstimateResult],
   );
 
   const pitchComparisonResult = useMemo<PitchComparisonResult | null>(() => {
@@ -741,6 +774,7 @@ export default function PracticePage() {
             <div className="rounded-xl bg-slate-50 p-4 ring-1 ring-slate-200"><dt className="font-semibold text-slate-700">Target frequency</dt><dd className="mt-1 text-slate-600">{noteFrequencies[selectedTargetNote].toFixed(2)} Hz</dd></div>
             <div className="rounded-xl bg-slate-50 p-4 ring-1 ring-slate-200"><dt className="font-semibold text-slate-700">Recording</dt><dd className="mt-1 text-slate-600">{recordedAudioBlob ? "Recorded attempt ready" : "No recording yet"}</dd></div>
             <div className="rounded-xl bg-slate-50 p-4 ring-1 ring-slate-200"><dt className="font-semibold text-slate-700">Pitch estimate</dt><dd className="mt-1 text-slate-600">{pitchEstimateResult ? "Pitch estimate ready" : pitchEstimateErrorFeedback ? "Needs a clearer local recording" : "Not estimated yet"}</dd></div>
+            <div className="rounded-xl bg-slate-50 p-4 ring-1 ring-slate-200"><dt className="font-semibold text-slate-700">Confidence status</dt><dd className="mt-1 text-slate-600">{pitchConfidenceFeedback ? pitchConfidenceFeedback.label : "Waiting for local estimate"}</dd></div>
             <div className="rounded-xl bg-slate-50 p-4 ring-1 ring-slate-200"><dt className="font-semibold text-slate-700">Comparison</dt><dd className="mt-1 text-slate-600">{pitchComparisonResult ? "Comparison ready" : "Waiting for pitch estimate"}</dd></div>
           </dl>
 
@@ -814,6 +848,8 @@ export default function PracticePage() {
           <div className="mt-4 rounded-xl border border-indigo-200 bg-white p-4 text-sm text-indigo-900">
             <p className="font-semibold">Experimental local pitch estimate</p>
             <ul className="mt-2 list-disc space-y-1 pl-5">
+              <li>Confidence means valid pitch frames divided by analyzed frames.</li>
+              <li>Confidence is not a score or proof of pitch accuracy.</li>
               <li>This is not a formal pitch score.</li>
               <li>This is not rhythm evaluation.</li>
               <li>Audio is not uploaded.</li>
@@ -825,10 +861,15 @@ export default function PracticePage() {
               <div className="rounded-xl bg-white p-4 ring-1 ring-indigo-200"><dt className="font-semibold text-indigo-950">Estimated frequency Hz</dt><dd className="mt-1 text-indigo-800">{pitchEstimateResult.estimatedFrequencyHz.toFixed(2)}</dd></div>
               <div className="rounded-xl bg-white p-4 ring-1 ring-indigo-200"><dt className="font-semibold text-indigo-950">Nearest note</dt><dd className="mt-1 text-indigo-800">{pitchEstimateResult.nearestNote}</dd></div>
               <div className="rounded-xl bg-white p-4 ring-1 ring-indigo-200"><dt className="font-semibold text-indigo-950">Cents offset</dt><dd className="mt-1 text-indigo-800">{pitchEstimateResult.centsOffset.toFixed(1)}</dd></div>
-              <div className="rounded-xl bg-white p-4 ring-1 ring-indigo-200"><dt className="font-semibold text-indigo-950">Confidence</dt><dd className="mt-1 text-indigo-800">{pitchEstimateResult.confidence.toFixed(2)}</dd></div>
+              <div className="rounded-xl bg-white p-4 ring-1 ring-indigo-200"><dt className="font-semibold text-indigo-950">Confidence frame coverage</dt><dd className="mt-1 text-indigo-800">{pitchEstimateResult.confidence.toFixed(2)}</dd><dd className="mt-2 text-xs leading-5 text-indigo-700">{pitchConfidenceFeedback?.label}: confidence is valid pitch frames / analyzed frames, not a score and not proof of pitch accuracy.</dd></div>
               <div className="rounded-xl bg-white p-4 ring-1 ring-indigo-200"><dt className="font-semibold text-indigo-950">Frames analyzed</dt><dd className="mt-1 text-indigo-800">{pitchEstimateResult.framesAnalyzed}</dd></div>
-              <div className="rounded-xl bg-white p-4 ring-1 ring-indigo-200"><dt className="font-semibold text-indigo-950">Valid pitch frames</dt><dd className="mt-1 text-indigo-800">{pitchEstimateResult.validPitchFrames}</dd></div>
+              <div className="rounded-xl bg-white p-4 ring-1 ring-indigo-200"><dt className="font-semibold text-indigo-950">Valid pitch frames</dt><dd className="mt-1 text-indigo-800">{pitchEstimateResult.validPitchFrames}</dd><dd className="mt-2 text-xs leading-5 text-indigo-700">{pitchConfidenceFeedback?.explanation}</dd></div>
             </dl>
+          ) : null}
+          {pitchEstimateResult ? (
+            <p className="mt-3 rounded-xl border border-indigo-200 bg-white p-4 text-sm font-medium text-indigo-900">
+              Confidence is only an experimental local estimate signal based on valid pitch frames / analyzed frames. It is not a formal score, not a grade, and not proof that the estimated pitch is accurate.
+            </p>
           ) : null}
           <div className="mt-4 rounded-xl border border-violet-200 bg-white p-4 text-sm text-violet-900">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
