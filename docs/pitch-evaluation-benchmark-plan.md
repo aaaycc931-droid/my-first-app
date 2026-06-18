@@ -118,7 +118,9 @@ Manual QA findings should distinguish subjective usefulness from measured benchm
 
 ## 9. Automated benchmark direction
 
-Synthetic pitch benchmark support has started with CI-safe generated `Float32Array` sine-wave buffers that can exercise the extracted pitch estimate helper without committing binary audio fixtures. Synthetic no-pitch benchmark support has also started for validating expected failure behavior only.
+Synthetic pitch benchmark support has started with CI-safe generated `Float32Array` sine-wave buffers that can exercise the extracted pitch estimate helper without committing binary audio fixtures. Synthetic no-pitch benchmark support has also started for validating expected failure behavior only. A default synthetic benchmark suite has started to organize default cases and a runner as infrastructure only.
+
+The default known-frequency pitch cases include A4 440Hz, C4 261.63Hz, G4 392Hz, and E4 329.63Hz. The default no-pitch cases include a silent sustained buffer and a too-short buffer. The suite does not commit binary audio fixtures, does not change pitch estimation, and does not establish production accuracy claims.
 
 The no-pitch direction generates silent buffers and too-short buffers in memory, so no binary audio fixtures are committed. Silent sustained buffers validate the no usable pitch frames path, and too-short buffers validate the recording length error path. This support is infrastructure only: it validates no-pitch failure behavior, does not change pitch estimation, and does not establish production scoring accuracy.
 
@@ -170,6 +172,7 @@ A safe future sequence is:
 2. code: extract pitch helper only if needed (started by extracting the local pitch estimate helper)
 3. code: add synthetic pitch benchmark helper (started with generated `Float32Array` sine-wave buffers and no binary audio fixtures)
 4. code: add synthetic no-pitch benchmark (started with in-memory silent and too-short buffers; validates expected no-pitch failure behavior only)
-5. code: improve no-pitch / quiet recording feedback
-6. code: add confidence display polish
-7. docs: record benchmark results before changing product claims
+5. code: add default synthetic benchmark suite (started with A4/C4/G4/E4 known-frequency cases plus silent and too-short no-pitch cases; infrastructure only with no production accuracy claims and no binary audio fixtures)
+6. code: improve no-pitch / quiet recording feedback
+7. code: add confidence display polish
+8. docs: record benchmark results before changing product claims
