@@ -52,26 +52,67 @@ const estimateFrameFrequency = (
 ) => {
   const minLag = Math.floor(sampleRate / 1000);
   const maxLag = Math.min(Math.ceil(sampleRate / 80), frameSize - 1);
-  let bestLag = 0;
+  const correlations: number[] = [];
   let bestCorrelation = -Infinity;
 
   for (let lag = minLag; lag <= maxLag; lag += 1) {
     let correlation = 0;
+    let currentEnergy = 0;
+    let delayedEnergy = 0;
 
     for (let index = 0; index < frameSize - lag; index += 1) {
-      correlation +=
-        samples[startIndex + index] * samples[startIndex + index + lag];
+      const currentSample = samples[startIndex + index];
+      const delayedSample = samples[startIndex + index + lag];
+
+      correlation += currentSample * delayedSample;
+      currentEnergy += currentSample * currentSample;
+      delayedEnergy += delayedSample * delayedSample;
     }
 
-    const normalizedCorrelation = correlation / (frameSize - lag);
+    const energyProduct = currentEnergy * delayedEnergy;
+    const normalizedCorrelation =
+      energyProduct > 0 ? correlation / Math.sqrt(energyProduct) : 0;
 
-    if (normalizedCorrelation > bestCorrelation) {
-      bestCorrelation = normalizedCorrelation;
-      bestLag = lag;
+    correlations.push(normalizedCorrelation);
+    bestCorrelation = Math.max(bestCorrelation, normalizedCorrelation);
+  }
+
+  const strongPeakThreshold = bestCorrelation * 0.9;
+  let selectedLag = 0;
+
+  for (let index = 1; index < correlations.length - 1; index += 1) {
+    const previousCorrelation = correlations[index - 1];
+    const currentCorrelation = correlations[index];
+    const nextCorrelation = correlations[index + 1];
+
+    if (
+      currentCorrelation >= strongPeakThreshold &&
+      currentCorrelation > previousCorrelation &&
+      currentCorrelation >= nextCorrelation
+    ) {
+      selectedLag = minLag + index;
+      break;
     }
   }
 
-  return bestLag > 0 ? sampleRate / bestLag : null;
+  if (selectedLag === 0) {
+    return null;
+  }
+
+  const selectedIndex = selectedLag - minLag;
+  const previousCorrelation = correlations[selectedIndex - 1];
+  const currentCorrelation = correlations[selectedIndex];
+  const nextCorrelation = correlations[selectedIndex + 1];
+  const interpolationDenominator =
+    previousCorrelation - 2 * currentCorrelation + nextCorrelation;
+  const interpolatedLagOffset =
+    interpolationDenominator !== 0
+      ? (previousCorrelation - nextCorrelation) /
+        (2 * interpolationDenominator)
+      : 0;
+  const interpolatedLag = selectedLag + interpolatedLagOffset;
+
+  return interpolatedLag > 0 ? sampleRate / interpolatedLag : null;
 };
 
 const calculateMedian = (values: number[]) => {

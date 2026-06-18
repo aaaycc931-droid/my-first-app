@@ -122,7 +122,7 @@ Synthetic pitch benchmark support has started with CI-safe generated `Float32Arr
 
 The default known-frequency pitch cases include A4 440Hz, C4 261.63Hz, G4 392Hz, and E4 329.63Hz. These known-frequency pitch cases are exploratory and non-blocking for now because the current estimator has not yet passed these synthetic benchmarks. Their failures should be reported honestly as evidence for future pitch algorithm work, not hidden by tolerance changes and not treated as production accuracy proof. The validation command now prints concise exploratory pitch diagnostics for each known-frequency case, including target frequency, estimated frequency, cents error, nearest note, confidence, valid/analyzed frame counts, and whether the case passed or failed exploratorily. These diagnostics are intended to guide future estimator work; they are not product accuracy claims and are not formal scoring evidence.
 
-The default no-pitch cases include a silent sustained buffer and a too-short buffer. These no-pitch cases are the current blocking validation gate: `npm run validate:synthetic-pitch-benchmark` should exit 1 for blocking no-pitch failures, script exceptions, or compilation failures, but it should exit 0 when only exploratory known-frequency pitch cases fail. Benchmark results should be recorded before algorithm changes so estimator improvements can be compared against a documented baseline. Future algorithm work may make known-frequency pitch cases blocking only after the estimator improves enough to pass the benchmark honestly. The validation uses generated in-memory buffers, commits no binary audio fixtures, does not change pitch estimation, and does not establish production accuracy claims. Passing `npm run validate:synthetic-pitch-benchmark` is only an early CI-safe no-pitch behavior gate plus exploratory pitch reporting.
+The default no-pitch cases include a silent sustained buffer and a too-short buffer. These no-pitch cases are the current blocking validation gate: `npm run validate:synthetic-pitch-benchmark` should exit 1 for blocking no-pitch failures, script exceptions, or compilation failures, but it should exit 0 when only exploratory known-frequency pitch cases fail. Benchmark results should be recorded before algorithm changes so estimator improvements can be compared against a documented baseline. The first estimator improvement focuses specifically on autocorrelation peak selection: normalized lag correlation, choosing the earliest strong local maximum, and reducing the synthetic sine-wave subharmonic / octave-down errors shown in the baseline. Future algorithm work may make known-frequency pitch cases blocking only after the estimator improves enough to pass the benchmark honestly. The validation uses generated in-memory buffers, commits no binary audio fixtures, and does not establish production accuracy claims. Passing `npm run validate:synthetic-pitch-benchmark` is only an early CI-safe no-pitch behavior gate plus exploratory pitch reporting.
 
 The no-pitch direction generates silent buffers and too-short buffers in memory, so no binary audio fixtures are committed. Silent sustained buffers validate the no usable pitch frames path, and too-short buffers validate the recording length error path. This support is infrastructure only: it validates no-pitch failure behavior, does not change pitch estimation, and does not establish production scoring accuracy.
 
@@ -153,12 +153,11 @@ Current product language must not say:
 
 Product claims should change only after benchmark results justify the stronger wording and those results are documented.
 
-## 11. Non-goals for this PR
+## 11. Non-goals for this benchmark work
 
-This PR does not include:
+The current small estimator improvement is benchmark-guided and limited to autocorrelation peak selection for synthetic subharmonic errors. Its results are compared against the documented baseline in `docs/pitch-evaluation-benchmark-results.md`. This benchmark work still does not include:
 
 - production pitch accuracy claims
-- algorithm changes
 - formal scoring
 - rhythm evaluation
 - AI API
@@ -179,3 +178,4 @@ A safe future sequence is:
 7. code: improve no-pitch / quiet recording feedback
 8. code: add confidence display polish
 9. docs: record benchmark results before changing product claims
+10. code: improve autocorrelation peak selection for synthetic subharmonic / octave-down pitch errors while keeping known-frequency cases exploratory and no-pitch cases blocking
