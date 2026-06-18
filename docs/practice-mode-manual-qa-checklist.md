@@ -111,7 +111,17 @@ Keep these boundaries visible during manual QA:
 * This is not full melody alignment.
 * This is not rhythm evaluation.
 
-## 10. Async cleanup / stale result checklist
+## 10. Single-note practice loop checklist
+
+* Single-note practice loop card is visible.
+* It shows the selected target note and target frequency.
+* It reflects recording ready / no recording state.
+* It reflects pitch estimate ready / not estimated state.
+* It reflects comparison ready / waiting state.
+* It does not claim formal scoring.
+* It keeps local-only / no upload / no AI / no rhythm boundaries visible.
+
+## 11. Async cleanup / stale result checklist
 
 * Starting recording while local analysis is running should not show a stale old result afterward.
 * Clearing recording while local analysis is running should not show a stale old result afterward.
@@ -119,14 +129,14 @@ Keep these boundaries visible during manual QA:
 * Clearing recording while pitch estimate is running should not show a stale old result afterward.
 * Navigating away should not leave obvious stuck audio or stale recording state.
 
-## 11. Mock feedback checklist
+## 12. Mock feedback checklist
 
 * Start mock attempt changes flow state.
 * Show mock feedback displays mock pitch/rhythm/AI-style feedback.
 * Copy clearly says feedback is mock-only, not real rhythm evaluation, and not an AI API call.
 * Retry resets the expected mock flow state.
 
-## 12. Regression boundaries
+## 13. Regression boundaries
 
 * Public `/api/recognize` still only supports the image upload mock flow.
 * Practice Mode recording does not touch `/api/recognize`.
@@ -134,7 +144,7 @@ Keep these boundaries visible during manual QA:
 * The default provider remains `mock`.
 * The provider union remains `"mock" | "ai" | "musicxml"`.
 
-## 13. Known limitations
+## 14. Known limitations
 
 * Pitch estimate is experimental.
 * Target comparison uses estimated dominant/local pitch against one selected target note.
@@ -145,7 +155,7 @@ Keep these boundaries visible during manual QA:
 * There is no backend storage.
 * There is no AI feedback generation.
 
-## 14. Suggested next QA expansion
+## 15. Suggested next QA expansion
 
 * Single-note target playback QA.
 * Browser compatibility notes.
