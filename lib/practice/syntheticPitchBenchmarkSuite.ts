@@ -40,7 +40,7 @@ export type DefaultSyntheticPitchBenchmarkSuiteResult = {
   noPitchFailedCount: number;
 };
 
-export const defaultSyntheticPitchBenchmarkCases: SyntheticPitchBenchmarkSuitePitchCase[] =
+const coreSyntheticPitchBenchmarkCases: SyntheticPitchBenchmarkSuitePitchCase[] =
   [
     {
       caseName: "A4 440Hz",
@@ -76,7 +76,7 @@ export const defaultSyntheticPitchBenchmarkCases: SyntheticPitchBenchmarkSuitePi
     },
   ];
 
-export const extendedSyntheticPitchDiagnosticCases: SyntheticPitchBenchmarkSuitePitchCase[] =
+const promotedSyntheticPitchBenchmarkCases: SyntheticPitchBenchmarkSuitePitchCase[] =
   [
     {
       caseName: "A3 220Hz",
@@ -119,6 +119,15 @@ export const extendedSyntheticPitchDiagnosticCases: SyntheticPitchBenchmarkSuite
       toleranceCents: defaultToleranceCents,
     },
   ];
+
+export const defaultSyntheticPitchBenchmarkCases: SyntheticPitchBenchmarkSuitePitchCase[] =
+  [
+    ...promotedSyntheticPitchBenchmarkCases,
+    ...coreSyntheticPitchBenchmarkCases,
+  ];
+
+export const extendedSyntheticPitchDiagnosticCases: SyntheticPitchBenchmarkSuitePitchCase[] =
+  [];
 
 export const defaultSyntheticNoPitchBenchmarkCases: SyntheticNoPitchBenchmarkCase[] =
   [
