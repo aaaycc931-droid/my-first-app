@@ -124,6 +124,8 @@ The default known-frequency pitch cases include A4 440Hz, C4 261.63Hz, G4 392Hz,
 
 The default no-pitch cases include a silent sustained buffer and a too-short buffer. These no-pitch cases remain blocking: `npm run validate:synthetic-pitch-benchmark` should exit 1 for known-frequency pitch regression failures, no-pitch failures, script exceptions, or compilation failures, and it should exit 0 when A4/C4/G4/E4 and the no-pitch blocking cases all pass. Benchmark results should be recorded before algorithm changes so estimator improvements can be compared against a documented baseline. The first estimator improvement focused specifically on autocorrelation peak selection: normalized lag correlation, choosing the earliest strong local maximum, and reducing the synthetic sine-wave subharmonic / octave-down errors shown in the baseline. The validation uses generated in-memory buffers, commits no binary audio fixtures, and does not establish production accuracy claims. Passing `npm run validate:synthetic-pitch-benchmark` is only an early CI-safe synthetic regression gate plus no-pitch behavior gate, not formal scoring evidence.
 
+Extended synthetic pitch diagnostics now add generated in-memory sine-wave cases for A3 220Hz, C3 130.81Hz, E3 164.81Hz, C5 523.25Hz, and A5 880Hz. These extended cases are exploratory and non-blocking: their diagnostics are printed separately to observe estimator behavior across a wider synthetic pitch range, but extended failures must not make `npm run validate:synthetic-pitch-benchmark` exit 1. Extended results are intended to guide future estimator work only; they are not product failures, not production accuracy proof, not formal scoring, and do not prove real singing accuracy.
+
 The no-pitch direction generates silent buffers and too-short buffers in memory, so no binary audio fixtures are committed. Silent sustained buffers validate the no usable pitch frames path, and too-short buffers validate the recording length error path. This support is infrastructure only: it validates no-pitch failure behavior, does not change pitch estimation, and does not establish production scoring accuracy.
 
 Future automated benchmark work may add more CI-safe tests without committing binary audio files. Possible directions include:
@@ -180,3 +182,4 @@ A safe future sequence is:
 9. docs: record benchmark results before changing product claims
 10. code: improve autocorrelation peak selection for synthetic subharmonic / octave-down pitch errors
 11. code: promote passing A4/C4/G4/E4 synthetic known-frequency cases to blocking regression cases while keeping no-pitch cases blocking
+12. code: add extended generated in-memory synthetic pitch diagnostics as exploratory/non-blocking coverage
