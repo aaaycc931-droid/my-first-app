@@ -5,42 +5,12 @@ const result = runDefaultSyntheticPitchBenchmarkSuite();
 const formatNumber = (value: number, fractionDigits = 2) =>
   Number.isFinite(value) ? value.toFixed(fractionDigits) : String(value);
 
-console.log(
-  `Synthetic pitch benchmark validation completed: ${result.noPitchResults.length} blocking no-pitch case(s), ${result.pitchResults.length} blocking synthetic known-frequency pitch regression case(s), ${result.robustnessPitchDiagnosticResults.length} robustness exploratory pitch diagnostic case(s).`,
-);
-console.log(
-  "Known-frequency pitch cases are blocking synthetic pitch regression cases; any A3/C3/E3/A4/C4/E4/G4/C5/A5 failure exits 1.",
-);
-console.log(
-  "This command is a synthetic regression gate, not production accuracy proof, not formal scoring, and not proof of real singing accuracy.",
-);
-console.log("Blocking synthetic pitch regression diagnostics:");
-
-for (const pitchResult of result.pitchResults) {
-  const status = pitchResult.passed ? "passed" : "failed";
-
-  console.log(
-    [
-      `- caseName=${pitchResult.caseName}`,
-      `targetFrequencyHz=${formatNumber(pitchResult.targetFrequencyHz)}`,
-      `estimatedFrequencyHz=${formatNumber(pitchResult.estimatedFrequencyHz)}`,
-      `centsError=${formatNumber(pitchResult.centsError)}`,
-      `nearestNote=${pitchResult.nearestNote}`,
-      `confidence=${formatNumber(pitchResult.confidence, 3)}`,
-      `frames=${pitchResult.validPitchFrames}/${pitchResult.framesAnalyzed}`,
-      `status=${status}`,
-    ].join(" | "),
-  );
-}
-
-if (result.robustnessPitchDiagnosticResults.length > 0) {
-  console.log("Robustness exploratory pitch diagnostics (non-blocking):");
-  console.log(
-    "Robustness diagnostics cover generated in-memory amplitude, duration, and deterministic light-noise variants; they are exploratory and guide future estimator work only. They are not product failures, not formal scoring, not production accuracy proof, not proof of real singing accuracy, and do not affect this command's exit code.",
-  );
-
-  for (const pitchResult of result.robustnessPitchDiagnosticResults) {
-    const status = pitchResult.passed ? "passed" : "exploratory-failed";
+const printPitchDiagnostics = (
+  pitchResults: typeof result.pitchResults,
+  failedStatus = "failed",
+) => {
+  for (const pitchResult of pitchResults) {
+    const status = pitchResult.passed ? "passed" : failedStatus;
 
     console.log(
       [
@@ -55,17 +25,66 @@ if (result.robustnessPitchDiagnosticResults.length > 0) {
       ].join(" | "),
     );
   }
+};
+
+console.log(
+  `Synthetic pitch benchmark validation completed: ${result.pitchResults.length} clean sine blocking synthetic pitch regression case(s), ${result.robustnessPitchResults.length} robustness blocking synthetic pitch regression case(s), ${result.noPitchResults.length} blocking no-pitch case(s).`,
+);
+console.log(
+  "Clean sine A3/C3/E3/A4/C4/E4/G4/C5/A5 cases are blocking synthetic pitch regression cases; any failure exits 1.",
+);
+console.log(
+  "Robustness cases are now blocking synthetic robustness regression cases; any quiet-amplitude, short-duration, or deterministic light-noise failure exits 1.",
+);
+console.log(
+  "This command is a generated in-memory synthetic regression gate, not production accuracy proof, not formal scoring, and not proof of real singing accuracy.",
+);
+
+console.log("Clean sine blocking pitch regression diagnostics:");
+printPitchDiagnostics(result.pitchResults);
+
+console.log("Robustness blocking pitch regression diagnostics:");
+console.log(
+  "Robustness cases cover generated in-memory amplitude, duration, and deterministic light-noise variants. They are blocking synthetic robustness regression cases, but they are not production accuracy proof, not formal scoring, and do not prove real singing accuracy.",
+);
+printPitchDiagnostics(result.robustnessPitchResults);
+
+console.log("Blocking no-pitch validation:");
+for (const noPitchResult of result.noPitchResults) {
+  const status = noPitchResult.passed ? "passed" : "failed";
+
+  console.log(
+    [
+      `- caseName=${noPitchResult.caseName}`,
+      `expectedErrorKind=${noPitchResult.expectedErrorKind}`,
+      `actualErrorMessage=${noPitchResult.actualErrorMessage ?? "none"}`,
+      `status=${status}`,
+    ].join(" | "),
+  );
 }
 
 if (result.pitchPassed) {
   console.log(
-    `Blocking synthetic pitch regression cases passed: ${result.pitchResults.length}/${result.pitchResults.length}.`,
+    `Clean sine blocking pitch regression cases passed: ${result.pitchResults.length}/${result.pitchResults.length}.`,
   );
 } else {
   console.error(
-    `Blocking synthetic pitch regression cases failed: ${result.pitchFailedCount} case(s).`,
+    `Clean sine blocking pitch regression cases failed: ${result.pitchFailedCount} case(s).`,
   );
-  console.error(`Failed pitch cases: ${result.pitchFailedCaseNames.join(", ")}`);
+  console.error(`Failed clean sine pitch cases: ${result.pitchFailedCaseNames.join(", ")}`);
+}
+
+if (result.robustnessPitchPassed) {
+  console.log(
+    `Robustness blocking pitch regression cases passed: ${result.robustnessPitchResults.length}/${result.robustnessPitchResults.length}.`,
+  );
+} else {
+  console.error(
+    `Robustness blocking pitch regression cases failed: ${result.robustnessPitchFailedCount} case(s).`,
+  );
+  console.error(
+    `Failed robustness pitch cases: ${result.robustnessPitchFailedCaseNames.join(", ")}`,
+  );
 }
 
 if (result.noPitchPassed) {
@@ -85,6 +104,6 @@ if (result.blockingPassed) {
 
 console.error(`Blocking failed cases: ${result.blockingFailedCaseNames.join(", ")}`);
 console.error(
-  "Blocking pitch failures, blocking no-pitch failures, script exceptions, or compilation failures make this command exit 1; robustness exploratory diagnostics, if any, do not affect the exit code.",
+  "Clean sine blocking pitch failures, robustness blocking pitch failures, blocking no-pitch failures, script exceptions, or compilation failures make this command exit 1.",
 );
 process.exit(1);
