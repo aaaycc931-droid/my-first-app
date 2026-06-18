@@ -2,28 +2,49 @@ import { runDefaultSyntheticPitchBenchmarkSuite } from "../lib/practice/syntheti
 
 const result = runDefaultSyntheticPitchBenchmarkSuite();
 
+const formatNumber = (value: number, fractionDigits = 2) =>
+  Number.isFinite(value) ? value.toFixed(fractionDigits) : String(value);
+
 console.log(
   `Synthetic pitch benchmark validation completed: ${result.noPitchResults.length} blocking no-pitch case(s), ${result.pitchResults.length} exploratory known-frequency pitch case(s).`,
 );
 console.log(
-  "Known-frequency pitch cases are exploratory/non-blocking for now; failures show the current estimator is not yet benchmark-accurate.",
+  "Known-frequency pitch cases are exploratory / non-blocking; failures are diagnostic signals for future estimator work.",
 );
 console.log(
   "This command is a baseline-safe validation gate, not production accuracy proof.",
 );
+console.log("Exploratory pitch diagnostics:");
+
+for (const pitchResult of result.pitchResults) {
+  const status = pitchResult.passed ? "passed" : "exploratory failed";
+
+  console.log(
+    [
+      `- caseName=${pitchResult.caseName}`,
+      `targetFrequencyHz=${formatNumber(pitchResult.targetFrequencyHz)}`,
+      `estimatedFrequencyHz=${formatNumber(pitchResult.estimatedFrequencyHz)}`,
+      `centsError=${formatNumber(pitchResult.centsError)}`,
+      `nearestNote=${pitchResult.nearestNote}`,
+      `confidence=${formatNumber(pitchResult.confidence, 3)}`,
+      `frames=${pitchResult.validPitchFrames}/${pitchResult.framesAnalyzed}`,
+      `status=${status}`,
+    ].join(" | "),
+  );
+}
 
 if (result.exploratoryPitchPassed) {
   console.log(
     `Exploratory known-frequency pitch cases passed: ${result.pitchResults.length}/${result.pitchResults.length}.`,
   );
 } else {
-  console.warn(
+  console.log(
     `Exploratory known-frequency pitch cases failed: ${result.exploratoryFailedCount} case(s).`,
   );
-  console.warn(
+  console.log(
     `Exploratory failed cases: ${result.exploratoryFailedCaseNames.join(", ")}`,
   );
-  console.warn(
+  console.log(
     "These exploratory failures are reported for future algorithm work and do not fail this validation command.",
   );
 }

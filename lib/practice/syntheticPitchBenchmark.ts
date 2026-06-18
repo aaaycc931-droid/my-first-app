@@ -23,6 +23,8 @@ export type SyntheticPitchBenchmarkResult = {
   centsError: number;
   nearestNote: string;
   confidence: number;
+  framesAnalyzed: number;
+  validPitchFrames: number;
   passed: boolean;
   toleranceCents: number;
 };
@@ -128,6 +130,8 @@ export const runSyntheticPitchBenchmarkCase = (
     centsError,
     nearestNote: estimate.nearestNote,
     confidence: estimate.confidence,
+    framesAnalyzed: estimate.framesAnalyzed,
+    validPitchFrames: estimate.validPitchFrames,
     passed: Math.abs(centsError) <= benchmarkCase.toleranceCents,
     toleranceCents: benchmarkCase.toleranceCents,
   };
