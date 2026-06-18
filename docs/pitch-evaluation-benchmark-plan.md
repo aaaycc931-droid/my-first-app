@@ -162,7 +162,7 @@ This PR does not include:
 A safe future sequence is:
 
 1. docs: add pitch benchmark plan
-2. code: extract pitch helper only if needed
+2. code: extract pitch helper only if needed (started by extracting the local pitch estimate helper)
 3. code: add synthetic pitch benchmark helper
 4. code: add synthetic no-pitch benchmark
 5. code: improve no-pitch / quiet recording feedback
