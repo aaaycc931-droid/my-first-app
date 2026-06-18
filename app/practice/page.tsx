@@ -35,6 +35,17 @@ type PitchConfidenceFeedback = {
   explanation: string;
 };
 
+type PracticeAttemptSummary = {
+  id: number;
+  label: string;
+  targetNote: string;
+  nearestNote: string;
+  estimatedFrequencyHz: number;
+  centsFromTarget: number;
+  confidence: number;
+  feedbackLabel: string;
+};
+
 const mockExercise = {
   title: "Mock Melody: Stepwise Warmup",
   targetNotes: ["C4", "D4", "E4", "G4", "E4", "D4", "C4"],
@@ -64,6 +75,8 @@ const noteFrequencies: Record<string, number> = {
   E4: 329.63,
   G4: 392,
 };
+
+const maxPracticeAttemptHistory = 5;
 
 const calculateCentsFromTarget = (estimatedFrequencyHz: number, targetFrequencyHz: number) =>
   1200 * Math.log2(estimatedFrequencyHz / targetFrequencyHz);
@@ -183,6 +196,7 @@ export default function PracticePage() {
   const [selectedTargetNote, setSelectedTargetNote] = useState("C4");
   const [isSelectedTargetNotePlaying, setIsSelectedTargetNotePlaying] = useState(false);
   const [recordingSeconds, setRecordingSeconds] = useState(0);
+  const [practiceAttempts, setPracticeAttempts] = useState<PracticeAttemptSummary[]>([]);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const mediaStreamRef = useRef<MediaStream | null>(null);
   const recordingChunksRef = useRef<Blob[]>([]);
@@ -195,6 +209,7 @@ export default function PracticePage() {
   const playbackTimeoutIdsRef = useRef<number[]>([]);
   const audioAnalysisRunIdRef = useRef(0);
   const pitchEstimateRunIdRef = useRef(0);
+  const practiceAttemptIdRef = useRef(0);
 
   const targetNoteOptions = useMemo(
     () => Array.from(new Set(mockExercise.targetNotes)),
@@ -607,7 +622,33 @@ export default function PracticePage() {
       const result = estimateLocalPitch(audioBuffer);
 
       if (isMountedRef.current && pitchEstimateRunId === pitchEstimateRunIdRef.current) {
+        const targetNote = selectedTargetNote;
+        const targetFrequencyHz = noteFrequencies[targetNote];
+
         setPitchEstimateResult(result);
+
+        if (targetFrequencyHz) {
+          const centsFromTarget = calculateCentsFromTarget(
+            result.estimatedFrequencyHz,
+            targetFrequencyHz,
+          );
+          const nextAttemptId = practiceAttemptIdRef.current + 1;
+          practiceAttemptIdRef.current = nextAttemptId;
+
+          setPracticeAttempts((currentAttempts) => [
+            {
+              id: nextAttemptId,
+              label: `Attempt ${nextAttemptId}`,
+              targetNote,
+              nearestNote: result.nearestNote,
+              estimatedFrequencyHz: result.estimatedFrequencyHz,
+              centsFromTarget,
+              confidence: result.confidence,
+              feedbackLabel: getComparisonHint(centsFromTarget).toLowerCase(),
+            },
+            ...currentAttempts,
+          ].slice(0, maxPracticeAttemptHistory));
+        }
       }
     } catch (error) {
       if (isMountedRef.current && pitchEstimateRunId === pitchEstimateRunIdRef.current) {
@@ -633,6 +674,10 @@ export default function PracticePage() {
     void audio.play().catch(() => {
       setRecordingError("Recorded attempt playback failed in this browser.");
     });
+  };
+
+  const handleClearPracticeAttempts = () => {
+    setPracticeAttempts([]);
   };
 
   const handleClearRecording = () => {
@@ -921,6 +966,48 @@ export default function PracticePage() {
               </p>
             )}
           </div>
+
+          <section className="mt-4 rounded-xl border border-sky-200 bg-sky-50 p-4 text-sm text-sky-950">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <p className="font-semibold">Recent local attempts</p>
+                <p className="mt-1 text-sky-800">
+                  These attempts are local to this browser session. Audio is not uploaded, this is not a score or grade, and rhythm is not evaluated.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={handleClearPracticeAttempts}
+                disabled={practiceAttempts.length === 0}
+                className="rounded-full border border-sky-300 bg-white px-4 py-2 text-sm font-semibold text-sky-800 disabled:text-slate-400"
+              >
+                Clear attempt history
+              </button>
+            </div>
+            {practiceAttempts.length > 0 ? (
+              <ol className="mt-4 space-y-3">
+                {practiceAttempts.map((attempt) => (
+                  <li key={attempt.id} className="rounded-xl bg-white p-4 ring-1 ring-sky-200">
+                    <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                      <p className="font-semibold text-sky-950">{attempt.label}</p>
+                      <p className="text-xs font-semibold uppercase tracking-wide text-sky-700">{attempt.feedbackLabel}</p>
+                    </div>
+                    <dl className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                      <div><dt className="font-semibold">Target note</dt><dd className="text-sky-800">{attempt.targetNote}</dd></div>
+                      <div><dt className="font-semibold">Estimated nearest note</dt><dd className="text-sky-800">{attempt.nearestNote}</dd></div>
+                      <div><dt className="font-semibold">Estimated frequency Hz</dt><dd className="text-sky-800">{attempt.estimatedFrequencyHz.toFixed(2)}</dd></div>
+                      <div><dt className="font-semibold">Cents from target</dt><dd className="text-sky-800">{attempt.centsFromTarget.toFixed(1)}</dd></div>
+                      <div><dt className="font-semibold">Confidence frame coverage</dt><dd className="text-sky-800">{attempt.confidence.toFixed(2)}</dd></div>
+                    </dl>
+                  </li>
+                ))}
+              </ol>
+            ) : (
+              <p className="mt-4 rounded-xl bg-white p-4 font-medium text-sky-800 ring-1 ring-sky-200">
+                Record an attempt to see recent local pitch feedback here.
+              </p>
+            )}
+          </section>
           {audioAnalysisResult ? (
             <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
               <div className="rounded-xl bg-white p-4 ring-1 ring-emerald-200"><dt className="font-semibold text-emerald-950">Duration seconds</dt><dd className="mt-1 text-emerald-800">{audioAnalysisResult.durationSeconds.toFixed(2)}</dd></div>
