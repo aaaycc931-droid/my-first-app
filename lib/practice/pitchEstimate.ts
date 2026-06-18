@@ -7,6 +7,13 @@ export type PitchEstimateResult = {
   validPitchFrames: number;
 };
 
+export type PitchAudioBufferLike = {
+  length: number;
+  numberOfChannels: number;
+  sampleRate: number;
+  getChannelData(channelIndex: number): Float32Array;
+};
+
 const pitchNoteNames = [
   "C",
   "C#",
@@ -92,7 +99,7 @@ export const getNearestPitchNote = (frequency: number) => {
 };
 
 export const estimateLocalPitch = (
-  audioBuffer: AudioBuffer,
+  audioBuffer: PitchAudioBufferLike,
 ): PitchEstimateResult => {
   const frameSize = 4096;
   const hopSize = 2048;
