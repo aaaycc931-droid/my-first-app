@@ -102,3 +102,5 @@ Public demo checklist: see docs/public-demo-checklist.md
 Practice learning system plan: see docs/practice-learning-system-plan.md
 
 Practice Mode manual QA checklist: see docs/practice-mode-manual-qa-checklist.md
+
+Pitch evaluation benchmark plan: see docs/pitch-evaluation-benchmark-plan.md

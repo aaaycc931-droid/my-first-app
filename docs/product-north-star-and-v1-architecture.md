@@ -158,6 +158,7 @@ Accuracy claims require evidence before product language can rely on them.
 - Pitch accuracy needs controlled test recordings.
 - Rhythm accuracy needs alignment benchmarks.
 - Future PRs should add benchmark documentation before claiming accuracy improvements.
+Future pitch evaluation benchmark plan: see `docs/pitch-evaluation-benchmark-plan.md`.
 
 Accuracy work should separate product goals from validated measurements. A feature can be useful while still being experimental, but the UI and docs must label it honestly.
 
