@@ -25,6 +25,7 @@ export type SyntheticPitchBenchmarkSuitePitchResult =
 export type DefaultSyntheticPitchBenchmarkSuiteResult = {
   pitchResults: SyntheticPitchBenchmarkSuitePitchResult[];
   noPitchResults: SyntheticNoPitchBenchmarkResult[];
+  extendedPitchDiagnosticResults: SyntheticPitchBenchmarkSuitePitchResult[];
   passed: boolean;
   failedCaseNames: string[];
   failedCount: number;
@@ -75,6 +76,50 @@ export const defaultSyntheticPitchBenchmarkCases: SyntheticPitchBenchmarkSuitePi
     },
   ];
 
+export const extendedSyntheticPitchDiagnosticCases: SyntheticPitchBenchmarkSuitePitchCase[] =
+  [
+    {
+      caseName: "A3 220Hz",
+      frequencyHz: 220,
+      durationSeconds: defaultDurationSeconds,
+      sampleRate: defaultSampleRate,
+      amplitude: defaultAmplitude,
+      toleranceCents: defaultToleranceCents,
+    },
+    {
+      caseName: "C3 130.81Hz",
+      frequencyHz: 130.81,
+      durationSeconds: defaultDurationSeconds,
+      sampleRate: defaultSampleRate,
+      amplitude: defaultAmplitude,
+      toleranceCents: defaultToleranceCents,
+    },
+    {
+      caseName: "E3 164.81Hz",
+      frequencyHz: 164.81,
+      durationSeconds: defaultDurationSeconds,
+      sampleRate: defaultSampleRate,
+      amplitude: defaultAmplitude,
+      toleranceCents: defaultToleranceCents,
+    },
+    {
+      caseName: "C5 523.25Hz",
+      frequencyHz: 523.25,
+      durationSeconds: defaultDurationSeconds,
+      sampleRate: defaultSampleRate,
+      amplitude: defaultAmplitude,
+      toleranceCents: defaultToleranceCents,
+    },
+    {
+      caseName: "A5 880Hz",
+      frequencyHz: 880,
+      durationSeconds: defaultDurationSeconds,
+      sampleRate: defaultSampleRate,
+      amplitude: defaultAmplitude,
+      toleranceCents: defaultToleranceCents,
+    },
+  ];
+
 export const defaultSyntheticNoPitchBenchmarkCases: SyntheticNoPitchBenchmarkCase[] =
   [
     {
@@ -104,6 +149,12 @@ export const runDefaultSyntheticPitchBenchmarkSuite =
       runSyntheticNoPitchBenchmarkCase,
     );
 
+    const extendedPitchDiagnosticResults =
+      extendedSyntheticPitchDiagnosticCases.map((benchmarkCase) => ({
+        caseName: benchmarkCase.caseName,
+        ...runSyntheticPitchBenchmarkCase(benchmarkCase),
+      }));
+
     const pitchFailedCaseNames = pitchResults
       .filter((result) => !result.passed)
       .map((result) => result.caseName);
@@ -122,6 +173,7 @@ export const runDefaultSyntheticPitchBenchmarkSuite =
     return {
       pitchResults,
       noPitchResults,
+      extendedPitchDiagnosticResults,
       passed: blockingPassed,
       failedCaseNames,
       failedCount: failedCaseNames.length,

@@ -103,3 +103,34 @@ Summary from the command output:
 | Too-short buffer | Recording length should be rejected as too short. | Passed |
 
 The no-pitch cases remain a blocking validation gate. Because the A4/C4/G4/E4 synthetic pitch cases now pass honestly after PR #111, they are now promoted to a blocking synthetic pitch regression gate. No tolerance was relaxed, and the target frequencies were not changed. This remains synthetic regression validation only, not production accuracy proof and not formal scoring.
+
+## Extended exploratory synthetic pitch diagnostics
+
+## Date
+
+2026-06-18
+
+## Command run
+
+```bash
+npm run validate:synthetic-pitch-benchmark
+```
+
+These extended diagnostics were copied from an actual local run of the command above. They use generated in-memory sine buffers only. They are exploratory, non-blocking diagnostics for wider synthetic pitch coverage and are intended to guide future estimator work. They are not product failures, not production accuracy proof, not formal scoring, and not proof of real singing accuracy.
+
+The A4/C4/G4/E4 cases remain blocking synthetic pitch regression cases, and the silent sustained plus too-short no-pitch cases remain blocking. Extended exploratory failures do not affect the command exit code.
+
+| caseName | targetFrequencyHz | estimatedFrequencyHz | centsError | nearestNote | confidence | frames | status |
+| --- | ---: | ---: | ---: | --- | ---: | --- | --- |
+| A3 220Hz | 220.00 | 220.00 | 0.00 | A3 | 1.000 | 20/20 | passed |
+| C3 130.81Hz | 130.81 | 130.81 | 0.00 | C3 | 1.000 | 20/20 | passed |
+| E3 164.81Hz | 164.81 | 164.81 | -0.00 | E3 | 1.000 | 20/20 | passed |
+| C5 523.25Hz | 523.25 | 523.25 | 0.00 | C5 | 1.000 | 20/20 | passed |
+| A5 880Hz | 880.00 | 880.00 | 0.00 | A5 | 1.000 | 20/20 | passed |
+
+Summary from the command output:
+
+- Synthetic pitch benchmark validation completed: 2 blocking no-pitch cases, 4 blocking synthetic known-frequency pitch regression cases, 5 extended exploratory pitch diagnostic cases.
+- Blocking synthetic pitch regression cases passed: 4/4.
+- Blocking no-pitch validation passed: 2/2 cases.
+- Extended exploratory pitch diagnostics do not affect the exit code.
