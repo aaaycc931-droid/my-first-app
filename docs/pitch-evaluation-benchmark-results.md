@@ -78,7 +78,7 @@ npm run validate:synthetic-pitch-benchmark
 
 These results were recorded after a small experimental pitch estimator change focused on autocorrelation peak selection. The documented baseline above is preserved for comparison. This run still uses generated in-memory synthetic buffers only; it does not add audio fixtures, formal scoring, production accuracy claims, rhythm evaluation, AI calls, uploads, UI changes, provider changes, dependency changes, `/api/recognize` changes, or Audiveris changes.
 
-## Known-frequency exploratory pitch diagnostics after improvement
+## Known-frequency pitch diagnostics after improvement
 
 | caseName | targetFrequencyHz | estimatedFrequencyHz | centsError | nearestNote | confidence | frames | status |
 | --- | ---: | ---: | ---: | --- | ---: | --- | --- |
@@ -87,12 +87,12 @@ These results were recorded after a small experimental pitch estimator change fo
 | G4 392Hz | 392.00 | 392.00 | -0.00 | G4 | 1.000 | 20/20 | passed |
 | E4 329.63Hz | 329.63 | 329.63 | -0.00 | E4 | 1.000 | 20/20 | passed |
 
-Relative to the baseline, all four exploratory known-frequency sine-wave cases improved from octave-down / subharmonic estimates to the target notes within the existing 50-cent tolerance. These are still exploratory and non-blocking diagnostics, not production accuracy proof and not formal scoring.
+Relative to the baseline, all four known-frequency sine-wave cases improved from octave-down / subharmonic estimates to the target notes within the existing 50-cent tolerance. These diagnostics are not production accuracy proof, not formal scoring, and do not prove real singing accuracy.
 
 Summary from the command output:
 
-- Synthetic pitch benchmark validation completed: 2 blocking no-pitch cases, 4 exploratory known-frequency pitch cases.
-- Exploratory known-frequency pitch cases passed: 4/4.
+- Synthetic pitch benchmark validation completed: 2 blocking no-pitch cases, 4 known-frequency pitch cases.
+- Known-frequency pitch cases passed: 4/4.
 - Blocking no-pitch validation passed: 2/2 cases.
 
 ## Blocking no-pitch result summary after improvement
@@ -102,4 +102,4 @@ Summary from the command output:
 | Silent sustained buffer | No usable pitch should be detected. | Passed |
 | Too-short buffer | Recording length should be rejected as too short. | Passed |
 
-The no-pitch cases remain the blocking validation gate. The known-frequency A4/C4/G4/E4 pitch cases remain exploratory / non-blocking even though they passed in this run.
+The no-pitch cases remain a blocking validation gate. Because the A4/C4/G4/E4 synthetic pitch cases now pass honestly after PR #111, they are now promoted to a blocking synthetic pitch regression gate. No tolerance was relaxed, and the target frequencies were not changed. This remains synthetic regression validation only, not production accuracy proof and not formal scoring.
