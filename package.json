@@ -18,7 +18,8 @@
     "validate:repository-hygiene": "node scripts/validate-repository-hygiene.mjs",
     "audiveris:export-local": "node scripts/audiveris-export-local.mjs",
     "musicxml:inspect-local": "node scripts/musicxml-inspect-local.mjs",
-    "validate:dev-omr-api-boundary": "node scripts/validate-dev-omr-api-boundary.mjs"
+    "validate:dev-omr-api-boundary": "node scripts/validate-dev-omr-api-boundary.mjs",
+    "validate:synthetic-pitch-benchmark": "rm -rf .next/synthetic-pitch-benchmark && tsc --module NodeNext --moduleResolution NodeNext --target ES2020 --outDir .next/synthetic-pitch-benchmark --noEmit false --declaration false --sourceMap false --incremental false scripts/validate-synthetic-pitch-benchmark.ts lib/practice/pitchEstimate.ts lib/practice/syntheticPitchBenchmark.ts lib/practice/syntheticPitchBenchmarkSuite.ts && node .next/synthetic-pitch-benchmark/scripts/validate-synthetic-pitch-benchmark.js"
   },
   "dependencies": {
     "next": "^14.2.0",
