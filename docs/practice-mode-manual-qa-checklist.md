@@ -151,6 +151,9 @@ Keep these boundaries visible during manual QA:
 * Attempt summary shows target note, estimated nearest note, estimated frequency Hz, cents from target, confidence frame coverage, and a brief non-score feedback label such as close to target, a little sharp, a little flat, or far from target.
 * Too-short or no-usable-pitch estimate errors do not add successful attempt history entries.
 * Consecutive successful local pitch estimates keep only the most recent 5 attempt summaries.
+* Clicking an attempt's Practice this target again control switches the selected target note to that attempt's target note.
+* Practice this target again does not automatically start recording, does not automatically play the target note, does not automatically estimate pitch, and does not add a new attempt history entry.
+* Practice this target again does not upload audio, does not save anything to a server or browser storage, and does not score, grade, or evaluate rhythm.
 * Clear attempt history clears only the visible local attempt list.
 * After Clear attempt history, estimating the current recording again can add one local attempt entry again.
 * Clear attempt history does not upload audio, does not delete anything from a server, and does not persist anything.

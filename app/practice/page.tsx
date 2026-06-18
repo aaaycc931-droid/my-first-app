@@ -692,6 +692,10 @@ export default function PracticePage() {
     });
   };
 
+  const handlePracticeAttemptTargetAgain = (targetNote: string) => {
+    setSelectedTargetNote(targetNote);
+  };
+
   const handleClearPracticeAttempts = () => {
     setPracticeAttempts([]);
     recordedPracticeAttemptKeyRef.current = null;
@@ -1018,6 +1022,13 @@ export default function PracticePage() {
                       <div><dt className="font-semibold">Cents from target</dt><dd className="text-sky-800">{attempt.centsFromTarget.toFixed(1)}</dd></div>
                       <div><dt className="font-semibold">Confidence frame coverage</dt><dd className="text-sky-800">{attempt.confidence.toFixed(2)}</dd></div>
                     </dl>
+                    <button
+                      type="button"
+                      onClick={() => handlePracticeAttemptTargetAgain(attempt.targetNote)}
+                      className="mt-3 rounded-full border border-sky-300 bg-white px-4 py-2 text-sm font-semibold text-sky-800"
+                    >
+                      Practice this target again
+                    </button>
                   </li>
                 ))}
               </ol>
