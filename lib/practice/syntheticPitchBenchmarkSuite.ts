@@ -25,7 +25,7 @@ export type SyntheticPitchBenchmarkSuitePitchResult =
 export type DefaultSyntheticPitchBenchmarkSuiteResult = {
   pitchResults: SyntheticPitchBenchmarkSuitePitchResult[];
   noPitchResults: SyntheticNoPitchBenchmarkResult[];
-  extendedPitchDiagnosticResults: SyntheticPitchBenchmarkSuitePitchResult[];
+  robustnessPitchDiagnosticResults: SyntheticPitchBenchmarkSuitePitchResult[];
   passed: boolean;
   failedCaseNames: string[];
   failedCount: number;
@@ -126,8 +126,59 @@ export const defaultSyntheticPitchBenchmarkCases: SyntheticPitchBenchmarkSuitePi
     ...coreSyntheticPitchBenchmarkCases,
   ];
 
-export const extendedSyntheticPitchDiagnosticCases: SyntheticPitchBenchmarkSuitePitchCase[] =
-  [];
+export const robustnessSyntheticPitchDiagnosticCases: SyntheticPitchBenchmarkSuitePitchCase[] =
+  [
+    {
+      caseName: "A4 440Hz quiet amplitude 0.05",
+      frequencyHz: 440,
+      durationSeconds: defaultDurationSeconds,
+      sampleRate: defaultSampleRate,
+      amplitude: 0.05,
+      toleranceCents: defaultToleranceCents,
+    },
+    {
+      caseName: "C4 261.63Hz quiet amplitude 0.05",
+      frequencyHz: 261.63,
+      durationSeconds: defaultDurationSeconds,
+      sampleRate: defaultSampleRate,
+      amplitude: 0.05,
+      toleranceCents: defaultToleranceCents,
+    },
+    {
+      caseName: "A4 440Hz short duration 0.5s",
+      frequencyHz: 440,
+      durationSeconds: 0.5,
+      sampleRate: defaultSampleRate,
+      amplitude: defaultAmplitude,
+      toleranceCents: defaultToleranceCents,
+    },
+    {
+      caseName: "C4 261.63Hz short duration 0.5s",
+      frequencyHz: 261.63,
+      durationSeconds: 0.5,
+      sampleRate: defaultSampleRate,
+      amplitude: defaultAmplitude,
+      toleranceCents: defaultToleranceCents,
+    },
+    {
+      caseName: "A4 440Hz deterministic light noise",
+      frequencyHz: 440,
+      durationSeconds: defaultDurationSeconds,
+      sampleRate: defaultSampleRate,
+      amplitude: defaultAmplitude,
+      noiseAmount: 0.01,
+      toleranceCents: defaultToleranceCents,
+    },
+    {
+      caseName: "C4 261.63Hz deterministic light noise",
+      frequencyHz: 261.63,
+      durationSeconds: defaultDurationSeconds,
+      sampleRate: defaultSampleRate,
+      amplitude: defaultAmplitude,
+      noiseAmount: 0.01,
+      toleranceCents: defaultToleranceCents,
+    },
+  ];
 
 export const defaultSyntheticNoPitchBenchmarkCases: SyntheticNoPitchBenchmarkCase[] =
   [
@@ -158,8 +209,8 @@ export const runDefaultSyntheticPitchBenchmarkSuite =
       runSyntheticNoPitchBenchmarkCase,
     );
 
-    const extendedPitchDiagnosticResults =
-      extendedSyntheticPitchDiagnosticCases.map((benchmarkCase) => ({
+    const robustnessPitchDiagnosticResults =
+      robustnessSyntheticPitchDiagnosticCases.map((benchmarkCase) => ({
         caseName: benchmarkCase.caseName,
         ...runSyntheticPitchBenchmarkCase(benchmarkCase),
       }));
@@ -182,7 +233,7 @@ export const runDefaultSyntheticPitchBenchmarkSuite =
     return {
       pitchResults,
       noPitchResults,
-      extendedPitchDiagnosticResults,
+      robustnessPitchDiagnosticResults,
       passed: blockingPassed,
       failedCaseNames,
       failedCount: failedCaseNames.length,

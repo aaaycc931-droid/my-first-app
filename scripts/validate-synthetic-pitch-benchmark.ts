@@ -6,7 +6,7 @@ const formatNumber = (value: number, fractionDigits = 2) =>
   Number.isFinite(value) ? value.toFixed(fractionDigits) : String(value);
 
 console.log(
-  `Synthetic pitch benchmark validation completed: ${result.noPitchResults.length} blocking no-pitch case(s), ${result.pitchResults.length} blocking synthetic known-frequency pitch regression case(s), ${result.extendedPitchDiagnosticResults.length} extended exploratory pitch diagnostic case(s).`,
+  `Synthetic pitch benchmark validation completed: ${result.noPitchResults.length} blocking no-pitch case(s), ${result.pitchResults.length} blocking synthetic known-frequency pitch regression case(s), ${result.robustnessPitchDiagnosticResults.length} robustness exploratory pitch diagnostic case(s).`,
 );
 console.log(
   "Known-frequency pitch cases are blocking synthetic pitch regression cases; any A3/C3/E3/A4/C4/E4/G4/C5/A5 failure exits 1.",
@@ -33,13 +33,13 @@ for (const pitchResult of result.pitchResults) {
   );
 }
 
-if (result.extendedPitchDiagnosticResults.length > 0) {
-  console.log("Extended exploratory pitch diagnostics (non-blocking):");
+if (result.robustnessPitchDiagnosticResults.length > 0) {
+  console.log("Robustness exploratory pitch diagnostics (non-blocking):");
   console.log(
-    "Extended diagnostics are exploratory and guide future estimator work; they are not product failures, not formal scoring, not production accuracy proof, and do not affect this command's exit code.",
+    "Robustness diagnostics cover generated in-memory amplitude, duration, and deterministic light-noise variants; they are exploratory and guide future estimator work only. They are not product failures, not formal scoring, not production accuracy proof, not proof of real singing accuracy, and do not affect this command's exit code.",
   );
 
-  for (const pitchResult of result.extendedPitchDiagnosticResults) {
+  for (const pitchResult of result.robustnessPitchDiagnosticResults) {
     const status = pitchResult.passed ? "passed" : "exploratory-failed";
 
     console.log(
@@ -85,6 +85,6 @@ if (result.blockingPassed) {
 
 console.error(`Blocking failed cases: ${result.blockingFailedCaseNames.join(", ")}`);
 console.error(
-  "Blocking pitch failures, blocking no-pitch failures, script exceptions, or compilation failures make this command exit 1; extended exploratory diagnostics, if any, do not affect the exit code.",
+  "Blocking pitch failures, blocking no-pitch failures, script exceptions, or compilation failures make this command exit 1; robustness exploratory diagnostics, if any, do not affect the exit code.",
 );
 process.exit(1);
