@@ -118,17 +118,19 @@ Manual QA findings should distinguish subjective usefulness from measured benchm
 
 ## 9. Automated benchmark direction
 
-Future automated benchmark work may add CI-safe tests without committing binary audio files. Possible directions include:
+Synthetic pitch benchmark support has started with CI-safe generated `Float32Array` sine-wave buffers that can exercise the extracted pitch estimate helper without committing binary audio fixtures. This support is infrastructure only and does not yet establish production accuracy claims.
 
-- synthetic `AudioBuffer` fixtures
-- generated sine wave input
+Future automated benchmark work may add more CI-safe tests without committing binary audio files. Possible directions include:
+
+- minimal buffer-like synthetic fixtures compatible with browser `AudioBuffer` usage
+- generated `Float32Array` sine-wave input
 - known frequency expected output
 - no-pitch silent buffer
 - noisy synthetic buffer
 - future test helper for pitch estimate
 - future CI-safe benchmark without binary audio files
 
-This document does not implement those helpers. It only records the intended direction.
+This document now records the first synthetic helper direction while keeping benchmark output separate from product accuracy claims.
 
 ## 10. Product accuracy language
 
@@ -148,7 +150,7 @@ Product claims should change only after benchmark results justify the stronger w
 
 This PR does not include:
 
-- code changes
+- production pitch accuracy claims
 - algorithm changes
 - formal scoring
 - rhythm evaluation
@@ -163,7 +165,7 @@ A safe future sequence is:
 
 1. docs: add pitch benchmark plan
 2. code: extract pitch helper only if needed (started by extracting the local pitch estimate helper)
-3. code: add synthetic pitch benchmark helper
+3. code: add synthetic pitch benchmark helper (started with generated `Float32Array` sine-wave buffers and no binary audio fixtures)
 4. code: add synthetic no-pitch benchmark
 5. code: improve no-pitch / quiet recording feedback
 6. code: add confidence display polish
