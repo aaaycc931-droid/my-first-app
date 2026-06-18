@@ -140,3 +140,35 @@ Summary from the command output:
 The passing A3 220Hz, C3 130.81Hz, E3 164.81Hz, C5 523.25Hz, and A5 880Hz extended synthetic cases above are now promoted to the blocking synthetic pitch regression gate. This promotion only expands synthetic regression coverage; it is not production accuracy proof, not formal scoring, and does not prove real singing accuracy.
 
 No tolerance was relaxed. The synthetic pitch tolerance remains 50 cents, and the target frequencies were not changed.
+
+## Robustness exploratory synthetic pitch diagnostics
+
+## Date
+
+2026-06-18
+
+## Command run
+
+```bash
+npm run validate:synthetic-pitch-benchmark
+```
+
+These robustness diagnostics were copied from an actual local run of the command above. They use generated in-memory buffers only. The diagnostics cover quiet amplitude, short duration, and deterministic light-noise variants for A4 and C4. They are exploratory and non-blocking, and they guide future estimator work only. They are not product failures, not production accuracy proof, not formal scoring, and not proof of real singing accuracy.
+
+The A3/C3/E3/A4/C4/E4/G4/C5/A5 clean sine cases remain blocking synthetic pitch regression cases. The silent sustained and too-short no-pitch cases remain blocking. Robustness exploratory failures do not affect the command exit code.
+
+| caseName | targetFrequencyHz | estimatedFrequencyHz | centsError | nearestNote | confidence | frames | status |
+| --- | ---: | ---: | ---: | --- | ---: | --- | --- |
+| A4 440Hz quiet amplitude 0.05 | 440.00 | 440.00 | 0.00 | A4 | 1.000 | 20/20 | passed |
+| C4 261.63Hz quiet amplitude 0.05 | 261.63 | 261.63 | -0.00 | C4 | 1.000 | 20/20 | passed |
+| A4 440Hz short duration 0.5s | 440.00 | 440.00 | 0.00 | A4 | 1.000 | 9/9 | passed |
+| C4 261.63Hz short duration 0.5s | 261.63 | 261.63 | -0.00 | C4 | 1.000 | 9/9 | passed |
+| A4 440Hz deterministic light noise | 440.00 | 440.02 | 0.06 | A4 | 1.000 | 20/20 | passed |
+| C4 261.63Hz deterministic light noise | 261.63 | 261.64 | 0.04 | C4 | 1.000 | 20/20 | passed |
+
+Summary from the command output:
+
+- Synthetic pitch benchmark validation completed: 2 blocking no-pitch case(s), 9 blocking synthetic known-frequency pitch regression case(s), 6 robustness exploratory pitch diagnostic case(s).
+- Blocking synthetic pitch regression cases passed: 9/9.
+- Blocking no-pitch validation passed: 2/2 case(s).
+- Robustness exploratory pitch diagnostics do not affect the exit code.
