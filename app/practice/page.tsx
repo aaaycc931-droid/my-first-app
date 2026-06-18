@@ -775,6 +775,56 @@ export default function PracticePage() {
         </section>
 
 
+        <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+            <div>
+              <p className="text-sm font-semibold uppercase tracking-wide text-slate-500">Guided local flow</p>
+              <h2 className="mt-1 text-xl font-bold text-slate-950">Single-note practice loop</h2>
+              <p className="mt-2 text-sm text-slate-600">
+                This is an experimental single-note practice loop. Use the controls below to record and estimate pitch.
+              </p>
+              <ol className="mt-4 grid gap-2 text-sm text-slate-700 sm:grid-cols-2">
+                <li className="rounded-xl bg-slate-50 p-3 font-medium ring-1 ring-slate-200">1. Pick a target note</li>
+                <li className="rounded-xl bg-slate-50 p-3 font-medium ring-1 ring-slate-200">2. Play selected target note</li>
+                <li className="rounded-xl bg-slate-50 p-3 font-medium ring-1 ring-slate-200">3. Record your attempt locally</li>
+                <li className="rounded-xl bg-slate-50 p-3 font-medium ring-1 ring-slate-200">4. Estimate pitch locally</li>
+                <li className="rounded-xl bg-slate-50 p-3 font-medium ring-1 ring-slate-200 sm:col-span-2">5. Review cents from target</li>
+              </ol>
+            </div>
+            <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900 lg:max-w-xs">
+              <p className="font-semibold">Prototype boundaries</p>
+              <ul className="mt-2 list-disc space-y-1 pl-5">
+                <li>This is not a formal score.</li>
+                <li>This is not rhythm evaluation.</li>
+                <li>Audio is not uploaded.</li>
+                <li>No AI API call.</li>
+              </ul>
+            </div>
+          </div>
+
+          <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-3">
+            <div className="rounded-xl bg-slate-50 p-4 ring-1 ring-slate-200"><dt className="font-semibold text-slate-700">Target note</dt><dd className="mt-1 text-slate-600">{selectedTargetNote}</dd></div>
+            <div className="rounded-xl bg-slate-50 p-4 ring-1 ring-slate-200"><dt className="font-semibold text-slate-700">Target frequency</dt><dd className="mt-1 text-slate-600">{noteFrequencies[selectedTargetNote].toFixed(2)} Hz</dd></div>
+            <div className="rounded-xl bg-slate-50 p-4 ring-1 ring-slate-200"><dt className="font-semibold text-slate-700">Recording</dt><dd className="mt-1 text-slate-600">{recordedAudioBlob ? "Recorded attempt ready" : "No recording yet"}</dd></div>
+            <div className="rounded-xl bg-slate-50 p-4 ring-1 ring-slate-200"><dt className="font-semibold text-slate-700">Pitch estimate</dt><dd className="mt-1 text-slate-600">{pitchEstimateResult ? "Pitch estimate ready" : "Not estimated yet"}</dd></div>
+            <div className="rounded-xl bg-slate-50 p-4 ring-1 ring-slate-200"><dt className="font-semibold text-slate-700">Comparison</dt><dd className="mt-1 text-slate-600">{pitchComparisonResult ? "Comparison ready" : "Waiting for pitch estimate"}</dd></div>
+          </dl>
+
+          {pitchEstimateResult ? (
+            <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
+              <div className="rounded-xl bg-indigo-50 p-4 ring-1 ring-indigo-200"><dt className="font-semibold text-indigo-950">Estimated frequency Hz</dt><dd className="mt-1 text-indigo-800">{pitchEstimateResult.estimatedFrequencyHz.toFixed(2)}</dd></div>
+              <div className="rounded-xl bg-indigo-50 p-4 ring-1 ring-indigo-200"><dt className="font-semibold text-indigo-950">Nearest note</dt><dd className="mt-1 text-indigo-800">{pitchEstimateResult.nearestNote}</dd></div>
+            </dl>
+          ) : null}
+
+          {pitchComparisonResult ? (
+            <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
+              <div className="rounded-xl bg-violet-50 p-4 ring-1 ring-violet-200"><dt className="font-semibold text-violet-950">Comparison hint</dt><dd className="mt-1 text-violet-800">{pitchComparisonResult.comparisonHint}</dd></div>
+              <div className="rounded-xl bg-violet-50 p-4 ring-1 ring-violet-200"><dt className="font-semibold text-violet-950">Cents from target</dt><dd className="mt-1 text-violet-800">{pitchComparisonResult.centsFromTarget.toFixed(1)}</dd></div>
+            </dl>
+          ) : null}
+        </section>
+
         <section className="mt-6 rounded-2xl border border-emerald-200 bg-emerald-50 p-5">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div>
