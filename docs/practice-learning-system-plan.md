@@ -144,3 +144,7 @@ This PR does not:
 Practice Mode skeleton started: added a mock-only /practice page to validate the future recognition + practice + assessment flow without recording, scoring, AI, or real evaluation.
 
 Practice Mode mock flow update: /practice now supports target playback plus mock attempt, mock feedback, and retry states without recording, real scoring, AI, or real OMR.
+
+## Manual QA checklist
+
+Practice Mode now has a manual QA checklist for the current browser local-only `/practice` prototype: see `docs/practice-mode-manual-qa-checklist.md`.
