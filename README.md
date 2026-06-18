@@ -100,3 +100,5 @@ OMR sample and fixture strategy: see docs/omr-sample-fixture-strategy.md
 Public demo checklist: see docs/public-demo-checklist.md
 
 Practice learning system plan: see docs/practice-learning-system-plan.md
+
+Practice Mode manual QA checklist: see docs/practice-mode-manual-qa-checklist.md
