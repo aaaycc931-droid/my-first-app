@@ -102,6 +102,11 @@ Keep these boundaries visible during manual QA:
   * A little flat
   * Far from target
 * Changing the selected target note recalculates comparison from the existing `pitchEstimateResult`.
+* Selected target note playback button is visible.
+* Selecting C4/D4/E4/G4 and clicking Play selected target note plays a short single target tone.
+* Repeated selected target note playback does not leave stuck audio.
+* Stop playback / cleanup still works after selected target note playback.
+* Selected target note playback uses browser Web Audio only and no remote audio dependency.
 * This compares one selected target note only.
 * This is not full melody alignment.
 * This is not rhythm evaluation.
