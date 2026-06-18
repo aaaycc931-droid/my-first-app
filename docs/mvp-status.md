@@ -141,3 +141,5 @@ These are candidates only and are not implemented here:
 - 2026-06-17: Practice Mode now includes target playback and an interactive mock attempt/feedback/retry flow; still no recording, real scoring, AI API calls, or real pitch/rhythm evaluation.
 
 - 2026-06-18: Added a Practice Mode manual QA checklist for the browser local-only `/practice` prototype; this is docs-only and does not change recording, scoring, provider, API, Audiveris, or dependency behavior.
+
+- 2026-06-18: Added a pitch evaluation benchmark plan for future accuracy validation; this is docs-only and does not change pitch estimate algorithms, scoring, rhythm evaluation, AI API calls, audio upload, providers, or dependencies.
