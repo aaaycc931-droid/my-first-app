@@ -122,6 +122,10 @@ Keep these boundaries visible during manual QA:
   * A little flat
   * Far from target
 * Changing the selected target note recalculates comparison from the existing `pitchEstimateResult`.
+* Previous target switches the selected target note to the previous note in the current target note options.
+* Next target switches the selected target note to the next note in the current target note options.
+* Previous target and Next target wrap around when they reach the beginning or end of the target note options.
+* Previous target and Next target do not automatically play audio, start recording, estimate pitch, or add an attempt history entry.
 * Selected target note playback button is visible.
 * Selecting C4/D4/E4/G4 and clicking Play selected target note plays a short single target tone.
 * Repeated selected target note playback does not leave stuck audio.
