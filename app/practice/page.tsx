@@ -692,6 +692,31 @@ export default function PracticePage() {
     });
   };
 
+  const moveSelectedTargetNote = (direction: -1 | 1) => {
+    setSelectedTargetNote((currentTargetNote) => {
+      const currentTargetNoteIndex = targetNoteOptions.findIndex(
+        (targetNote) => targetNote === currentTargetNote,
+      );
+
+      if (currentTargetNoteIndex === -1) {
+        return targetNoteOptions[0] ?? currentTargetNote;
+      }
+
+      const nextTargetNoteIndex =
+        (currentTargetNoteIndex + direction + targetNoteOptions.length) % targetNoteOptions.length;
+
+      return targetNoteOptions[nextTargetNoteIndex] ?? currentTargetNote;
+    });
+  };
+
+  const handlePreviousTargetNote = () => {
+    moveSelectedTargetNote(-1);
+  };
+
+  const handleNextTargetNote = () => {
+    moveSelectedTargetNote(1);
+  };
+
   const handlePracticeAttemptTargetAgain = (targetNote: string) => {
     setSelectedTargetNote(targetNote);
   };
@@ -964,6 +989,22 @@ export default function PracticePage() {
                     ))}
                   </select>
                 </label>
+                <div className="flex flex-wrap gap-2 sm:justify-end">
+                  <button
+                    type="button"
+                    onClick={handlePreviousTargetNote}
+                    className="rounded-full border border-violet-300 bg-white px-4 py-2 text-sm font-semibold text-violet-800"
+                  >
+                    Previous target
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleNextTargetNote}
+                    className="rounded-full border border-violet-300 bg-white px-4 py-2 text-sm font-semibold text-violet-800"
+                  >
+                    Next target
+                  </button>
+                </div>
                 <button
                   type="button"
                   onClick={handlePlaySelectedTargetNote}
