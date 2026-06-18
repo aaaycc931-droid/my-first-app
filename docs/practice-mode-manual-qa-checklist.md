@@ -23,6 +23,7 @@ The current Practice Mode prototype includes:
 * experimental local pitch estimate
 * experimental target-aware pitch comparison
 * mock feedback placeholders
+* local in-session recent attempt history for successful pitch estimates
 
 ## 3. Boundary reminders
 
@@ -140,7 +141,23 @@ Keep these boundaries visible during manual QA:
 * It does not claim formal scoring.
 * It keeps local-only / no upload / no AI / no rhythm boundaries visible.
 
-## 12. Async cleanup / stale result checklist
+## 12. Recent local attempt history checklist
+
+* Recent local attempts section is visible on `/practice`.
+* Empty state says to record an attempt to see recent local pitch feedback.
+* A successful local pitch estimate adds one attempt summary to the local list.
+* Attempt summary shows target note, estimated nearest note, estimated frequency Hz, cents from target, confidence frame coverage, and a brief non-score feedback label such as close to target, a little sharp, a little flat, or far from target.
+* Too-short or no-usable-pitch estimate errors do not add successful attempt history entries.
+* Consecutive successful local pitch estimates keep only the most recent 5 attempt summaries.
+* Clear attempt history clears only the visible local attempt list.
+* Clear attempt history does not upload audio, does not delete anything from a server, and does not persist anything.
+* Copy clearly says attempts are local to this browser session.
+* Copy clearly says audio is not uploaded.
+* Copy clearly says this is not a score or grade.
+* Copy clearly says rhythm is not evaluated.
+* No localStorage, IndexedDB, or cookies are required for the history.
+
+## 13. Async cleanup / stale result checklist
 
 * Starting recording while local analysis is running should not show a stale old result afterward.
 * Clearing recording while local analysis is running should not show a stale old result afterward.
@@ -148,14 +165,14 @@ Keep these boundaries visible during manual QA:
 * Clearing recording while pitch estimate is running should not show a stale old result afterward.
 * Navigating away should not leave obvious stuck audio or stale recording state.
 
-## 13. Mock feedback checklist
+## 14. Mock feedback checklist
 
 * Start mock attempt changes flow state.
 * Show mock feedback displays mock pitch/rhythm/AI-style feedback.
 * Copy clearly says feedback is mock-only, not real rhythm evaluation, and not an AI API call.
 * Retry resets the expected mock flow state.
 
-## 14. Regression boundaries
+## 15. Regression boundaries
 
 * Public `/api/recognize` still only supports the image upload mock flow.
 * Practice Mode recording does not touch `/api/recognize`.
@@ -163,18 +180,19 @@ Keep these boundaries visible during manual QA:
 * The default provider remains `mock`.
 * The provider union remains `"mock" | "ai" | "musicxml"`.
 
-## 15. Known limitations
+## 16. Known limitations
 
 * Pitch estimate is experimental.
 * Target comparison uses estimated dominant/local pitch against one selected target note.
 * This is not a real singing score.
 * This is not rhythm evaluation.
 * This is not full melody alignment.
+* There is local in-session recent attempt history for successful pitch estimates only.
 * There is no persistent practice history.
 * There is no backend storage.
 * There is no AI feedback generation.
 
-## 16. Suggested next QA expansion
+## 17. Suggested next QA expansion
 
 * Single-note target playback QA.
 * Browser compatibility notes.
