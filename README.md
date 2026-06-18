@@ -82,6 +82,23 @@ npm run start  # 启动生产服务器
 npm run lint   # 运行 Next.js lint 检查
 ```
 
+
+## 本地验证
+
+未来 PR 推荐先运行统一的本地验证入口：
+
+```bash
+npm run validate:local
+```
+
+`validate:local` 只是 validation ergonomics 聚合入口，会按顺序串联现有 synthetic pitch benchmark、dev OMR API boundary、repository hygiene、recognition boundary、MusicXML/MXL validation 和 `npm run build`。它不改变任何现有 validation command 的行为，不改变 UI、API、pitch algorithm、scoring、rhythm、AI、upload、providers、Audiveris 行为，也不新增依赖。
+
+`git diff --check` 不是 npm command，因此没有放进 `validate:local`；提交 PR 前仍应单独运行：
+
+```bash
+git diff --check
+```
+
 ## 部署到 Vercel
 
 1. 在可访问 npm registry 的环境中运行 `npm install`，确认生成 `package-lock.json`。

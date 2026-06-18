@@ -19,7 +19,8 @@
     "audiveris:export-local": "node scripts/audiveris-export-local.mjs",
     "musicxml:inspect-local": "node scripts/musicxml-inspect-local.mjs",
     "validate:dev-omr-api-boundary": "node scripts/validate-dev-omr-api-boundary.mjs",
-    "validate:synthetic-pitch-benchmark": "rm -rf .next/synthetic-pitch-benchmark && tsc --module NodeNext --moduleResolution NodeNext --target ES2020 --outDir .next/synthetic-pitch-benchmark --noEmit false --declaration false --sourceMap false --incremental false scripts/validate-synthetic-pitch-benchmark.ts lib/practice/pitchEstimate.ts lib/practice/syntheticPitchBenchmark.ts lib/practice/syntheticPitchBenchmarkSuite.ts && node .next/synthetic-pitch-benchmark/scripts/validate-synthetic-pitch-benchmark.js"
+    "validate:synthetic-pitch-benchmark": "rm -rf .next/synthetic-pitch-benchmark && tsc --module NodeNext --moduleResolution NodeNext --target ES2020 --outDir .next/synthetic-pitch-benchmark --noEmit false --declaration false --sourceMap false --incremental false scripts/validate-synthetic-pitch-benchmark.ts lib/practice/pitchEstimate.ts lib/practice/syntheticPitchBenchmark.ts lib/practice/syntheticPitchBenchmarkSuite.ts && node .next/synthetic-pitch-benchmark/scripts/validate-synthetic-pitch-benchmark.js",
+    "validate:local": "npm run validate:synthetic-pitch-benchmark && npm run validate:dev-omr-api-boundary && npm run validate:repository-hygiene && npm run validate:recognition-boundary && npm run validate:musicxml-import-ui && npm run validate:mxl-import && npm run validate:musicxml && npm run build"
   },
   "dependencies": {
     "next": "^14.2.0",
