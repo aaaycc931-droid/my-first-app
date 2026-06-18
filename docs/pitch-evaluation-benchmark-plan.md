@@ -126,7 +126,7 @@ The default no-pitch cases include a silent sustained buffer and a too-short buf
 
 The PR #116 extended synthetic pitch diagnostics added generated in-memory sine-wave cases for A3 220Hz, C3 130.81Hz, E3 164.81Hz, C5 523.25Hz, and A5 880Hz. Those cases passed in the actual PR #116 validation run and are now blocking synthetic pitch regression cases rather than exploratory/non-blocking diagnostics. This expands the regression gate only; it is still not production accuracy proof, not formal scoring, and does not prove real singing accuracy.
 
-Robustness exploratory diagnostics now add generated in-memory synthetic pitch variants for quiet amplitude, short duration, and deterministic light-noise conditions. These robustness cases are intentionally exploratory and non-blocking: they print target frequency, estimate, cents error, nearest note, confidence, frame counts, and status, but they do not affect `npm run validate:synthetic-pitch-benchmark` exit code. Their results guide future estimator work only. They are not product failures, not production accuracy proof, not formal scoring, and do not prove real singing accuracy. The existing clean sine A3/C3/E3/A4/C4/E4/G4/C5/A5 pitch cases remain blocking, and the silent sustained plus too-short no-pitch cases remain blocking.
+Robustness synthetic pitch variants cover quiet amplitude, short duration, and deterministic light-noise conditions for A4 and C4. After PR #118, the six added robustness diagnostics passed in an actual validation run, so they are now promoted from exploratory/non-blocking diagnostics to blocking synthetic robustness regression cases. No tolerance was relaxed, and no robustness target frequency, duration, amplitude, or noiseAmount was changed for the promotion. The validation command prints target frequency, estimate, cents error, nearest note, confidence, frame counts, and status for these blocking robustness cases. If any robustness blocking pitch case regresses, `npm run validate:synthetic-pitch-benchmark` should exit 1. This remains generated in-memory synthetic regression coverage only; it is not production accuracy proof, not formal scoring, and does not prove real singing accuracy. The existing clean sine A3/C3/E3/A4/C4/E4/G4/C5/A5 pitch cases remain blocking, and the silent sustained plus too-short no-pitch cases remain blocking.
 
 The no-pitch direction generates silent buffers and too-short buffers in memory, so no binary audio fixtures are committed. Silent sustained buffers validate the no usable pitch frames path, and too-short buffers validate the recording length error path. This support is infrastructure only: it validates no-pitch failure behavior, does not change pitch estimation, and does not establish production scoring accuracy.
 
@@ -138,7 +138,7 @@ Future automated benchmark work may add more CI-safe tests without committing bi
 - no-pitch silent buffer
 - too-short no-pitch buffer
 - noisy synthetic buffer
-- generated in-memory robustness diagnostics for amplitude, duration, and deterministic light-noise variants
+- generated in-memory blocking synthetic robustness regression cases for amplitude, duration, and deterministic light-noise variants
 - future test helper for pitch estimate
 - future CI-safe benchmark without binary audio files
 
@@ -188,3 +188,4 @@ A safe future sequence is:
 12. code: add extended generated in-memory synthetic pitch diagnostics as exploratory/non-blocking coverage
 13. code: promote the passing PR #116 A3/C3/E3/C5/A5 extended diagnostics to blocking synthetic pitch regression cases without relaxing tolerance or changing target frequencies
 14. code: add generated in-memory synthetic robustness diagnostics for amplitude, duration, and deterministic light-noise variants as exploratory/non-blocking coverage
+15. code: promote the passing PR #118 A4/C4 robustness diagnostics to blocking synthetic robustness regression cases without relaxing tolerance or changing target frequency, duration, amplitude, or noiseAmount

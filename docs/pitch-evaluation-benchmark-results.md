@@ -153,9 +153,9 @@ No tolerance was relaxed. The synthetic pitch tolerance remains 50 cents, and th
 npm run validate:synthetic-pitch-benchmark
 ```
 
-These robustness diagnostics were copied from an actual local run of the command above. They use generated in-memory buffers only. The diagnostics cover quiet amplitude, short duration, and deterministic light-noise variants for A4 and C4. They are exploratory and non-blocking, and they guide future estimator work only. They are not product failures, not production accuracy proof, not formal scoring, and not proof of real singing accuracy.
+These robustness diagnostics were copied from an actual local run of the command above. They use generated in-memory buffers only. The diagnostics cover quiet amplitude, short duration, and deterministic light-noise variants for A4 and C4. At PR #118 time they were recorded as diagnostics before promotion. They are not product failures, not production accuracy proof, not formal scoring, and not proof of real singing accuracy.
 
-The A3/C3/E3/A4/C4/E4/G4/C5/A5 clean sine cases remain blocking synthetic pitch regression cases. The silent sustained and too-short no-pitch cases remain blocking. Robustness exploratory failures do not affect the command exit code.
+The A3/C3/E3/A4/C4/E4/G4/C5/A5 clean sine cases remain blocking synthetic pitch regression cases. The silent sustained and too-short no-pitch cases remain blocking. The promotion note below records their current blocking synthetic robustness regression status.
 
 | caseName | targetFrequencyHz | estimatedFrequencyHz | centsError | nearestNote | confidence | frames | status |
 | --- | ---: | ---: | ---: | --- | ---: | --- | --- |
@@ -171,4 +171,10 @@ Summary from the command output:
 - Synthetic pitch benchmark validation completed: 2 blocking no-pitch case(s), 9 blocking synthetic known-frequency pitch regression case(s), 6 robustness exploratory pitch diagnostic case(s).
 - Blocking synthetic pitch regression cases passed: 9/9.
 - Blocking no-pitch validation passed: 2/2 case(s).
-- Robustness exploratory pitch diagnostics do not affect the exit code.
+- The promotion note below records that these passing robustness cases are now blocking synthetic robustness regression cases.
+
+## Robustness promotion note
+
+The six passing PR #118 robustness cases are now promoted to the blocking synthetic robustness regression gate. A4/C4 quiet amplitude, A4/C4 short duration, and A4/C4 deterministic light-noise variants now fail `npm run validate:synthetic-pitch-benchmark` if they regress.
+
+No tolerance was relaxed. The robustness target frequencies, durations, amplitudes, and deterministic noise amounts were not changed. These cases remain generated in-memory only; no audio fixtures were added. This is not production accuracy proof, not formal scoring, and does not prove real singing accuracy.

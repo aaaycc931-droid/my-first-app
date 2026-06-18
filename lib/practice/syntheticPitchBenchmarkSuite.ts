@@ -25,18 +25,21 @@ export type SyntheticPitchBenchmarkSuitePitchResult =
 export type DefaultSyntheticPitchBenchmarkSuiteResult = {
   pitchResults: SyntheticPitchBenchmarkSuitePitchResult[];
   noPitchResults: SyntheticNoPitchBenchmarkResult[];
-  robustnessPitchDiagnosticResults: SyntheticPitchBenchmarkSuitePitchResult[];
+  robustnessPitchResults: SyntheticPitchBenchmarkSuitePitchResult[];
   passed: boolean;
   failedCaseNames: string[];
   failedCount: number;
   blockingPassed: boolean;
   pitchPassed: boolean;
+  robustnessPitchPassed: boolean;
   noPitchPassed: boolean;
   blockingFailedCaseNames: string[];
   pitchFailedCaseNames: string[];
+  robustnessPitchFailedCaseNames: string[];
   noPitchFailedCaseNames: string[];
   blockingFailedCount: number;
   pitchFailedCount: number;
+  robustnessPitchFailedCount: number;
   noPitchFailedCount: number;
 };
 
@@ -126,7 +129,7 @@ export const defaultSyntheticPitchBenchmarkCases: SyntheticPitchBenchmarkSuitePi
     ...coreSyntheticPitchBenchmarkCases,
   ];
 
-export const robustnessSyntheticPitchDiagnosticCases: SyntheticPitchBenchmarkSuitePitchCase[] =
+export const robustnessSyntheticPitchBenchmarkCases: SyntheticPitchBenchmarkSuitePitchCase[] =
   [
     {
       caseName: "A4 440Hz quiet amplitude 0.05",
@@ -209,8 +212,8 @@ export const runDefaultSyntheticPitchBenchmarkSuite =
       runSyntheticNoPitchBenchmarkCase,
     );
 
-    const robustnessPitchDiagnosticResults =
-      robustnessSyntheticPitchDiagnosticCases.map((benchmarkCase) => ({
+    const robustnessPitchResults =
+      robustnessSyntheticPitchBenchmarkCases.map((benchmarkCase) => ({
         caseName: benchmarkCase.caseName,
         ...runSyntheticPitchBenchmarkCase(benchmarkCase),
       }));
@@ -218,33 +221,41 @@ export const runDefaultSyntheticPitchBenchmarkSuite =
     const pitchFailedCaseNames = pitchResults
       .filter((result) => !result.passed)
       .map((result) => result.caseName);
+    const robustnessPitchFailedCaseNames = robustnessPitchResults
+      .filter((result) => !result.passed)
+      .map((result) => result.caseName);
     const noPitchFailedCaseNames = noPitchResults
       .filter((result) => !result.passed)
       .map((result) => result.caseName);
     const blockingFailedCaseNames = [
       ...pitchFailedCaseNames,
+      ...robustnessPitchFailedCaseNames,
       ...noPitchFailedCaseNames,
     ];
     const failedCaseNames = blockingFailedCaseNames;
     const pitchPassed = pitchFailedCaseNames.length === 0;
+    const robustnessPitchPassed = robustnessPitchFailedCaseNames.length === 0;
     const noPitchPassed = noPitchFailedCaseNames.length === 0;
-    const blockingPassed = pitchPassed && noPitchPassed;
+    const blockingPassed = pitchPassed && robustnessPitchPassed && noPitchPassed;
 
     return {
       pitchResults,
       noPitchResults,
-      robustnessPitchDiagnosticResults,
+      robustnessPitchResults,
       passed: blockingPassed,
       failedCaseNames,
       failedCount: failedCaseNames.length,
       blockingPassed,
       pitchPassed,
+      robustnessPitchPassed,
       noPitchPassed,
       blockingFailedCaseNames,
       pitchFailedCaseNames,
+      robustnessPitchFailedCaseNames,
       noPitchFailedCaseNames,
       blockingFailedCount: blockingFailedCaseNames.length,
       pitchFailedCount: pitchFailedCaseNames.length,
+      robustnessPitchFailedCount: robustnessPitchFailedCaseNames.length,
       noPitchFailedCount: noPitchFailedCaseNames.length,
     };
   };
