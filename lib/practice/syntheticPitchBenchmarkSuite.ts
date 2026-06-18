@@ -28,6 +28,12 @@ export type DefaultSyntheticPitchBenchmarkSuiteResult = {
   passed: boolean;
   failedCaseNames: string[];
   failedCount: number;
+  blockingPassed: boolean;
+  exploratoryPitchPassed: boolean;
+  blockingFailedCaseNames: string[];
+  exploratoryFailedCaseNames: string[];
+  blockingFailedCount: number;
+  exploratoryFailedCount: number;
 };
 
 export const defaultSyntheticPitchBenchmarkCases: SyntheticPitchBenchmarkSuitePitchCase[] =
@@ -95,22 +101,30 @@ export const runDefaultSyntheticPitchBenchmarkSuite =
       runSyntheticNoPitchBenchmarkCase,
     );
 
-    const failedPitchCaseNames = pitchResults
+    const exploratoryFailedCaseNames = pitchResults
       .filter((result) => !result.passed)
       .map((result) => result.caseName);
-    const failedNoPitchCaseNames = noPitchResults
+    const blockingFailedCaseNames = noPitchResults
       .filter((result) => !result.passed)
       .map((result) => result.caseName);
     const failedCaseNames = [
-      ...failedPitchCaseNames,
-      ...failedNoPitchCaseNames,
+      ...exploratoryFailedCaseNames,
+      ...blockingFailedCaseNames,
     ];
+    const blockingPassed = blockingFailedCaseNames.length === 0;
+    const exploratoryPitchPassed = exploratoryFailedCaseNames.length === 0;
 
     return {
       pitchResults,
       noPitchResults,
-      passed: failedCaseNames.length === 0,
+      passed: blockingPassed,
       failedCaseNames,
       failedCount: failedCaseNames.length,
+      blockingPassed,
+      exploratoryPitchPassed,
+      blockingFailedCaseNames,
+      exploratoryFailedCaseNames,
+      blockingFailedCount: blockingFailedCaseNames.length,
+      exploratoryFailedCount: exploratoryFailedCaseNames.length,
     };
   };

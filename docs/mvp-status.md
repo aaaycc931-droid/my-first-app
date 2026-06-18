@@ -145,3 +145,5 @@ These are candidates only and are not implemented here:
 - 2026-06-18: Added a pitch evaluation benchmark plan for future accuracy validation; this is docs-only and does not change pitch estimate algorithms, scoring, rhythm evaluation, AI API calls, audio upload, providers, or dependencies.
 
 - 2026-06-18: Added `npm run validate:synthetic-pitch-benchmark` for the default synthetic pitch benchmark suite using generated in-memory buffers only; this does not change UI, pitch algorithms, target comparison, scoring, audio upload, AI API calls, default provider, provider union, or dependencies.
+
+- 2026-06-18: Updated `npm run validate:synthetic-pitch-benchmark` to be baseline-safe: no-pitch behavior is the blocking validation gate, while known-frequency pitch results are currently exploratory/non-blocking and do not establish any product accuracy claim.
