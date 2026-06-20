@@ -8,47 +8,47 @@ This project is a sheet music recognition MVP. Its purpose is to validate a mini
 
 The current main user-facing flow is:
 
-- Users upload a JPG or PNG image.
-- The main API is `/api/recognize`.
-- The upload limit is 10MB.
-- The current default recognizer provider is `mock`.
-- Recognition results can be displayed on the page as notes and played back.
-- Playback now has an explicit stop control for stopping long previews without refreshing the page.
-- This main flow is currently not Audiveris and is not real PDF OMR.
+* Users upload a JPG or PNG image.
+* The main API is `/api/recognize`.
+* The upload limit is 10MB.
+* The current default recognizer provider is `mock`.
+* Recognition results can be displayed on the page as notes and played back.
+* Playback now has an explicit stop control for stopping long previews without refreshing the page.
+* This main flow is currently not Audiveris and is not real PDF OMR.
 
 Important boundaries for the main flow:
 
-- `/api/recognize` does not accept PDF input.
-- `/api/recognize` does not call Audiveris.
-- Production and Vercel default deployments do not run Audiveris.
+* `/api/recognize` does not accept PDF input.
+* `/api/recognize` does not call Audiveris.
+* Production and Vercel default deployments do not run Audiveris.
 
 ## 3. Dev-only Audiveris local flow
 
 A local dev-only Audiveris flow has been completed for developer validation:
 
-- A local PDF score is used as input.
-- Local Audiveris is executed outside the production flow.
-- The dev-only API route is `/api/dev/recognize-audiveris`.
-- Generated MXL output is written in a temp directory.
-- MusicXML is extracted from the generated MXL.
-- Notes are parsed from the extracted MusicXML.
-- The dev-only UI displays `noteCount`, `source`, `inputType`, and `firstNotes`.
-- The dev-only UI can play a `firstNotes` preview.
-- The dev-only UI can play a full notes preview when explicit full notes flags are enabled.
-- The explicit stop playback control applies to the main mock notes playback, the dev-only `firstNotes` preview, and the dev-only full notes preview.
-- The dev-only Audiveris panel copy now states that it is a local developer tool, not production/Vercel, not `/api/recognize`, and that PDF input is only for the dev-only route.
+* A local PDF score is used as input.
+* Local Audiveris is executed outside the production flow.
+* The dev-only API route is `/api/dev/recognize-audiveris`.
+* Generated MXL output is written in a temp directory.
+* MusicXML is extracted from the generated MXL.
+* Notes are parsed from the extracted MusicXML.
+* The dev-only UI displays `noteCount`, `source`, `inputType`, and `firstNotes`.
+* The dev-only UI can play a `firstNotes` preview.
+* The dev-only UI can play a full notes preview when explicit full notes flags are enabled.
+* The explicit stop playback control applies to the main mock notes playback, the dev-only `firstNotes` preview, and the dev-only full notes preview.
+* The dev-only Audiveris panel copy now states that it is a local developer tool, not production/Vercel, not `/api/recognize`, and that PDF input is only for the dev-only route.
 
 This playback stop control does not change `/api/recognize`, provider behavior, or dev-only Audiveris boundaries.
 
 This Audiveris flow is:
 
-- local-only
-- dev-only
-- not production
-- not Vercel
-- not `/api/recognize`
-- not a default provider change
-- not an Audiveris provider
+* local-only
+* dev-only
+* not production
+* not Vercel
+* not `/api/recognize`
+* not a default provider change
+* not an Audiveris provider
 
 ## 4. Required dev-only flags
 
@@ -65,9 +65,9 @@ AUDIVERIS_DEV_API_TIMEOUT_MS
 
 Full notes are not returned by default. Returning full notes requires all of the following:
 
-- the server flag is enabled
-- the frontend flag is enabled
-- the request explicitly opts in with `includeNotes=full`
+* the server flag is enabled
+* the frontend flag is enabled
+* the request explicitly opts in with `includeNotes=full`
 
 Even when full notes are enabled, the response returns at most 2000 notes and may be truncated.
 
@@ -75,12 +75,12 @@ Even when full notes are enabled, the response returns at most 2000 notes and ma
 
 The repository safety boundaries are:
 
-- the default provider remains `mock`
-- the provider union remains `"mock" | "ai" | "musicxml"`
-- there is no `audiveris` provider
-- no PDF, MXL, XML, OMR, log, image, or sample score files are committed
-- Audiveris binaries and local score files stay outside the repository
-- generated files stay outside the repository or in temp directories only
+* the default provider remains `mock`
+* the provider union remains `"mock" | "ai" | "musicxml"`
+* there is no `audiveris` provider
+* no PDF, MXL, XML, OMR, log, image, or sample score files are committed
+* Audiveris binaries and local score files stay outside the repository
+* generated files stay outside the repository or in temp directories only
 
 ## 6. How to demo
 
@@ -88,9 +88,9 @@ The repository safety boundaries are:
 
 Production and Vercel demos should only show the main mock recognition flow:
 
-- upload a JPG or PNG image
-- display mock notes
-- play back the displayed notes
+* upload a JPG or PNG image
+* display mock notes
+* play back the displayed notes
 
 ### Local dev demo
 
@@ -98,11 +98,11 @@ For local development setup, see `docs/audiveris-dev-quickstart.md`.
 
 A local developer demo can show the complete dev-only Audiveris flow:
 
-- local PDF input
-- Local Audiveris execution
-- `noteCount` 651 for the developer-reported local score
-- `firstNotes` playback
-- full notes playback when the explicit full notes flags are enabled
+* local PDF input
+* Local Audiveris execution
+* `noteCount` 651 for the developer-reported local score
+* `firstNotes` playback
+* full notes playback when the explicit full notes flags are enabled
 
 `score.pdf` is a developer local file and is not stored in this repository.
 
@@ -120,12 +120,12 @@ Public demo polish is complete for the production-safe MVP page. Production/Verc
 
 Current known non-goals are:
 
-- production OMR
-- hosted Audiveris
-- PDF upload to `/api/recognize`
-- Audiveris provider in the recognizer union
-- committing real score samples
-- treating dev-only results as Codex-verified
+* production OMR
+* hosted Audiveris
+* PDF upload to `/api/recognize`
+* Audiveris provider in the recognizer union
+* committing real score samples
+* treating dev-only results as Codex-verified
 
 ## 8. Suggested next productization steps
 
@@ -156,13 +156,16 @@ These are candidates only and are not implemented here:
 
 - 2026-06-18: Documented the current synthetic pitch benchmark baseline results in `docs/pitch-evaluation-benchmark-results.md` after running `npm run validate:synthetic-pitch-benchmark`. This is docs-only and does not change the pitch estimate algorithm, confidence calculation, target comparison algorithm, UI, validation behavior, formal scoring, rhythm evaluation, AI API calls, audio upload, providers, default `mock` provider, provider union, package dependencies, `/api/recognize`, or Audiveris behavior.
 
+
 - 2026-06-18: Improved the experimental local pitch estimator with a small synthetic benchmark-guided autocorrelation peak selection change for sine-wave subharmonic / octave-down errors. This remains an experimental local pitch estimate, not formal scoring and not production accuracy proof. The change does not modify UI, rhythm evaluation, AI API behavior, audio upload behavior, provider behavior, default `mock` provider, provider union, package dependencies, `/api/recognize`, Audiveris behavior, target comparison, benchmark tolerances, or benchmark case targets.
 
 - 2026-06-18: Hardened `npm run validate:synthetic-pitch-benchmark` so the default A4/C4/G4/E4 synthetic known-frequency pitch cases are now blocking regression cases and any regression fails validation, while the silent sustained and too-short no-pitch cases remain blocking. This is a synthetic regression gate only, not production accuracy proof, not formal scoring, and not proof of real singing accuracy. The change does not modify the pitch estimate algorithm, confidence calculation, target comparison algorithm, UI, scoring, rhythm evaluation, AI API calls, audio upload, providers, default `mock` provider, provider union, dependencies, `/api/recognize`, or Audiveris behavior.
 
 - 2026-06-18: Expanded synthetic pitch benchmark coverage with generated in-memory extended exploratory diagnostics for A3/C3/E3/C5/A5 while keeping A4/C4/G4/E4 synthetic pitch cases and no-pitch cases as blocking gates. Extended diagnostics are non-blocking and guide future estimator work only; they are not production accuracy proof, formal scoring, product failure claims, or real singing accuracy claims. This does not change the pitch estimate algorithm, confidence calculation, target comparison algorithm, UI, scoring, rhythm evaluation, AI API calls, audio upload, providers, default `mock` provider, provider union, dependencies, `package.json`, `/api/recognize`, or Audiveris behavior.
 
+
 - 2026-06-18: Expanded the blocking synthetic pitch regression gate from A4/C4/G4/E4 to include the PR #116 passing A3/C3/E3/C5/A5 generated in-memory synthetic cases. The silent sustained and too-short no-pitch cases remain blocking. This is a synthetic regression gate only, not production accuracy proof, not formal scoring, and not proof of real singing accuracy. This does not change the pitch estimate algorithm, confidence calculation, target comparison algorithm, UI, scoring, rhythm evaluation, AI API calls, audio upload, providers, default `mock` provider, provider union, dependencies, `package.json`, `/api/recognize`, or Audiveris behavior.
+
 
 - 2026-06-18: Added generated in-memory synthetic pitch robustness diagnostics for quiet amplitude, short duration, and deterministic light-noise A4/C4 variants. These diagnostics are exploratory/non-blocking and guide future estimator work only; the clean sine A3/C3/E3/A4/C4/E4/G4/C5/A5 pitch cases and silent sustained plus too-short no-pitch cases remain blocking. This does not change the pitch estimate algorithm, confidence calculation, target comparison algorithm, UI, scoring, formal scoring, rhythm evaluation, AI API calls, audio upload, providers, default `mock` provider, provider union, dependencies, `package.json`, `/api/recognize`, Audiveris behavior, or repository audio/sample fixture boundaries.
 
@@ -173,6 +176,7 @@ These are candidates only and are not implemented here:
 - 2026-06-18: Added Practice Mode local in-session recent attempt history for successful experimental local pitch estimates. The history is browser state only, keeps the most recent 5 attempts, and can be cleared with a local Clear attempt history button. This does not upload audio, does not persist to a server, does not use localStorage, IndexedDB, or cookies, does not add formal scoring, does not add rhythm evaluation, does not call AI, does not add dependencies, does not change provider behavior, keeps the default provider as `mock`, keeps the provider union as `"mock" | "ai" | "musicxml"`, does not change `/api/recognize`, does not add PDF handling, and does not call Audiveris. It also does not change the pitch estimate algorithm, confidence calculation, or target comparison algorithm.
 
 - 2026-06-18: Polished Practice Mode local in-session recent attempt history so repeated successful estimates of the same recording do not create duplicate history entries, while a new recording can still add a new attempt and Clear attempt history only clears local React state. The history remains browser-session-only and is not uploaded, not persisted to a server, not stored in localStorage, IndexedDB, or cookies, not formal scoring, not rhythm evaluation, and not AI-generated. This does not change the pitch estimate algorithm, confidence calculation, target comparison algorithm, providers, default `mock` provider, provider union, package dependencies, `package.json`, `/api/recognize`, PDF handling, or Audiveris behavior.
+
 
 - 2026-06-18: Added a local-only Practice Mode recent attempt target retry control. Each recent local attempt can switch the selected target note back to that attempt target for another manual practice pass. This only updates local React state: it does not upload audio, persist to a server, write localStorage, IndexedDB, or cookies, add formal scoring, add rhythm evaluation, call AI, change providers, change the default `mock` provider, change the provider union (`"mock" | "ai" | "musicxml"`), change `/api/recognize`, add PDF handling, call Audiveris, add dependencies, or change the pitch estimate algorithm, confidence calculation, or target comparison algorithm.
 
