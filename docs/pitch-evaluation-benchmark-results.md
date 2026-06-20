@@ -23,12 +23,12 @@ This baseline is not production accuracy proof and is not formal scoring. The kn
 
 ## Known-frequency exploratory pitch diagnostics
 
-| caseName | targetFrequencyHz | estimatedFrequencyHz | centsError | nearestNote | confidence | frames | status |
-| --- | ---: | ---: | ---: | --- | ---: | --- | --- |
-| A4 440Hz | 440.00 | 109.98 | -2400.39 | A2 | 1.000 | 20/20 | exploratory failed |
-| C4 261.63Hz | 261.63 | 109.01 | -1515.72 | A2 | 1.000 | 20/20 | exploratory failed |
-| G4 392Hz | 392.00 | 147.00 | -1698.04 | D3 | 1.000 | 20/20 | exploratory failed |
-| E4 329.63Hz | 329.63 | 205.77 | -815.80 | G#3 | 1.000 | 20/20 | exploratory failed |
+| caseName    | targetFrequencyHz | estimatedFrequencyHz | centsError | nearestNote | confidence | frames | status             |
+| ----------- | ----------------: | -------------------: | ---------: | ----------- | ---------: | ------ | ------------------ |
+| A4 440Hz    |            440.00 |               109.98 |   -2400.39 | A2          |      1.000 | 20/20  | exploratory failed |
+| C4 261.63Hz |            261.63 |               109.01 |   -1515.72 | A2          |      1.000 | 20/20  | exploratory failed |
+| G4 392Hz    |            392.00 |               147.00 |   -1698.04 | D3          |      1.000 | 20/20  | exploratory failed |
+| E4 329.63Hz |            329.63 |               205.77 |    -815.80 | G#3         |      1.000 | 20/20  | exploratory failed |
 
 Summary from the command output:
 
@@ -39,10 +39,10 @@ Summary from the command output:
 
 ## Blocking no-pitch result summary
 
-| no-pitch case | expected behavior | blocking status |
-| --- | --- | --- |
-| Silent sustained buffer | No usable pitch should be detected. | Passed |
-| Too-short buffer | Recording length should be rejected as too short. | Passed |
+| no-pitch case           | expected behavior                                 | blocking status |
+| ----------------------- | ------------------------------------------------- | --------------- |
+| Silent sustained buffer | No usable pitch should be detected.               | Passed          |
+| Too-short buffer        | Recording length should be rejected as too short. | Passed          |
 
 Blocking no-pitch validation passed: 2/2 cases.
 
@@ -80,12 +80,12 @@ These results were recorded after a small experimental pitch estimator change fo
 
 ## Known-frequency pitch diagnostics after improvement
 
-| caseName | targetFrequencyHz | estimatedFrequencyHz | centsError | nearestNote | confidence | frames | status |
-| --- | ---: | ---: | ---: | --- | ---: | --- | --- |
-| A4 440Hz | 440.00 | 440.00 | 0.00 | A4 | 1.000 | 20/20 | passed |
-| C4 261.63Hz | 261.63 | 261.63 | -0.00 | C4 | 1.000 | 20/20 | passed |
-| G4 392Hz | 392.00 | 392.00 | -0.00 | G4 | 1.000 | 20/20 | passed |
-| E4 329.63Hz | 329.63 | 329.63 | -0.00 | E4 | 1.000 | 20/20 | passed |
+| caseName    | targetFrequencyHz | estimatedFrequencyHz | centsError | nearestNote | confidence | frames | status |
+| ----------- | ----------------: | -------------------: | ---------: | ----------- | ---------: | ------ | ------ |
+| A4 440Hz    |            440.00 |               440.00 |       0.00 | A4          |      1.000 | 20/20  | passed |
+| C4 261.63Hz |            261.63 |               261.63 |      -0.00 | C4          |      1.000 | 20/20  | passed |
+| G4 392Hz    |            392.00 |               392.00 |      -0.00 | G4          |      1.000 | 20/20  | passed |
+| E4 329.63Hz |            329.63 |               329.63 |      -0.00 | E4          |      1.000 | 20/20  | passed |
 
 Relative to the baseline, all four known-frequency sine-wave cases improved from octave-down / subharmonic estimates to the target notes within the existing 50-cent tolerance. These diagnostics are not production accuracy proof, not formal scoring, and do not prove real singing accuracy.
 
@@ -97,10 +97,10 @@ Summary from the command output:
 
 ## Blocking no-pitch result summary after improvement
 
-| no-pitch case | expected behavior | blocking status |
-| --- | --- | --- |
-| Silent sustained buffer | No usable pitch should be detected. | Passed |
-| Too-short buffer | Recording length should be rejected as too short. | Passed |
+| no-pitch case           | expected behavior                                 | blocking status |
+| ----------------------- | ------------------------------------------------- | --------------- |
+| Silent sustained buffer | No usable pitch should be detected.               | Passed          |
+| Too-short buffer        | Recording length should be rejected as too short. | Passed          |
 
 The no-pitch cases remain a blocking validation gate. Because the A4/C4/G4/E4 synthetic pitch cases now pass honestly after PR #111, they are now promoted to a blocking synthetic pitch regression gate. No tolerance was relaxed, and the target frequencies were not changed. This remains synthetic regression validation only, not production accuracy proof and not formal scoring.
 
@@ -120,13 +120,13 @@ These extended diagnostics were copied from an actual local run of the command a
 
 The A4/C4/G4/E4 cases remain blocking synthetic pitch regression cases, and the silent sustained plus too-short no-pitch cases remain blocking. Extended exploratory failures do not affect the command exit code.
 
-| caseName | targetFrequencyHz | estimatedFrequencyHz | centsError | nearestNote | confidence | frames | status |
-| --- | ---: | ---: | ---: | --- | ---: | --- | --- |
-| A3 220Hz | 220.00 | 220.00 | 0.00 | A3 | 1.000 | 20/20 | passed |
-| C3 130.81Hz | 130.81 | 130.81 | 0.00 | C3 | 1.000 | 20/20 | passed |
-| E3 164.81Hz | 164.81 | 164.81 | -0.00 | E3 | 1.000 | 20/20 | passed |
-| C5 523.25Hz | 523.25 | 523.25 | 0.00 | C5 | 1.000 | 20/20 | passed |
-| A5 880Hz | 880.00 | 880.00 | 0.00 | A5 | 1.000 | 20/20 | passed |
+| caseName    | targetFrequencyHz | estimatedFrequencyHz | centsError | nearestNote | confidence | frames | status |
+| ----------- | ----------------: | -------------------: | ---------: | ----------- | ---------: | ------ | ------ |
+| A3 220Hz    |            220.00 |               220.00 |       0.00 | A3          |      1.000 | 20/20  | passed |
+| C3 130.81Hz |            130.81 |               130.81 |       0.00 | C3          |      1.000 | 20/20  | passed |
+| E3 164.81Hz |            164.81 |               164.81 |      -0.00 | E3          |      1.000 | 20/20  | passed |
+| C5 523.25Hz |            523.25 |               523.25 |       0.00 | C5          |      1.000 | 20/20  | passed |
+| A5 880Hz    |            880.00 |               880.00 |       0.00 | A5          |      1.000 | 20/20  | passed |
 
 Summary from the command output:
 
@@ -157,14 +157,14 @@ These robustness diagnostics were copied from an actual local run of the command
 
 The A3/C3/E3/A4/C4/E4/G4/C5/A5 clean sine cases remain blocking synthetic pitch regression cases. The silent sustained and too-short no-pitch cases remain blocking. The promotion note below records their current blocking synthetic robustness regression status.
 
-| caseName | targetFrequencyHz | estimatedFrequencyHz | centsError | nearestNote | confidence | frames | status |
-| --- | ---: | ---: | ---: | --- | ---: | --- | --- |
-| A4 440Hz quiet amplitude 0.05 | 440.00 | 440.00 | 0.00 | A4 | 1.000 | 20/20 | passed |
-| C4 261.63Hz quiet amplitude 0.05 | 261.63 | 261.63 | -0.00 | C4 | 1.000 | 20/20 | passed |
-| A4 440Hz short duration 0.5s | 440.00 | 440.00 | 0.00 | A4 | 1.000 | 9/9 | passed |
-| C4 261.63Hz short duration 0.5s | 261.63 | 261.63 | -0.00 | C4 | 1.000 | 9/9 | passed |
-| A4 440Hz deterministic light noise | 440.00 | 440.02 | 0.06 | A4 | 1.000 | 20/20 | passed |
-| C4 261.63Hz deterministic light noise | 261.63 | 261.64 | 0.04 | C4 | 1.000 | 20/20 | passed |
+| caseName                              | targetFrequencyHz | estimatedFrequencyHz | centsError | nearestNote | confidence | frames | status |
+| ------------------------------------- | ----------------: | -------------------: | ---------: | ----------- | ---------: | ------ | ------ |
+| A4 440Hz quiet amplitude 0.05         |            440.00 |               440.00 |       0.00 | A4          |      1.000 | 20/20  | passed |
+| C4 261.63Hz quiet amplitude 0.05      |            261.63 |               261.63 |      -0.00 | C4          |      1.000 | 20/20  | passed |
+| A4 440Hz short duration 0.5s          |            440.00 |               440.00 |       0.00 | A4          |      1.000 | 9/9    | passed |
+| C4 261.63Hz short duration 0.5s       |            261.63 |               261.63 |      -0.00 | C4          |      1.000 | 9/9    | passed |
+| A4 440Hz deterministic light noise    |            440.00 |               440.02 |       0.06 | A4          |      1.000 | 20/20  | passed |
+| C4 261.63Hz deterministic light noise |            261.63 |               261.64 |       0.04 | C4          |      1.000 | 20/20  | passed |
 
 Summary from the command output:
 
@@ -178,3 +178,27 @@ Summary from the command output:
 The six passing PR #118 robustness cases are now promoted to the blocking synthetic robustness regression gate. A4/C4 quiet amplitude, A4/C4 short duration, and A4/C4 deterministic light-noise variants now fail `npm run validate:synthetic-pitch-benchmark` if they regress.
 
 No tolerance was relaxed. The robustness target frequencies, durations, amplitudes, and deterministic noise amounts were not changed. These cases remain generated in-memory only; no audio fixtures were added. This is not production accuracy proof, not formal scoring, and does not prove real singing accuracy.
+
+## P3a exploratory synthetic pitch cases — 2026-06-20
+
+Command:
+
+```bash
+npm run validate:synthetic-pitch-benchmark
+```
+
+Scope:
+
+- Added four generated in-memory exploratory/non-blocking synthetic pitch diagnostics: higher noise, frequency drift, vibrato, and mixed harmonics.
+- Existing clean sine, robustness, and no-pitch cases remain blocking regression gates.
+- Exploratory diagnostics are observation-only and do not affect the validation exit code.
+- No real voice dataset, AI API, uploaded audio, `/api/recognize`, recognition provider union, PDF upload, or Audiveris integration was added.
+
+Observed exploratory diagnostics from the local run:
+
+- Higher noise: A4 440Hz with deterministic higher noise estimated 440.32Hz, +1.27 cents, nearest note A4, confidence 1.000, 20/20 valid frames.
+- Frequency drift: A4 drift from 440Hz to 466.16Hz estimated 465.51Hz, +97.58 cents against the starting target, nearest note A#4, confidence 1.000, 20/20 valid frames.
+- Vibrato: A4 440Hz with 35-cent 5Hz vibrato estimated 422.09Hz, -71.93 cents, nearest note G#4, confidence 1.000, 20/20 valid frames.
+- Mixed harmonics: A4 440Hz with second and third harmonics estimated 440.00Hz, +0.00 cents, nearest note A4, confidence 1.000, 20/20 valid frames.
+
+These observations are synthetic diagnostics only. They are not production accuracy claims, formal scoring evidence, or proof of real singing accuracy.

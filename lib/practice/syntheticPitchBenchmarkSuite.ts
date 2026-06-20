@@ -26,6 +26,7 @@ export type DefaultSyntheticPitchBenchmarkSuiteResult = {
   pitchResults: SyntheticPitchBenchmarkSuitePitchResult[];
   noPitchResults: SyntheticNoPitchBenchmarkResult[];
   robustnessPitchResults: SyntheticPitchBenchmarkSuitePitchResult[];
+  exploratoryPitchResults: SyntheticPitchBenchmarkSuitePitchResult[];
   passed: boolean;
   failedCaseNames: string[];
   failedCount: number;
@@ -183,6 +184,50 @@ export const robustnessSyntheticPitchBenchmarkCases: SyntheticPitchBenchmarkSuit
     },
   ];
 
+export const exploratorySyntheticPitchBenchmarkCases: SyntheticPitchBenchmarkSuitePitchCase[] =
+  [
+    {
+      caseName: "A4 440Hz exploratory higher noise",
+      frequencyHz: 440,
+      durationSeconds: defaultDurationSeconds,
+      sampleRate: defaultSampleRate,
+      amplitude: defaultAmplitude,
+      noiseAmount: 0.05,
+      toleranceCents: defaultToleranceCents,
+    },
+    {
+      caseName: "A4 exploratory frequency drift 440Hz to 466.16Hz",
+      frequencyHz: 440,
+      frequencyEndHz: 466.16,
+      durationSeconds: defaultDurationSeconds,
+      sampleRate: defaultSampleRate,
+      amplitude: defaultAmplitude,
+      toleranceCents: defaultToleranceCents,
+    },
+    {
+      caseName: "A4 440Hz exploratory vibrato 35 cents at 5Hz",
+      frequencyHz: 440,
+      durationSeconds: defaultDurationSeconds,
+      sampleRate: defaultSampleRate,
+      amplitude: defaultAmplitude,
+      vibratoDepthCents: 35,
+      vibratoRateHz: 5,
+      toleranceCents: defaultToleranceCents,
+    },
+    {
+      caseName: "A4 440Hz exploratory mixed harmonics",
+      frequencyHz: 440,
+      durationSeconds: defaultDurationSeconds,
+      sampleRate: defaultSampleRate,
+      amplitude: defaultAmplitude,
+      harmonics: [
+        { multiple: 2, amplitudeRatio: 0.45 },
+        { multiple: 3, amplitudeRatio: 0.25 },
+      ],
+      toleranceCents: defaultToleranceCents,
+    },
+  ];
+
 export const defaultSyntheticNoPitchBenchmarkCases: SyntheticNoPitchBenchmarkCase[] =
   [
     {
@@ -212,11 +257,19 @@ export const runDefaultSyntheticPitchBenchmarkSuite =
       runSyntheticNoPitchBenchmarkCase,
     );
 
-    const robustnessPitchResults =
-      robustnessSyntheticPitchBenchmarkCases.map((benchmarkCase) => ({
+    const exploratoryPitchResults = exploratorySyntheticPitchBenchmarkCases.map(
+      (benchmarkCase) => ({
         caseName: benchmarkCase.caseName,
         ...runSyntheticPitchBenchmarkCase(benchmarkCase),
-      }));
+      }),
+    );
+
+    const robustnessPitchResults = robustnessSyntheticPitchBenchmarkCases.map(
+      (benchmarkCase) => ({
+        caseName: benchmarkCase.caseName,
+        ...runSyntheticPitchBenchmarkCase(benchmarkCase),
+      }),
+    );
 
     const pitchFailedCaseNames = pitchResults
       .filter((result) => !result.passed)
@@ -236,12 +289,14 @@ export const runDefaultSyntheticPitchBenchmarkSuite =
     const pitchPassed = pitchFailedCaseNames.length === 0;
     const robustnessPitchPassed = robustnessPitchFailedCaseNames.length === 0;
     const noPitchPassed = noPitchFailedCaseNames.length === 0;
-    const blockingPassed = pitchPassed && robustnessPitchPassed && noPitchPassed;
+    const blockingPassed =
+      pitchPassed && robustnessPitchPassed && noPitchPassed;
 
     return {
       pitchResults,
       noPitchResults,
       robustnessPitchResults,
+      exploratoryPitchResults,
       passed: blockingPassed,
       failedCaseNames,
       failedCount: failedCaseNames.length,
