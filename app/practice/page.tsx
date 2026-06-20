@@ -69,6 +69,12 @@ const practiceSteps = [
   "Retry",
 ];
 
+const melodySteps = mockExercise.targetNotes.map((targetNote, index) => ({
+  id: `melody-step-${index + 1}`,
+  label: `Melody note ${index + 1}`,
+  targetNote,
+}));
+
 const noteFrequencies: Record<string, number> = {
   C4: 261.63,
   D4: 293.66,
@@ -193,7 +199,7 @@ export default function PracticePage() {
   const [pitchEstimateResult, setPitchEstimateResult] = useState<PitchEstimateResult | null>(null);
   const [pitchEstimateError, setPitchEstimateError] = useState("");
   const [isEstimatingPitch, setIsEstimatingPitch] = useState(false);
-  const [selectedTargetNote, setSelectedTargetNote] = useState("C4");
+  const [currentMelodyStepIndex, setCurrentMelodyStepIndex] = useState(0);
   const [isSelectedTargetNotePlaying, setIsSelectedTargetNotePlaying] = useState(false);
   const [recordingSeconds, setRecordingSeconds] = useState(0);
   const [practiceAttempts, setPracticeAttempts] = useState<PracticeAttemptSummary[]>([]);
@@ -214,10 +220,10 @@ export default function PracticePage() {
   const currentRecordingAttemptKeyRef = useRef<number | null>(null);
   const recordedPracticeAttemptKeyRef = useRef<number | null>(null);
 
-  const targetNoteOptions = useMemo(
-    () => Array.from(new Set(mockExercise.targetNotes)),
-    [],
-  );
+  const currentMelodyStep = melodySteps[currentMelodyStepIndex] ?? melodySteps[0];
+  const selectedTargetNote = currentMelodyStep.targetNote;
+  const isFirstMelodyStep = currentMelodyStepIndex === 0;
+  const isLastMelodyStep = currentMelodyStepIndex === melodySteps.length - 1;
 
   const pitchEstimateErrorFeedback = useMemo(
     () => (pitchEstimateError ? getPitchEstimateErrorFeedback(pitchEstimateError) : null),
@@ -692,33 +698,30 @@ export default function PracticePage() {
     });
   };
 
-  const moveSelectedTargetNote = (direction: -1 | 1) => {
-    setSelectedTargetNote((currentTargetNote) => {
-      const currentTargetNoteIndex = targetNoteOptions.findIndex(
-        (targetNote) => targetNote === currentTargetNote,
-      );
-
-      if (currentTargetNoteIndex === -1) {
-        return targetNoteOptions[0] ?? currentTargetNote;
-      }
-
-      const nextTargetNoteIndex =
-        (currentTargetNoteIndex + direction + targetNoteOptions.length) % targetNoteOptions.length;
-
-      return targetNoteOptions[nextTargetNoteIndex] ?? currentTargetNote;
-    });
+  const moveMelodyStep = (direction: -1 | 1) => {
+    setCurrentMelodyStepIndex((currentIndex) =>
+      Math.min(Math.max(currentIndex + direction, 0), melodySteps.length - 1),
+    );
   };
 
-  const handlePreviousTargetNote = () => {
-    moveSelectedTargetNote(-1);
+  const handlePreviousMelodyStep = () => {
+    moveMelodyStep(-1);
   };
 
-  const handleNextTargetNote = () => {
-    moveSelectedTargetNote(1);
+  const handleNextMelodyStep = () => {
+    moveMelodyStep(1);
+  };
+
+  const handleRestartMelody = () => {
+    setCurrentMelodyStepIndex(0);
   };
 
   const handlePracticeAttemptTargetAgain = (targetNote: string) => {
-    setSelectedTargetNote(targetNote);
+    const matchingStepIndex = melodySteps.findIndex((step) => step.targetNote === targetNote);
+
+    if (matchingStepIndex >= 0) {
+      setCurrentMelodyStepIndex(matchingStepIndex);
+    }
   };
 
   const handleClearPracticeAttempts = () => {
@@ -841,10 +844,10 @@ export default function PracticePage() {
               <p className="text-sm font-semibold uppercase tracking-wide text-slate-500">Guided local flow</p>
               <h2 className="mt-1 text-xl font-bold text-slate-950">Single-note practice loop</h2>
               <p className="mt-2 text-sm text-slate-600">
-                This is an experimental single-note practice loop. Use the controls below to record and estimate pitch.
+                This is an experimental melody step practice loop. The target note follows the current fixed melody step.
               </p>
               <ol className="mt-4 grid gap-2 text-sm text-slate-700 sm:grid-cols-2">
-                <li className="rounded-xl bg-slate-50 p-3 font-medium ring-1 ring-slate-200">1. Pick a target note</li>
+                <li className="rounded-xl bg-slate-50 p-3 font-medium ring-1 ring-slate-200">1. Move to a melody step</li>
                 <li className="rounded-xl bg-slate-50 p-3 font-medium ring-1 ring-slate-200">2. Play selected target note</li>
                 <li className="rounded-xl bg-slate-50 p-3 font-medium ring-1 ring-slate-200">3. Record your attempt locally</li>
                 <li className="rounded-xl bg-slate-50 p-3 font-medium ring-1 ring-slate-200">4. Estimate pitch locally</li>
@@ -973,36 +976,45 @@ export default function PracticePage() {
                   <li>This is not rhythm evaluation.</li>
                   <li>Audio is not uploaded.</li>
                   <li>No AI API call.</li>
-                  <li>This only compares the local estimated pitch to one selected target note.</li>
+                  <li>This only compares the local estimated pitch to the current melody step target note.</li>
+                  <li>Previous/Next step clamp at the first and last melody steps.</li>
+                  <li>Changing steps does not auto-play, auto-record, or auto-estimate.</li>
                 </ul>
               </div>
               <div className="flex flex-col gap-3 sm:items-end">
-                <label className="text-sm font-semibold text-violet-950">
-                  Target note selector
-                  <select
-                    className="mt-2 block rounded-full border border-violet-200 bg-white px-4 py-2 text-sm font-semibold text-violet-900"
-                    value={selectedTargetNote}
-                    onChange={(event) => setSelectedTargetNote(event.target.value)}
-                  >
-                    {targetNoteOptions.map((note) => (
-                      <option key={note} value={note}>{note}</option>
-                    ))}
-                  </select>
-                </label>
+                <div className="rounded-xl bg-violet-50 p-3 text-right ring-1 ring-violet-200">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-violet-700">
+                    Step {currentMelodyStepIndex + 1} / {melodySteps.length}
+                  </p>
+                  <p className="mt-1 text-lg font-bold text-violet-950">{selectedTargetNote}</p>
+                  <p className="mt-1 text-xs text-violet-800">
+                    Current target note comes from the fixed melody step list.
+                  </p>
+                </div>
                 <div className="flex flex-wrap gap-2 sm:justify-end">
                   <button
                     type="button"
-                    onClick={handlePreviousTargetNote}
-                    className="rounded-full border border-violet-300 bg-white px-4 py-2 text-sm font-semibold text-violet-800"
+                    onClick={handlePreviousMelodyStep}
+                    disabled={isFirstMelodyStep}
+                    className="rounded-full border border-violet-300 bg-white px-4 py-2 text-sm font-semibold text-violet-800 disabled:text-slate-400"
                   >
-                    Previous target
+                    Previous step
                   </button>
                   <button
                     type="button"
-                    onClick={handleNextTargetNote}
-                    className="rounded-full border border-violet-300 bg-white px-4 py-2 text-sm font-semibold text-violet-800"
+                    onClick={handleNextMelodyStep}
+                    disabled={isLastMelodyStep}
+                    className="rounded-full border border-violet-300 bg-white px-4 py-2 text-sm font-semibold text-violet-800 disabled:text-slate-400"
                   >
-                    Next target
+                    Next step
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleRestartMelody}
+                    disabled={isFirstMelodyStep}
+                    className="rounded-full border border-violet-300 bg-white px-4 py-2 text-sm font-semibold text-violet-800 disabled:text-slate-400"
+                  >
+                    Restart melody
                   </button>
                 </div>
                 <button

@@ -24,6 +24,7 @@ The current Practice Mode prototype includes:
 * experimental target-aware pitch comparison
 * mock feedback placeholders
 * local in-session recent attempt history for successful pitch estimates
+* fixed melody step practice flow driven by browser React state
 
 ## 3. Boundary reminders
 
@@ -109,11 +110,31 @@ Keep these boundaries visible during manual QA:
 * Frames analyzed and valid pitch frames remain visible next to the confidence explanation.
 * The UI still says there is no formal score, no rhythm evaluation, audio is not uploaded, and no AI API call is made.
 
-## 10. Experimental target-aware pitch comparison checklist
+## 10. Melody step practice flow checklist
 
-* Target note selector is visible.
-* Target options come from mock target notes, for example C4, D4, E4, and G4.
-* Target frequency updates when the selected target note changes.
+* Current melody step progress is visible as Step 1 / N style copy.
+* The current target note is derived from the fixed melody step list.
+* Previous step is visible.
+* Next step is visible.
+* Restart melody is visible.
+* Previous step clamps at the first melody step instead of wrapping.
+* Next step clamps at the last melody step instead of wrapping.
+* Restart melody returns to Step 1.
+* Switching melody steps recalculates the current target note for comparison.
+* Switching melody steps does not automatically play audio.
+* Switching melody steps does not automatically start recording.
+* Switching melody steps does not automatically estimate pitch.
+* Melody step state is local React state only.
+* No audio is uploaded.
+* No AI API call is made.
+* This is not formal scoring.
+* This is not rhythm evaluation.
+
+## 11. Experimental target-aware pitch comparison checklist
+
+* Current melody step target note is visible.
+* Melody step target notes come from the fixed mock melody steps, for example C4, D4, E4, and G4.
+* Target frequency updates when the current melody step changes.
 * Before pitch estimate, the comparison area explains that a pitch estimate is needed.
 * After pitch estimate, cents from target appears.
 * Comparison hint appears, such as:
@@ -121,11 +142,10 @@ Keep these boundaries visible during manual QA:
   * A little sharp
   * A little flat
   * Far from target
-* Changing the selected target note recalculates comparison from the existing `pitchEstimateResult`.
-* Previous target switches the selected target note to the previous note in the current target note options.
-* Next target switches the selected target note to the next note in the current target note options.
-* Previous target and Next target wrap around when they reach the beginning or end of the target note options.
-* Previous target and Next target do not automatically play audio, start recording, estimate pitch, or add an attempt history entry.
+* Changing the current melody step recalculates comparison from the existing `pitchEstimateResult`.
+* Previous step switches to the previous fixed melody step and clamps at Step 1.
+* Next step switches to the next fixed melody step and clamps at the final step.
+* Previous step, Next step, and Restart melody do not automatically play audio, start recording, estimate pitch, or add an attempt history entry.
 * Selected target note playback button is visible.
 * Selecting C4/D4/E4/G4 and clicking Play selected target note plays a short single target tone.
 * Repeated selected target note playback does not leave stuck audio.
@@ -135,7 +155,7 @@ Keep these boundaries visible during manual QA:
 * This is not full melody alignment.
 * This is not rhythm evaluation.
 
-## 11. Single-note practice loop checklist
+## 12. Single-note practice loop checklist
 
 * Single-note practice loop card is visible.
 * It shows the selected target note and target frequency.
@@ -145,7 +165,7 @@ Keep these boundaries visible during manual QA:
 * It does not claim formal scoring.
 * It keeps local-only / no upload / no AI / no rhythm boundaries visible.
 
-## 12. Recent local attempt history checklist
+## 13. Recent local attempt history checklist
 
 * Recent local attempts section is visible on `/practice`.
 * Empty state says to record an attempt to see recent local pitch feedback.
@@ -155,7 +175,7 @@ Keep these boundaries visible during manual QA:
 * Attempt summary shows target note, estimated nearest note, estimated frequency Hz, cents from target, confidence frame coverage, and a brief non-score feedback label such as close to target, a little sharp, a little flat, or far from target.
 * Too-short or no-usable-pitch estimate errors do not add successful attempt history entries.
 * Consecutive successful local pitch estimates keep only the most recent 5 attempt summaries.
-* Clicking an attempt's Practice this target again control switches the selected target note to that attempt's target note.
+* Clicking an attempt's Practice this target again control switches to the first fixed melody step matching that attempt's target note.
 * Practice this target again does not automatically start recording, does not automatically play the target note, does not automatically estimate pitch, and does not add a new attempt history entry.
 * Practice this target again does not upload audio, does not save anything to a server or browser storage, and does not score, grade, or evaluate rhythm.
 * Clear attempt history clears only the visible local attempt list.
@@ -167,7 +187,7 @@ Keep these boundaries visible during manual QA:
 * Copy clearly says rhythm is not evaluated.
 * No localStorage, IndexedDB, or cookies are required for the history.
 
-## 13. Async cleanup / stale result checklist
+## 14. Async cleanup / stale result checklist
 
 * Starting recording while local analysis is running should not show a stale old result afterward.
 * Clearing recording while local analysis is running should not show a stale old result afterward.
@@ -175,14 +195,14 @@ Keep these boundaries visible during manual QA:
 * Clearing recording while pitch estimate is running should not show a stale old result afterward.
 * Navigating away should not leave obvious stuck audio or stale recording state.
 
-## 14. Mock feedback checklist
+## 15. Mock feedback checklist
 
 * Start mock attempt changes flow state.
 * Show mock feedback displays mock pitch/rhythm/AI-style feedback.
 * Copy clearly says feedback is mock-only, not real rhythm evaluation, and not an AI API call.
 * Retry resets the expected mock flow state.
 
-## 15. Regression boundaries
+## 16. Regression boundaries
 
 * Public `/api/recognize` still only supports the image upload mock flow.
 * Practice Mode recording does not touch `/api/recognize`.
@@ -190,14 +210,15 @@ Keep these boundaries visible during manual QA:
 * The default provider remains `mock`.
 * The provider union remains `"mock" | "ai" | "musicxml"`.
 
-## 16. Known limitations
+## 17. Known limitations
 
 * Pitch estimate is experimental.
-* Target comparison uses estimated dominant/local pitch against one selected target note.
+* Target comparison uses estimated dominant/local pitch against the current melody step target note.
 * This is not a real singing score.
 * This is not rhythm evaluation.
 * This is not full melody alignment.
 * There is local in-session recent attempt history for successful pitch estimates only.
+* Melody step practice is local React state only and clamps at the first/last step.
 * There is no persistent practice history.
 * There is no backend storage.
 * There is no AI feedback generation.
