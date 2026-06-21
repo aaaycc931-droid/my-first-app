@@ -28,13 +28,16 @@ const printPitchDiagnostics = (
 };
 
 console.log(
-  `Synthetic pitch benchmark validation completed: ${result.pitchResults.length} clean sine blocking synthetic pitch regression case(s), ${result.robustnessPitchResults.length} robustness blocking synthetic pitch regression case(s), ${result.noPitchResults.length} blocking no-pitch case(s).`,
+  `Synthetic pitch benchmark validation completed: ${result.pitchResults.length} clean sine blocking synthetic pitch regression case(s), ${result.robustnessPitchResults.length} robustness blocking synthetic pitch regression case(s), ${result.noPitchResults.length} blocking no-pitch case(s), ${result.exploratoryPitchResults.length} exploratory non-blocking pitch diagnostic case(s).`,
 );
 console.log(
   "Clean sine A3/C3/E3/A4/C4/E4/G4/C5/A5 cases are blocking synthetic pitch regression cases; any failure exits 1.",
 );
 console.log(
   "Robustness cases are now blocking synthetic robustness regression cases; any quiet-amplitude, short-duration, or deterministic light-noise failure exits 1.",
+);
+console.log(
+  "Exploratory higher-noise, frequency-drift, vibrato, and mixed-harmonics cases are non-blocking diagnostics only; their results never make this command fail.",
 );
 console.log(
   "This command is a generated in-memory synthetic regression gate, not production accuracy proof, not formal scoring, and not proof of real singing accuracy.",
@@ -48,6 +51,15 @@ console.log(
   "Robustness cases cover generated in-memory amplitude, duration, and deterministic light-noise variants. They are blocking synthetic robustness regression cases, but they are not production accuracy proof, not formal scoring, and do not prove real singing accuracy.",
 );
 printPitchDiagnostics(result.robustnessPitchResults);
+
+console.log("Exploratory non-blocking pitch diagnostics:");
+console.log(
+  "Exploratory cases cover generated in-memory higher noise, frequency drift, vibrato, and mixed harmonics. They are observation-only diagnostics and do not affect the validation exit code.",
+);
+printPitchDiagnostics(
+  result.exploratoryPitchResults,
+  "observed-outside-tolerance",
+);
 
 console.log("Blocking no-pitch validation:");
 for (const noPitchResult of result.noPitchResults) {
@@ -71,7 +83,9 @@ if (result.pitchPassed) {
   console.error(
     `Clean sine blocking pitch regression cases failed: ${result.pitchFailedCount} case(s).`,
   );
-  console.error(`Failed clean sine pitch cases: ${result.pitchFailedCaseNames.join(", ")}`);
+  console.error(
+    `Failed clean sine pitch cases: ${result.pitchFailedCaseNames.join(", ")}`,
+  );
 }
 
 if (result.robustnessPitchPassed) {
@@ -95,14 +109,18 @@ if (result.noPitchPassed) {
   console.error(
     `Blocking no-pitch validation failed: ${result.noPitchFailedCount} case(s).`,
   );
-  console.error(`Failed no-pitch cases: ${result.noPitchFailedCaseNames.join(", ")}`);
+  console.error(
+    `Failed no-pitch cases: ${result.noPitchFailedCaseNames.join(", ")}`,
+  );
 }
 
 if (result.blockingPassed) {
   process.exit(0);
 }
 
-console.error(`Blocking failed cases: ${result.blockingFailedCaseNames.join(", ")}`);
+console.error(
+  `Blocking failed cases: ${result.blockingFailedCaseNames.join(", ")}`,
+);
 console.error(
   "Clean sine blocking pitch failures, robustness blocking pitch failures, blocking no-pitch failures, script exceptions, or compilation failures make this command exit 1.",
 );

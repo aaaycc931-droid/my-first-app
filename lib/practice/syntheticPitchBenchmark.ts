@@ -11,6 +11,10 @@ export type SyntheticPitchBenchmarkCase = {
   amplitude: number;
   toleranceCents: number;
   noiseAmount?: number;
+  frequencyEndHz?: number;
+  vibratoDepthCents?: number;
+  vibratoRateHz?: number;
+  harmonics?: { multiple: number; amplitudeRatio: number }[];
 };
 
 export type SyntheticNoPitchBenchmarkExpectedErrorKind =
@@ -62,18 +66,54 @@ export const createSyntheticPitchBuffer = ({
   sampleRate,
   amplitude,
   noiseAmount = 0,
-}: Omit<SyntheticPitchBenchmarkCase, "toleranceCents">): PitchAudioBufferLike => {
+  frequencyEndHz,
+  vibratoDepthCents,
+  vibratoRateHz,
+  harmonics,
+}: Omit<
+  SyntheticPitchBenchmarkCase,
+  "toleranceCents"
+>): PitchAudioBufferLike => {
   const length = Math.max(0, Math.floor(durationSeconds * sampleRate));
   const samples = new Float32Array(length);
 
   for (let sampleIndex = 0; sampleIndex < length; sampleIndex += 1) {
     const timeSeconds = sampleIndex / sampleRate;
-    const sineSample = Math.sin(2 * Math.PI * frequencyHz * timeSeconds);
+    const progress = durationSeconds > 0 ? timeSeconds / durationSeconds : 0;
+    const driftFrequencyHz =
+      frequencyEndHz === undefined
+        ? frequencyHz
+        : frequencyHz + (frequencyEndHz - frequencyHz) * progress;
+    const vibratoMultiplier =
+      vibratoDepthCents === undefined || vibratoRateHz === undefined
+        ? 1
+        : 2 **
+          ((vibratoDepthCents *
+            Math.sin(2 * Math.PI * vibratoRateHz * timeSeconds)) /
+            1200);
+    const instantaneousFrequencyHz = driftFrequencyHz * vibratoMultiplier;
+    const sineSample = Math.sin(
+      2 * Math.PI * instantaneousFrequencyHz * timeSeconds,
+    );
+    const harmonicSample = (harmonics ?? []).reduce(
+      (sum, harmonic) =>
+        sum +
+        harmonic.amplitudeRatio *
+          Math.sin(
+            2 *
+              Math.PI *
+              instantaneousFrequencyHz *
+              harmonic.multiple *
+              timeSeconds,
+          ),
+      0,
+    );
     const noiseSample =
       noiseAmount > 0
         ? createDeterministicNoiseSample(sampleIndex) * noiseAmount
         : 0;
-    samples[sampleIndex] = amplitude * sineSample + noiseSample;
+    samples[sampleIndex] =
+      amplitude * (sineSample + harmonicSample) + noiseSample;
   }
 
   return {
@@ -82,7 +122,9 @@ export const createSyntheticPitchBuffer = ({
     sampleRate,
     getChannelData: (channelIndex: number) => {
       if (channelIndex !== 0) {
-        throw new Error("Synthetic pitch benchmark buffer only has one channel.");
+        throw new Error(
+          "Synthetic pitch benchmark buffer only has one channel.",
+        );
       }
 
       return samples;
@@ -106,7 +148,9 @@ export const createSilentSyntheticPitchBuffer = ({
     sampleRate,
     getChannelData: (channelIndex: number) => {
       if (channelIndex !== 0) {
-        throw new Error("Synthetic pitch benchmark buffer only has one channel.");
+        throw new Error(
+          "Synthetic pitch benchmark buffer only has one channel.",
+        );
       }
 
       return samples;
