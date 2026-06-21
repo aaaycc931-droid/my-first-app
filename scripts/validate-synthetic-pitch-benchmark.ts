@@ -31,10 +31,31 @@ const printPitchDiagnostics = (
         ...(includeExploratoryDetails && pitchResult.frequencyEndHz !== undefined
           ? [
               `driftStartFrequencyHz=${formatNumber(pitchResult.targetFrequencyHz)}`,
+              `driftMidpointFrequencyHz=${formatOptionalNumber(
+                pitchResult.midpointFrequencyHz,
+              )}`,
+              `driftExpectedMedianFrequencyHz=${formatOptionalNumber(
+                pitchResult.expectedMedianFrequencyHz,
+              )}`,
               `driftEndFrequencyHz=${formatNumber(pitchResult.frequencyEndHz)}`,
               `driftEstimatedFrequencyHz=${formatNumber(
                 pitchResult.estimatedFrequencyHz,
               )}`,
+              `driftCentsVsStart=${formatNumber(
+                pitchResult.centsErrorAgainstStart,
+              )}`,
+              `driftCentsVsMidpoint=${formatOptionalNumber(
+                pitchResult.centsErrorAgainstMidpoint,
+              )}`,
+              `driftCentsVsEnd=${formatOptionalNumber(
+                pitchResult.centsErrorAgainstEnd,
+              )}`,
+              `driftCentsVsExpectedMedian=${formatOptionalNumber(
+                pitchResult.centsErrorAgainstExpectedMedian,
+              )}`,
+              `driftSemanticDiagnostic=${
+                pitchResult.semanticDiagnostic ?? "n/a"
+              }`,
             ]
           : []),
         ...(includeExploratoryDetails &&
@@ -86,7 +107,7 @@ printPitchDiagnostics(result.robustnessPitchResults);
 
 console.log("Exploratory non-blocking pitch diagnostics:");
 console.log(
-  "Exploratory cases cover generated in-memory higher noise, frequency drift, vibrato, and mixed harmonics. They are observation-only diagnostics and do not affect the validation exit code.",
+  "Exploratory cases cover generated in-memory higher noise, frequency drift, vibrato, and mixed harmonics. Frequency drift now reports start/midpoint/expected-median/end comparisons so it can clarify benchmark semantics before future accuracy work. They are observation-only diagnostics and do not affect the validation exit code.",
 );
 printPitchDiagnostics(
   result.exploratoryPitchResults,
