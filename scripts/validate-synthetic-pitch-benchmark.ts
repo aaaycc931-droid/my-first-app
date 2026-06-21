@@ -5,9 +5,13 @@ const result = runDefaultSyntheticPitchBenchmarkSuite();
 const formatNumber = (value: number, fractionDigits = 2) =>
   Number.isFinite(value) ? value.toFixed(fractionDigits) : String(value);
 
+const formatOptionalNumber = (value: number | undefined, fractionDigits = 2) =>
+  value === undefined ? "n/a" : formatNumber(value, fractionDigits);
+
 const printPitchDiagnostics = (
   pitchResults: typeof result.pitchResults,
   failedStatus = "failed",
+  includeExploratoryDetails = false,
 ) => {
   for (const pitchResult of pitchResults) {
     const status = pitchResult.passed ? "passed" : failedStatus;
@@ -21,6 +25,34 @@ const printPitchDiagnostics = (
         `nearestNote=${pitchResult.nearestNote}`,
         `confidence=${formatNumber(pitchResult.confidence, 3)}`,
         `frames=${pitchResult.validPitchFrames}/${pitchResult.framesAnalyzed}`,
+        `frameFrequencyMinHz=${formatNumber(pitchResult.frameFrequencyMinHz)}`,
+        `frameFrequencyMedianHz=${formatNumber(pitchResult.frameFrequencyMedianHz)}`,
+        `frameFrequencyMaxHz=${formatNumber(pitchResult.frameFrequencyMaxHz)}`,
+        ...(includeExploratoryDetails && pitchResult.frequencyEndHz !== undefined
+          ? [
+              `driftStartFrequencyHz=${formatNumber(pitchResult.targetFrequencyHz)}`,
+              `driftEndFrequencyHz=${formatNumber(pitchResult.frequencyEndHz)}`,
+              `driftEstimatedFrequencyHz=${formatNumber(
+                pitchResult.estimatedFrequencyHz,
+              )}`,
+            ]
+          : []),
+        ...(includeExploratoryDetails &&
+        (pitchResult.vibratoDepthCents !== undefined ||
+          pitchResult.vibratoRateHz !== undefined)
+          ? [
+              `vibratoBaseFrequencyHz=${formatNumber(
+                pitchResult.targetFrequencyHz,
+              )}`,
+              `vibratoDepthCents=${formatOptionalNumber(
+                pitchResult.vibratoDepthCents,
+              )}`,
+              `vibratoRateHz=${formatOptionalNumber(pitchResult.vibratoRateHz)}`,
+              `vibratoEstimatedFrequencyHz=${formatNumber(
+                pitchResult.estimatedFrequencyHz,
+              )}`,
+            ]
+          : []),
         `status=${status}`,
       ].join(" | "),
     );
@@ -59,6 +91,7 @@ console.log(
 printPitchDiagnostics(
   result.exploratoryPitchResults,
   "observed-outside-tolerance",
+  true,
 );
 
 console.log("Blocking no-pitch validation:");

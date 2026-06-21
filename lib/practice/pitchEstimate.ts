@@ -5,6 +5,9 @@ export type PitchEstimateResult = {
   confidence: number;
   framesAnalyzed: number;
   validPitchFrames: number;
+  frameFrequencyMinHz: number;
+  frameFrequencyMedianHz: number;
+  frameFrequencyMaxHz: number;
 };
 
 export type PitchAudioBufferLike = {
@@ -203,6 +206,8 @@ export const estimateLocalPitch = (
   }
 
   const estimatedFrequencyHz = calculateMedian(frameFrequencies);
+  const frameFrequencyMinHz = Math.min(...frameFrequencies);
+  const frameFrequencyMaxHz = Math.max(...frameFrequencies);
   const { nearestNote, centsOffset } =
     getNearestPitchNote(estimatedFrequencyHz);
 
@@ -213,5 +218,8 @@ export const estimateLocalPitch = (
     confidence: frameFrequencies.length / framesAnalyzed,
     framesAnalyzed,
     validPitchFrames: frameFrequencies.length,
+    frameFrequencyMinHz,
+    frameFrequencyMedianHz: estimatedFrequencyHz,
+    frameFrequencyMaxHz,
   };
 };
