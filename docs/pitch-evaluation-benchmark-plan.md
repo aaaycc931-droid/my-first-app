@@ -197,3 +197,19 @@ A safe future sequence is:
 P4a keeps the P3a/P3b exploratory cases non-blocking and adds only a minimal frame aggregation robustness step inside the experimental local pitch estimator. The estimator now filters per-frame candidates to a dominant rounded-MIDI cluster before taking the final median when enough frames support that cluster. This is intentionally scoped to frame aggregation / outlier robustness only: it does not rewrite pitch detection, does not change benchmark tolerances or blocking target frequencies, does not promote exploratory cases to blocking, and does not modify `/api/recognize`, recognition providers, Practice Mode workflow, P1/P2 melody behavior, uploads, AI APIs, PDF handling, Audiveris, formal scoring, rhythm evaluation, or sight-singing assessment.
 
 The P4a exploratory observations should be read as diagnostic only. In the recorded run, frequency drift retained fewer dominant-cluster frames but remained outside the start-frequency tolerance, so it is still unresolved. Vibrato improved from 422.09Hz / -71.93 cents to 436.60Hz / -13.44 cents after the octave-spread guard limited late extreme outlier frames, while higher noise and mixed harmonics stayed stable. This means P4a is a small regression-safe aggregation hardening step, not a complete vibrato estimator solution or production accuracy proof.
+
+## 13. P4b frequency drift semantic clarification
+
+The frequency-drift exploratory case is intentionally not promoted to a blocking gate. It remains a generated in-memory diagnostic that drifts from 440.00Hz to 466.16Hz over the sample. P4b clarifies that a single cents error against the starting 440.00Hz target is not enough to describe the intended behavior.
+
+For this case, benchmark output should expose:
+
+- `driftStartFrequencyHz`: the starting 440.00Hz pitch currently used as the historical target.
+- `driftMidpointFrequencyHz`: the arithmetic midpoint of the generated linear drift, 453.08Hz.
+- `driftExpectedMedianFrequencyHz`: the current semantic median expectation for the linear drift, also 453.08Hz.
+- `driftEndFrequencyHz`: the ending 466.16Hz pitch.
+- cents offsets against start, midpoint, end, and expected median.
+
+Future P4c accuracy work should decide whether the diagnostic is meant to evaluate start-pitch bias, end-pitch bias, median / average pitch behavior, or unstable-pitch detection. Until that target is chosen, frequency drift should stay exploratory, non-blocking, and excluded from production accuracy claims.
+
+P4b does not change the estimator algorithm, tolerance, blocking targets, provider boundaries, `/api/recognize`, uploads, AI APIs, Audiveris, real voice datasets, formal pitch scoring, rhythm evaluation, sight-singing assessment, Practice Mode workflow, or P1/P2 melody flow/history behavior.

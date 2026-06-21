@@ -12,6 +12,8 @@ export type SyntheticPitchBenchmarkCase = {
   toleranceCents: number;
   noiseAmount?: number;
   frequencyEndHz?: number;
+  expectedMedianFrequencyHz?: number;
+  semanticDiagnostic?: string;
   vibratoDepthCents?: number;
   vibratoRateHz?: number;
   harmonics?: { multiple: number; amplitudeRatio: number }[];
@@ -33,6 +35,13 @@ export type SyntheticPitchBenchmarkResult = {
   frameFrequencyMedianHz: number;
   frameFrequencyMaxHz: number;
   frequencyEndHz?: number;
+  midpointFrequencyHz?: number;
+  expectedMedianFrequencyHz?: number;
+  centsErrorAgainstStart: number;
+  centsErrorAgainstMidpoint?: number;
+  centsErrorAgainstEnd?: number;
+  centsErrorAgainstExpectedMedian?: number;
+  semanticDiagnostic?: string;
   vibratoDepthCents?: number;
   vibratoRateHz?: number;
   passed: boolean;
@@ -173,6 +182,12 @@ export const runSyntheticPitchBenchmarkCase = (
     estimate.estimatedFrequencyHz,
     benchmarkCase.frequencyHz,
   );
+  const midpointFrequencyHz =
+    benchmarkCase.frequencyEndHz === undefined
+      ? undefined
+      : (benchmarkCase.frequencyHz + benchmarkCase.frequencyEndHz) / 2;
+  const expectedMedianFrequencyHz =
+    benchmarkCase.expectedMedianFrequencyHz ?? midpointFrequencyHz;
 
   return {
     targetFrequencyHz: benchmarkCase.frequencyHz,
@@ -186,6 +201,31 @@ export const runSyntheticPitchBenchmarkCase = (
     frameFrequencyMedianHz: estimate.frameFrequencyMedianHz,
     frameFrequencyMaxHz: estimate.frameFrequencyMaxHz,
     frequencyEndHz: benchmarkCase.frequencyEndHz,
+    midpointFrequencyHz,
+    expectedMedianFrequencyHz,
+    centsErrorAgainstStart: centsError,
+    centsErrorAgainstMidpoint:
+      midpointFrequencyHz === undefined
+        ? undefined
+        : calculateCentsError(
+            estimate.estimatedFrequencyHz,
+            midpointFrequencyHz,
+          ),
+    centsErrorAgainstEnd:
+      benchmarkCase.frequencyEndHz === undefined
+        ? undefined
+        : calculateCentsError(
+            estimate.estimatedFrequencyHz,
+            benchmarkCase.frequencyEndHz,
+          ),
+    centsErrorAgainstExpectedMedian:
+      expectedMedianFrequencyHz === undefined
+        ? undefined
+        : calculateCentsError(
+            estimate.estimatedFrequencyHz,
+            expectedMedianFrequencyHz,
+          ),
+    semanticDiagnostic: benchmarkCase.semanticDiagnostic,
     vibratoDepthCents: benchmarkCase.vibratoDepthCents,
     vibratoRateHz: benchmarkCase.vibratoRateHz,
     passed: Math.abs(centsError) <= benchmarkCase.toleranceCents,

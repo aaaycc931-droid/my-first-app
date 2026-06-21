@@ -199,6 +199,9 @@ export const exploratorySyntheticPitchBenchmarkCases: SyntheticPitchBenchmarkSui
       caseName: "A4 exploratory frequency drift 440Hz to 466.16Hz",
       frequencyHz: 440,
       frequencyEndHz: 466.16,
+      expectedMedianFrequencyHz: 453.08,
+      semanticDiagnostic:
+        "linear-drift exploratory diagnostic; compare estimate against start, midpoint/expected median, and end before defining any future accuracy target",
       durationSeconds: defaultDurationSeconds,
       sampleRate: defaultSampleRate,
       amplitude: defaultAmplitude,

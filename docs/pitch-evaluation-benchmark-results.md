@@ -263,3 +263,34 @@ Blocking gate result from the same run:
 - Blocking no-pitch validation passed: 2/2.
 
 These observations are synthetic diagnostics only. They are not production accuracy claims, formal scoring evidence, rhythm evaluation, sight-singing assessment, or proof of real singing accuracy.
+
+## P4b frequency drift benchmark semantics investigation — 2026-06-21
+
+Command:
+
+```bash
+npm run validate:synthetic-pitch-benchmark
+```
+
+Scope:
+
+- Clarified the generated in-memory frequency-drift exploratory diagnostic semantics without changing the pitch estimator algorithm.
+- Kept the frequency-drift case non-blocking and observation-only.
+- Kept the drift input itself as the existing 440.00Hz to 466.16Hz generated case; only semantic metadata and benchmark output were added.
+- Added explicit start, midpoint / expected median, and end comparisons so future P4c accuracy work can decide whether the intended target should be start pitch, ending pitch, median / average pitch, or an unstable-pitch classification.
+- Did not relax tolerance, promote frequency drift, change blocking targets, modify `/api/recognize`, change providers, add uploads, add Audiveris, add AI APIs, add real voice data, add formal pitch scoring, add rhythm evaluation, or change Practice Mode / melody workflow behavior.
+
+Observed frequency-drift diagnostic from the local run:
+
+| caseName | startFrequencyHz | midpointFrequencyHz | expectedMedianFrequencyHz | endFrequencyHz | estimatedFrequencyHz | centsVsStart | centsVsMidpoint | centsVsEnd | centsVsExpectedMedian | nearestNote | confidence | frames | status |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- | ---: | --- | --- |
+| A4 exploratory frequency drift 440Hz to 466.16Hz | 440.00 | 453.08 | 453.08 | 466.16 | 466.73 | +102.08 | +51.37 | +2.10 | +51.37 | A#4 | 0.750 | 15/20 | observed-outside-tolerance |
+
+Semantic observation:
+
+- Against the historical starting-frequency target, the estimate remains outside the existing 50-cent tolerance at +102.08 cents.
+- Against the linear midpoint / expected median frequency of 453.08Hz, the estimate is still slightly outside the same tolerance at +51.37 cents.
+- Against the ending frequency of 466.16Hz, the estimate is very close at +2.10 cents.
+- Therefore this diagnostic currently appears ending-pitch-biased after P4a frame aggregation, but P4b intentionally does not define that as correct or incorrect. It only makes the semantics visible so a later P4c can choose the intended behavior.
+
+This P4b result remains exploratory and is not production accuracy proof, not formal scoring, and not evidence of real singing accuracy.
