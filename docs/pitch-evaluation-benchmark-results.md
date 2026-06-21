@@ -202,3 +202,33 @@ Observed exploratory diagnostics from the local run:
 - Mixed harmonics: A4 440Hz with second and third harmonics estimated 440.00Hz, +0.00 cents, nearest note A4, confidence 1.000, 20/20 valid frames.
 
 These observations are synthetic diagnostics only. They are not production accuracy claims, formal scoring evidence, or proof of real singing accuracy.
+
+## P3b exploratory pitch benchmark diagnostics — 2026-06-21
+
+Command:
+
+```bash
+npm run validate:synthetic-pitch-benchmark
+```
+
+Scope:
+
+- Enhanced the generated in-memory exploratory/non-blocking benchmark output with diagnostic fields for valid/analyzed frame count, estimated frequency, nearest note, cents offset, confidence, and frame-level pitch min/median/max.
+- Added exploratory-only condition details so the frequency drift case prints its start frequency, end frequency, and estimated frequency together, and the vibrato case prints its base frequency, vibrato depth, vibrato rate, and estimated frequency together.
+- Existing clean sine, robustness, and no-pitch cases remain blocking regression gates. Exploratory cases remain observation-only and do not affect validation pass/fail.
+- No tolerance was relaxed, no pitch estimator algorithm was changed, no real voice dataset or audio fixture was added, and no AI/API/upload/provider/Audiveris boundary was changed.
+
+Observed exploratory diagnostics from the local run:
+
+| exploratory case | estimated frequency | nearest note | cents offset | confidence | valid frames | frame min | frame median | frame max | condition detail | exploratory status |
+| --- | ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: | --- | --- |
+| A4 440Hz exploratory higher noise | 440.32Hz | A4 | +1.27 | 1.000 | 20/20 | 438.18Hz | 440.32Hz | 441.21Hz | deterministic higher noise | passed |
+| A4 exploratory frequency drift 440Hz to 466.16Hz | 465.51Hz | A#4 | +97.58 | 1.000 | 20/20 | 442.44Hz | 465.51Hz | 488.60Hz | start 440.00Hz → end 466.16Hz → estimate 465.51Hz | observed outside tolerance |
+| A4 440Hz exploratory vibrato 35 cents at 5Hz | 422.09Hz | G#4 | -71.93 | 1.000 | 20/20 | 196.17Hz | 422.09Hz | 602.57Hz | base 440.00Hz, depth 35 cents, rate 5Hz → estimate 422.09Hz | observed outside tolerance |
+| A4 440Hz exploratory mixed harmonics | 440.00Hz | A4 | +0.00 | 1.000 | 20/20 | 440.00Hz | 440.00Hz | 440.00Hz | second and third harmonics | passed |
+
+Diagnostic observations:
+
+- The frequency drift case's median estimate is close to the configured end frequency and outside the 50-cent comparison to the start frequency, which reinforces why this case remains exploratory/non-blocking.
+- The vibrato case shows a wide frame-level pitch spread and a median below the base frequency, which makes it useful for future estimator behavior analysis without changing validation pass/fail.
+- Higher noise and mixed harmonics remained near A4 in this run, but they are still exploratory diagnostics rather than production accuracy proof.

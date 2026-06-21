@@ -29,6 +29,12 @@ export type SyntheticPitchBenchmarkResult = {
   confidence: number;
   framesAnalyzed: number;
   validPitchFrames: number;
+  frameFrequencyMinHz: number;
+  frameFrequencyMedianHz: number;
+  frameFrequencyMaxHz: number;
+  frequencyEndHz?: number;
+  vibratoDepthCents?: number;
+  vibratoRateHz?: number;
   passed: boolean;
   toleranceCents: number;
 };
@@ -176,6 +182,12 @@ export const runSyntheticPitchBenchmarkCase = (
     confidence: estimate.confidence,
     framesAnalyzed: estimate.framesAnalyzed,
     validPitchFrames: estimate.validPitchFrames,
+    frameFrequencyMinHz: estimate.frameFrequencyMinHz,
+    frameFrequencyMedianHz: estimate.frameFrequencyMedianHz,
+    frameFrequencyMaxHz: estimate.frameFrequencyMaxHz,
+    frequencyEndHz: benchmarkCase.frequencyEndHz,
+    vibratoDepthCents: benchmarkCase.vibratoDepthCents,
+    vibratoRateHz: benchmarkCase.vibratoRateHz,
     passed: Math.abs(centsError) <= benchmarkCase.toleranceCents,
     toleranceCents: benchmarkCase.toleranceCents,
   };
