@@ -232,3 +232,34 @@ Diagnostic observations:
 - The frequency drift case's median estimate is close to the configured end frequency and outside the 50-cent comparison to the start frequency, which reinforces why this case remains exploratory/non-blocking.
 - The vibrato case shows a wide frame-level pitch spread and a median below the base frequency, which makes it useful for future estimator behavior analysis without changing validation pass/fail.
 - Higher noise and mixed harmonics remained near A4 in this run, but they are still exploratory diagnostics rather than production accuracy proof.
+
+## P4a vibrato frame outlier robustness — 2026-06-21
+
+Command:
+
+```bash
+npm run validate:synthetic-pitch-benchmark
+```
+
+Scope:
+
+- Added a minimal pitch estimator frame aggregation hardening step that filters per-frame frequency candidates to the strongest rounded-MIDI cluster before computing the aggregate median.
+- Existing clean sine, robustness, and no-pitch cases remain blocking regression gates.
+- Exploratory diagnostics remain observation-only and do not affect validation pass/fail.
+- No tolerance was relaxed, no blocking target frequency was changed, no exploratory input case was changed, and no exploratory case was promoted to blocking.
+- No real voice dataset, audio fixture, uploaded audio, AI API, `/api/recognize`, recognition provider union, PDF upload, Audiveris integration, rhythm evaluation, formal pitch scoring, sight-singing assessment, Practice Mode UI workflow, or P1/P2 melody flow/history behavior was added or changed.
+
+Before/after exploratory observations:
+
+| exploratory case | before estimate | before frames | before frame min/median/max | after estimate | after frames | after frame min/median/max | observation |
+| --- | ---: | --- | --- | ---: | --- | --- | --- |
+| A4 exploratory frequency drift 440Hz to 466.16Hz | 465.51Hz (+97.58 cents) | 20/20 | 442.44Hz / 465.51Hz / 488.60Hz | 466.73Hz (+102.08 cents) | 15/20 | 449.72Hz / 466.73Hz / 483.75Hz | The robust aggregation narrows the retained frame spread around the dominant pitch cluster; this case remains exploratory and outside the start-frequency tolerance. |
+| A4 440Hz exploratory vibrato 35 cents at 5Hz | 422.09Hz (-71.93 cents) | 20/20 | 196.17Hz / 422.09Hz / 602.57Hz | 422.09Hz (-71.93 cents) | 20/20 | 196.17Hz / 422.09Hz / 602.57Hz | This first P4a filter does not yet improve the vibrato aggregate estimate because the vibrato frames do not form a sufficiently dominant rounded-MIDI cluster; the diagnostic still exposes the extreme low/high frame outliers for follow-up work. |
+
+Blocking gate result from the same run:
+
+- Clean sine blocking pitch regression cases passed: 9/9.
+- Robustness blocking pitch regression cases passed: 6/6.
+- Blocking no-pitch validation passed: 2/2.
+
+These observations are synthetic diagnostics only. They are not production accuracy claims, formal scoring evidence, rhythm evaluation, sight-singing assessment, or proof of real singing accuracy.
