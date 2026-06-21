@@ -172,10 +172,11 @@ Keep these boundaries visible during manual QA:
 * A successful local pitch estimate adds one attempt summary to the local list.
 * Repeated Estimate pitch locally clicks for the same recording do not append duplicate attempt history entries.
 * Recording a new attempt and successfully estimating pitch adds a new attempt history entry.
-* Attempt summary shows target note, estimated nearest note, estimated frequency Hz, cents from target, confidence frame coverage, and a brief non-score feedback label such as close to target, a little sharp, a little flat, or far from target.
+* Attempt summary shows Step #, target note, estimated note, estimated frequency Hz, cents from target, confidence frame coverage, and a brief non-score feedback label such as close to target, a little sharp, a little flat, or far from target.
+* The Step # and target note in each attempt summary are captured from the current melody step at estimate time and do not change if the user later navigates to another step.
 * Too-short or no-usable-pitch estimate errors do not add successful attempt history entries.
 * Consecutive successful local pitch estimates keep only the most recent 5 attempt summaries.
-* Clicking an attempt's Practice this target again control switches to the first fixed melody step matching that attempt's target note.
+* Clicking an attempt's Practice this target again control switches back to that attempt's stored melody step instead of looking up the first matching target note.
 * Practice this target again does not automatically start recording, does not automatically play the target note, does not automatically estimate pitch, and does not add a new attempt history entry.
 * Practice this target again does not upload audio, does not save anything to a server or browser storage, and does not score, grade, or evaluate rhythm.
 * Clear attempt history clears only the visible local attempt list.

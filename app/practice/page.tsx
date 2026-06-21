@@ -38,6 +38,9 @@ type PitchConfidenceFeedback = {
 type PracticeAttemptSummary = {
   id: number;
   label: string;
+  melodyStepId: string;
+  melodyStepIndex: number;
+  melodyStepNumber: number;
   targetNote: string;
   nearestNote: string;
   estimatedFrequencyHz: number;
@@ -623,6 +626,8 @@ export default function PracticePage() {
     }
 
     const recordingAttemptKey = currentRecordingAttemptKeyRef.current;
+    const attemptedMelodyStepIndex = currentMelodyStepIndex;
+    const attemptedMelodyStep = melodySteps[attemptedMelodyStepIndex] ?? melodySteps[0];
 
     setPitchEstimateError("");
     setPitchEstimateResult(null);
@@ -643,7 +648,7 @@ export default function PracticePage() {
         pitchEstimateRunId === pitchEstimateRunIdRef.current &&
         recordingAttemptKey === currentRecordingAttemptKeyRef.current
       ) {
-        const targetNote = selectedTargetNote;
+        const targetNote = attemptedMelodyStep.targetNote;
         const targetFrequencyHz = noteFrequencies[targetNote];
 
         setPitchEstimateResult(result);
@@ -661,6 +666,9 @@ export default function PracticePage() {
             {
               id: nextAttemptId,
               label: `Attempt ${nextAttemptId}`,
+              melodyStepId: attemptedMelodyStep.id,
+              melodyStepIndex: attemptedMelodyStepIndex,
+              melodyStepNumber: attemptedMelodyStepIndex + 1,
               targetNote,
               nearestNote: result.nearestNote,
               estimatedFrequencyHz: result.estimatedFrequencyHz,
@@ -716,11 +724,9 @@ export default function PracticePage() {
     setCurrentMelodyStepIndex(0);
   };
 
-  const handlePracticeAttemptTargetAgain = (targetNote: string) => {
-    const matchingStepIndex = melodySteps.findIndex((step) => step.targetNote === targetNote);
-
-    if (matchingStepIndex >= 0) {
-      setCurrentMelodyStepIndex(matchingStepIndex);
+  const handlePracticeAttemptTargetAgain = (melodyStepIndex: number) => {
+    if (melodyStepIndex >= 0 && melodyStepIndex < melodySteps.length) {
+      setCurrentMelodyStepIndex(melodyStepIndex);
     }
   };
 
@@ -1069,15 +1075,16 @@ export default function PracticePage() {
                       <p className="text-xs font-semibold uppercase tracking-wide text-sky-700">{attempt.feedbackLabel}</p>
                     </div>
                     <dl className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                      <div><dt className="font-semibold">Step #</dt><dd className="text-sky-800">{attempt.melodyStepNumber}</dd></div>
                       <div><dt className="font-semibold">Target note</dt><dd className="text-sky-800">{attempt.targetNote}</dd></div>
-                      <div><dt className="font-semibold">Estimated nearest note</dt><dd className="text-sky-800">{attempt.nearestNote}</dd></div>
+                      <div><dt className="font-semibold">Estimated note</dt><dd className="text-sky-800">{attempt.nearestNote}</dd></div>
                       <div><dt className="font-semibold">Estimated frequency Hz</dt><dd className="text-sky-800">{attempt.estimatedFrequencyHz.toFixed(2)}</dd></div>
                       <div><dt className="font-semibold">Cents from target</dt><dd className="text-sky-800">{attempt.centsFromTarget.toFixed(1)}</dd></div>
                       <div><dt className="font-semibold">Confidence frame coverage</dt><dd className="text-sky-800">{attempt.confidence.toFixed(2)}</dd></div>
                     </dl>
                     <button
                       type="button"
-                      onClick={() => handlePracticeAttemptTargetAgain(attempt.targetNote)}
+                      onClick={() => handlePracticeAttemptTargetAgain(attempt.melodyStepIndex)}
                       className="mt-3 rounded-full border border-sky-300 bg-white px-4 py-2 text-sm font-semibold text-sky-800"
                     >
                       Practice this target again
