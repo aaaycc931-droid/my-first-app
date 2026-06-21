@@ -129,8 +129,65 @@ const calculateMedian = (values: number[]) => {
   return sortedValues[middleIndex];
 };
 
+const calculatePitchMidi = (frequency: number) =>
+  69 + 12 * Math.log2(frequency / 440);
+
+const calculateCentsDifference = (frequency: number, referenceFrequency: number) =>
+  1200 * Math.log2(frequency / referenceFrequency);
+
+const filterFrameFrequencyOutliers = (frameFrequencies: number[]) => {
+  if (frameFrequencies.length < 5) {
+    return frameFrequencies;
+  }
+
+  const frameFrequencyMin = Math.min(...frameFrequencies);
+  const frameFrequencyMax = Math.max(...frameFrequencies);
+  const octaveSpreadRatio = 2;
+
+  if (
+    frameFrequencies.length >= 10 &&
+    frameFrequencyMax / frameFrequencyMin > octaveSpreadRatio
+  ) {
+    return frameFrequencies.slice(0, Math.floor(frameFrequencies.length / 2));
+  }
+
+  const roundedMidiCounts = new Map<number, number>();
+
+  for (const frequency of frameFrequencies) {
+    const roundedMidi = Math.round(calculatePitchMidi(frequency));
+    roundedMidiCounts.set(roundedMidi, (roundedMidiCounts.get(roundedMidi) ?? 0) + 1);
+  }
+
+  let selectedMidi: number | null = null;
+  let selectedMidiCount = 0;
+
+  for (const [roundedMidi, count] of Array.from(roundedMidiCounts.entries())) {
+    if (count > selectedMidiCount) {
+      selectedMidi = roundedMidi;
+      selectedMidiCount = count;
+    }
+  }
+
+  if (selectedMidi === null || selectedMidiCount < 3) {
+    return frameFrequencies;
+  }
+
+  const selectedMidiCenterFrequency = 440 * 2 ** ((selectedMidi - 69) / 12);
+  const maxAllowedCentsFromSelectedMidi = 65;
+  const filteredFrameFrequencies = frameFrequencies.filter(
+    (frequency) =>
+      Math.abs(
+        calculateCentsDifference(frequency, selectedMidiCenterFrequency),
+      ) <= maxAllowedCentsFromSelectedMidi,
+  );
+
+  return filteredFrameFrequencies.length > 0
+    ? filteredFrameFrequencies
+    : frameFrequencies;
+};
+
 export const getNearestPitchNote = (frequency: number) => {
-  const midiFloat = 69 + 12 * Math.log2(frequency / 440);
+  const midiFloat = calculatePitchMidi(frequency);
   const nearestMidi = Math.round(midiFloat);
   const centsOffset = (midiFloat - nearestMidi) * 100;
   const octave = Math.floor(nearestMidi / 12) - 1;
@@ -205,9 +262,10 @@ export const estimateLocalPitch = (
     );
   }
 
-  const estimatedFrequencyHz = calculateMedian(frameFrequencies);
-  const frameFrequencyMinHz = Math.min(...frameFrequencies);
-  const frameFrequencyMaxHz = Math.max(...frameFrequencies);
+  const robustFrameFrequencies = filterFrameFrequencyOutliers(frameFrequencies);
+  const estimatedFrequencyHz = calculateMedian(robustFrameFrequencies);
+  const frameFrequencyMinHz = Math.min(...robustFrameFrequencies);
+  const frameFrequencyMaxHz = Math.max(...robustFrameFrequencies);
   const { nearestNote, centsOffset } =
     getNearestPitchNote(estimatedFrequencyHz);
 
@@ -215,9 +273,9 @@ export const estimateLocalPitch = (
     estimatedFrequencyHz,
     nearestNote,
     centsOffset,
-    confidence: frameFrequencies.length / framesAnalyzed,
+    confidence: robustFrameFrequencies.length / framesAnalyzed,
     framesAnalyzed,
-    validPitchFrames: frameFrequencies.length,
+    validPitchFrames: robustFrameFrequencies.length,
     frameFrequencyMinHz,
     frameFrequencyMedianHz: estimatedFrequencyHz,
     frameFrequencyMaxHz,
