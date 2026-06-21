@@ -140,6 +140,17 @@ const filterFrameFrequencyOutliers = (frameFrequencies: number[]) => {
     return frameFrequencies;
   }
 
+  const frameFrequencyMin = Math.min(...frameFrequencies);
+  const frameFrequencyMax = Math.max(...frameFrequencies);
+  const octaveSpreadRatio = 2;
+
+  if (
+    frameFrequencies.length >= 10 &&
+    frameFrequencyMax / frameFrequencyMin > octaveSpreadRatio
+  ) {
+    return frameFrequencies.slice(0, Math.floor(frameFrequencies.length / 2));
+  }
+
   const roundedMidiCounts = new Map<number, number>();
 
   for (const frequency of frameFrequencies) {

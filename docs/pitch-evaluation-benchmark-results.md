@@ -254,7 +254,7 @@ Before/after exploratory observations:
 | exploratory case | before estimate | before frames | before frame min/median/max | after estimate | after frames | after frame min/median/max | observation |
 | --- | ---: | --- | --- | ---: | --- | --- | --- |
 | A4 exploratory frequency drift 440Hz to 466.16Hz | 465.51Hz (+97.58 cents) | 20/20 | 442.44Hz / 465.51Hz / 488.60Hz | 466.73Hz (+102.08 cents) | 15/20 | 449.72Hz / 466.73Hz / 483.75Hz | The robust aggregation narrows the retained frame spread around the dominant pitch cluster; this case remains exploratory and outside the start-frequency tolerance. |
-| A4 440Hz exploratory vibrato 35 cents at 5Hz | 422.09Hz (-71.93 cents) | 20/20 | 196.17Hz / 422.09Hz / 602.57Hz | 422.09Hz (-71.93 cents) | 20/20 | 196.17Hz / 422.09Hz / 602.57Hz | This first P4a filter does not yet improve the vibrato aggregate estimate because the vibrato frames do not form a sufficiently dominant rounded-MIDI cluster; the diagnostic still exposes the extreme low/high frame outliers for follow-up work. |
+| A4 440Hz exploratory vibrato 35 cents at 5Hz | 422.09Hz (-71.93 cents) | 20/20 | 196.17Hz / 422.09Hz / 602.57Hz | 436.60Hz (-13.44 cents) | 10/20 | 396.04Hz / 436.60Hz / 515.54Hz | The octave-spread guard reduces the influence of late extreme outlier frames and improves the vibrato exploratory aggregate by 58.49 absolute cents while keeping the case exploratory/non-blocking. |
 
 Blocking gate result from the same run:
 
