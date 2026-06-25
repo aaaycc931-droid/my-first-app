@@ -210,6 +210,25 @@ For this case, benchmark output should expose:
 - `driftEndFrequencyHz`: the ending 466.16Hz pitch.
 - cents offsets against start, midpoint, end, and expected median.
 
-Future P4c accuracy work should decide whether the diagnostic is meant to evaluate start-pitch bias, end-pitch bias, median / average pitch behavior, or unstable-pitch detection. Until that target is chosen, frequency drift should stay exploratory, non-blocking, and excluded from production accuracy claims.
+P4c resolves that product-semantics question for the current MVP: the frequency-drift exploratory case should be interpreted as a pitch drift / unstable sustained pitch diagnostic candidate, not as a correct ending-pitch match and not as production pitch accuracy. It remains exploratory only, non-blocking, and excluded from formal scoring. Future work may detect and surface sustained-pitch instability separately from the nearest-note estimate, but that future work should be designed explicitly instead of treating the ending pitch as the product answer.
 
 P4b does not change the estimator algorithm, tolerance, blocking targets, provider boundaries, `/api/recognize`, uploads, AI APIs, Audiveris, real voice datasets, formal pitch scoring, rhythm evaluation, sight-singing assessment, Practice Mode workflow, or P1/P2 melody flow/history behavior.
+
+
+## 14. P4c frequency drift semantics decision
+
+P4c makes the product semantics explicit for the existing generated in-memory frequency drift case that moves from 440.00Hz to 466.16Hz and currently estimates near the ending pitch. For sustained pitch / single target note practice, this diagnostic must not be interpreted as simply correct because the estimator lands close to the ending pitch. It also must not be packaged as production pitch accuracy, formal scoring, or teacher-level assessment.
+
+The final P4c semantic decision is:
+
+- The case represents a pitch drift / unstable sustained pitch diagnostic.
+- The case is exploratory only.
+- The case is non-blocking.
+- The case is not formal scoring.
+- The case does not add a grade, pass, or fail result.
+- The case does not change the existing nearest-note estimate behavior.
+- Future work may detect and surface sustained-pitch instability separately from the nearest-note estimate.
+
+The current recorded observation remains useful precisely because it shows semantic risk: start 440.00Hz, midpoint / expected median 453.08Hz, end 466.16Hz, estimate 466.73Hz, +102.08 cents vs start, +51.37 cents vs midpoint / expected median, and +2.10 cents vs end. That ending-pitch proximity is diagnostic evidence of drift behavior, not evidence that the sustained target note should be scored as correct.
+
+P4c is documentation-only. It does not modify the pitch estimator algorithm, Practice Mode UI workflow, validation pass/fail logic, benchmark tolerance, existing blocking gates, blocking target frequencies, frequency drift input, `/api/recognize`, recognition provider union, PDF upload, Audiveris, AI API usage, audio upload, real voice datasets, rhythm evaluation, sight-singing assessment, formal scores, grades, pass/fail labels, or production accuracy claims.
