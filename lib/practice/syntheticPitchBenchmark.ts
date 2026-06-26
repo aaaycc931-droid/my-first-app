@@ -34,6 +34,12 @@ export type SyntheticPitchBenchmarkResult = {
   frameFrequencyMinHz: number;
   frameFrequencyMedianHz: number;
   frameFrequencyMaxHz: number;
+  frameFrequencyRangeCents: number;
+  firstHalfMedianFrequencyHz: number;
+  secondHalfMedianFrequencyHz: number;
+  firstToSecondHalfDriftCents: number;
+  sustainedPitchInstabilityThresholdCents: number;
+  sustainedPitchInstabilityObserved: boolean;
   frequencyEndHz?: number;
   midpointFrequencyHz?: number;
   expectedMedianFrequencyHz?: number;
@@ -68,6 +74,8 @@ const calculateCentsError = (
   estimatedFrequencyHz: number,
   targetFrequencyHz: number,
 ) => 1200 * Math.log2(estimatedFrequencyHz / targetFrequencyHz);
+
+const sustainedPitchInstabilityThresholdCents = 50;
 
 const createDeterministicNoiseSample = (sampleIndex: number) => {
   const noiseValue = Math.sin(sampleIndex * 12.9898) * 43758.5453;
@@ -200,6 +208,14 @@ export const runSyntheticPitchBenchmarkCase = (
     frameFrequencyMinHz: estimate.frameFrequencyMinHz,
     frameFrequencyMedianHz: estimate.frameFrequencyMedianHz,
     frameFrequencyMaxHz: estimate.frameFrequencyMaxHz,
+    frameFrequencyRangeCents: estimate.frameFrequencyRangeCents,
+    firstHalfMedianFrequencyHz: estimate.firstHalfMedianFrequencyHz,
+    secondHalfMedianFrequencyHz: estimate.secondHalfMedianFrequencyHz,
+    firstToSecondHalfDriftCents: estimate.firstToSecondHalfDriftCents,
+    sustainedPitchInstabilityThresholdCents,
+    sustainedPitchInstabilityObserved:
+      Math.abs(estimate.firstToSecondHalfDriftCents) >=
+      sustainedPitchInstabilityThresholdCents,
     frequencyEndHz: benchmarkCase.frequencyEndHz,
     midpointFrequencyHz,
     expectedMedianFrequencyHz,

@@ -312,3 +312,38 @@ Decision:
 - Future work may add explicit instability detection and user-facing drift feedback separately from the nearest-note estimate, but P4c does not implement that behavior.
 
 Boundaries confirmed for this result update: no pitch estimator algorithm change, no Practice Mode UI workflow change, no validation pass/fail change, no tolerance change, no blocking target frequency change, no frequency drift input change, no `/api/recognize` change, no recognition provider union change, no PDF upload, no Audiveris integration, no AI API usage, no audio upload, and no real voice dataset.
+
+## P4d sustained pitch instability diagnostic prototype — 2026-06-26
+
+Command:
+
+```bash
+npm run validate:synthetic-pitch-benchmark
+```
+
+Scope:
+
+- Added reporting-only sustained pitch instability diagnostic fields based on retained frame-level pitch diagnostics.
+- Kept nearest-note estimate selection and current estimated frequency aggregation unchanged.
+- Kept the existing frequency-drift input unchanged at 440.00Hz to 466.16Hz.
+- Kept clean sine, robustness, and no-pitch blocking validation pass/fail logic unchanged.
+- Kept exploratory diagnostics non-blocking and observation-only.
+- Did not change Practice Mode UI workflow, add formal scoring, add grade/pass/fail labels, add rhythm evaluation, add sight-singing assessment, change `/api/recognize`, change recognition providers, add PDF upload, connect Audiveris, call AI APIs, upload audio, or add real voice data.
+
+Observed sustained pitch instability diagnostics from the local run:
+
+| exploratory case | estimated frequency | nearest note | frames | frame range cents | first-half median | second-half median | first-to-second drift | diagnostic threshold | instability observed | exploratory status |
+| --- | ---: | --- | --- | ---: | ---: | ---: | ---: | ---: | --- | --- |
+| A4 440Hz exploratory higher noise | 440.32Hz | A4 | 20/20 | 11.94 | 440.32Hz | 440.36Hz | +0.13 cents | 50.00 cents | false | passed |
+| A4 exploratory frequency drift 440Hz to 466.16Hz | 466.73Hz | A#4 | 15/20 | 126.26 | 457.02Hz | 475.24Hz | +67.67 cents | 50.00 cents | true | observed-outside-tolerance |
+| A4 440Hz exploratory vibrato 35 cents at 5Hz | 436.60Hz | A4 | 10/20 | 456.52 | 442.52Hz | 420.97Hz | -86.45 cents | 50.00 cents | true | passed |
+| A4 440Hz exploratory mixed harmonics | 440.00Hz | A4 | 20/20 | 0.01 | 440.00Hz | 440.00Hz | +0.00 cents | 50.00 cents | false | passed |
+
+Diagnostic observations:
+
+- The frequency-drift case is flagged by the prototype diagnostic because the retained first-half median is 457.02Hz, the retained second-half median is 475.24Hz, and the first-to-second-half drift is +67.67 cents, exceeding the reporting-only 50-cent threshold.
+- The same frequency-drift case still estimates near the ending pitch at 466.73Hz and remains +102.08 cents vs the starting 440.00Hz target, +51.37 cents vs the midpoint / expected median, and +2.10 cents vs the ending 466.16Hz pitch. This continues to support the P4c interpretation: it is an unstable sustained pitch diagnostic candidate, not an ending-pitch correctness result.
+- The vibrato exploratory case also crosses the prototype first-half / second-half drift threshold, showing that the prototype diagnostic can identify instability-like frame behavior beyond simple linear drift. This remains exploratory and is not a formal score or pass/fail result.
+- Higher noise and mixed harmonics do not cross the prototype threshold in this run.
+
+These observations are generated in-memory synthetic diagnostics only. They are not production accuracy claims, formal scoring evidence, rhythm evaluation, sight-singing assessment, or proof of real singing accuracy.

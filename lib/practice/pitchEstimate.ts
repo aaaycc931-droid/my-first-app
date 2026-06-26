@@ -8,6 +8,10 @@ export type PitchEstimateResult = {
   frameFrequencyMinHz: number;
   frameFrequencyMedianHz: number;
   frameFrequencyMaxHz: number;
+  frameFrequencyRangeCents: number;
+  firstHalfMedianFrequencyHz: number;
+  secondHalfMedianFrequencyHz: number;
+  firstToSecondHalfDriftCents: number;
 };
 
 export type PitchAudioBufferLike = {
@@ -266,6 +270,28 @@ export const estimateLocalPitch = (
   const estimatedFrequencyHz = calculateMedian(robustFrameFrequencies);
   const frameFrequencyMinHz = Math.min(...robustFrameFrequencies);
   const frameFrequencyMaxHz = Math.max(...robustFrameFrequencies);
+  const frameFrequencyRangeCents = calculateCentsDifference(
+    frameFrequencyMaxHz,
+    frameFrequencyMinHz,
+  );
+  const halfFrameCount = Math.floor(robustFrameFrequencies.length / 2);
+  const firstHalfFrameFrequencies = robustFrameFrequencies.slice(
+    0,
+    Math.max(1, halfFrameCount),
+  );
+  const secondHalfFrameFrequencies = robustFrameFrequencies.slice(
+    Math.max(1, halfFrameCount),
+  );
+  const firstHalfMedianFrequencyHz = calculateMedian(firstHalfFrameFrequencies);
+  const secondHalfMedianFrequencyHz = calculateMedian(
+    secondHalfFrameFrequencies.length > 0
+      ? secondHalfFrameFrequencies
+      : firstHalfFrameFrequencies,
+  );
+  const firstToSecondHalfDriftCents = calculateCentsDifference(
+    secondHalfMedianFrequencyHz,
+    firstHalfMedianFrequencyHz,
+  );
   const { nearestNote, centsOffset } =
     getNearestPitchNote(estimatedFrequencyHz);
 
@@ -279,5 +305,9 @@ export const estimateLocalPitch = (
     frameFrequencyMinHz,
     frameFrequencyMedianHz: estimatedFrequencyHz,
     frameFrequencyMaxHz,
+    frameFrequencyRangeCents,
+    firstHalfMedianFrequencyHz,
+    secondHalfMedianFrequencyHz,
+    firstToSecondHalfDriftCents,
   };
 };
