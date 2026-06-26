@@ -232,3 +232,22 @@ The final P4c semantic decision is:
 The current recorded observation remains useful precisely because it shows semantic risk: start 440.00Hz, midpoint / expected median 453.08Hz, end 466.16Hz, estimate 466.73Hz, +102.08 cents vs start, +51.37 cents vs midpoint / expected median, and +2.10 cents vs end. That ending-pitch proximity is diagnostic evidence of drift behavior, not evidence that the sustained target note should be scored as correct.
 
 P4c is documentation-only. It does not modify the pitch estimator algorithm, Practice Mode UI workflow, validation pass/fail logic, benchmark tolerance, existing blocking gates, blocking target frequencies, frequency drift input, `/api/recognize`, recognition provider union, PDF upload, Audiveris, AI API usage, audio upload, real voice datasets, rhythm evaluation, sight-singing assessment, formal scores, grades, pass/fail labels, or production accuracy claims.
+
+## 15. P4d sustained pitch instability diagnostic prototype
+
+P4d adds a diagnostic-only sustained pitch instability prototype on top of the existing frame-level pitch diagnostics. The goal is to make the P4c frequency-drift semantic risk observable without changing the primary nearest-note estimate, current estimated frequency semantics, Practice Mode workflow, or benchmark pass/fail gates.
+
+New diagnostic fields may be reported by local benchmark output:
+
+- `frameFrequencyRangeCents`: cents range between retained frame-level minimum and maximum frequency.
+- `firstHalfMedianFrequencyHz`: median retained frame frequency from the first half of retained pitch frames.
+- `secondHalfMedianFrequencyHz`: median retained frame frequency from the second half of retained pitch frames.
+- `firstToSecondHalfDriftCents`: cents drift from first-half median to second-half median.
+- `sustainedPitchInstabilityThresholdCents`: the current diagnostic-only exploratory threshold, set to 50 cents.
+- `sustainedPitchInstabilityObserved`: whether `abs(firstToSecondHalfDriftCents)` meets or exceeds that diagnostic-only threshold.
+
+The 50-cent threshold is deliberately documented as a prototype diagnostic threshold only. It is not a tolerance relaxation, not a blocking benchmark gate, not a formal score, and not a user-facing grade/pass/fail. It exists only so generated in-memory exploratory cases can say whether they would be considered unstable by this prototype diagnostic.
+
+P4d must keep all existing blocking gates unchanged. Clean sine, robustness, and no-pitch blocking cases still determine validation pass/fail exactly as before. Exploratory higher-noise, frequency-drift, vibrato, mixed-harmonics, and instability fields remain observation-only.
+
+P4d does not change nearest-note selection behavior, target comparison, Practice Mode UI workflow, formal scoring, rhythm evaluation, sight-singing assessment, tolerance, blocking target frequencies, frequency drift input, `/api/recognize`, recognition provider union, PDF upload, Audiveris integration, AI API usage, audio upload, or real voice datasets.

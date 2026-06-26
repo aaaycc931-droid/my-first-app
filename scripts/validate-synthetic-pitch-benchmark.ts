@@ -28,6 +28,12 @@ const printPitchDiagnostics = (
         `frameFrequencyMinHz=${formatNumber(pitchResult.frameFrequencyMinHz)}`,
         `frameFrequencyMedianHz=${formatNumber(pitchResult.frameFrequencyMedianHz)}`,
         `frameFrequencyMaxHz=${formatNumber(pitchResult.frameFrequencyMaxHz)}`,
+        `frameFrequencyRangeCents=${formatNumber(pitchResult.frameFrequencyRangeCents)}`,
+        `firstHalfMedianFrequencyHz=${formatNumber(pitchResult.firstHalfMedianFrequencyHz)}`,
+        `secondHalfMedianFrequencyHz=${formatNumber(pitchResult.secondHalfMedianFrequencyHz)}`,
+        `firstToSecondHalfDriftCents=${formatNumber(pitchResult.firstToSecondHalfDriftCents)}`,
+        `sustainedPitchInstabilityThresholdCents=${formatNumber(pitchResult.sustainedPitchInstabilityThresholdCents)}`,
+        `sustainedPitchInstabilityObserved=${pitchResult.sustainedPitchInstabilityObserved}`,
         ...(includeExploratoryDetails && pitchResult.frequencyEndHz !== undefined
           ? [
               `driftStartFrequencyHz=${formatNumber(pitchResult.targetFrequencyHz)}`,
@@ -90,7 +96,7 @@ console.log(
   "Robustness cases are now blocking synthetic robustness regression cases; any quiet-amplitude, short-duration, or deterministic light-noise failure exits 1.",
 );
 console.log(
-  "Exploratory higher-noise, frequency-drift, vibrato, and mixed-harmonics cases are non-blocking diagnostics only; their results never make this command fail.",
+  "Exploratory higher-noise, frequency-drift, vibrato, mixed-harmonics, and sustained-pitch instability diagnostic fields are non-blocking diagnostics only; their results never make this command fail.",
 );
 console.log(
   "This command is a generated in-memory synthetic regression gate, not production accuracy proof, not formal scoring, and not proof of real singing accuracy.",
@@ -107,7 +113,7 @@ printPitchDiagnostics(result.robustnessPitchResults);
 
 console.log("Exploratory non-blocking pitch diagnostics:");
 console.log(
-  "Exploratory cases cover generated in-memory higher noise, frequency drift, vibrato, and mixed harmonics. Frequency drift now reports start/midpoint/expected-median/end comparisons so it can clarify benchmark semantics before future accuracy work. They are observation-only diagnostics and do not affect the validation exit code.",
+  "Exploratory cases cover generated in-memory higher noise, frequency drift, vibrato, and mixed harmonics. Frequency drift now reports start/midpoint/expected-median/end comparisons plus sustained-pitch instability diagnostic fields. These are observation-only diagnostics and do not affect the validation exit code.",
 );
 printPitchDiagnostics(
   result.exploratoryPitchResults,
