@@ -50,31 +50,31 @@ type PracticeAttemptSummary = {
 };
 
 const mockExercise = {
-  title: "Mock Melody: Stepwise Warmup",
+  title: "模拟旋律：级进热身",
   targetNotes: ["C4", "D4", "E4", "G4", "E4", "D4", "C4"],
   suggestedBpm: 72,
-  goal: "Keep the melody steady and notice where future pitch or rhythm feedback would appear.",
+  goal: "保持旋律稳定，并观察以后可能出现音高或节奏反馈的位置。",
 };
 
 const mockFeedback = {
   pitch:
-    "Mock pitch feedback: most target notes are marked as close, with G4 flagged as a future focus area.",
+    "模拟音高反馈：大多数目标音标记为接近，G4 作为后续可关注的位置。",
   rhythm:
-    "Mock rhythm feedback: the middle notes are marked slightly rushed in this placeholder flow.",
+    "模拟节奏反馈：占位流程中间几个音标记为略快。",
   learning:
-    "Mock AI-style learning feedback: listen once more, sing only C4-D4-E4, then retry the full phrase slowly.",
+    "模拟 AI 风格学习建议：再听一遍，只唱 C4-D4-E4，然后慢速重试完整乐句。",
 };
 
 const practiceSteps = [
-  "Listen to target",
-  "Record one local practice attempt",
-  "Review mock feedback",
-  "Retry",
+  "听目标音",
+  "录制一次本地练习",
+  "查看模拟反馈",
+  "重试",
 ];
 
 const melodySteps = mockExercise.targetNotes.map((targetNote, index) => ({
   id: `melody-step-${index + 1}`,
-  label: `Melody note ${index + 1}`,
+  label: `旋律音 ${index + 1}`,
   targetNote,
 }));
 
@@ -93,24 +93,24 @@ const calculateCentsFromTarget = (estimatedFrequencyHz: number, targetFrequencyH
 const getPitchConfidenceFeedback = (confidence: number): PitchConfidenceFeedback => {
   if (confidence >= 0.75) {
     return {
-      label: "More usable pitch frames",
+      label: "可用音高帧较多",
       explanation:
-        "Most analyzed frames produced usable pitch data for this experimental local estimate.",
+        "在这个实验性本地估计中，大多数已分析帧产生了可用音高数据。",
     };
   }
 
   if (confidence >= 0.4) {
     return {
-      label: "Limited usable pitch frames",
+      label: "可用音高帧有限",
       explanation:
-        "Some analyzed frames produced usable pitch data; this can still be affected by noise or unstable audio.",
+        "部分已分析帧产生了可用音高数据；结果仍可能受噪声或不稳定音频影响。",
     };
   }
 
   return {
-    label: "Low usable pitch frames",
+    label: "可用音高帧较少",
     explanation:
-      "Only a small share of analyzed frames produced usable pitch data; try a clearer sustained note if needed.",
+      "只有少量已分析帧产生了可用音高数据；如有需要，请尝试更清晰的持续音。",
   };
 };
 
@@ -121,12 +121,12 @@ const getPitchEstimateErrorFeedback = (
 
   if (normalizedMessage.includes("too short")) {
     return {
-      title: "Recording is too short for the experimental local pitch estimate",
+      title: "录音太短，无法完成实验性本地音高估计",
       whatHappened:
-        "The recording ended before there was enough local audio for a stable pitch estimate.",
+        "录音在获得足够本地音频用于稳定音高估计之前就结束了。",
       suggestions: [
-        "Try recording a longer sustained note.",
-        "Hold one note for about 1 second or more.",
+        "请尝试录制更长的持续音。",
+        "请保持一个音约 1 秒或更久。",
       ],
     };
   }
@@ -137,23 +137,23 @@ const getPitchEstimateErrorFeedback = (
     normalizedMessage.includes("steadier")
   ) {
     return {
-      title: "No usable pitch frames were found",
+      title: "未找到可用音高帧",
       whatHappened:
-        "The local estimate could not find a clear, steady pitch. The recording may be too quiet, noisy, or unstable.",
+        "本地估计未能找到清晰、稳定的音高。录音可能太轻、有噪声或不稳定。",
       suggestions: [
-        "Try singing or playing a louder, steadier single note.",
-        "Move closer to the microphone.",
-        "Avoid background noise.",
+        "请尝试唱或演奏更响、更稳定的单音。",
+        "请靠近麦克风。",
+        "请避免背景噪声。",
       ],
     };
   }
 
   return {
-    title: "Local pitch estimate could not be completed",
+    title: "无法完成本地音高估计",
     whatHappened: errorMessage,
     suggestions: [
-      "Try recording one clear sustained note again.",
-      "Keep the audio local; no upload or AI API call is used.",
+      "请重新录制一个清晰的持续音。",
+      "音频仅保留在本地；不上传音频，也不调用 AI API。",
     ],
   };
 };
@@ -162,18 +162,18 @@ const getComparisonHint = (centsFromTarget: number) => {
   const absoluteCents = Math.abs(centsFromTarget);
 
   if (absoluteCents <= 25) {
-    return "Close to target";
+    return "接近目标音";
   }
 
   if (absoluteCents > 75) {
-    return "Far from target";
+    return "离目标音较远";
   }
 
   if (centsFromTarget > 25) {
-    return "A little sharp";
+    return "略微偏高";
   }
 
-  return "A little flat";
+  return "略微偏低";
 };
 
 const calculateTargetNoteSeconds = () => 60 / mockExercise.suggestedBpm;
@@ -379,7 +379,7 @@ export default function PracticePage() {
       );
       playbackTimeoutIdsRef.current.push(completionTimeoutId);
     } catch {
-      setPlayError("Target playback failed. This prototype still uses mock scoring only.");
+      setPlayError("目标音播放失败。此原型仍只使用模拟反馈，不提供正式评分。");
       stopPlayback();
     }
   };
@@ -391,7 +391,7 @@ export default function PracticePage() {
     const targetFrequency = noteFrequencies[selectedTargetNote];
 
     if (!targetFrequency) {
-      setPlayError(`Target note ${selectedTargetNote} is not available for playback yet.`);
+      setPlayError(`目标音 ${selectedTargetNote} 暂时无法播放。`);
       return;
     }
 
@@ -433,7 +433,7 @@ export default function PracticePage() {
 
       playbackTimeoutIdsRef.current.push(completionTimeoutId);
     } catch {
-      setPlayError("Selected target note playback failed in this browser.");
+      setPlayError("此浏览器无法播放所选目标音。");
       stopPlayback();
     }
   };
@@ -463,7 +463,7 @@ export default function PracticePage() {
     recordedPracticeAttemptKeyRef.current = null;
 
     if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") {
-      setRecordingError("Local recording is not available in this browser.");
+      setRecordingError("此浏览器不支持本地录音。");
       return;
     }
 
@@ -532,7 +532,7 @@ export default function PracticePage() {
       stopRecordingTracks();
       if (isMountedRef.current) {
         setIsRecording(false);
-        setRecordingError("Microphone permission is required to record a local attempt.");
+        setRecordingError("需要麦克风权限才能录制本地练习。");
       }
     }
   };
@@ -552,7 +552,7 @@ export default function PracticePage() {
 
   const handleAnalyzeLocalRecording = async () => {
     if (!recordedAudioBlob) {
-      setAudioAnalysisError("Record a local attempt before running local audio analysis.");
+      setAudioAnalysisError("请先录制一次本地练习，再运行本地音频分析。");
       return;
     }
 
@@ -585,12 +585,12 @@ export default function PracticePage() {
       }
 
       const rmsLevel = sampleCount > 0 ? Math.sqrt(squaredSampleSum / sampleCount) : 0;
-      let simpleLevelHint = "Recording level looks usable";
+      let simpleLevelHint = "录音电平看起来可用";
 
       if (peakLevel >= 0.98) {
-        simpleLevelHint = "Recording may be clipped";
+        simpleLevelHint = "录音可能削波";
       } else if (peakLevel < 0.08 || rmsLevel < 0.015) {
-        simpleLevelHint = "Recording may be too quiet";
+        simpleLevelHint = "录音可能太轻";
       }
 
       if (!isMountedRef.current || audioAnalysisRunId !== audioAnalysisRunIdRef.current) {
@@ -605,7 +605,7 @@ export default function PracticePage() {
       });
     } catch {
       if (isMountedRef.current && audioAnalysisRunId === audioAnalysisRunIdRef.current) {
-        setAudioAnalysisError("Local audio analysis failed in this browser.");
+        setAudioAnalysisError("此浏览器无法完成本地音频分析。");
       }
     } finally {
       if (audioContext) {
@@ -621,7 +621,7 @@ export default function PracticePage() {
 
   const handleEstimatePitchLocally = async () => {
     if (!recordedAudioBlob) {
-      setPitchEstimateError("Record a local attempt before estimating pitch locally.");
+      setPitchEstimateError("请先录制一次本地练习，再进行本地音高估计。");
       return;
     }
 
@@ -682,7 +682,7 @@ export default function PracticePage() {
       }
     } catch (error) {
       if (isMountedRef.current && pitchEstimateRunId === pitchEstimateRunIdRef.current) {
-        setPitchEstimateError(error instanceof Error ? error.message : "Local pitch estimation failed in this browser.");
+        setPitchEstimateError(error instanceof Error ? error.message : "此浏览器无法完成本地音高估计。");
       }
     } finally {
       if (audioContext) {
@@ -702,7 +702,7 @@ export default function PracticePage() {
 
     const audio = new Audio(recordedAudioUrl);
     void audio.play().catch(() => {
-      setRecordingError("Recorded attempt playback failed in this browser.");
+      setRecordingError("此浏览器无法播放已录制的练习。");
     });
   };
 
@@ -784,29 +784,29 @@ export default function PracticePage() {
     <main className="min-h-screen bg-slate-50 px-4 py-10 text-slate-900 sm:px-6">
       <section className="mx-auto max-w-4xl rounded-3xl bg-white p-6 shadow-sm ring-1 ring-slate-200 sm:p-8">
         <div className="border-b border-slate-200 pb-6">
-          <p className="text-sm font-semibold text-emerald-600">Browser Local Only Practice Mode</p>
-          <h1 className="mt-2 text-3xl font-bold tracking-tight sm:text-4xl">Practice Mode</h1>
+          <p className="text-sm font-semibold text-emerald-600">浏览器本地练习模式</p>
+          <h1 className="mt-2 text-3xl font-bold tracking-tight sm:text-4xl">练习模式</h1>
           <p className="mt-3 text-slate-600">
-            This page is a local melody step-by-step practice prototype. Use it to hear one target note, record one browser-local attempt, and compare the local pitch estimate with the current step target.
+            这是一个本地旋律逐步练习原型。你可以听一个目标音、录制一次浏览器本地练习，并把本地音高估计与当前步骤目标音进行对比。
           </p>
           <p className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm font-medium text-amber-800">
-            Current status: browser local-only practice, no upload, no persistence, no AI API call, no formal score, no grade/pass/fail, and no rhythm or sight-singing assessment.
+            当前状态：浏览器本地练习模式，不上传音频，不持久保存，不调用 AI API，不提供正式评分，不提供等级 / 通过 / 失败判断，也不进行节奏评测或视唱综合评测。
           </p>
         </div>
 
         <div className="mt-6 grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
           <section className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
-            <p className="text-sm font-semibold uppercase tracking-wide text-slate-500">Mock melody exercise</p>
+            <p className="text-sm font-semibold uppercase tracking-wide text-slate-500">模拟旋律练习</p>
             <h2 className="mt-2 text-2xl font-bold">{mockExercise.title}</h2>
             <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
-              <div className="rounded-xl bg-white p-4 ring-1 ring-slate-200"><dt className="font-semibold text-slate-700">Target notes</dt><dd className="mt-1 text-slate-600">{mockExercise.targetNotes.join(" · ")}</dd></div>
-              <div className="rounded-xl bg-white p-4 ring-1 ring-slate-200"><dt className="font-semibold text-slate-700">Suggested BPM</dt><dd className="mt-1 text-slate-600">{mockExercise.suggestedBpm} BPM</dd></div>
-              <div className="rounded-xl bg-white p-4 ring-1 ring-slate-200 sm:col-span-2"><dt className="font-semibold text-slate-700">Practice goal</dt><dd className="mt-1 text-slate-600">{mockExercise.goal}</dd></div>
+              <div className="rounded-xl bg-white p-4 ring-1 ring-slate-200"><dt className="font-semibold text-slate-700">目标音列表</dt><dd className="mt-1 text-slate-600">{mockExercise.targetNotes.join(" · ")}</dd></div>
+              <div className="rounded-xl bg-white p-4 ring-1 ring-slate-200"><dt className="font-semibold text-slate-700">建议 BPM</dt><dd className="mt-1 text-slate-600">{mockExercise.suggestedBpm} BPM</dd></div>
+              <div className="rounded-xl bg-white p-4 ring-1 ring-slate-200 sm:col-span-2"><dt className="font-semibold text-slate-700">练习目标</dt><dd className="mt-1 text-slate-600">{mockExercise.goal}</dd></div>
             </dl>
           </section>
 
           <section className="rounded-2xl border border-slate-200 bg-white p-5">
-            <h2 className="text-xl font-bold">Practice steps</h2>
+            <h2 className="text-xl font-bold">练习步骤</h2>
             <ol className="mt-4 space-y-3">
               {practiceSteps.map((step, index) => (
                 <li key={step} className="flex gap-3 rounded-xl bg-slate-50 p-3">
@@ -821,20 +821,20 @@ export default function PracticePage() {
         <section className="mt-6 rounded-2xl border border-blue-200 bg-blue-50 p-5">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <h2 className="text-xl font-bold text-blue-950">Interactive mock flow</h2>
-              <p className="mt-1 text-sm font-medium text-blue-800">State: {flowState}</p>
+              <h2 className="text-xl font-bold text-blue-950">交互式模拟流程</h2>
+              <p className="mt-1 text-sm font-medium text-blue-800">状态： {flowState}</p>
             </div>
             <div className="flex flex-wrap gap-2">
-              <button type="button" onClick={handleListenToTarget} disabled={isListening} className="rounded-full bg-blue-700 px-4 py-2 text-sm font-semibold text-white disabled:bg-blue-300">{isListening ? "Playing target..." : "Listen to target"}</button>
-              <button type="button" onClick={stopPlayback} disabled={!isAnyTargetPlaybackActive} className="rounded-full border border-blue-300 bg-white px-4 py-2 text-sm font-semibold text-blue-800 disabled:text-slate-400">Stop playback</button>
-              <button type="button" onClick={handleStartMockAttempt} className="rounded-full bg-emerald-600 px-4 py-2 text-sm font-semibold text-white">Start mock attempt</button>
-              <button type="button" onClick={handleShowMockFeedback} className="rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white">Show mock feedback</button>
-              <button type="button" onClick={handleRetry} className="rounded-full border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700">Retry</button>
+              <button type="button" onClick={handleListenToTarget} disabled={isListening} className="rounded-full bg-blue-700 px-4 py-2 text-sm font-semibold text-white disabled:bg-blue-300">{isListening ? "正在播放目标音…" : "听目标音"}</button>
+              <button type="button" onClick={stopPlayback} disabled={!isAnyTargetPlaybackActive} className="rounded-full border border-blue-300 bg-white px-4 py-2 text-sm font-semibold text-blue-800 disabled:text-slate-400">停止播放</button>
+              <button type="button" onClick={handleStartMockAttempt} className="rounded-full bg-emerald-600 px-4 py-2 text-sm font-semibold text-white">开始模拟练习</button>
+              <button type="button" onClick={handleShowMockFeedback} className="rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white">显示模拟反馈</button>
+              <button type="button" onClick={handleRetry} className="rounded-full border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700">重试</button>
             </div>
           </div>
 
           {playError ? <p className="mt-3 text-sm font-semibold text-red-700">{playError}</p> : null}
-          {flowState === "attempting" ? <p className="mt-4 rounded-xl border border-emerald-200 bg-white p-4 text-sm font-semibold text-emerald-800">This attempt can include one browser local-only recording. Audio is not uploaded, not saved to a server, and not scored.</p> : null}
+          {flowState === "attempting" ? <p className="mt-4 rounded-xl border border-emerald-200 bg-white p-4 text-sm font-semibold text-emerald-800">这次练习可以包含一段仅保留在浏览器本地的录音。音频不上传、不保存到服务器，也不提供正式评分。</p> : null}
 
           <div className="mt-4 flex flex-wrap gap-2">
             {mockExercise.targetNotes.map((note, index) => (
@@ -847,51 +847,51 @@ export default function PracticePage() {
         <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
             <div>
-              <p className="text-sm font-semibold uppercase tracking-wide text-slate-500">Guided local flow</p>
-              <h2 className="mt-1 text-xl font-bold text-slate-950">Melody step practice loop</h2>
+              <p className="text-sm font-semibold uppercase tracking-wide text-slate-500">本地引导流程</p>
+              <h2 className="mt-1 text-xl font-bold text-slate-950">旋律逐步练习流程</h2>
               <p className="mt-2 text-sm text-slate-600">
-                Work through the fixed melody one step at a time. Step X / N shows your position, Current target note is the note for this step, and Previous / Next / Restart only move the selected step.
+                按固定旋律一步一步练习。步骤 X / N 表示当前位置，当前目标音是本步骤的音，上一音 / 下一音 / 重新开始只会移动所选步骤。
               </p>
               <ol className="mt-4 grid gap-2 text-sm text-slate-700 sm:grid-cols-2">
-                <li className="rounded-xl bg-slate-50 p-3 font-medium ring-1 ring-slate-200">1. Choose the melody step</li>
-                <li className="rounded-xl bg-slate-50 p-3 font-medium ring-1 ring-slate-200">2. Play target to hear the note</li>
-                <li className="rounded-xl bg-slate-50 p-3 font-medium ring-1 ring-slate-200">3. Record one local attempt</li>
-                <li className="rounded-xl bg-slate-50 p-3 font-medium ring-1 ring-slate-200">4. Estimate pitch locally</li>
-                <li className="rounded-xl bg-slate-50 p-3 font-medium ring-1 ring-slate-200 sm:col-span-2">5. Review comparison only, not a score</li>
+                <li className="rounded-xl bg-slate-50 p-3 font-medium ring-1 ring-slate-200">1. 选择旋律步骤</li>
+                <li className="rounded-xl bg-slate-50 p-3 font-medium ring-1 ring-slate-200">2. 播放目标音并聆听</li>
+                <li className="rounded-xl bg-slate-50 p-3 font-medium ring-1 ring-slate-200">3. 录制一次本地练习</li>
+                <li className="rounded-xl bg-slate-50 p-3 font-medium ring-1 ring-slate-200">4. 在本地估计音高</li>
+                <li className="rounded-xl bg-slate-50 p-3 font-medium ring-1 ring-slate-200 sm:col-span-2">5. 只查看对比结果，不提供正式评分</li>
               </ol>
             </div>
             <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900 lg:max-w-xs">
-              <p className="font-semibold">Prototype boundaries</p>
+              <p className="font-semibold">原型边界</p>
               <ul className="mt-2 list-disc space-y-1 pl-5">
-                <li>Estimate compares only with the current step target note.</li>
-                <li>This is not a formal score, grade, pass, or fail.</li>
-                <li>This is not rhythm or sight-singing assessment.</li>
-                <li>Audio and attempts are not uploaded or persisted.</li>
-                <li>No AI API call.</li>
+                <li>估计结果只与当前步骤目标音对比。</li>
+                <li>这不是正式评分、等级、通过或失败判断。</li>
+                <li>这不是节奏评测或视唱综合评测。</li>
+                <li>音频和练习记录不上传，也不持久保存。</li>
+                <li>不调用 AI API。</li>
               </ul>
             </div>
           </div>
 
           <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-3">
-            <div className="rounded-xl bg-slate-50 p-4 ring-1 ring-slate-200"><dt className="font-semibold text-slate-700">Current target note</dt><dd className="mt-1 text-slate-600">{selectedTargetNote}</dd></div>
-            <div className="rounded-xl bg-slate-50 p-4 ring-1 ring-slate-200"><dt className="font-semibold text-slate-700">Target frequency</dt><dd className="mt-1 text-slate-600">{noteFrequencies[selectedTargetNote].toFixed(2)} Hz</dd></div>
-            <div className="rounded-xl bg-slate-50 p-4 ring-1 ring-slate-200"><dt className="font-semibold text-slate-700">Recording</dt><dd className="mt-1 text-slate-600">{recordedAudioBlob ? "Recorded attempt ready" : "No recording yet"}</dd></div>
-            <div className="rounded-xl bg-slate-50 p-4 ring-1 ring-slate-200"><dt className="font-semibold text-slate-700">Pitch estimate</dt><dd className="mt-1 text-slate-600">{pitchEstimateResult ? "Pitch estimate ready" : pitchEstimateErrorFeedback ? "Needs a clearer local recording" : "Not estimated yet"}</dd></div>
-            <div className="rounded-xl bg-slate-50 p-4 ring-1 ring-slate-200"><dt className="font-semibold text-slate-700">Confidence status</dt><dd className="mt-1 text-slate-600">{pitchConfidenceFeedback ? pitchConfidenceFeedback.label : "Waiting for local estimate"}</dd></div>
-            <div className="rounded-xl bg-slate-50 p-4 ring-1 ring-slate-200"><dt className="font-semibold text-slate-700">Comparison</dt><dd className="mt-1 text-slate-600">{pitchComparisonResult ? "Comparison ready" : "Waiting for pitch estimate"}</dd></div>
+            <div className="rounded-xl bg-slate-50 p-4 ring-1 ring-slate-200"><dt className="font-semibold text-slate-700">当前目标音</dt><dd className="mt-1 text-slate-600">{selectedTargetNote}</dd></div>
+            <div className="rounded-xl bg-slate-50 p-4 ring-1 ring-slate-200"><dt className="font-semibold text-slate-700">目标频率</dt><dd className="mt-1 text-slate-600">{noteFrequencies[selectedTargetNote].toFixed(2)} Hz</dd></div>
+            <div className="rounded-xl bg-slate-50 p-4 ring-1 ring-slate-200"><dt className="font-semibold text-slate-700">录音</dt><dd className="mt-1 text-slate-600">{recordedAudioBlob ? "练习录音已准备好" : "还没有录音"}</dd></div>
+            <div className="rounded-xl bg-slate-50 p-4 ring-1 ring-slate-200"><dt className="font-semibold text-slate-700">音高估计</dt><dd className="mt-1 text-slate-600">{pitchEstimateResult ? "音高估计已准备好" : pitchEstimateErrorFeedback ? "需要更清晰的本地录音" : "尚未估计"}</dd></div>
+            <div className="rounded-xl bg-slate-50 p-4 ring-1 ring-slate-200"><dt className="font-semibold text-slate-700">置信状态</dt><dd className="mt-1 text-slate-600">{pitchConfidenceFeedback ? pitchConfidenceFeedback.label : "等待本地估计"}</dd></div>
+            <div className="rounded-xl bg-slate-50 p-4 ring-1 ring-slate-200"><dt className="font-semibold text-slate-700">对比</dt><dd className="mt-1 text-slate-600">{pitchComparisonResult ? "对比已准备好" : "等待音高估计"}</dd></div>
           </dl>
 
           {pitchEstimateResult ? (
             <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
-              <div className="rounded-xl bg-indigo-50 p-4 ring-1 ring-indigo-200"><dt className="font-semibold text-indigo-950">Estimated frequency Hz</dt><dd className="mt-1 text-indigo-800">{pitchEstimateResult.estimatedFrequencyHz.toFixed(2)}</dd></div>
-              <div className="rounded-xl bg-indigo-50 p-4 ring-1 ring-indigo-200"><dt className="font-semibold text-indigo-950">Nearest note</dt><dd className="mt-1 text-indigo-800">{pitchEstimateResult.nearestNote}</dd></div>
+              <div className="rounded-xl bg-indigo-50 p-4 ring-1 ring-indigo-200"><dt className="font-semibold text-indigo-950">估计频率 Hz</dt><dd className="mt-1 text-indigo-800">{pitchEstimateResult.estimatedFrequencyHz.toFixed(2)}</dd></div>
+              <div className="rounded-xl bg-indigo-50 p-4 ring-1 ring-indigo-200"><dt className="font-semibold text-indigo-950">最接近的音</dt><dd className="mt-1 text-indigo-800">{pitchEstimateResult.nearestNote}</dd></div>
             </dl>
           ) : null}
 
           {pitchComparisonResult ? (
             <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
-              <div className="rounded-xl bg-violet-50 p-4 ring-1 ring-violet-200"><dt className="font-semibold text-violet-950">Comparison hint</dt><dd className="mt-1 text-violet-800">{pitchComparisonResult.comparisonHint}</dd></div>
-              <div className="rounded-xl bg-violet-50 p-4 ring-1 ring-violet-200"><dt className="font-semibold text-violet-950">Cents from target</dt><dd className="mt-1 text-violet-800">{pitchComparisonResult.centsFromTarget.toFixed(1)}</dd></div>
+              <div className="rounded-xl bg-violet-50 p-4 ring-1 ring-violet-200"><dt className="font-semibold text-violet-950">对比提示</dt><dd className="mt-1 text-violet-800">{pitchComparisonResult.comparisonHint}</dd></div>
+              <div className="rounded-xl bg-violet-50 p-4 ring-1 ring-violet-200"><dt className="font-semibold text-violet-950">与目标音的音分差</dt><dd className="mt-1 text-violet-800">{pitchComparisonResult.centsFromTarget.toFixed(1)}</dd></div>
             </dl>
           ) : null}
         </section>
@@ -899,33 +899,33 @@ export default function PracticePage() {
         <section className="mt-6 rounded-2xl border border-emerald-200 bg-emerald-50 p-5">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div>
-              <h2 className="text-xl font-bold text-emerald-950">Local recording prototype</h2>
+              <h2 className="text-xl font-bold text-emerald-950">本地录音原型</h2>
               <p className="mt-1 text-sm font-medium text-emerald-800">
-                Recording stays in this browser. Recommended order: Play target, Record, then Estimate pitch locally. Audio is not uploaded, not persisted, not scored, and no AI API call is made.
+                录音只保留在此浏览器中。建议顺序：播放目标音、录音，然后在本地估计音高。音频不上传、不持久保存、不提供正式评分，也不调用 AI API。
               </p>
               <p className="mt-2 text-sm text-emerald-800">
-                Start local recording asks your browser for microphone permission with navigator.mediaDevices.getUserMedia({"{ audio: true }"}).
+                开始本地录音会通过 navigator.mediaDevices.getUserMedia({"{ audio: true }"}) 向浏览器请求麦克风权限。
               </p>
               <p className="mt-2 text-sm font-semibold text-emerald-900">
-                Status: {isRecording ? `Recording locally for ${recordingSeconds}s` : recordedAudioUrl ? "Recorded attempt ready for local playback" : "No local recording yet"}
+                状态： {isRecording ? `正在本地录音 ${recordingSeconds}s` : recordedAudioUrl ? "练习录音已可在本地播放" : "还没有本地录音"}
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
-              <button type="button" onClick={handleStartLocalRecording} disabled={isRecording} className="rounded-full bg-emerald-700 px-4 py-2 text-sm font-semibold text-white disabled:bg-emerald-300">Start local recording</button>
-              <button type="button" onClick={handleStopLocalRecording} disabled={!isRecording} className="rounded-full border border-emerald-300 bg-white px-4 py-2 text-sm font-semibold text-emerald-800 disabled:text-slate-400">Stop recording</button>
-              <button type="button" onClick={handlePlayRecordedAttempt} disabled={!recordedAudioUrl || isRecording} className="rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white disabled:bg-slate-300">Play recorded attempt</button>
-              <button type="button" onClick={handleAnalyzeLocalRecording} disabled={!recordedAudioBlob || isRecording || isAnalyzingAudio} className="rounded-full bg-emerald-900 px-4 py-2 text-sm font-semibold text-white disabled:bg-slate-300">{isAnalyzingAudio ? "Analyzing locally..." : "Analyze local recording"}</button>
-              <button type="button" onClick={handleEstimatePitchLocally} disabled={!recordedAudioBlob || isRecording || isEstimatingPitch} className="rounded-full bg-indigo-700 px-4 py-2 text-sm font-semibold text-white disabled:bg-slate-300">{isEstimatingPitch ? "Estimating locally..." : "Estimate pitch locally"}</button>
-              <button type="button" onClick={handleClearRecording} disabled={!recordedAudioUrl && !recordedAudioBlob && !isRecording && !recordingError && !audioAnalysisError && !audioAnalysisResult && !pitchEstimateError && !pitchEstimateResult} className="rounded-full border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 disabled:text-slate-400">Clear recording</button>
+              <button type="button" onClick={handleStartLocalRecording} disabled={isRecording} className="rounded-full bg-emerald-700 px-4 py-2 text-sm font-semibold text-white disabled:bg-emerald-300">开始本地录音</button>
+              <button type="button" onClick={handleStopLocalRecording} disabled={!isRecording} className="rounded-full border border-emerald-300 bg-white px-4 py-2 text-sm font-semibold text-emerald-800 disabled:text-slate-400">停止录音</button>
+              <button type="button" onClick={handlePlayRecordedAttempt} disabled={!recordedAudioUrl || isRecording} className="rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white disabled:bg-slate-300">播放练习录音</button>
+              <button type="button" onClick={handleAnalyzeLocalRecording} disabled={!recordedAudioBlob || isRecording || isAnalyzingAudio} className="rounded-full bg-emerald-900 px-4 py-2 text-sm font-semibold text-white disabled:bg-slate-300">{isAnalyzingAudio ? "正在本地分析…" : "分析本地录音"}</button>
+              <button type="button" onClick={handleEstimatePitchLocally} disabled={!recordedAudioBlob || isRecording || isEstimatingPitch} className="rounded-full bg-indigo-700 px-4 py-2 text-sm font-semibold text-white disabled:bg-slate-300">{isEstimatingPitch ? "正在本地估计…" : "本地估计音高"}</button>
+              <button type="button" onClick={handleClearRecording} disabled={!recordedAudioUrl && !recordedAudioBlob && !isRecording && !recordingError && !audioAnalysisError && !audioAnalysisResult && !pitchEstimateError && !pitchEstimateResult} className="rounded-full border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 disabled:text-slate-400">清除录音</button>
             </div>
           </div>
           <div className="mt-4 rounded-xl border border-emerald-200 bg-white p-4 text-sm text-emerald-900">
-            <p className="font-semibold">Local audio analysis scope</p>
+            <p className="font-semibold">本地音频分析范围</p>
             <ul className="mt-2 list-disc space-y-1 pl-5">
-              <li>This is not pitch detection.</li>
-              <li>This is not rhythm evaluation.</li>
-              <li>This is only local recording quality analysis.</li>
-              <li>Audio is not uploaded.</li>
+              <li>这不是音高检测。</li>
+              <li>不进行节奏评测。</li>
+              <li>这里只做本地录音质量分析。</li>
+              <li>不上传音频。</li>
             </ul>
           </div>
           {recordingError ? <p className="mt-3 text-sm font-semibold text-red-700">{recordingError}</p> : null}
@@ -933,9 +933,9 @@ export default function PracticePage() {
           {pitchEstimateErrorFeedback ? (
             <div className="mt-3 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-900">
               <p className="font-semibold">{pitchEstimateErrorFeedback.title}</p>
-              <p className="mt-2">What happened: {pitchEstimateErrorFeedback.whatHappened}</p>
+              <p className="mt-2">发生了什么： {pitchEstimateErrorFeedback.whatHappened}</p>
               <div className="mt-3">
-                <p className="font-semibold">What to try next:</p>
+                <p className="font-semibold">接下来可以尝试：</p>
                 <ul className="mt-1 list-disc space-y-1 pl-5">
                   {pitchEstimateErrorFeedback.suggestions.map((suggestion) => (
                     <li key={suggestion}>{suggestion}</li>
@@ -943,61 +943,61 @@ export default function PracticePage() {
                 </ul>
               </div>
               <p className="mt-3 font-medium">
-                This is only an experimental local pitch estimate: no formal score, no rhythm evaluation, audio is not uploaded, and no AI API call is made.
+                这只是实验性本地音高估计：不提供正式评分，不进行节奏评测，不上传音频，也不调用 AI API。
               </p>
             </div>
           ) : null}
-          {recordedAudioUrl ? <audio className="mt-4 w-full" controls src={recordedAudioUrl}>Your browser does not support audio playback.</audio> : null}
+          {recordedAudioUrl ? <audio className="mt-4 w-full" controls src={recordedAudioUrl}>你的浏览器不支持音频播放。</audio> : null}
           <div className="mt-4 rounded-xl border border-indigo-200 bg-white p-4 text-sm text-indigo-900">
-            <p className="font-semibold">Experimental local pitch estimate</p>
+            <p className="font-semibold">实验性本地音高估计</p>
             <ul className="mt-2 list-disc space-y-1 pl-5">
-              <li>Confidence means valid pitch frames divided by analyzed frames.</li>
-              <li>Confidence is not a score or proof of pitch accuracy.</li>
-              <li>This is not a formal pitch score.</li>
-              <li>This is not rhythm evaluation.</li>
-              <li>Audio is not uploaded.</li>
-              <li>No AI API call.</li>
+              <li>置信度表示可用音高帧数除以已分析帧数。</li>
+              <li>置信度不是正式评分，也不能证明音高准确。</li>
+              <li>这不是正式音高评分。</li>
+              <li>不进行节奏评测。</li>
+              <li>不上传音频。</li>
+              <li>不调用 AI API。</li>
             </ul>
           </div>
           {pitchEstimateResult ? (
             <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
-              <div className="rounded-xl bg-white p-4 ring-1 ring-indigo-200"><dt className="font-semibold text-indigo-950">Estimated frequency Hz</dt><dd className="mt-1 text-indigo-800">{pitchEstimateResult.estimatedFrequencyHz.toFixed(2)}</dd></div>
-              <div className="rounded-xl bg-white p-4 ring-1 ring-indigo-200"><dt className="font-semibold text-indigo-950">Nearest note</dt><dd className="mt-1 text-indigo-800">{pitchEstimateResult.nearestNote}</dd></div>
-              <div className="rounded-xl bg-white p-4 ring-1 ring-indigo-200"><dt className="font-semibold text-indigo-950">Cents offset</dt><dd className="mt-1 text-indigo-800">{pitchEstimateResult.centsOffset.toFixed(1)}</dd></div>
-              <div className="rounded-xl bg-white p-4 ring-1 ring-indigo-200"><dt className="font-semibold text-indigo-950">Confidence frame coverage</dt><dd className="mt-1 text-indigo-800">{pitchEstimateResult.confidence.toFixed(2)}</dd><dd className="mt-2 text-xs leading-5 text-indigo-700">{pitchConfidenceFeedback?.label}: confidence is valid pitch frames / analyzed frames, not a score and not proof of pitch accuracy.</dd></div>
-              <div className="rounded-xl bg-white p-4 ring-1 ring-indigo-200"><dt className="font-semibold text-indigo-950">Frames analyzed</dt><dd className="mt-1 text-indigo-800">{pitchEstimateResult.framesAnalyzed}</dd></div>
-              <div className="rounded-xl bg-white p-4 ring-1 ring-indigo-200"><dt className="font-semibold text-indigo-950">Valid pitch frames</dt><dd className="mt-1 text-indigo-800">{pitchEstimateResult.validPitchFrames}</dd><dd className="mt-2 text-xs leading-5 text-indigo-700">{pitchConfidenceFeedback?.explanation}</dd></div>
+              <div className="rounded-xl bg-white p-4 ring-1 ring-indigo-200"><dt className="font-semibold text-indigo-950">估计频率 Hz</dt><dd className="mt-1 text-indigo-800">{pitchEstimateResult.estimatedFrequencyHz.toFixed(2)}</dd></div>
+              <div className="rounded-xl bg-white p-4 ring-1 ring-indigo-200"><dt className="font-semibold text-indigo-950">最接近的音</dt><dd className="mt-1 text-indigo-800">{pitchEstimateResult.nearestNote}</dd></div>
+              <div className="rounded-xl bg-white p-4 ring-1 ring-indigo-200"><dt className="font-semibold text-indigo-950">音分偏移</dt><dd className="mt-1 text-indigo-800">{pitchEstimateResult.centsOffset.toFixed(1)}</dd></div>
+              <div className="rounded-xl bg-white p-4 ring-1 ring-indigo-200"><dt className="font-semibold text-indigo-950">置信帧覆盖率</dt><dd className="mt-1 text-indigo-800">{pitchEstimateResult.confidence.toFixed(2)}</dd><dd className="mt-2 text-xs leading-5 text-indigo-700">{pitchConfidenceFeedback?.label}：置信度表示可用音高帧 / 已分析帧，不是正式评分，也不能证明音高准确。</dd></div>
+              <div className="rounded-xl bg-white p-4 ring-1 ring-indigo-200"><dt className="font-semibold text-indigo-950">已分析帧数</dt><dd className="mt-1 text-indigo-800">{pitchEstimateResult.framesAnalyzed}</dd></div>
+              <div className="rounded-xl bg-white p-4 ring-1 ring-indigo-200"><dt className="font-semibold text-indigo-950">可用音高帧</dt><dd className="mt-1 text-indigo-800">{pitchEstimateResult.validPitchFrames}</dd><dd className="mt-2 text-xs leading-5 text-indigo-700">{pitchConfidenceFeedback?.explanation}</dd></div>
             </dl>
           ) : null}
           {pitchEstimateResult ? (
             <p className="mt-3 rounded-xl border border-indigo-200 bg-white p-4 text-sm font-medium text-indigo-900">
-              Confidence is only an experimental local estimate signal based on valid pitch frames / analyzed frames. It is not a formal score, not a grade, and not proof that the estimated pitch is accurate.
+              置信度只是基于可用音高帧 / 已分析帧的实验性本地估计信号。它不是正式评分，不是等级，也不能证明估计音高准确。
             </p>
           ) : null}
           <div className="mt-4 rounded-xl border border-violet-200 bg-white p-4 text-sm text-violet-900">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
               <div>
-                <p className="font-semibold">Experimental target-aware pitch comparison</p>
+                <p className="font-semibold">实验性目标音对比</p>
                 <ul className="mt-2 list-disc space-y-1 pl-5">
-                  <li>This is not a formal score.</li>
-                  <li>This is not rhythm evaluation.</li>
-                  <li>Audio is not uploaded.</li>
-                  <li>No AI API call.</li>
-                  <li>This only compares the local estimated pitch to the current melody step target note.</li>
-                  <li>Step X / N shows the current position in the fixed melody.</li>
-                  <li>Previous/Next step clamp at the first and last melody steps.</li>
-                  <li>Restart melody returns to Step 1.</li>
-                  <li>Changing steps does not auto-play, auto-record, auto-estimate, or add attempt history.</li>
+                  <li>不提供正式评分。</li>
+                  <li>不进行节奏评测。</li>
+                  <li>不上传音频。</li>
+                  <li>不调用 AI API。</li>
+                  <li>这里只把本地估计音高与当前旋律步骤目标音进行对比。</li>
+                  <li>步骤 X / N 显示固定旋律中的当前位置。</li>
+                  <li>上一音 / 下一音会限制在第一个和最后一个旋律步骤之间。</li>
+                  <li>重新开始旋律会回到步骤 1。</li>
+                  <li>切换步骤不会自动播放、自动录音、自动估计，也不会新增练习记录。</li>
                 </ul>
               </div>
               <div className="flex flex-col gap-3 sm:items-end">
                 <div className="rounded-xl bg-violet-50 p-3 text-right ring-1 ring-violet-200">
                   <p className="text-xs font-semibold uppercase tracking-wide text-violet-700">
-                    Step {currentMelodyStepIndex + 1} / {melodySteps.length}
+                    步骤 {currentMelodyStepIndex + 1} / {melodySteps.length}
                   </p>
                   <p className="mt-1 text-lg font-bold text-violet-950">{selectedTargetNote}</p>
                   <p className="mt-1 text-xs text-violet-800">
-                    Current target note comes from this fixed melody step.
+                    当前目标音来自这个固定旋律步骤。
                   </p>
                 </div>
                 <div className="flex flex-wrap gap-2 sm:justify-end">
@@ -1007,7 +1007,7 @@ export default function PracticePage() {
                     disabled={isFirstMelodyStep}
                     className="rounded-full border border-violet-300 bg-white px-4 py-2 text-sm font-semibold text-violet-800 disabled:text-slate-400"
                   >
-                    Previous step
+                    上一音
                   </button>
                   <button
                     type="button"
@@ -1015,7 +1015,7 @@ export default function PracticePage() {
                     disabled={isLastMelodyStep}
                     className="rounded-full border border-violet-300 bg-white px-4 py-2 text-sm font-semibold text-violet-800 disabled:text-slate-400"
                   >
-                    Next step
+                    下一音
                   </button>
                   <button
                     type="button"
@@ -1023,7 +1023,7 @@ export default function PracticePage() {
                     disabled={isFirstMelodyStep}
                     className="rounded-full border border-violet-300 bg-white px-4 py-2 text-sm font-semibold text-violet-800 disabled:text-slate-400"
                   >
-                    Restart melody
+                    重新开始旋律
                   </button>
                 </div>
                 <button
@@ -1032,22 +1032,22 @@ export default function PracticePage() {
                   disabled={isSelectedTargetNotePlaying}
                   className="rounded-full bg-violet-700 px-4 py-2 text-sm font-semibold text-white disabled:bg-violet-300"
                 >
-                  {isSelectedTargetNotePlaying ? "Playing selected note..." : "Play selected target note"}
+                  {isSelectedTargetNotePlaying ? "正在播放所选音…" : "播放所选目标音"}
                 </button>
               </div>
             </div>
             {pitchComparisonResult && pitchEstimateResult ? (
               <dl className="mt-4 grid gap-3 sm:grid-cols-2">
-                <div className="rounded-xl bg-violet-50 p-4 ring-1 ring-violet-200"><dt className="font-semibold text-violet-950">Target frequency</dt><dd className="mt-1 text-violet-800">{pitchComparisonResult.targetFrequencyHz.toFixed(2)} Hz ({pitchComparisonResult.targetNote})</dd></div>
-                <div className="rounded-xl bg-violet-50 p-4 ring-1 ring-violet-200"><dt className="font-semibold text-violet-950">Local estimated pitch</dt><dd className="mt-1 text-violet-800">{pitchComparisonResult.estimatedFrequencyHz.toFixed(2)} Hz</dd></div>
-                <div className="rounded-xl bg-violet-50 p-4 ring-1 ring-violet-200"><dt className="font-semibold text-violet-950">Nearest note</dt><dd className="mt-1 text-violet-800">{pitchEstimateResult.nearestNote}</dd></div>
-                <div className="rounded-xl bg-violet-50 p-4 ring-1 ring-violet-200"><dt className="font-semibold text-violet-950">Frames analyzed / valid pitch frames</dt><dd className="mt-1 text-violet-800">{pitchEstimateResult.framesAnalyzed} / {pitchEstimateResult.validPitchFrames}</dd></div>
-                <div className="rounded-xl bg-violet-50 p-4 ring-1 ring-violet-200"><dt className="font-semibold text-violet-950">Cents from target</dt><dd className="mt-1 text-violet-800">{pitchComparisonResult.centsFromTarget.toFixed(1)}</dd></div>
-                <div className="rounded-xl bg-violet-50 p-4 ring-1 ring-violet-200"><dt className="font-semibold text-violet-950">Comparison hint</dt><dd className="mt-1 text-violet-800">{pitchComparisonResult.comparisonHint}</dd></div>
+                <div className="rounded-xl bg-violet-50 p-4 ring-1 ring-violet-200"><dt className="font-semibold text-violet-950">目标频率</dt><dd className="mt-1 text-violet-800">{pitchComparisonResult.targetFrequencyHz.toFixed(2)} Hz ({pitchComparisonResult.targetNote})</dd></div>
+                <div className="rounded-xl bg-violet-50 p-4 ring-1 ring-violet-200"><dt className="font-semibold text-violet-950">本地估计音高</dt><dd className="mt-1 text-violet-800">{pitchComparisonResult.estimatedFrequencyHz.toFixed(2)} Hz</dd></div>
+                <div className="rounded-xl bg-violet-50 p-4 ring-1 ring-violet-200"><dt className="font-semibold text-violet-950">最接近的音</dt><dd className="mt-1 text-violet-800">{pitchEstimateResult.nearestNote}</dd></div>
+                <div className="rounded-xl bg-violet-50 p-4 ring-1 ring-violet-200"><dt className="font-semibold text-violet-950">已分析帧 / 可用音高帧</dt><dd className="mt-1 text-violet-800">{pitchEstimateResult.framesAnalyzed} / {pitchEstimateResult.validPitchFrames}</dd></div>
+                <div className="rounded-xl bg-violet-50 p-4 ring-1 ring-violet-200"><dt className="font-semibold text-violet-950">与目标音的音分差</dt><dd className="mt-1 text-violet-800">{pitchComparisonResult.centsFromTarget.toFixed(1)}</dd></div>
+                <div className="rounded-xl bg-violet-50 p-4 ring-1 ring-violet-200"><dt className="font-semibold text-violet-950">对比提示</dt><dd className="mt-1 text-violet-800">{pitchComparisonResult.comparisonHint}</dd></div>
               </dl>
             ) : (
               <p className="mt-4 rounded-xl bg-violet-50 p-4 font-medium text-violet-800">
-                Estimate pitch locally to compare the local estimated pitch against the current step target note. This comparison is not a formal score.
+                请先本地估计音高，再将本地估计音高与当前步骤目标音对比。这个对比不是正式评分。
               </p>
             )}
           </div>
@@ -1055,9 +1055,9 @@ export default function PracticePage() {
           <section className="mt-4 rounded-xl border border-sky-200 bg-sky-50 p-4 text-sm text-sky-950">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
               <div>
-                <p className="font-semibold">Recent local attempts</p>
+                <p className="font-semibold">最近本地练习记录</p>
                 <p className="mt-1 text-sky-800">
-                  These attempts are temporary local React state for this browser session only. They are not uploaded, not saved to a server, not stored in browser storage, not a score or grade, and not rhythm evaluation.
+                  这些练习记录只是当前浏览器会话中的临时本地 React 状态。它们不上传、不保存到服务器、不写入浏览器存储，不是正式评分或等级，也不进行节奏评测。
                 </p>
               </div>
               <button
@@ -1066,7 +1066,7 @@ export default function PracticePage() {
                 disabled={practiceAttempts.length === 0}
                 className="rounded-full border border-sky-300 bg-white px-4 py-2 text-sm font-semibold text-sky-800 disabled:text-slate-400"
               >
-                Clear attempt history
+                清空练习记录
               </button>
             </div>
             {practiceAttempts.length > 0 ? (
@@ -1078,50 +1078,50 @@ export default function PracticePage() {
                       <p className="text-xs font-semibold uppercase tracking-wide text-sky-700">{attempt.feedbackLabel}</p>
                     </div>
                     <dl className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                      <div><dt className="font-semibold">Step #</dt><dd className="text-sky-800">{attempt.melodyStepNumber}</dd></div>
-                      <div><dt className="font-semibold">Target note</dt><dd className="text-sky-800">{attempt.targetNote}</dd></div>
-                      <div><dt className="font-semibold">Estimated note</dt><dd className="text-sky-800">{attempt.nearestNote}</dd></div>
-                      <div><dt className="font-semibold">Estimated frequency Hz</dt><dd className="text-sky-800">{attempt.estimatedFrequencyHz.toFixed(2)}</dd></div>
-                      <div><dt className="font-semibold">Cents from target</dt><dd className="text-sky-800">{attempt.centsFromTarget.toFixed(1)}</dd></div>
-                      <div><dt className="font-semibold">Confidence frame coverage</dt><dd className="text-sky-800">{attempt.confidence.toFixed(2)}</dd></div>
+                      <div><dt className="font-semibold">步骤 #</dt><dd className="text-sky-800">{attempt.melodyStepNumber}</dd></div>
+                      <div><dt className="font-semibold">目标音</dt><dd className="text-sky-800">{attempt.targetNote}</dd></div>
+                      <div><dt className="font-semibold">估计音</dt><dd className="text-sky-800">{attempt.nearestNote}</dd></div>
+                      <div><dt className="font-semibold">估计频率 Hz</dt><dd className="text-sky-800">{attempt.estimatedFrequencyHz.toFixed(2)}</dd></div>
+                      <div><dt className="font-semibold">与目标音的音分差</dt><dd className="text-sky-800">{attempt.centsFromTarget.toFixed(1)}</dd></div>
+                      <div><dt className="font-semibold">置信帧覆盖率</dt><dd className="text-sky-800">{attempt.confidence.toFixed(2)}</dd></div>
                     </dl>
                     <button
                       type="button"
                       onClick={() => handlePracticeAttemptTargetAgain(attempt.melodyStepIndex)}
                       className="mt-3 rounded-full border border-sky-300 bg-white px-4 py-2 text-sm font-semibold text-sky-800"
                     >
-                      Practice this target again
+                      再次练习这个目标音
                     </button>
                   </li>
                 ))}
               </ol>
             ) : (
               <p className="mt-4 rounded-xl bg-white p-4 font-medium text-sky-800 ring-1 ring-sky-200">
-                Record and estimate a local attempt to see temporary local pitch comparison feedback here.
+                录制并本地估计一次练习后，这里会显示临时本地音高对比反馈。
               </p>
             )}
           </section>
           {audioAnalysisResult ? (
             <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
-              <div className="rounded-xl bg-white p-4 ring-1 ring-emerald-200"><dt className="font-semibold text-emerald-950">Duration seconds</dt><dd className="mt-1 text-emerald-800">{audioAnalysisResult.durationSeconds.toFixed(2)}</dd></div>
-              <div className="rounded-xl bg-white p-4 ring-1 ring-emerald-200"><dt className="font-semibold text-emerald-950">Peak level</dt><dd className="mt-1 text-emerald-800">{audioAnalysisResult.peakLevel.toFixed(4)}</dd></div>
-              <div className="rounded-xl bg-white p-4 ring-1 ring-emerald-200"><dt className="font-semibold text-emerald-950">RMS level</dt><dd className="mt-1 text-emerald-800">{audioAnalysisResult.rmsLevel.toFixed(4)}</dd></div>
-              <div className="rounded-xl bg-white p-4 ring-1 ring-emerald-200"><dt className="font-semibold text-emerald-950">Simple level hint</dt><dd className="mt-1 text-emerald-800">{audioAnalysisResult.simpleLevelHint}</dd></div>
+              <div className="rounded-xl bg-white p-4 ring-1 ring-emerald-200"><dt className="font-semibold text-emerald-950">时长（秒）</dt><dd className="mt-1 text-emerald-800">{audioAnalysisResult.durationSeconds.toFixed(2)}</dd></div>
+              <div className="rounded-xl bg-white p-4 ring-1 ring-emerald-200"><dt className="font-semibold text-emerald-950">峰值电平</dt><dd className="mt-1 text-emerald-800">{audioAnalysisResult.peakLevel.toFixed(4)}</dd></div>
+              <div className="rounded-xl bg-white p-4 ring-1 ring-emerald-200"><dt className="font-semibold text-emerald-950">RMS 电平</dt><dd className="mt-1 text-emerald-800">{audioAnalysisResult.rmsLevel.toFixed(4)}</dd></div>
+              <div className="rounded-xl bg-white p-4 ring-1 ring-emerald-200"><dt className="font-semibold text-emerald-950">简易电平提示</dt><dd className="mt-1 text-emerald-800">{audioAnalysisResult.simpleLevelHint}</dd></div>
             </dl>
           ) : null}
         </section>
 
         {hasMockFeedback ? (
           <div className="mt-6 grid gap-4 md:grid-cols-3">
-            <section className="rounded-2xl border border-slate-200 bg-white p-5"><h2 className="text-lg font-bold">Mock pitch feedback</h2><p className="mt-2 text-sm text-slate-600">{mockFeedback.pitch} This is not real pitch detection or scoring.</p></section>
-            <section className="rounded-2xl border border-slate-200 bg-white p-5"><h2 className="text-lg font-bold">Mock rhythm feedback</h2><p className="mt-2 text-sm text-slate-600">{mockFeedback.rhythm} This is not real rhythm evaluation or scoring.</p></section>
-            <section className="rounded-2xl border border-slate-200 bg-white p-5"><h2 className="text-lg font-bold">Mock AI-style learning feedback</h2><p className="mt-2 text-sm text-slate-600">{mockFeedback.learning} No AI API is called.</p></section>
+            <section className="rounded-2xl border border-slate-200 bg-white p-5"><h2 className="text-lg font-bold">模拟音高反馈</h2><p className="mt-2 text-sm text-slate-600">{mockFeedback.pitch} 这不是真实音高检测，也不提供正式评分。</p></section>
+            <section className="rounded-2xl border border-slate-200 bg-white p-5"><h2 className="text-lg font-bold">模拟节奏反馈</h2><p className="mt-2 text-sm text-slate-600">{mockFeedback.rhythm} 这不是真实节奏评测，也不提供正式评分。</p></section>
+            <section className="rounded-2xl border border-slate-200 bg-white p-5"><h2 className="text-lg font-bold">模拟 AI 风格学习建议</h2><p className="mt-2 text-sm text-slate-600">{mockFeedback.learning} 不调用 AI API。</p></section>
           </div>
         ) : (
           <div className="mt-6 grid gap-4 md:grid-cols-3">
-            <section className="rounded-2xl border border-slate-200 bg-white p-5"><h2 className="text-lg font-bold">Pitch feedback placeholder</h2><p className="mt-2 text-sm text-slate-600">No real pitch detection is implemented here.</p></section>
-            <section className="rounded-2xl border border-slate-200 bg-white p-5"><h2 className="text-lg font-bold">Rhythm feedback placeholder</h2><p className="mt-2 text-sm text-slate-600">No real rhythm evaluation is implemented here.</p></section>
-            <section className="rounded-2xl border border-slate-200 bg-white p-5"><h2 className="text-lg font-bold">AI feedback placeholder</h2><p className="mt-2 text-sm text-slate-600">This page does not call any AI API.</p></section>
+            <section className="rounded-2xl border border-slate-200 bg-white p-5"><h2 className="text-lg font-bold">音高反馈占位</h2><p className="mt-2 text-sm text-slate-600">这里未实现真实音高检测。</p></section>
+            <section className="rounded-2xl border border-slate-200 bg-white p-5"><h2 className="text-lg font-bold">节奏反馈占位</h2><p className="mt-2 text-sm text-slate-600">这里未实现真实节奏评测。</p></section>
+            <section className="rounded-2xl border border-slate-200 bg-white p-5"><h2 className="text-lg font-bold">AI 反馈占位</h2><p className="mt-2 text-sm text-slate-600">此页面不调用任何 AI API。</p></section>
           </div>
         )}
       </section>
