@@ -20,7 +20,8 @@
     "musicxml:inspect-local": "node scripts/musicxml-inspect-local.mjs",
     "validate:dev-omr-api-boundary": "node scripts/validate-dev-omr-api-boundary.mjs",
     "validate:synthetic-pitch-benchmark": "rm -rf .next/synthetic-pitch-benchmark && tsc --module NodeNext --moduleResolution NodeNext --target ES2020 --outDir .next/synthetic-pitch-benchmark --noEmit false --declaration false --sourceMap false --incremental false scripts/validate-synthetic-pitch-benchmark.ts lib/practice/pitchEstimate.ts lib/practice/syntheticPitchBenchmark.ts lib/practice/syntheticPitchBenchmarkSuite.ts && node .next/synthetic-pitch-benchmark/scripts/validate-synthetic-pitch-benchmark.js",
-    "validate:local": "npm run validate:synthetic-pitch-benchmark && npm run validate:dev-omr-api-boundary && npm run validate:repository-hygiene && npm run validate:recognition-boundary && npm run validate:musicxml-import-ui && npm run validate:mxl-import && npm run validate:musicxml && npm run build"
+    "validate:local": "npm run validate:synthetic-pitch-benchmark && npm run validate:dev-omr-api-boundary && npm run validate:repository-hygiene && npm run validate:recognition-boundary && npm run validate:musicxml-import-ui && npm run validate:mxl-import && npm run validate:musicxml && npm run build",
+    "validate:local-real-voice-fixtures": "rm -rf .next/local-real-voice-fixtures && tsc --module NodeNext --moduleResolution NodeNext --target ES2020 --outDir .next/local-real-voice-fixtures --noEmit false --declaration false --sourceMap false --incremental false scripts/validate-local-real-voice-fixtures.ts && node .next/local-real-voice-fixtures/validate-local-real-voice-fixtures.js"
   },
   "dependencies": {
     "next": "^14.2.0",

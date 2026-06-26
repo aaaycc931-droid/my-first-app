@@ -170,3 +170,11 @@ The example metadata template uses non-identifying placeholder values and includ
 This convention is for developer local experiments only. It is not part of CI, does not add blocking validation, does not relax tolerances, and does not promote exploratory cases to blocking. If a future PR proposes a validation script for local real voice files, that script must be opt-in and non-blocking by default, and the PR must separately review privacy, consent, repository hygiene, and product-claim boundaries.
 
 P5b does not change the pitch estimator algorithm, Practice Mode UI workflow, formal scoring, grades, pass/fail labels, rhythm evaluation, sight-singing assessment, `/api/recognize`, recognition provider union, PDF upload, Audiveris behavior, AI API usage, audio upload behavior, or external dataset usage.
+
+## 13. P5c opt-in local metadata validation script
+
+P5c adds an opt-in local metadata validation script for the P5b local real voice fixture convention. Developers can manually run `npm run validate:local-real-voice-fixtures` to check the shape of `local-fixtures/real-voice/metadata.local.json` when they have created that ignored local file on their own machine.
+
+The script validates only text metadata fields from the P5b convention: `id`, `targetNote`, `expectedFrequencyHz`, `vowel`, `durationSeconds`, `singerRange`, `recordingCondition`, `deviceClass`, `consentStatus`, `localOnly`, and `caveats`. It treats a missing `metadata.local.json` as normal and exits successfully so developers without local real voice experiments are not blocked.
+
+This script does not read audio file contents, upload data, call the network, call AI APIs, connect external datasets, change the pitch estimator algorithm, change Practice Mode UI workflow, add formal scores, add grades, add pass/fail labels, evaluate rhythm, evaluate sight singing, change blocking gates, relax tolerances, promote exploratory cases, join CI, join `npm run validate:local`, modify `/api/recognize`, modify recognition providers, add PDF upload, or connect Audiveris.
