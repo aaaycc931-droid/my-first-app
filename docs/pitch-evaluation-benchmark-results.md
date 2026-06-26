@@ -347,3 +347,42 @@ Diagnostic observations:
 - Higher noise and mixed harmonics do not cross the prototype threshold in this run.
 
 These observations are generated in-memory synthetic diagnostics only. They are not production accuracy claims, formal scoring evidence, rhythm evaluation, sight-singing assessment, or proof of real singing accuracy.
+
+## P4e consolidated current benchmark status — 2026-06-26
+
+P4e consolidates the current status after P3a, P3b, P4a, P4b, P4c, and P4d. This section is documentation-only and does not record a new algorithm change or a new benchmark feature.
+
+Current validation role summary:
+
+| area | current role | notes |
+| --- | --- | --- |
+| Clean sine A3/C3/E3/A4/C4/E4/G4/C5/A5 | Blocking synthetic pitch regression gate | Existing 50-cent tolerance and existing target frequencies remain unchanged. |
+| A4/C4 quiet amplitude, short duration, deterministic light-noise robustness cases | Blocking synthetic robustness regression gate | Existing robustness inputs remain unchanged. |
+| Silent sustained and too-short buffers | Blocking no-pitch behavior gate | Expected no-usable-pitch and too-short behavior remain blocking. |
+| Higher deterministic noise | Exploratory / non-blocking diagnostic | Reporting only; does not affect validation pass/fail. |
+| Frequency drift 440.00Hz → 466.16Hz | Exploratory / non-blocking unstable sustained pitch diagnostic candidate | Not a pitch correctness case and not ending-pitch correctness. |
+| Vibrato 35 cents at 5Hz | Exploratory / non-blocking diagnostic | P4a improved the recorded aggregate, but this remains non-blocking and not production proof. |
+| Mixed harmonics | Exploratory / non-blocking diagnostic | Reporting only; does not affect validation pass/fail. |
+| P4d sustained pitch instability fields | Reporting-only exploratory diagnostics | Not validation logic, not formal scoring, and not UI pass/fail semantics. |
+
+Current P4a/P4d exploratory observations to preserve:
+
+- Vibrato improved after P4a from 422.09Hz / -71.93 cents to 436.60Hz / -13.44 cents in the recorded generated benchmark run. This is an outlier-robustness improvement, not a production-grade vibrato solution.
+- Frequency drift remains semantically unstable: the generated input still moves from 440.00Hz to 466.16Hz, estimates near the ending pitch at 466.73Hz, and is interpreted as a pitch drift / unstable sustained pitch diagnostic candidate rather than a correct sustained-note result.
+- P4d reports instability fields such as frame range, first-half median, second-half median, first-to-second-half drift, a diagnostic-only 50-cent threshold, and `sustainedPitchInstabilityObserved`. These fields explain behavior only and do not change exit status.
+
+Current limitations:
+
+- No production-grade pitch evaluation claim.
+- No real voice dataset.
+- No formal score, grade, pass, or fail.
+- No rhythm evaluation or sight-singing assessment.
+- No Practice Mode UI integration for instability diagnostics.
+- No changed blocking gates, tolerance, blocking target frequencies, frequency drift input, `/api/recognize`, recognition provider union, uploads, Audiveris, AI API, or audio handling.
+
+Recommended next-step options, not implemented here:
+
+1. Continue synthetic exploration only if each case remains clearly labeled as blocking or exploratory.
+2. Draft a real voice dataset design before adding any real recordings or claiming singing accuracy.
+3. Decide whether instability diagnostics should become user-facing Practice Mode feedback in a future PR.
+4. Begin formal scoring planning only after correctness semantics and validation data are stronger.
