@@ -135,3 +135,21 @@ This convention does not:
 - modify `/api/recognize`, recognition providers, PDF upload, or Audiveris behavior
 
 If a future PR adds a validation script for these local files, it must be opt-in, local-only, and non-blocking by default. It must not become part of CI or product gating without a separate explicit design and review.
+
+## PR reviewer checklist
+
+Use this checklist before approving future PRs that touch the local real voice convention:
+
+- [ ] No real audio files, exported clips, derived audio assets, or audio fixtures are committed.
+- [ ] No real `metadata.local.json` or other local-only metadata file is committed.
+- [ ] No real names, email addresses, phone numbers, addresses, exact locations, account ids, device owner names, or other identifiable personal information are included.
+- [ ] Local real voice validation is not connected to CI and is not added to `npm run validate:local`.
+- [ ] The pitch estimator algorithm is unchanged.
+- [ ] The Practice Mode UI workflow is unchanged.
+- [ ] No score, formal score, grade, pass label, fail label, rhythm evaluation, or sight-singing assessment is added.
+- [ ] Blocking gates, tolerance values, and target frequencies are unchanged.
+- [ ] Exploratory cases remain exploratory and are not promoted to blocking.
+- [ ] The PR does not introduce uploads, AI API calls, external datasets, Audiveris integration, `/api/recognize` changes, recognition provider union changes, or PDF upload behavior.
+- [ ] The PR clearly keeps this workflow local-only, opt-in, non-blocking, and outside CI.
+
+The fuller reviewer checklist is documented in `docs/real-voice-dataset-plan.md#15-p5e-local-real-voice-pr-reviewer-checklist`.
