@@ -230,3 +230,19 @@ Keep these boundaries visible during manual QA:
 * Browser compatibility notes.
 * Mobile microphone behavior.
 * Future rhythm onset QA when implemented.
+
+## 24. P6a UX copy and boundary polish checklist
+
+* `/practice` visibly identifies the page as Browser Local Only Practice Mode.
+* Copy explains that the current flow is melody step-by-step practice, not a formal assessment system.
+* Copy explains that Step X / N is the current position in the fixed melody.
+* Copy explains that Current target note comes from the current melody step.
+* Copy explains that Previous step, Next step, and Restart melody only change the selected melody step.
+* Copy explains that changing steps does not automatically play a target note, start recording, estimate pitch, or add an attempt history entry.
+* Copy recommends the lightweight order: Play target, Record, then Estimate pitch locally.
+* Copy explains that local pitch estimation is compared only with the current step target note.
+* Copy states that the comparison is not a formal score, grade, pass, or fail.
+* Copy states that rhythm and sight-singing assessment are not included.
+* Recent local attempts copy states that attempts are temporary local browser-session state only.
+* Recent local attempts copy states that attempts are not uploaded, not saved to a server, and not stored in browser storage.
+* This checklist update does not require changing the pitch estimator algorithm, benchmark gates, tolerance, Practice Mode core workflow, melody step navigation behavior, attempt history data logic, `/api/recognize`, recognition provider union, PDF upload, Audiveris, persistence, audio upload, or AI API behavior.
