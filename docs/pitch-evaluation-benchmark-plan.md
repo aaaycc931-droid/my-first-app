@@ -285,3 +285,11 @@ Recommended next-step options, none implemented by P4e:
 2. Design a licensed, privacy-safe real voice dataset plan before adding any real recordings; do not add the dataset in the current P4e work.
 3. Consider whether sustained pitch instability should later be surfaced in Practice Mode UI, but do not connect P4d diagnostics to UI yet.
 4. Start planning formal scoring semantics only after pitch correctness, instability, and real-data validation are better defined; do not add formal scoring now.
+
+## 16. P5a real voice dataset design
+
+P5a adds a design-only real voice dataset plan in `docs/real-voice-dataset-plan.md`. The goal is to prepare future real singing pitch robustness evaluation without collecting recordings, committing audio fixtures, uploading audio, connecting external datasets, changing estimator behavior, or changing user-facing Practice Mode workflow.
+
+The real voice dataset direction should remain separate from current production claims. It is intended for future diagnostic analysis of target note accuracy, expected frequency, singer type or vocal range, recording condition, known caveats, cents error, valid frame rate, confidence, stability, and drift diagnostics. It is not current production accuracy proof, not formal scoring, not a grade/pass/fail system, not rhythm evaluation, and not sight-singing assessment.
+
+The recommended sequence is dataset design, then a small local-only fixture prototype, then validation script extension, then non-blocking result reporting, and only later a possible scoring design if sufficient labeled real voice evidence exists. Existing generated in-memory clean sine, robustness, and no-pitch gates remain unchanged; exploratory cases remain non-blocking; no tolerance is relaxed.
