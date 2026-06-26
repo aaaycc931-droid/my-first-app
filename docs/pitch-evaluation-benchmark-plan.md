@@ -251,3 +251,37 @@ The 50-cent threshold is deliberately documented as a prototype diagnostic thres
 P4d must keep all existing blocking gates unchanged. Clean sine, robustness, and no-pitch blocking cases still determine validation pass/fail exactly as before. Exploratory higher-noise, frequency-drift, vibrato, mixed-harmonics, and instability fields remain observation-only.
 
 P4d does not change nearest-note selection behavior, target comparison, Practice Mode UI workflow, formal scoring, rhythm evaluation, sight-singing assessment, tolerance, blocking target frequencies, frequency drift input, `/api/recognize`, recognition provider union, PDF upload, Audiveris integration, AI API usage, audio upload, or real voice datasets.
+
+## 16. P4e consolidated benchmark status
+
+P4e is a documentation-only consolidation of the current P3a through P4d pitch benchmark and diagnostic status. It does not introduce a new algorithm, UI workflow, validation gate, formal score, grade, pass/fail label, rhythm evaluation, sight-singing assessment, audio upload, real voice dataset, AI API, PDF upload, Audiveris integration, `/api/recognize` change, or recognition provider change.
+
+Current blocking validation coverage is limited to generated in-memory synthetic regression and no-pitch behavior:
+
+- Clean sine known-frequency pitch cases are blocking: A3 220Hz, C3 130.81Hz, E3 164.81Hz, A4 440Hz, C4 261.63Hz, E4 329.63Hz, G4 392Hz, C5 523.25Hz, and A5 880Hz.
+- Synthetic robustness cases are blocking: A4/C4 quiet amplitude, A4/C4 short duration, and A4/C4 deterministic light-noise variants.
+- No-pitch behavior cases are blocking: silent sustained buffer and too-short buffer.
+- Blocking gates still use the existing tolerance and existing target frequencies. P4e does not relax tolerance, change blocking target frequencies, or promote any exploratory case.
+
+Current exploratory / non-blocking diagnostics are:
+
+- Higher deterministic noise.
+- Frequency drift from 440.00Hz to 466.16Hz.
+- Vibrato at A4 440Hz with 35-cent depth and 5Hz rate.
+- Mixed harmonics.
+- P4d sustained pitch instability fields derived from retained frame-level pitch diagnostics.
+
+P4a improved the vibrato exploratory aggregate in the recorded synthetic run from 422.09Hz / -71.93 cents to 436.60Hz / -13.44 cents by reducing the influence of late extreme frame outliers. This is a useful robustness observation only. Vibrato remains exploratory/non-blocking and should not be described as solved for production singing accuracy.
+
+Frequency drift remains a pitch drift / unstable sustained pitch diagnostic candidate. It is not a pitch correctness case, not an ending-pitch correctness result, not formal scoring, and not production pitch accuracy proof. The current generated drift input remains 440.00Hz to 466.16Hz; P4e does not change that input.
+
+P4d instability diagnostics are reporting-only. `frameFrequencyRangeCents`, first-half / second-half median frequencies, first-to-second-half drift, the 50-cent diagnostic threshold, and `sustainedPitchInstabilityObserved` may help explain exploratory benchmark behavior, but they do not participate in validation pass/fail and are not user-facing grade/pass/fail semantics.
+
+The current benchmark suite is still not production-grade pitch evaluation. It has no real voice dataset, no formal score, no grade, no pass/fail assessment for users, no rhythm evaluation, no sight-singing assessment, and no teacher-level claim. Passing local validation means only that the current synthetic blocking regression gates and boundary checks passed.
+
+Recommended next-step options, none implemented by P4e:
+
+1. Decide whether to continue expanding generated synthetic exploratory cases, while keeping them non-blocking until their semantics are clear.
+2. Design a licensed, privacy-safe real voice dataset plan before adding any real recordings; do not add the dataset in the current P4e work.
+3. Consider whether sustained pitch instability should later be surfaced in Practice Mode UI, but do not connect P4d diagnostics to UI yet.
+4. Start planning formal scoring semantics only after pitch correctness, instability, and real-data validation are better defined; do not add formal scoring now.
