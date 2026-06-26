@@ -184,3 +184,42 @@ This script does not read audio file contents, upload data, call the network, ca
 P5d adds a docs-only `metadata.local.json` authoring guide to `local-fixtures/real-voice/README.md`. The guide explains how developers can copy `metadata.example.json` to the ignored local `metadata.local.json`, fill each P5b/P5c metadata field with non-identifying local-only values, and manually run `npm run validate:local-real-voice-fixtures` as an opt-in, local-only, non-blocking metadata shape check.
 
 P5d does not add scripts, commit real audio, commit audio fixtures, commit real `metadata.local.json`, upload audio, call AI APIs, connect external datasets, change the pitch estimator algorithm, change Practice Mode UI workflow, add scores, add grades, add pass/fail labels, evaluate rhythm, assess sight singing, change blocking gates, relax tolerances, promote exploratory cases to blocking, connect real voice validation to CI, add the local real voice validator to `npm run validate:local`, modify `/api/recognize`, modify recognition providers, add PDF upload, or connect Audiveris.
+
+## 15. P5e local real voice PR reviewer checklist
+
+Use this checklist when reviewing future local real voice PRs so the local experiment boundary stays privacy-preserving, opt-in, and non-blocking.
+
+### Repository hygiene
+
+- [ ] The PR does not commit real audio files, exported clips, derived audio assets, or audio fixtures.
+- [ ] The PR does not commit `local-fixtures/real-voice/metadata.local.json` or any other local-only metadata file.
+- [ ] The PR does not include real names, email addresses, phone numbers, street addresses, exact locations, account ids, device owner names, or other personally identifiable information.
+
+### Validation wiring
+
+- [ ] The PR does not connect local real voice validation to CI.
+- [ ] The PR does not add local real voice validation to `npm run validate:local`.
+- [ ] Any local real voice validation remains manual, local-only, opt-in, and non-blocking.
+
+### Product and algorithm boundaries
+
+- [ ] The PR does not modify the pitch estimator algorithm.
+- [ ] The PR does not modify the Practice Mode UI workflow.
+- [ ] The PR does not add a score, formal score, grade, pass label, fail label, rhythm evaluation, or sight-singing assessment.
+- [ ] The PR does not modify blocking gates, tolerance values, or target frequencies.
+- [ ] The PR does not promote exploratory cases to blocking.
+
+### Integration boundaries
+
+- [ ] The PR does not introduce audio upload behavior.
+- [ ] The PR does not call or wire an AI API.
+- [ ] The PR does not connect an external dataset.
+- [ ] The PR does not modify `/api/recognize`.
+- [ ] The PR does not modify the recognition provider union.
+- [ ] The PR does not add PDF upload behavior.
+- [ ] The PR does not connect Audiveris.
+
+### Required reviewer conclusion
+
+- [ ] The PR explicitly preserves the local real voice workflow as local-only, opt-in, non-blocking, and outside CI.
+- [ ] The PR remains docs-only unless a future task explicitly authorizes a narrow non-doc change with the same privacy, product, and validation boundaries reviewed again.
