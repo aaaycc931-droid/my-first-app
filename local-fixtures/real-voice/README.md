@@ -41,6 +41,19 @@ Required fields for local experiment records:
 
 See `metadata.example.json` for a text-only template with placeholder values.
 
+
+## Opt-in local metadata validation
+
+Developers who create the ignored local file `local-fixtures/real-voice/metadata.local.json` can manually run:
+
+```bash
+npm run validate:local-real-voice-fixtures
+```
+
+The script validates only the text metadata shape from this convention. If `metadata.local.json` is missing, the script explains that this is normal and exits successfully. The script is local-only, opt-in, and non-blocking: it is not part of CI and is intentionally not included in `npm run validate:local`.
+
+The script does not read audio file contents, upload anything, call the network, call AI APIs, connect external datasets, change product behavior, change pitch estimation, or add scores, grades, pass/fail labels, rhythm evaluation, or sight-singing assessment.
+
 ## Boundaries
 
 This convention does not:
