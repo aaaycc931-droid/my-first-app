@@ -246,3 +246,60 @@ Keep these boundaries visible during manual QA:
 * Recent local attempts copy states that attempts are temporary local browser-session state only.
 * Recent local attempts copy states that attempts are not uploaded, not saved to a server, and not stored in browser storage.
 * This checklist update does not require changing the pitch estimator algorithm, benchmark gates, tolerance, Practice Mode core workflow, melody step navigation behavior, attempt history data logic, `/api/recognize`, recognition provider union, PDF upload, Audiveris, persistence, audio upload, or AI API behavior.
+
+## 25. P6b Practice Mode manual QA pass — 2026-06-26
+
+### QA environment
+
+* Branch: `p6b-practice-mode-manual-qa-pass`.
+* Base available in this container: current local `work` history at commit `7fe3107` because no `origin` remote is configured in the container.
+* Method completed in this environment: source-backed manual QA review of the current `/practice` implementation and copy after P6a.
+* Browser runtime limitation: no Chromium, Chrome, Firefox, or Playwright browser runtime was available in this container, so interactive browser-only and microphone-only checks could not be truthfully completed here.
+* Scope of this PR: documentation only. No Practice Mode implementation, pitch estimator, benchmark gate, tolerance, workflow, API, provider, PDF, Audiveris, persistence, upload, or AI behavior was changed.
+
+### P6b checklist results
+
+| Check | Result | Notes |
+| --- | --- | --- |
+| Page clearly displays Browser Local Only Practice Mode | Confirmed by source review | `/practice` renders the Browser Local Only Practice Mode label in the page header. |
+| Copy explains no upload / no AI API / no persistence / no formal score | Confirmed by source review | Header and local recording copy state no upload, no persistence, no AI API call, and no formal score. |
+| Copy avoids grade / pass / fail implications | Confirmed by source review | P6a copy explicitly says no grade/pass/fail, and comparison copy says it is not a formal score. Benchmark internals still use pass/fail terms outside the `/practice` user-facing page. |
+| Melody step practice loop is visible | Confirmed by source review | The page renders a Melody step practice loop section with fixed melody-step guidance. |
+| Step X / N is shown | Confirmed by source review | The current step indicator renders `Step {currentMelodyStepIndex + 1} / {melodySteps.length}`. |
+| Current target note matches current step | Confirmed by source review | `selectedTargetNote` is derived from `currentMelodyStep.targetNote`. |
+| Play target only plays target note and does not auto-record or auto-estimate | Confirmed by source review; browser audio not executed | The target playback handler only starts Web Audio playback for the selected target note. No recording or estimate handler is called from step playback. |
+| Previous step clamps at first step | Confirmed by source review; browser click not executed | Step movement uses min/max clamping and the Previous step button is disabled on the first step. |
+| Next step clamps at last step | Confirmed by source review; browser click not executed | Step movement uses min/max clamping and the Next step button is disabled on the last step. |
+| Restart melody returns to Step 1 | Confirmed by source review; browser click not executed | Restart sets `currentMelodyStepIndex` to `0`. |
+| Switching step does not auto-play / auto-record / auto-estimate | Confirmed by source review; browser click not executed | Step navigation only updates local melody-step state. |
+| Record / Estimate remains local | Confirmed by source review; microphone not executed | Recording uses browser media APIs and estimate uses local recorded audio state. No upload path was identified in this QA pass. |
+| Estimate compares only against current step target note | Confirmed by source review; microphone not executed | Estimate captures the current melody step at estimate time and computes comparison against that target note. |
+| Recent local attempts show Step # / Target note / Estimated note | Confirmed by source review; browser attempt not created | Attempt cards render Step #, Target note, and Estimated note fields. |
+| Practice this target again returns to stored step without auto-play, auto-record, or auto-estimate | Confirmed by source review; browser click not executed | The handler only sets `currentMelodyStepIndex` from the stored attempt step index. |
+| Clear attempt history only clears local React state | Confirmed by source review; browser click not executed | The control calls `setAttemptHistory([])`. |
+| Page copy avoids score / grade / pass / fail hints | Confirmed by source review | User-facing copy repeatedly says the flow is not a formal score, not a grade, and not pass/fail. |
+
+### Items not completed in this environment
+
+The following checks require an actual browser runtime and, for recording checks, microphone permission. They were not completed in this container and should be repeated by a human reviewer before treating this as a full browser QA sign-off:
+
+* Audibly verifying Play target output.
+* Confirming Play target does not trigger browser recording or local estimate through real browser interaction.
+* Clicking Previous step, Next step, Restart melody, Practice this target again, and Clear attempt history in a real browser.
+* Recording a real local attempt with microphone permission.
+* Running Estimate pitch locally against a recorded attempt.
+* Verifying Recent local attempts after a successful real browser estimate.
+* Confirming denied microphone permission copy in a real browser.
+
+### P6b result summary
+
+No Practice Mode boundary regressions were found in the source-backed manual QA review. The QA pass is documented with the explicit limitation that browser and microphone interaction could not be completed in this environment.
+
+### Issues found
+
+* No product issues found from source-backed review.
+* QA environment issue: this container did not provide a browser runtime for interactive `/practice` or microphone checks.
+
+### Recommended next step
+
+Repeat the unchecked browser and microphone items in a local desktop browser with microphone access, then append a short browser-confirmed addendum to this checklist if all interactions match the source-backed expectations.
