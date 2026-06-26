@@ -294,3 +294,21 @@ Semantic observation:
 - Therefore this diagnostic currently appears ending-pitch-biased after P4a frame aggregation, but P4b intentionally does not define that as correct or incorrect. It only makes the semantics visible so a later P4c can choose the intended behavior.
 
 This P4b result remains exploratory and is not production accuracy proof, not formal scoring, and not evidence of real singing accuracy.
+
+
+## P4c frequency drift semantics decision — 2026-06-25
+
+P4c does not rerun or reinterpret the frequency-drift exploratory case as a production pitch-accuracy result. It records the product decision for the existing P4b observation:
+
+| caseName | startFrequencyHz | midpoint / expected median Hz | endFrequencyHz | estimatedFrequencyHz | centsVsStart | centsVsMidpoint / expectedMedian | centsVsEnd | product semantic | validation role |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- | --- |
+| A4 exploratory frequency drift 440Hz to 466.16Hz | 440.00 | 453.08 | 466.16 | 466.73 | +102.08 | +51.37 | +2.10 | pitch drift / unstable sustained pitch diagnostic candidate | exploratory, non-blocking, not formal scoring |
+
+Decision:
+
+- The estimate being close to the ending 466.16Hz pitch is not treated as sustained-note correctness.
+- The case is not promoted to a blocking benchmark gate.
+- The case is not a grade, pass/fail label, formal score, production pitch-accuracy claim, rhythm evaluation, or sight-singing assessment.
+- Future work may add explicit instability detection and user-facing drift feedback separately from the nearest-note estimate, but P4c does not implement that behavior.
+
+Boundaries confirmed for this result update: no pitch estimator algorithm change, no Practice Mode UI workflow change, no validation pass/fail change, no tolerance change, no blocking target frequency change, no frequency drift input change, no `/api/recognize` change, no recognition provider union change, no PDF upload, no Audiveris integration, no AI API usage, no audio upload, and no real voice dataset.
