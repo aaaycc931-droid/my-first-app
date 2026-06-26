@@ -303,3 +303,28 @@ No Practice Mode boundary regressions were found in the source-backed manual QA 
 ### Recommended next step
 
 Repeat the unchecked browser and microphone items in a local desktop browser with microphone access, then append a short browser-confirmed addendum to this checklist if all interactions match the source-backed expectations.
+
+## 26. P6c Practice Mode Chinese copy localization — 2026-06-26
+
+### Scope
+
+* Localized only user-visible `/practice` UX copy and explanatory text to Chinese.
+* Kept Practice Mode behavior unchanged: no pitch estimator change, no benchmark gate change, no tolerance change, no workflow change, no melody step navigation behavior change, and no attempt history data logic change.
+* Preserved boundary meaning in Chinese: browser local-only practice, no audio upload, no AI API call, no persistence, no formal scoring, no rhythm evaluation, and no sight-singing assessment.
+
+### Source-backed localization checks
+
+| Check | Result | Notes |
+| --- | --- | --- |
+| Header localized | Confirmed by source review | The `/practice` header now uses `浏览器本地练习模式` and `练习模式`. |
+| Melody step loop localized | Confirmed by source review | The loop title uses `旋律逐步练习流程`, with Chinese instructions for Step X / N and current target note meaning. |
+| Required boundary copy preserved | Confirmed by source review | Chinese copy states no upload, no persistence, no AI API call, no formal score, no rhythm evaluation, and no sight-singing assessment. |
+| Recent attempts localized | Confirmed by source review | The recent local attempt section uses `最近本地练习记录`, `再次练习这个目标音`, and `清空练习记录`. |
+| Comparison labels localized | Confirmed by source review | Pitch comparison hints use Chinese labels such as `接近目标音`, `略微偏高`, and `略微偏低`. |
+| No new formal assessment language added | Confirmed by source review | The Chinese copy continues to avoid adding a formal score, grade, pass/fail result, rhythm evaluation, or sight-singing assessment. |
+
+### Recommended local manual QA focus
+
+* Open `/practice` in a local browser and confirm the Chinese copy is readable and natural.
+* Verify the visible boundary language still clearly communicates browser local-only operation, no audio upload, no AI API, no persistence, no formal score, no rhythm evaluation, and no sight-singing assessment.
+* Re-run the existing manual interaction checks from P6b for playback, step navigation, recording, estimate, recent attempts, retry target, and clearing attempt history.
