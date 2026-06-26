@@ -1,0 +1,20 @@
+{
+  "samples": [
+    {
+      "id": "local-real-voice-example-001",
+      "targetNote": "A4",
+      "expectedFrequencyHz": 440,
+      "vowel": "ah",
+      "durationSeconds": 2,
+      "singerRange": "unspecified-comfortable-range",
+      "recordingCondition": "quiet-room-placeholder",
+      "deviceClass": "laptop-built-in-microphone-placeholder",
+      "consentStatus": "developer-owned-local-placeholder",
+      "localOnly": true,
+      "caveats": [
+        "Example metadata only; no real recording is included.",
+        "Do not include personal identifiers in local metadata."
+      ]
+    }
+  ]
+}

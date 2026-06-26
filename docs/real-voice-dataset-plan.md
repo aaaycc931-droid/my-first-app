@@ -147,3 +147,26 @@ P5a does not:
 ## 11. Current accuracy statement
 
 The project still does not have production-grade pitch evaluation evidence. Current validation remains limited to generated in-memory synthetic regression gates and exploratory diagnostics. A real voice dataset is necessary before making stronger claims about real singing pitch robustness.
+
+## 12. P5b local real voice fixture convention
+
+P5b adds a repository convention for future developer local real voice experiments without adding real recordings or changing validation behavior. The convention lives under `local-fixtures/real-voice/` and commits only text documentation plus a placeholder JSON metadata template.
+
+The intended local-only layout is:
+
+```text
+local-fixtures/real-voice/
+  README.md
+  metadata.example.json
+  metadata.local.json        # local-only, ignored by git
+  audio/                     # local-only, ignored by git
+    <id>.wav                 # local-only, ignored by git
+```
+
+Committed files in this folder must remain limited to convention docs and safe text examples. Real voice recordings, exported clips, audio fixtures, and local metadata containing collection-specific details must stay on the developer machine and must not be uploaded or committed.
+
+The example metadata template uses non-identifying placeholder values and includes these fields for each local sample: `id`, `targetNote`, `expectedFrequencyHz`, `vowel`, `durationSeconds`, `singerRange`, `recordingCondition`, `deviceClass`, `consentStatus`, `localOnly`, and `caveats`.
+
+This convention is for developer local experiments only. It is not part of CI, does not add blocking validation, does not relax tolerances, and does not promote exploratory cases to blocking. If a future PR proposes a validation script for local real voice files, that script must be opt-in and non-blocking by default, and the PR must separately review privacy, consent, repository hygiene, and product-claim boundaries.
+
+P5b does not change the pitch estimator algorithm, Practice Mode UI workflow, formal scoring, grades, pass/fail labels, rhythm evaluation, sight-singing assessment, `/api/recognize`, recognition provider union, PDF upload, Audiveris behavior, AI API usage, audio upload behavior, or external dataset usage.
