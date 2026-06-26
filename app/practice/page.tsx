@@ -784,13 +784,13 @@ export default function PracticePage() {
     <main className="min-h-screen bg-slate-50 px-4 py-10 text-slate-900 sm:px-6">
       <section className="mx-auto max-w-4xl rounded-3xl bg-white p-6 shadow-sm ring-1 ring-slate-200 sm:p-8">
         <div className="border-b border-slate-200 pb-6">
-          <p className="text-sm font-semibold text-emerald-600">Early learning prototype</p>
+          <p className="text-sm font-semibold text-emerald-600">Browser Local Only Practice Mode</p>
           <h1 className="mt-2 text-3xl font-bold tracking-tight sm:text-4xl">Practice Mode</h1>
           <p className="mt-3 text-slate-600">
-            This page is an interactive mock practice flow for a future recognition + practice + assessment learning tool.
+            This page is a local melody step-by-step practice prototype. Use it to hear one target note, record one browser-local attempt, and compare the local pitch estimate with the current step target.
           </p>
           <p className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm font-medium text-amber-800">
-            Current status: browser local-only recording prototype, no upload, no real scoring, no AI API call, and no real pitch/rhythm evaluation. Feedback is mock-only.
+            Current status: browser local-only practice, no upload, no persistence, no AI API call, no formal score, no grade/pass/fail, and no rhythm or sight-singing assessment.
           </p>
         </div>
 
@@ -848,31 +848,32 @@ export default function PracticePage() {
           <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
             <div>
               <p className="text-sm font-semibold uppercase tracking-wide text-slate-500">Guided local flow</p>
-              <h2 className="mt-1 text-xl font-bold text-slate-950">Single-note practice loop</h2>
+              <h2 className="mt-1 text-xl font-bold text-slate-950">Melody step practice loop</h2>
               <p className="mt-2 text-sm text-slate-600">
-                This is an experimental melody step practice loop. The target note follows the current fixed melody step.
+                Work through the fixed melody one step at a time. Step X / N shows your position, Current target note is the note for this step, and Previous / Next / Restart only move the selected step.
               </p>
               <ol className="mt-4 grid gap-2 text-sm text-slate-700 sm:grid-cols-2">
-                <li className="rounded-xl bg-slate-50 p-3 font-medium ring-1 ring-slate-200">1. Move to a melody step</li>
-                <li className="rounded-xl bg-slate-50 p-3 font-medium ring-1 ring-slate-200">2. Play selected target note</li>
-                <li className="rounded-xl bg-slate-50 p-3 font-medium ring-1 ring-slate-200">3. Record your attempt locally</li>
+                <li className="rounded-xl bg-slate-50 p-3 font-medium ring-1 ring-slate-200">1. Choose the melody step</li>
+                <li className="rounded-xl bg-slate-50 p-3 font-medium ring-1 ring-slate-200">2. Play target to hear the note</li>
+                <li className="rounded-xl bg-slate-50 p-3 font-medium ring-1 ring-slate-200">3. Record one local attempt</li>
                 <li className="rounded-xl bg-slate-50 p-3 font-medium ring-1 ring-slate-200">4. Estimate pitch locally</li>
-                <li className="rounded-xl bg-slate-50 p-3 font-medium ring-1 ring-slate-200 sm:col-span-2">5. Review cents from target</li>
+                <li className="rounded-xl bg-slate-50 p-3 font-medium ring-1 ring-slate-200 sm:col-span-2">5. Review comparison only, not a score</li>
               </ol>
             </div>
             <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900 lg:max-w-xs">
               <p className="font-semibold">Prototype boundaries</p>
               <ul className="mt-2 list-disc space-y-1 pl-5">
-                <li>This is not a formal score.</li>
-                <li>This is not rhythm evaluation.</li>
-                <li>Audio is not uploaded.</li>
+                <li>Estimate compares only with the current step target note.</li>
+                <li>This is not a formal score, grade, pass, or fail.</li>
+                <li>This is not rhythm or sight-singing assessment.</li>
+                <li>Audio and attempts are not uploaded or persisted.</li>
                 <li>No AI API call.</li>
               </ul>
             </div>
           </div>
 
           <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-3">
-            <div className="rounded-xl bg-slate-50 p-4 ring-1 ring-slate-200"><dt className="font-semibold text-slate-700">Target note</dt><dd className="mt-1 text-slate-600">{selectedTargetNote}</dd></div>
+            <div className="rounded-xl bg-slate-50 p-4 ring-1 ring-slate-200"><dt className="font-semibold text-slate-700">Current target note</dt><dd className="mt-1 text-slate-600">{selectedTargetNote}</dd></div>
             <div className="rounded-xl bg-slate-50 p-4 ring-1 ring-slate-200"><dt className="font-semibold text-slate-700">Target frequency</dt><dd className="mt-1 text-slate-600">{noteFrequencies[selectedTargetNote].toFixed(2)} Hz</dd></div>
             <div className="rounded-xl bg-slate-50 p-4 ring-1 ring-slate-200"><dt className="font-semibold text-slate-700">Recording</dt><dd className="mt-1 text-slate-600">{recordedAudioBlob ? "Recorded attempt ready" : "No recording yet"}</dd></div>
             <div className="rounded-xl bg-slate-50 p-4 ring-1 ring-slate-200"><dt className="font-semibold text-slate-700">Pitch estimate</dt><dd className="mt-1 text-slate-600">{pitchEstimateResult ? "Pitch estimate ready" : pitchEstimateErrorFeedback ? "Needs a clearer local recording" : "Not estimated yet"}</dd></div>
@@ -900,7 +901,7 @@ export default function PracticePage() {
             <div>
               <h2 className="text-xl font-bold text-emerald-950">Local recording prototype</h2>
               <p className="mt-1 text-sm font-medium text-emerald-800">
-                Recording is local-only. Audio is not uploaded. No real pitch/rhythm scoring yet. No AI API call.
+                Recording stays in this browser. Recommended order: Play target, Record, then Estimate pitch locally. Audio is not uploaded, not persisted, not scored, and no AI API call is made.
               </p>
               <p className="mt-2 text-sm text-emerald-800">
                 Start local recording asks your browser for microphone permission with navigator.mediaDevices.getUserMedia({"{ audio: true }"}).
@@ -983,8 +984,10 @@ export default function PracticePage() {
                   <li>Audio is not uploaded.</li>
                   <li>No AI API call.</li>
                   <li>This only compares the local estimated pitch to the current melody step target note.</li>
+                  <li>Step X / N shows the current position in the fixed melody.</li>
                   <li>Previous/Next step clamp at the first and last melody steps.</li>
-                  <li>Changing steps does not auto-play, auto-record, or auto-estimate.</li>
+                  <li>Restart melody returns to Step 1.</li>
+                  <li>Changing steps does not auto-play, auto-record, auto-estimate, or add attempt history.</li>
                 </ul>
               </div>
               <div className="flex flex-col gap-3 sm:items-end">
@@ -994,7 +997,7 @@ export default function PracticePage() {
                   </p>
                   <p className="mt-1 text-lg font-bold text-violet-950">{selectedTargetNote}</p>
                   <p className="mt-1 text-xs text-violet-800">
-                    Current target note comes from the fixed melody step list.
+                    Current target note comes from this fixed melody step.
                   </p>
                 </div>
                 <div className="flex flex-wrap gap-2 sm:justify-end">
@@ -1044,7 +1047,7 @@ export default function PracticePage() {
               </dl>
             ) : (
               <p className="mt-4 rounded-xl bg-violet-50 p-4 font-medium text-violet-800">
-                Estimate pitch locally to compare the local estimated pitch against the selected target note.
+                Estimate pitch locally to compare the local estimated pitch against the current step target note. This comparison is not a formal score.
               </p>
             )}
           </div>
@@ -1054,7 +1057,7 @@ export default function PracticePage() {
               <div>
                 <p className="font-semibold">Recent local attempts</p>
                 <p className="mt-1 text-sky-800">
-                  These attempts are local to this browser session. Audio is not uploaded, this is not a score or grade, and rhythm is not evaluated.
+                  These attempts are temporary local React state for this browser session only. They are not uploaded, not saved to a server, not stored in browser storage, not a score or grade, and not rhythm evaluation.
                 </p>
               </div>
               <button
@@ -1094,7 +1097,7 @@ export default function PracticePage() {
               </ol>
             ) : (
               <p className="mt-4 rounded-xl bg-white p-4 font-medium text-sky-800 ring-1 ring-sky-200">
-                Record an attempt to see recent local pitch feedback here.
+                Record and estimate a local attempt to see temporary local pitch comparison feedback here.
               </p>
             )}
           </section>
