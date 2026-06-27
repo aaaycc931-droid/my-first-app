@@ -247,3 +247,11 @@ P7c documents how future local-only real phone recordings can support pitch engi
 Metadata should stay local and non-identifying. Useful fields include sample id, target note, expected frequency, vowel, duration, singer range category, device class, room condition, input distance, volume intent, performance type, engine version or commit SHA, consent status, local-only confirmation, and caveats.
 
 These recordings remain opt-in, local-only, non-blocking, and outside CI. They must not be committed, uploaded, used for formal grades, used for pass/fail labels, connected to persistence, or used to claim production-grade pitch evaluation.
+
+## 18. P7i real phone recording comparison protocol
+
+P7i narrows the next local-only real voice step to quiet indoor real phone recordings for comparing the current in-repository estimator with Pitchy under the same local sample set. The protocol is defined in `docs/real-phone-recording-comparison-protocol.md` and extends the `local-fixtures/real-voice/` convention without committing recordings.
+
+The first local phone set should cover known target notes `C4`, `E4`, `G4`, `A4`, and `C5`, optional lower `A3` / `C3`, vowels `a/e/i/o/u`, durations `1s/3s/5s`, volumes `soft/normal/loud`, performance types `stable/light-vibrato/intentional-drift/no-pitch`, device classes `iphone-safari/android-chrome/laptop-mic`, `quiet-room`, and broad non-identifying singer range labels.
+
+The metadata extension adds local-only comparison fields such as `audioFile`, `targetFrequencyHz`, `browser`, `os`, `microphoneDistanceCm`, `playbackMode`, `roomCondition`, `volume`, `performanceType`, `includeInPitchEngineComparison`, and `expectedBehavior`. These fields are for future reporting-only local comparison, not formal scoring or CI gating.

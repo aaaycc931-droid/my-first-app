@@ -1,19 +1,34 @@
 {
   "samples": [
     {
-      "id": "local-real-voice-example-001",
+      "id": "local-real-phone-example-001",
+      "audioFile": "audio/local-real-phone-example-001.wav",
       "targetNote": "A4",
       "expectedFrequencyHz": 440,
-      "vowel": "ah",
-      "durationSeconds": 2,
-      "singerRange": "unspecified-comfortable-range",
-      "recordingCondition": "quiet-room-placeholder",
-      "deviceClass": "laptop-built-in-microphone-placeholder",
+      "targetFrequencyHz": 440,
+      "vowel": "a",
+      "durationSeconds": 3,
+      "deviceClass": "iphone-safari",
+      "browser": "Safari placeholder",
+      "os": "iOS placeholder",
+      "microphoneDistanceCm": 30,
+      "playbackMode": "headphones",
+      "roomCondition": "quiet-room",
+      "recordingCondition": "quiet-room",
+      "volume": "normal",
+      "performanceType": "stable",
+      "singerRange": "unknown-nonidentifying",
       "consentStatus": "developer-owned-local-placeholder",
       "localOnly": true,
+      "includeInPitchEngineComparison": true,
+      "expectedBehavior": [
+        "target note should be detected near A4 when voiced frames are reliable",
+        "gross pitch error, octave error, false voiced, false unvoiced, out-of-human-range, drift, and vibrato anomalies should be reportable if observed"
+      ],
       "caveats": [
         "Example metadata only; no real recording is included.",
-        "Do not include personal identifiers in local metadata."
+        "Do not include personal identifiers in local metadata.",
+        "The audioFile path is a placeholder convention for ignored local audio only; do not commit the matching file."
       ]
     }
   ]
