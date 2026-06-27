@@ -263,3 +263,11 @@ The metadata extension adds local-only comparison fields such as `audioFile`, `t
 The script exits successfully when `metadata.local.json` is absent. With metadata present, it considers only `includeInPitchEngineComparison: true` samples, skips missing audio as `skipped-missing-audio`, and skips unsupported formats as `unsupported-audio-decoding`. Current decoding is intentionally minimal and dependency-free: uncompressed PCM `.wav` only. No real recordings or `metadata.local.json` should be committed.
 
 Any generated rows are diagnostics for comparing the current in-repo estimator and Pitchy adapter only. They must not be described as a formal score, grade, pass/fail result, conservatory-grade assessment, or professional accuracy claim.
+
+## P7k local real phone smoke test addendum
+
+P7k records a single local-only real phone smoke test of the P7j comparison workflow. The underlying sample was a private, uncommitted A3 PCM WAV recording with non-identifying metadata: vowel `a`, about 3 seconds, `quiet-room`, `phone-mic`, and `headphones` playback. The repository still contains no real recording, no real audio fixture, and no `metadata.local.json`.
+
+The smoke test confirmed that the local script can find local metadata, include 1 of 1 opted-in sample, execute 1 audio sample, attempt 2 engines, and generate 2 reporting-only rows. The current in-repo autocorrelation estimator reported about 217.32Hz / A3 / -21.23 cents with about 0.941 confidence. Pitchy / McLeod reported about 217.56Hz / A3 / -19.34 cents with about 0.982 clarity / voicing. No gross pitch error, out-of-human-voice-range result, possible false voiced result, unknown result, or anomaly label was reported.
+
+This addendum is intentionally narrow: it validates local workflow plumbing, not product accuracy. One sample cannot justify conservatory-grade claims, a baseline estimator replacement, formal scores, grades, pass/fail labels, benchmark gate changes, or tolerance changes. Future dataset work still needs broader coverage across notes, vowels, durations, phone/browser combinations, singer ranges, dynamics, vibrato, drift, and no-pitch cases before accuracy claims change.

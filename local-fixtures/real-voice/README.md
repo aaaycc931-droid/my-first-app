@@ -221,3 +221,11 @@ npm run validate:local-real-phone-comparison
 This command is outside CI and outside `npm run validate:local`. If `metadata.local.json` is missing, it explains that this is expected and exits `0`. If metadata exists, it only considers samples with `includeInPitchEngineComparison: true`. Missing audio files are logged as `skipped-missing-audio`, and unsupported formats are logged as `unsupported-audio-decoding` without inventing pitch estimates.
 
 Current audio execution is intentionally small and dependency-free: uncompressed PCM `.wav` fixtures only. Real recordings, `metadata.local.json`, and local audio fixtures remain ignored and must not be committed. The output is reporting-only for the current in-repo estimator and Pitchy comparison adapter; it is not a formal score, grade, pass/fail label, professional accuracy claim, or conservatory-grade assessment.
+
+## P7k local real phone smoke test addendum notes
+
+A P7k local smoke test used one private uncommitted A3 PCM WAV phone recording to verify the P7j command path. The sample metadata was local-only and non-identifying: vowel `a`, target frequency 220Hz, about 3 seconds, `quiet-room`, `phone-mic`, and `headphones` playback. The repository does not include the recording or `metadata.local.json`.
+
+The command generated 2 reporting-only rows from 1 executed sample: current in-repo autocorrelation at about 217.32Hz / A3 / -21.23 cents / 0.941 confidence, and Pitchy / McLeod at about 217.56Hz / A3 / -19.34 cents / 0.982 clarity. No anomaly labels were reported.
+
+Keep future smoke test addenda at this same summary level. Do not paste raw local metadata if it contains private details, do not commit real audio, do not commit `metadata.local.json`, and do not treat one smoke test as accuracy proof, scoring evidence, a CI blocker, or a reason to change estimator behavior.

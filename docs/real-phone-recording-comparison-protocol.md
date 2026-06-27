@@ -115,3 +115,52 @@ Behavior:
 - When a sample is executable, it attempts the current in-repository autocorrelation estimator and the Pitchy comparison adapter through the same reporting-only row language used by the pitch engine comparison harness.
 
 The P7j output is not a formal score, grade, pass/fail result, professional accuracy claim, or conservatory-grade assessment. It does not change the current estimator, Pitchy adapter, Practice Mode, benchmark gates, tolerances, recognition APIs, persistence, accounts, uploads, cloud evaluation, or any CI requirement.
+
+## P7k local real phone smoke test addendum
+
+P7k records one local-only smoke test of the P7j opt-in script using a private, uncommitted A3 PCM WAV sample. No recording, audio fixture, exported clip, derived audio asset, or `metadata.local.json` file is added to the repository. The result is a non-identifying summary only.
+
+Smoke test input summary:
+
+- sample count: 1
+- `targetNote`: `A3`
+- `targetFrequencyHz`: `220`
+- `vowel`: `a`
+- duration: about 3 seconds
+- `roomCondition`: `quiet-room`
+- `deviceClass`: `phone-mic`
+- `playbackMode`: `headphones`
+
+P7j script execution summary:
+
+- `metadataFound`: `true`
+- `totalSamples`: `1`
+- `includedSamples`: `1`
+- `missingAudioSamples`: `0`
+- `unsupportedAudioSamples`: `0`
+- `skippedSamples`: `0`
+- `executedSamples`: `1`
+- `enginesAttempted`: `2`
+- `rowsGenerated`: `2`
+- `grossPitchErrors`: `0`
+- `outOfHumanVoiceRange`: `0`
+- `possibleFalseVoiced`: `0`
+- `unknownResults`: `0`
+
+Observed reporting-only rows:
+
+| Engine | Estimated frequency | Nearest note | Cents error | Confidence / clarity / voicing | Anomaly labels |
+| --- | --- | --- | --- | --- | --- |
+| current in-repo autocorrelation estimator | about 217.32Hz | A3 | about -21.23 cents | about 0.941 | none |
+| Pitchy / McLeod Pitch Method | about 217.56Hz | A3 | about -19.34 cents | about 0.982 | none |
+
+Interpretation:
+
+- The P7j script successfully read ignored local metadata, read an ignored local PCM WAV fixture, executed both engines, and generated reporting-only comparison rows.
+- Both engines produced close A3 estimates on the same local phone sample.
+- Both engines agreed that the sample was slightly flat relative to A3.
+- No gross pitch error, out-of-human-voice-range result, possible false voiced issue, unknown result, or anomaly label was reported.
+- This is a smoke test only. It is not statistically meaningful accuracy evidence, not conservatory-grade accuracy proof, not a reason to replace the baseline estimator, and not a product scoring claim.
+- More local samples across notes, vowels, phones, singers, and performance types are still required before any product accuracy language changes.
+
+P7k does not modify P7j script behavior, the pitch estimator algorithm, the Pitchy adapter algorithm, comparison harness behavior, Practice Mode UI workflow, recording behavior, pitch trend charts, Song Learning Mode, song upload, source separation, vocal melody extraction, target pitch curve generation, cloud assessment, GPT / AI APIs, accounts, persistence, formal scores, grades, pass/fail labels, rhythm evaluation, sight-singing assessment, benchmark gates, tolerances, `/api/recognize`, recognition providers, PDF upload, or Audiveris behavior.

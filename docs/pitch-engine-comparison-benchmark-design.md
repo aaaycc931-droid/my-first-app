@@ -192,3 +192,11 @@ Real phone comparison output must remain reporting-only and outside CI. It must 
 P7j adds an opt-in local-only script, `npm run validate:local-real-phone-comparison`, for future ignored real phone fixtures. It is separate from the synthetic P7d/P7g benchmark harness and is not part of CI. Missing `metadata.local.json` exits `0`; missing audio is skipped; unsupported audio decoding is reported without fabricated estimates.
 
 Executable local PCM WAV samples are reported with the current estimator and Pitchy adapter using reporting-only fields such as engine id, target frequency, estimated frequency, nearest note, cents error, confidence/clarity/voicing, anomaly labels, anomaly notes, and caveats. These rows do not change gates, tolerances, Practice Mode behavior, or engine algorithms, and they are not formal scoring or conservatory-grade accuracy evidence.
+
+## P7k local real phone smoke test addendum
+
+P7k adds one documented local-only smoke test result for the P7j real phone comparison path. The private local sample was an A3 PCM WAV recording, vowel `a`, about 3 seconds, quiet room, phone microphone, and headphone target playback. No audio file or `metadata.local.json` is committed.
+
+The P7j script found metadata, included 1 sample, executed 1 sample, attempted 2 engines, and produced 2 comparison rows. The current in-repo autocorrelation estimator reported about 217.32Hz, nearest note A3, about -21.23 cents, and about 0.941 confidence. Pitchy / McLeod reported about 217.56Hz, nearest note A3, about -19.34 cents, and about 0.982 clarity / voicing. Both rows had no anomaly labels; aggregate anomaly counts for gross pitch errors, out-of-human-voice-range estimates, possible false voiced results, and unknown results were all zero.
+
+This is evidence that the local comparison plumbing can run on one ignored real phone PCM WAV fixture. It is not enough evidence to change engine defaults, change Practice Mode, change gates or tolerances, claim production accuracy, or decide that Pitchy should replace the baseline. The next comparison step should collect more local-only samples across target notes, vowels, devices, singer ranges, and performance types while preserving the reporting-only boundary.
