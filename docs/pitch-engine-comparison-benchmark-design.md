@@ -127,3 +127,17 @@ P7c does not:
 - add user accounts or persistence
 - add formal scores, grades, pass/fail labels, rhythm evaluation, or sight-singing assessment
 - change benchmark gates, tolerance, `/api/recognize`, recognition provider union, PDF upload, or Audiveris behavior
+
+## 9. P7d comparison harness skeleton status
+
+P7d implements the first comparison harness skeleton described by this design. It is intentionally small and uses only the current in-repository autocorrelation estimator through a baseline adapter. The common report shape now reserves fields for engine identity, case identity, target / expected frequency, estimated frequency, nearest note, cents error, confidence-like fields, valid frame counts, frame frequency min / median / max, first-half and second-half medians, drift cents, no-pitch / unknown handling, notes, and caveats.
+
+The P7d harness reuses the existing generated synthetic benchmark cases for reporting-only output. It does not change existing benchmark gates, tolerances, validation blocker logic, target frequencies, exploratory-case status, or no-pitch behavior. Exploratory synthetic cases remain non-blocking.
+
+Current P7d limitations:
+
+- Only `in-repo-autocorrelation` is registered.
+- Pitchy, Pitchfinder, CREPE, RMVPE, SwiftF0-style models, and other external pitch libraries are not installed or connected.
+- Real phone recording benchmark execution is not implemented.
+- The output is engineering comparison scaffolding only, not conservatory-grade accuracy evidence, professional assessment, formal scoring, grade, pass, or fail.
+- P7e may consider adding one browser-local candidate adapter after dependency, license, bundle-size, browser-support, latency, and no-pitch behavior review.

@@ -315,3 +315,11 @@ P7c adds a docs-only design for future local pitch engine comparison in `docs/pi
 The design separates existing blocking regression categories from exploratory comparison categories. Clean sine, quiet amplitude, short duration, deterministic light noise, and no-pitch / too-short behavior remain aligned with already gated baseline behavior where applicable. Higher noise, mixed harmonics, vibrato, and frequency drift remain exploratory comparison categories until a future PR records evidence and explicitly proposes promotion.
 
 P7c does not change benchmark gates, relax tolerance, modify the estimator algorithm, add dependencies, connect external pitch libraries or models, modify Practice Mode, add recording, upload audio, add scoring, modify `/api/recognize`, modify the recognition provider union, add PDF upload, or connect Audiveris.
+
+## 17. P7d pitch engine comparison harness skeleton
+
+P7d adds a reporting-only pitch engine comparison harness skeleton through `npm run validate:pitch-engine-comparison`. The harness creates a common comparison report shape and currently registers only the current in-repository autocorrelation estimator as the baseline adapter.
+
+The P7d output is separate from the existing synthetic pitch validation gate. It reuses generated in-memory synthetic cases for baseline reporting, but it does not change existing benchmark gates, validation blocker logic, tolerances, target frequencies, no-pitch behavior, or exploratory case status. Exploratory cases remain non-blocking diagnostics only.
+
+The harness is not a production accuracy claim. It does not install or connect Pitchy, Pitchfinder, CREPE, RMVPE, SwiftF0, or any other pitch library/model. It does not execute real phone recording benchmarks, upload audio, add scoring, add grades, add pass/fail labels, evaluate rhythm, or perform sight-singing assessment. Future P7e work may consider one browser-local candidate engine adapter only after separate review.
