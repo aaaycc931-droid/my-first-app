@@ -293,3 +293,17 @@ P5a adds a design-only real voice dataset plan in `docs/real-voice-dataset-plan.
 The real voice dataset direction should remain separate from current production claims. It is intended for future diagnostic analysis of target note accuracy, expected frequency, singer type or vocal range, recording condition, known caveats, cents error, valid frame rate, confidence, stability, and drift diagnostics. It is not current production accuracy proof, not formal scoring, not a grade/pass/fail system, not rhythm evaluation, and not sight-singing assessment.
 
 The recommended sequence is dataset design, then a small local-only fixture prototype, then validation script extension, then non-blocking result reporting, and only later a possible scoring design if sufficient labeled real voice evidence exists. Existing generated in-memory clean sine, robustness, and no-pitch gates remain unchanged; exploratory cases remain non-blocking; no tolerance is relaxed.
+
+## 15. P7b pitch engine comparison benchmark direction
+
+P7b adds a docs-only evaluation matrix for future pitch-engine choices in `docs/conservatory-level-pitch-evaluation-roadmap.md`. The benchmark implication is that future engine work should compare candidates before changing product claims.
+
+The near-term benchmark sequence should be:
+
+1. Preserve the current in-repo autocorrelation estimator as the baseline.
+2. Add a future browser-local candidate comparison, likely Pitchy / McLeod Pitch Method or Pitchfinder YIN / McLeod / AMDF / Dynamic Wavelet, without claiming production-grade accuracy.
+3. Keep local results expressed in cents relative to the current target note rather than only note names.
+4. Track pitch correctness separately from sustained pitch instability diagnostics such as drift, unstable sustain, and wide vibrato.
+5. Evaluate cloud-oriented candidates such as CREPE, RMVPE, SwiftF0-style lightweight models, aubio, pYIN, and Essentia only after privacy, license, and real-recording benchmark requirements are defined.
+
+This P7b benchmark direction is documentation only. It does not install dependencies, connect any candidate engine, change the estimator algorithm, change benchmark pass/fail gates, relax tolerance, promote exploratory cases, modify Practice Mode, upload audio, call AI APIs, modify `/api/recognize`, modify the recognition provider union, add PDF upload, or connect Audiveris.
