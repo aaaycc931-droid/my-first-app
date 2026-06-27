@@ -172,3 +172,9 @@ P7g adds reporting-only anomaly flags to the pitch engine comparison rows. This 
 The anomaly fields identify conditions such as out-of-human-voice-range estimates, gross pitch errors, possible octave or catastrophic errors, no-pitch expectation mismatches, and exploratory-only observations. They are intended to make adapter caveats easier to review before any product decision.
 
 These flags are not formal scoring, not professional accuracy claims, not conservatory-grade assessment, and not a benchmark gate or tolerance change. Exploratory cases such as vibrato, drift, higher noise, and mixed harmonics can record anomalies, but those anomalies remain non-blocking. The P7f Pitchy vibrato exploratory result that reported roughly 1.00Hz / -10534.80 cents is therefore documented as a severe caveat rather than hidden or promoted into a product claim.
+
+## 13. P7h Song Learning Mode benchmark boundary
+
+The current pitch engine comparison harness is for monophonic single-note and melody-step pitch-engine comparison. It must not be treated as a benchmark for full-song mixes, source separation, vocal melody extraction, polyphonic music transcription, or separating a user's live vocal from original vocals and accompaniment.
+
+A future Song Learning Mode will need an independent benchmark plan covering authorized real song material, source separation quality, vocal melody extraction accuracy, target pitch curve generation, user-vocal isolation, phrase-level intonation feedback, optional cloud deep assessment, and copyright / consent / storage policy. P7h only records this direction in documentation and does not modify harness behavior, gates, tolerances, adapters, or Practice Mode.

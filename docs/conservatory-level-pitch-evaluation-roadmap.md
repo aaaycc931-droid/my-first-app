@@ -105,3 +105,11 @@ P7e narrows the near-term browser-local adapter path with a documentation-only c
 Pitchfinder YIN and McLeod remain useful future comparison candidates, but Pitchfinder is not recommended as the first P7f adapter because npm metadata reports `GNU v3`, which leaves commercial use unresolved. AMDF and Dynamic Wavelet are lower-priority for cents trend feedback because public project documentation describes AMDF as slower / rougher and Dynamic Wavelet as weaker on lower frequencies.
 
 This update remains inside the existing product claim boundary: no dependency is installed, no external pitch engine is connected, no benchmark gate changes, and no candidate is described as conservatory-grade. Before any stronger claim or UI default change, candidates still need real mobile recordings, octave-error analysis, voicing / no-pitch behavior measurement, latency and CPU checks, and license review.
+
+## 10. P7h future Song Learning Mode direction
+
+P7h adds documentation for a future Song Learning Mode that could help users learn real songs by comparing user pitch curves against target melody curves. This is a long-term product direction only. It does not claim that the current Practice Mode, local estimator, Pitchy comparison adapter, or pitch engine comparison harness can reliably analyze complex song mixes containing original vocals, accompaniment, instruments, and user vocals.
+
+Future Song Learning Mode will need separate evaluation for source separation / stem separation, vocal melody extraction, target pitch curve generation, karaoke-style pitch trace UI, optional cloud deep assessment, GPT-assisted coaching from structured results, copyright / licensing / consent / storage policy, real song benchmark datasets, and the user-vocal-vs-original-vocal separation problem. Current Practice Mode remains focused on browser-local single-note and melody-step feedback.
+
+See `docs/future-song-learning-mode.md` for the full P7h boundary.
