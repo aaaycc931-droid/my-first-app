@@ -164,3 +164,9 @@ Interpretation:
 - More local samples across notes, vowels, phones, singers, and performance types are still required before any product accuracy language changes.
 
 P7k does not modify P7j script behavior, the pitch estimator algorithm, the Pitchy adapter algorithm, comparison harness behavior, Practice Mode UI workflow, recording behavior, pitch trend charts, Song Learning Mode, song upload, source separation, vocal melody extraction, target pitch curve generation, cloud assessment, GPT / AI APIs, accounts, persistence, formal scores, grades, pass/fail labels, rhythm evaluation, sight-singing assessment, benchmark gates, tolerances, `/api/recognize`, recognition providers, PDF upload, or Audiveris behavior.
+
+## P8a real-time feedback mobile validation notes
+
+P8a depends on broader phone validation before any real-time pitch-feedback product claim. Future local-only samples should cover iPhone Safari and Android Chrome, phone microphone permission behavior, target-note headphone playback, quiet-room leakage checks, low and normal volume, weak voice, stable tone, vibrato, drift, multiple vowels, multiple target notes, and lower-end phone performance.
+
+Real-time feedback latency must be measured rather than assumed. Echo cancellation, noise suppression, and automatic gain control may affect results and should be recorded as metadata caveats when known. These observations remain local-only and reporting-only; they do not enter CI, upload audio, change Practice Mode, change pitch engines, change benchmark gates, or create scores, grades, pass/fail labels, or conservatory-grade claims.
