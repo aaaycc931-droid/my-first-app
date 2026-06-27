@@ -323,3 +323,9 @@ P7d adds a reporting-only pitch engine comparison harness skeleton through `npm 
 The P7d output is separate from the existing synthetic pitch validation gate. It reuses generated in-memory synthetic cases for baseline reporting, but it does not change existing benchmark gates, validation blocker logic, tolerances, target frequencies, no-pitch behavior, or exploratory case status. Exploratory cases remain non-blocking diagnostics only.
 
 The harness is not a production accuracy claim. It does not install or connect Pitchy, Pitchfinder, CREPE, RMVPE, SwiftF0, or any other pitch library/model. It does not execute real phone recording benchmarks, upload audio, add scoring, add grades, add pass/fail labels, evaluate rhythm, or perform sight-singing assessment. Future P7e work may consider one browser-local candidate engine adapter only after separate review.
+
+## 18. P7e browser-local engine candidate review
+
+P7e records a dependency review for browser-local pitch engine candidates before any installation. The review recommends Pitchy / McLeod Pitch Method as the first future P7f adapter candidate for the P7d comparison harness, provided transitive license, bundle, browser, and mobile CPU checks pass. Pitchfinder YIN / McLeod remain later comparison candidates, but the package license metadata is unresolved for future commercial use. Pitchfinder AMDF and Dynamic Wavelet are not preferred for the first cents-trend adapter because their documented tradeoffs are less aligned with fine real-time intonation feedback.
+
+The P7e decision does not change the benchmark plan's evidence standard. Any future adapter must run against the same generated synthetic cases and must preserve no-pitch behavior, octave-error reporting, valid-frame reporting, confidence / clarity caveats, and the separation between pitch correctness and sustained pitch instability. No README claim should be substituted for measured benchmark output.

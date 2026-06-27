@@ -141,3 +141,11 @@ Current P7d limitations:
 - Real phone recording benchmark execution is not implemented.
 - The output is engineering comparison scaffolding only, not conservatory-grade accuracy evidence, professional assessment, formal scoring, grade, pass, or fail.
 - P7e may consider adding one browser-local candidate adapter after dependency, license, bundle-size, browser-support, latency, and no-pitch behavior review.
+
+## 10. P7e browser-local candidate review decision
+
+P7e adds a docs-only review in `docs/browser-local-pitch-engine-candidate-review.md`. The review compares Pitchy / McLeod Pitch Method, Pitchfinder YIN / McLeod / AMDF / Dynamic Wavelet, and a noted lightweight alternative candidate without installing or connecting any dependency.
+
+The P7e recommendation is to try Pitchy first in a future P7f comparison-adapter PR, if its transitive license and mobile bundle / CPU checks are acceptable. Pitchy is preferred for the first adapter because npm metadata reports an MIT license, a smaller package footprint than Pitchfinder, a browser-oriented real-time use case, and a clarity-style output that should map cleanly into the existing P7d report shape. Pitchfinder remains useful for later comparisons, but npm metadata reports `GNU v3`, so future commercial compatibility is unresolved and must be reviewed before adoption.
+
+P7e does not claim that Pitchy, Pitchfinder, or any other candidate has conservatory-grade accuracy. It also does not modify the P7d comparison harness, estimator algorithm, Practice Mode workflow, benchmark gates, tolerance, `/api/recognize`, recognition providers, PDF upload, Audiveris, audio upload, persistence, scoring, rhythm evaluation, sight-singing assessment, or AI/API behavior.
