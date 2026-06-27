@@ -196,3 +196,11 @@ Every future PR should follow these rules:
 - Every PR must check provider, API, and repository hygiene.
 - Before actual merge, check GitHub mergeability and Vercel status.
 - Docs-only PRs must not change runtime behavior.
+
+## Future Song Learning Mode
+
+A future Song Learning Mode may become a separate long-term module for helping users learn real song melodies. Its goal would be to build or extract a target pitch curve from authorized song material, compare the user's sung pitch curve against that target at phrase level, and optionally use GPT to explain structured intonation results. This is not part of the current MVP.
+
+This direction must stay separate from current Practice Mode. Practice Mode remains focused on browser-local single notes, melody steps, target-aware pitch comparison, and local attempt history. Song Learning Mode would require its own source separation, vocal melody extraction, target pitch curve generation, copyright / consent policy, and real-song benchmark strategy before implementation.
+
+See `docs/future-song-learning-mode.md` for the detailed P7h planning boundary.
