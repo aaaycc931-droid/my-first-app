@@ -141,3 +141,21 @@ Current P7d limitations:
 - Real phone recording benchmark execution is not implemented.
 - The output is engineering comparison scaffolding only, not conservatory-grade accuracy evidence, professional assessment, formal scoring, grade, pass, or fail.
 - P7e may consider adding one browser-local candidate adapter after dependency, license, bundle-size, browser-support, latency, and no-pitch behavior review.
+
+## 10. P7f Pitchy comparison adapter status
+
+P7f adds the first external browser-local comparison adapter: `pitchy-mcleod` (`Pitchy / McLeod Pitch Method`). The current `in-repo-autocorrelation` adapter remains the baseline and the existing pitch estimator algorithm is not replaced.
+
+The P7f harness output now registers two engines and produces reporting-only rows for both engines against the same generated in-memory synthetic cases. The output explicitly remains not a professional accuracy claim, not formal scoring, not a gate change, and not conservatory-grade assessment. Existing blocking gates, tolerances, no-pitch behavior gates, exploratory-case status, and benchmark inputs are unchanged.
+
+Pitchy's `findPitch` result is mapped to common report fields by using detected frequency as `estimatedFrequencyHz` and clarity as reporting-only `clarity` / `confidence` / `voicing`. Pitchy does not provide the current in-repo frame-level diagnostics in this adapter, so frame min / median / max, first-half median, second-half median, and drift cents remain unavailable for Pitchy rows rather than being fabricated.
+
+Dependency review for P7f found `pitchy@4.1.0` and its direct dependency `fft.js@4.0.4` both declare MIT license in installed package metadata. `pitchy@4.1.0` is ESM-only, so the harness loads it with dynamic `import("pitchy")` for the NodeNext validation path.
+
+Remaining limitations after P7f:
+
+- Pitchy is a comparison candidate only, not a production replacement.
+- There is still no real phone recording benchmark.
+- There is still no mobile Safari or Android Chrome real-device performance conclusion.
+- The harness still cannot claim conservatory-grade accuracy.
+- Future work should validate against local-only real phone recordings and mobile performance before any production estimator change is considered.

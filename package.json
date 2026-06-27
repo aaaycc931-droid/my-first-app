@@ -25,10 +25,11 @@
     "validate:pitch-engine-comparison": "rm -rf .next/pitch-engine-comparison && tsc --module NodeNext --moduleResolution NodeNext --target ES2020 --outDir .next/pitch-engine-comparison --noEmit false --declaration false --sourceMap false --incremental false scripts/validate-pitch-engine-comparison.ts lib/practice/pitchEstimate.ts lib/practice/syntheticPitchBenchmark.ts lib/practice/syntheticPitchBenchmarkSuite.ts lib/practice/pitchEngineComparison.ts && node .next/pitch-engine-comparison/scripts/validate-pitch-engine-comparison.js"
   },
   "dependencies": {
+    "fflate": "^0.8.2",
     "next": "^14.2.0",
+    "pitchy": "^4.1.0",
     "react": "^18.3.0",
-    "react-dom": "^18.3.0",
-    "fflate": "^0.8.2"
+    "react-dom": "^18.3.0"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
