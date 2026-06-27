@@ -101,3 +101,17 @@ It must not add a formal score, grade, pass/fail label, benchmark gate, toleranc
 ## Boundary checklist
 
 P7i remains local-only, documentation-first, and non-blocking. It does not commit recordings, upload audio, connect cloud evaluation, add accounts, add persistence, implement recording features, implement Song Learning Mode, upload songs, separate sources, extract vocal melody, generate target curves, change Practice Mode UI workflow, change algorithms, install dependencies, modify recognition APIs, or connect PDF/Audiveris behavior.
+
+## P7j opt-in local comparison script status
+
+P7j adds `npm run validate:local-real-phone-comparison` as an opt-in, local-only, reporting-only preparation script for future real phone recording comparisons. The script reads only ignored local files under `local-fixtures/real-voice/`, does not upload audio, does not call the network, does not call GPT or AI APIs, and is intentionally outside CI and outside `npm run validate:local`.
+
+Behavior:
+
+- If `local-fixtures/real-voice/metadata.local.json` is missing, the script prints a clear message and exits `0`.
+- If metadata exists, only samples with `includeInPitchEngineComparison: true` are considered.
+- Missing local audio files are reported as `skipped-missing-audio`; they do not fail normal developer validation.
+- The script currently supports a minimal no-dependency decode path for uncompressed PCM `.wav` files. Other formats are reported as `unsupported-audio-decoding`; the script does not fabricate `estimatedFrequencyHz` values for skipped samples.
+- When a sample is executable, it attempts the current in-repository autocorrelation estimator and the Pitchy comparison adapter through the same reporting-only row language used by the pitch engine comparison harness.
+
+The P7j output is not a formal score, grade, pass/fail result, professional accuracy claim, or conservatory-grade assessment. It does not change the current estimator, Pitchy adapter, Practice Mode, benchmark gates, tolerances, recognition APIs, persistence, accounts, uploads, cloud evaluation, or any CI requirement.

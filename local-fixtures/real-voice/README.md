@@ -209,3 +209,15 @@ A future P7j PR may add an opt-in local script that reads ignored `metadata.loca
 | Low-end phone stutter or dropped frames | pending manual check | pending manual check | Report as caveat, not failure |
 | Latency feels suitable for future real-time trend exploration | pending manual check | pending manual check | Do not implement trend charts in P7i |
 | Unreliable frames show unknown / no pitch rather than random note names | pending manual check | pending manual check | Use anomaly reporting language only |
+
+## P7j opt-in local phone comparison
+
+Developers with local-only phone recordings can manually run:
+
+```bash
+npm run validate:local-real-phone-comparison
+```
+
+This command is outside CI and outside `npm run validate:local`. If `metadata.local.json` is missing, it explains that this is expected and exits `0`. If metadata exists, it only considers samples with `includeInPitchEngineComparison: true`. Missing audio files are logged as `skipped-missing-audio`, and unsupported formats are logged as `unsupported-audio-decoding` without inventing pitch estimates.
+
+Current audio execution is intentionally small and dependency-free: uncompressed PCM `.wav` fixtures only. Real recordings, `metadata.local.json`, and local audio fixtures remain ignored and must not be committed. The output is reporting-only for the current in-repo estimator and Pitchy comparison adapter; it is not a formal score, grade, pass/fail label, professional accuracy claim, or conservatory-grade assessment.
