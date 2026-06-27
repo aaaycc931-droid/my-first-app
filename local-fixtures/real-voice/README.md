@@ -153,3 +153,59 @@ Use this checklist before approving future PRs that touch the local real voice c
 - [ ] The PR clearly keeps this workflow local-only, opt-in, non-blocking, and outside CI.
 
 The fuller reviewer checklist is documented in `docs/real-voice-dataset-plan.md#15-p5e-local-real-voice-pr-reviewer-checklist`.
+
+## P7i real phone recording comparison protocol extension
+
+P7i extends this local-only convention for future real phone pitch engine comparison between the current in-repository autocorrelation estimator, Pitchy, and any separately approved candidate engine. This is still documentation and fixture convention only: do not commit real recordings, do not upload audio, do not add cloud evaluation, and do not make real phone results a CI blocker.
+
+### Real phone comparison goal
+
+Use local phone recordings to answer a narrow reporting question: under quiet indoor, single-voice, known-target-note conditions, which engine behaves most reliably for browser-local MVP pitch feedback? The local set is intended to expose gross pitch error, octave error, false voiced frames, false unvoiced frames, out-of-human-range estimates, and drift or vibrato anomalies. It is not a formal score, grade, pass/fail result, conservatory-grade accuracy claim, rhythm evaluation, sight-singing assessment, or Song Learning Mode implementation.
+
+### Recording collection protocol
+
+- Devices: collect at least iPhone Safari and Android Chrome samples when available; optionally add non-identifying phone model notes and laptop microphone comparison samples.
+- Environment: record in a quiet indoor room with one singer and no accompaniment.
+- Microphone distance: keep the mouth roughly 20-40 cm from the microphone.
+- Target note playback: prefer headphones so the phone microphone does not capture the target tone from speaker playback; use `playbackMode: "speaker"` only when intentionally documenting leakage risk.
+- Sample shape: each audio file should contain one target note or one clearly bounded practice fragment.
+- Storage: keep files only under ignored local paths such as `local-fixtures/real-voice/audio/`; never commit real audio.
+- Metadata: every local recording must have a corresponding ignored `metadata.local.json` sample record before it is used for comparison.
+- Privacy: do not record real names, phone numbers, email addresses, exact addresses, account ids, school/workplace names, or other direct personal identity data in metadata.
+
+### Minimum initial coverage
+
+Start with a small matrix rather than a large dataset:
+
+| Field | Initial values |
+| --- | --- |
+| `targetNote` | `C4`, `E4`, `G4`, `A4`, `C5`; optionally `A3` / `C3` for lower male voices |
+| `vowel` | `a`, `e`, `i`, `o`, `u` |
+| `durationSeconds` | `1`, `3`, `5` |
+| `volume` | `soft`, `normal`, `loud` |
+| `performanceType` | `stable`, `light-vibrato`, `intentional-drift`, `no-pitch` |
+| `deviceClass` | `iphone-safari`, `android-chrome`, `laptop-mic` |
+| `roomCondition` | `quiet-room` |
+| `singerRange` | `male-low`, `male-mid`, `female-mid`, `female-high`, `unknown-nonidentifying` |
+
+### Real phone metadata fields
+
+For P7i-style local phone comparison, copy `metadata.example.json` to the ignored `metadata.local.json` and include these fields where possible: `id`, `audioFile`, `targetNote`, `expectedFrequencyHz`, `targetFrequencyHz`, `vowel`, `durationSeconds`, `deviceClass`, `browser`, `os`, `microphoneDistanceCm`, `playbackMode`, `roomCondition`, `recordingCondition`, `volume`, `performanceType`, `singerRange`, `consentStatus`, `localOnly`, `includeInPitchEngineComparison`, `expectedBehavior`, and `caveats`.
+
+`metadata.local.json` and all real audio files remain ignored. The committed `metadata.example.json` is only a placeholder shape and must not contain a real recording path, real person, or private device owner information.
+
+### Future local comparison execution design
+
+A future P7j PR may add an opt-in local script that reads ignored `metadata.local.json` plus ignored local audio fixtures, runs the current estimator and Pitchy over the same recordings, and writes a reporting-only comparison summary. That script should reuse P7g anomaly flags, stay outside CI, avoid benchmark gate changes, and exit safely with a clear message when metadata or audio is missing instead of blocking normal validation.
+
+### Mobile browser validation table
+
+| Check | iPhone Safari | Android Chrome | Notes |
+| --- | --- | --- | --- |
+| Microphone permission prompt appears and can be granted | pending manual check | pending manual check | No automated CI requirement |
+| Stable local recording is possible | pending manual check | pending manual check | Watch for browser interruptions |
+| Echo cancellation / noise suppression / auto gain control impact is visible | pending manual check | pending manual check | Document if pitch frames become unreliable |
+| Headphones reduce target-tone leakage | pending manual check | pending manual check | Prefer `playbackMode: headphones` |
+| Low-end phone stutter or dropped frames | pending manual check | pending manual check | Report as caveat, not failure |
+| Latency feels suitable for future real-time trend exploration | pending manual check | pending manual check | Do not implement trend charts in P7i |
+| Unreliable frames show unknown / no pitch rather than random note names | pending manual check | pending manual check | Use anomaly reporting language only |

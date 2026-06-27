@@ -345,3 +345,9 @@ P7g keeps the benchmark plan conservative by adding anomaly reporting only. It d
 Anomaly flags are meant to keep severe or suspicious comparison outputs visible, including out-of-human-voice-range frequency estimates, gross pitch errors, possible octave or catastrophic errors, no-pitch mismatches, and exploratory-only caveats. The P7f Pitchy exploratory vibrato result around 1.00Hz / -10534.80 cents remains a documented caveat rather than a hidden failure or a product claim.
 
 Future benchmark work should continue to treat these reports as diagnostics until real phone recordings, mobile performance data, no-pitch behavior, confidence / voicing behavior, and octave / gross-error rates are validated.
+
+## P7i real phone comparison boundary
+
+Synthetic benchmark gates remain the only automated pitch benchmark gates. P7i adds documentation for future local-only real phone recordings so the team can later compare candidate pitch engines against quiet-room mobile-browser samples, but those samples are not part of CI, do not affect `npm run validate:local`, and do not change tolerances.
+
+Future reporting may reuse anomaly flags for gross pitch error, octave error, false voiced, false unvoiced, out-of-human-range, drift, and vibrato observations. Those observations are diagnostic only and must not become a formal score, grade, pass/fail result, rhythm evaluation, sight-singing assessment, or production accuracy claim without a separate scoring-design PR.
