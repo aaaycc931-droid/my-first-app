@@ -355,3 +355,11 @@ Future reporting may reuse anomaly flags for gross pitch error, octave error, fa
 ## P7j opt-in local real phone comparison
 
 P7j keeps real phone recording comparison outside the benchmark gate plan. The local script `npm run validate:local-real-phone-comparison` is for manually owned ignored fixtures only, exits `0` when metadata is absent, skips missing audio, and documents unsupported audio decoding instead of producing fake estimates. Its output is reporting-only and must not become a grade, pass/fail check, formal score, CI blocker, or conservatory-grade claim.
+
+## P7k local real phone smoke test addendum
+
+P7k records one non-identifying local-only smoke test for the P7j real phone comparison script. A private uncommitted A3 PCM WAV sample was described by ignored local metadata as vowel `a`, about 3 seconds, quiet-room, phone-mic, and headphones playback. The script found metadata, included 1 sample, executed 1 sample, attempted 2 engines, and generated 2 reporting-only rows.
+
+Observed rows were close to A3 for both engines: the current in-repo autocorrelation estimator reported about 217.32Hz / -21.23 cents with about 0.941 confidence, and Pitchy / McLeod reported about 217.56Hz / -19.34 cents with about 0.982 clarity / voicing. No gross pitch error, out-of-human-voice-range result, possible false voiced issue, unknown result, or anomaly label was reported.
+
+This smoke test remains outside benchmark gates and CI. It does not change synthetic blocking coverage, tolerance policy, formal scoring policy, Practice Mode behavior, estimator behavior, Pitchy adapter behavior, or product accuracy language. It only records that the opt-in local workflow can process one private PCM WAV fixture end to end.
