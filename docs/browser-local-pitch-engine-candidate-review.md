@@ -1,102 +1,58 @@
-# P7e Browser-Local Pitch Engine Candidate Review
+# P7e / P7f Browser-local Pitch Engine Candidate Review
 
-## 1. Scope and decision boundary
+## P7e candidate review result
 
-P7e is a documentation-only dependency review for a future browser-local pitch engine adapter. It does not install new dependencies, connect Pitchy, Pitchfinder, CREPE, RMVPE, SwiftF0, or any other external pitch library, change the current estimator, change the P7d comparison harness, modify Practice Mode, add recording, add trend charts, upload audio, call AI APIs, add persistence, add scores, change benchmark gates, relax tolerance, or modify `/api/recognize`.
+P7e was a documentation-only dependency review for choosing the first browser-local pitch engine candidate to try behind the P7d comparison harness. It did not install dependencies, connect Pitchy, Pitchfinder, CREPE, RMVPE, SwiftF0, or any other external pitch library, change the current estimator, change the P7d comparison harness, modify Practice Mode, add recording, add trend charts, upload audio, call AI APIs, add persistence, add scores, change benchmark gates, relax tolerance, or modify `/api/recognize`.
 
-The goal is to decide which candidate should be tried first in P7f as a small adapter behind the existing P7d comparison harness shape, if the project chooses to proceed. This review is not a benchmark result and does not claim that any candidate reaches conservatory-grade accuracy.
+The P7e review recommended trying Pitchy / McLeod Pitch Method first in P7f as a comparison-only adapter, not as a production replacement. The recommendation was based on package metadata and public project documentation rather than benchmark proof: Pitchy had MIT package metadata, a smaller npm unpacked footprint than Pitchfinder, browser-oriented real-time positioning, and a clarity-style output that could map into the common report shape. Pitchfinder YIN and McLeod remained useful later comparison candidates, but Pitchfinder was not recommended first because npm metadata reported `GNU v3`, leaving commercial compatibility unresolved at P7e review time. Pitchfinder AMDF and Dynamic Wavelet were lower-priority for cents-trend feedback because their documented tradeoffs were less aligned with fine real-time intonation feedback.
 
-## 2. Reviewed evidence
+P7e also recorded the criteria any future browser-local candidate must satisfy before product use: license / commercial risk, bundle size / dependency footprint, browser support, mobile performance, API shape, confidence / clarity / voicing support, no-pitch behavior, octave-error risk, TypeScript integration, maintenance status, and suitability for real-time cents relative to the current target note.
 
-This review used package metadata and public project documentation rather than installing dependencies:
+P7e did not claim that Pitchy, Pitchfinder, or any other candidate had conservatory-grade accuracy. README and package statements were treated only as dependency triage inputs, not as measured benchmark conclusions.
 
-- `npm view pitchy version license dependencies dist.unpackedSize repository --json` reported Pitchy `4.1.0`, MIT license, one direct dependency on `fft.js`, and a published unpacked size of `33090` bytes.
-- `npm view pitchfinder version license dependencies dist.unpackedSize repository --json` reported Pitchfinder `2.3.4`, license string `GNU v3`, and a published unpacked size of `228607` bytes.
-- Pitchy's public README describes it as a JavaScript pitch detection module intended for real-time applications and based on the McLeod Pitch Method.
-- Pitchfinder's public README describes YIN, McLeod, AMDF, and Dynamic Wavelet variants, with documented tradeoffs such as YIN occasionally returning wildly incorrect values, AMDF being slow and about `+/- 2%`, and Dynamic Wavelet struggling with lower frequencies.
-- `audiojs/pitch-detection` was noted as another lightweight browser-oriented package because its README advertises MIT licensing, YIN / McLeod / pYIN / autocorrelation / AMDF options, and a `{ freq, clarity } | null` pitch API. It is not selected for P7f because it was outside the original Pitchy / Pitchfinder decision path and still needs separate package-size, maintenance, and browser-bundling review.
+## P7f dependency review result
 
-These sources are useful for dependency triage only. README statements are not treated as benchmark proof.
+P7f reviewed and installed only the `pitchy` candidate dependency as the first browser-local comparison adapter candidate.
 
-## 3. Candidate comparison matrix
+| Package | Installed version | Relationship | License | Review status |
+| --- | --- | --- | --- | --- |
+| `pitchy` | 4.1.0 | Candidate pitch engine | MIT | Accepted for comparison-only adapter |
+| `fft.js` | 4.0.4 | Direct dependency of `pitchy` | MIT | Accepted as direct dependency |
 
-Legend: `Good`, `Medium`, `Weak`, and `Unresolved` are review judgments for this MVP's likely fit, not measured repository benchmark results.
+Package metadata reviewed before integration:
 
-| Candidate | Phone browser real-time fit | Quiet indoor single voice fit | Confidence / clarity / voicing | No-pitch / unknown behavior | Octave error risk | Harness report-shape fit | Cents trend fit | License / commercial risk | Bundle / mobile CPU risk | Maintenance status | P7f adapter recommendation |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| Pitchy / McLeod Pitch Method | Good candidate because it is browser-oriented JavaScript and intended for real-time tuner-like use, but must be measured on target phones. | Medium to good for monophonic sustained voice if validated on real local recordings. | Good candidate: MPM-style clarity/probability output can map to confidence-like fields, but calibration remains product-specific. | Good candidate if the adapter maps missing / low-clarity output to `unknown` instead of forcing a note. Exact thresholds must be benchmarked. | Medium. MPM is designed to improve over naive autocorrelation, but harmonics, weak fundamentals, and low voices can still create octave or subharmonic errors. | Good. A small adapter can map frequency, clarity, and no-pitch state into the P7d report shape. | Good. Frame-level frequency estimates can be converted to cents relative to the current target note, provided unknown frames remain unknown. | Low known package risk from MIT metadata, but transitive `fft.js` license should be confirmed before merge. | Low to medium known footprint from metadata: about 33 KB unpacked plus one dependency. Real mobile CPU remains unresolved until measured. | Appears active enough for review because current npm metadata reports a published version; exact release cadence should be rechecked in P7f. | **Recommended first P7f adapter candidate**, gated by license confirmation and mobile benchmark results. |
-| Pitchfinder YIN | Medium to good for browser-local experiments, but the package is larger and license risk blocks immediate commercial use. | Medium for monophonic voice with tuning and validation. | Medium. Public API examples generally return a frequency or null/undefined rather than a calibrated confidence field, so voicing may need adapter heuristics. | Medium. Can be wrapped as unknown when no frequency is returned, but false voiced behavior must be measured. | Medium. README warns YIN can occasionally return wildly incorrect values; octave and gross pitch errors need explicit tracking. | Medium. Frequency can map easily; confidence fields may be unknown or adapter-derived. | Good for voiced frames; unknown and outlier smoothing need careful handling. | **High / unresolved for commercial product** because npm metadata reports `GNU v3`, which must be reviewed by counsel before commercial distribution. | Medium: metadata reports about 229 KB unpacked. CPU varies by algorithm and frame size; mobile risk unresolved. | Published package exists, but maintenance details need follow-up before adoption. | Not first choice unless GPL/commercial concerns are resolved and confidence handling is acceptable. |
-| Pitchfinder McLeod | Medium. Same package-level concerns as Pitchfinder; algorithmically close to Pitchy but with less direct clarity fit in the package API. | Medium to good if validated. | Medium. May need heuristic confidence wrapping. | Medium. Adapter must avoid guessing when method cannot return a reliable frequency. | Medium. Same MPM-family risks as Pitchy. | Medium. Frequency maps easily; confidence support is weaker. | Good for voiced frames if outliers are handled. | **High / unresolved for commercial product** due to Pitchfinder package license metadata. | Medium to unresolved due to larger package and method CPU checks. | Needs follow-up. | Defer behind Pitchy unless license is resolved and package API offers a clear advantage. |
-| Pitchfinder AMDF | Weak to medium for real-time feedback because Pitchfinder's README characterizes it as slow and only around `+/- 2%`. | Medium at best for rough monophonic tracking; likely too coarse for cents trend feedback. | Weak. No clear calibrated confidence. | Medium if wrapped conservatively. | Medium to high. Lower precision can appear as large cents errors. | Medium for frequency-only reports, weak for confidence-rich reports. | Weak for cents trend because `+/- 2%` is roughly tens of cents and may be too noisy for useful intonation trend. | **High / unresolved for commercial product** due to Pitchfinder package license metadata. | Medium to high because README calls it slow; phone CPU risk unresolved. | Needs follow-up. | Do not choose first. |
-| Pitchfinder Dynamic Wavelet | Medium for speed, according to Pitchfinder README, but lower-frequency limitations are a concern for singing ranges. | Medium; weak for lower voices unless benchmarked otherwise. | Weak to medium. No clear calibrated confidence. | Medium if wrapped conservatively. | Medium to high for lower voices because README notes lower-frequency struggles. | Medium for frequency-only reports, weak for confidence-rich reports. | Medium only if low-register failures are cleanly marked unknown. | **High / unresolved for commercial product** due to Pitchfinder package license metadata. | Low to medium CPU candidate, but mobile behavior remains unresolved. | Needs follow-up. | Do not choose first. |
-| audiojs/pitch-detection | Medium to good as a possible later browser-local candidate because its documented API returns `{ freq, clarity } | null`. | Medium to good if independently validated. | Good on paper because clarity and null are explicit in the documented API. | Good on paper due to documented `null` no-pitch behavior. | Medium; depends on chosen algorithm and implementation. | Good if frame output is stable and null states are preserved. | Low known risk from README MIT claim, but npm package metadata and transitive dependencies still need review. | Unresolved. Package size, tree-shaking, and mobile CPU were not reviewed enough for P7f. | Unresolved. Needs repository/package activity review. | Record as a promising later candidate, not the first P7f adapter. |
+- `pitchy@4.1.0` declares `type: "module"`, `main: "index.js"`, `types: "index.d.ts"`, and package exports for the default module plus package metadata.
+- `pitchy@4.1.0` is ESM-only. The comparison harness loads it with dynamic `import("pitchy")` so the repository's NodeNext validation command can compile and run without converting the app to ESM.
+- `pitchy` exposes `PitchDetector.forFloat32Array(inputLength)` and `findPitch(input, sampleRate)`, returning `[frequencyHz, clarity]`.
+- `fft.js@4.0.4` declares MIT license and no runtime dependencies in the installed package metadata.
 
-## 4. Decision notes by review criterion
+No unresolved license risk was found for the installed `pitchy` and direct `fft.js` dependency metadata. This review is limited to the installed npm package metadata and basic TypeScript / Node validation used by the comparison harness; it is not a full legal review.
 
-### 4.1 Phone browser local real-time feedback
+## P7f adapter status
 
-Pitchy is the best first trial because it is browser-oriented, small in npm metadata, and exposes MPM-style clarity information that can plausibly fit local real-time feedback. Pitchfinder is useful for comparing multiple classic algorithms, but package-level license risk and a larger footprint make it a worse first adapter for a commercializable MVP.
+P7f connects `pitchy` as a comparison-only adapter with engine id `pitchy-mcleod` and label `Pitchy / McLeod Pitch Method`. The current in-repository autocorrelation estimator remains the baseline engine and remains unchanged.
 
-### 4.2 Quiet indoor single voice
+The adapter maps Pitchy output as follows:
 
-All reviewed browser-local candidates remain plausible only for monophonic, quiet-room, single-singer practice. None should be described as robust to all voices, microphones, registers, vibrato, or background-noise conditions until measured against local real voice fixtures and mobile recordings.
+- detected frequency maps to `estimatedFrequencyHz`
+- Pitchy's clarity maps to `clarity`, `confidence`, and `voicing` for reporting only
+- no detected pitch maps to `noPitch: "no-pitch"`
+- unavailable frame diagnostics remain empty / unavailable rather than being fabricated
 
-### 4.3 Confidence, clarity, voicing, and no-pitch handling
+## Boundaries
 
-P7f should prefer an adapter that can report either a confidence-like signal or a clear unknown state. Pitchy is preferred because clarity/probability output can be mapped into the P7d fields without inventing a formal score. Pitchfinder can still be wrapped, but if an algorithm only returns frequency, the adapter should set confidence to `null` / unresolved rather than fabricate confidence.
+Pitchy is not a production replacement in P7f. It is not used by Practice Mode UI, Practice Mode workflow, user pages, `/api/recognize`, recognition providers, real-time recording, pitch trend charts, cloud assessment, formal scoring, grade/pass/fail labels, rhythm evaluation, or sight-singing assessment.
 
-No-pitch handling must be conservative: silence, too-short clips, unvoiced frames, and low-clarity frames should stay `unknown` / `no pitch`. A future adapter must never fill a random nearest note just to satisfy UI display.
+The P7f output is reporting-only. It is not a professional accuracy claim, not formal scoring, not a benchmark gate change, and not conservatory-grade assessment.
 
-### 4.4 Octave error and cents trend risk
+## Current evidence gaps
 
-MPM and YIN-family methods are reasonable traditional candidates, but both can still make octave, subharmonic, or gross pitch mistakes on difficult voice frames. The trend chart direction should therefore use frame-level cents relative to the current target note plus unknown states and outlier diagnostics. A smooth-looking trend must not be treated as formal assessment.
+P7f still has no real phone recording benchmark, no mobile Safari performance conclusion, no Android Chrome performance conclusion, and no real singer / device robustness conclusion. Follow-up work needs local-only real phone recording fixtures and mobile performance testing before considering any production estimator change.
 
-AMDF and Dynamic Wavelet should not be first choices for cents trend feedback. AMDF's documented precision tradeoff is too coarse for fine intonation guidance without strong benchmark evidence, and Dynamic Wavelet's lower-frequency concern is risky for lower voices.
+## P7g anomaly reporting caveat
 
-### 4.5 TypeScript and harness integration
+P7g adds comparison-report anomaly flags around the P7f Pitchy adapter. It does not replace the estimator, repair Pitchy output, hide engine errors, change Practice Mode, change benchmark gates, relax tolerance, or add formal grades/pass/fail labels.
 
-P7f should wrap a candidate into the P7d comparison report shape without changing the harness contract. The adapter should expose:
+The notable P7f observation remains: Pitchy showed useful no-pitch behavior on silent and too-short no-pitch cases, still diverged on the exploratory frequency-drift case, and produced a severe exploratory vibrato anomaly of roughly 1.00Hz / -10534.80 cents. P7g records that kind of result with reporting-only labels such as `out-of-human-voice-range`, `gross-pitch-error`, `possible-octave-or-catastrophic-error`, and `exploratory-reporting-only` while preserving the raw frequency and cents error.
 
-- engine id and version;
-- per-case target metadata;
-- estimated frequency in Hz or `null`;
-- nearest note and cents only when a reliable frequency exists;
-- confidence / clarity when the candidate provides it, otherwise `null` with a caveat;
-- valid frame count and analyzed frame count;
-- no-pitch state and caveats;
-- notes about thresholds, frame size, sample rate, and mobile timing.
-
-TypeScript risk is expected to be low to medium for Pitchy because a small wrapper can normalize its output. Pitchfinder TypeScript risk is medium because confidence and per-algorithm output semantics may need more custom typing and caveats. Actual type availability must be checked in P7f without assuming it here.
-
-## 5. Recommended P7f adapter choice
-
-**Recommend P7f try Pitchy / McLeod Pitch Method first** as a single browser-local comparison adapter, not as a production replacement.
-
-Reasons:
-
-1. MIT package metadata is more compatible with future commercial use than Pitchfinder's `GNU v3` metadata, pending final transitive-license confirmation.
-2. The npm package footprint appears much smaller than Pitchfinder in metadata, reducing first-pass bundle-risk exposure.
-3. It is browser-oriented and intended for real-time pitch detection use cases.
-4. Its MPM-style clarity output is easier to map into the P7d comparison report's confidence-like fields without pretending confidence is a grade.
-5. A single Pitchy adapter keeps the P7f PR small and MVP-aligned while still testing the harness path for external browser-local engines.
-
-Pitchfinder remains valuable for later controlled comparisons, especially YIN and McLeod, but it should not be the first P7f adapter until the GPL/commercial question is resolved and confidence/no-pitch mapping is designed.
-
-## 6. Unresolved risks before any dependency merge
-
-Before P7f installs or connects any candidate, the project should resolve:
-
-- Confirm Pitchy's full dependency license chain, including `fft.js`, and record whether commercial use is acceptable.
-- Measure actual bundled output in this Next.js app instead of relying only on npm unpacked size.
-- Run mobile CPU and latency checks on at least one low-end phone and one modern phone.
-- Verify browser compatibility for Safari iOS, Chrome Android, and microphone / AudioWorklet or main-thread usage assumptions.
-- Define conservative clarity / confidence thresholds for no-pitch behavior.
-- Track false voiced frames on silence and false unvoiced frames on usable singing.
-- Measure octave-doubled, octave-halved, and gross pitch errors on generated synthetic cases and local real voice fixtures.
-- Confirm whether the package ships usable TypeScript declarations or whether a small local type wrapper is needed.
-- Recheck maintenance status immediately before dependency installation.
-- Decide whether frame-level trend output should smooth, debounce, or hide low-confidence frames before any Practice Mode UI change.
-
-## 7. Recommended next step
-
-P7f should be a small, separate PR that installs only one candidate dependency if license review is acceptable, adds only a Pitchy comparison adapter behind the P7d harness, records benchmark output, and keeps Practice Mode unchanged. If license, mobile CPU, bundle size, or browser support cannot be verified, P7f should remain docs-only or add only a no-dependency adapter design note.
+Because these are synthetic comparison diagnostics only, Pitchy integration still cannot support a stronger accuracy claim. Local-only real phone recording tests remain required before any production recommendation.

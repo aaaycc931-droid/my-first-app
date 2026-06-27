@@ -329,3 +329,19 @@ The harness is not a production accuracy claim. It does not install or connect P
 P7e records a dependency review for browser-local pitch engine candidates before any installation. The review recommends Pitchy / McLeod Pitch Method as the first future P7f adapter candidate for the P7d comparison harness, provided transitive license, bundle, browser, and mobile CPU checks pass. Pitchfinder YIN / McLeod remain later comparison candidates, but the package license metadata is unresolved for future commercial use. Pitchfinder AMDF and Dynamic Wavelet are not preferred for the first cents-trend adapter because their documented tradeoffs are less aligned with fine real-time intonation feedback.
 
 The P7e decision does not change the benchmark plan's evidence standard. Any future adapter must run against the same generated synthetic cases and must preserve no-pitch behavior, octave-error reporting, valid-frame reporting, confidence / clarity caveats, and the separation between pitch correctness and sustained pitch instability. No README claim should be substituted for measured benchmark output.
+
+## 19. P7f Pitchy comparison adapter note
+
+P7f adds `pitchy@4.1.0` as the first comparison-only external browser-local pitch engine adapter in the P7d comparison harness. It does not replace the current in-repository autocorrelation estimator, does not modify the Practice Mode UI or workflow, does not add real-time recording, does not add a pitch trend chart, and does not add formal scoring.
+
+The P7f comparison path maps Pitchy frequency and clarity into the common report shape so the generated synthetic cases can print side-by-side output for `in-repo-autocorrelation` and `pitchy-mcleod`. Those reports are engineering diagnostics only. They do not change the existing blocking synthetic benchmark gates, no-pitch gates, tolerance, target frequencies, or exploratory-case status.
+
+The P7f dependency review found MIT metadata for `pitchy@4.1.0` and its direct dependency `fft.js@4.0.4`, and confirmed that Pitchy's ESM-only import can run in the current TypeScript / Node validation path through dynamic import. This does not remove the need for future real phone recording validation, mobile Safari testing, Android Chrome testing, and broader no-pitch / gross-error analysis before any production estimator decision.
+
+## 20. P7g comparison anomaly reporting
+
+P7g keeps the benchmark plan conservative by adding anomaly reporting only. It does not change the pitch estimator algorithm, Practice Mode, benchmark gates, tolerance, or any formal score. Current Pitchy comparison output must not be used to claim that the MVP is more accurate.
+
+Anomaly flags are meant to keep severe or suspicious comparison outputs visible, including out-of-human-voice-range frequency estimates, gross pitch errors, possible octave or catastrophic errors, no-pitch mismatches, and exploratory-only caveats. The P7f Pitchy exploratory vibrato result around 1.00Hz / -10534.80 cents remains a documented caveat rather than a hidden failure or a product claim.
+
+Future benchmark work should continue to treat these reports as diagnostics until real phone recordings, mobile performance data, no-pitch behavior, confidence / voicing behavior, and octave / gross-error rates are validated.

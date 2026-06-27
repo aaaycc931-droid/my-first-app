@@ -146,6 +146,29 @@ Current P7d limitations:
 
 P7e adds a docs-only review in `docs/browser-local-pitch-engine-candidate-review.md`. The review compares Pitchy / McLeod Pitch Method, Pitchfinder YIN / McLeod / AMDF / Dynamic Wavelet, and a noted lightweight alternative candidate without installing or connecting any dependency.
 
-The P7e recommendation is to try Pitchy first in a future P7f comparison-adapter PR, if its transitive license and mobile bundle / CPU checks are acceptable. Pitchy is preferred for the first adapter because npm metadata reports an MIT license, a smaller package footprint than Pitchfinder, a browser-oriented real-time use case, and a clarity-style output that should map cleanly into the existing P7d report shape. Pitchfinder remains useful for later comparisons, but npm metadata reports `GNU v3`, so future commercial compatibility is unresolved and must be reviewed before adoption.
+The P7e recommendation was to try Pitchy first in a future P7f comparison-adapter PR, if its transitive license and mobile bundle / CPU checks were acceptable. Pitchy was preferred for the first adapter because npm metadata reported an MIT license, a smaller package footprint than Pitchfinder, a browser-oriented real-time use case, and a clarity-style output that should map cleanly into the existing P7d report shape. Pitchfinder remained useful for later comparisons, but npm metadata reported `GNU v3`, so future commercial compatibility was unresolved at P7e review time and needed review before adoption.
 
-P7e does not claim that Pitchy, Pitchfinder, or any other candidate has conservatory-grade accuracy. It also does not modify the P7d comparison harness, estimator algorithm, Practice Mode workflow, benchmark gates, tolerance, `/api/recognize`, recognition providers, PDF upload, Audiveris, audio upload, persistence, scoring, rhythm evaluation, sight-singing assessment, or AI/API behavior.
+P7e did not claim that Pitchy, Pitchfinder, or any other candidate had conservatory-grade accuracy. It also did not modify the P7d comparison harness, estimator algorithm, Practice Mode workflow, benchmark gates, tolerance, `/api/recognize`, recognition providers, PDF upload, Audiveris, audio upload, persistence, scoring, rhythm evaluation, sight-singing assessment, or AI/API behavior.
+
+## 11. P7f Pitchy comparison adapter status
+
+P7f adds the first external browser-local comparison adapter: `pitchy-mcleod` (`Pitchy / McLeod Pitch Method`). The current `in-repo-autocorrelation` adapter remains the baseline and the existing pitch estimator algorithm is not replaced.
+
+The P7f harness output now registers two engines and produces reporting-only rows for both engines against the same generated in-memory synthetic cases. The output explicitly remains not a professional accuracy claim, not formal scoring, not a gate change, and not conservatory-grade assessment. Existing blocking gates, tolerances, no-pitch behavior gates, exploratory-case status, and benchmark inputs are unchanged.
+
+Dependency review for P7f found `pitchy@4.1.0` and its direct dependency `fft.js@4.0.4` both declare MIT license in installed package metadata. `pitchy@4.1.0` is ESM-only, so the harness loads it with dynamic `import("pitchy")` for the NodeNext validation path.
+
+Remaining limitations after P7f:
+
+- No real phone recording benchmark has been run.
+- Mobile Safari and Android Chrome runtime performance are still unverified.
+- Pitchy comparison results are not production pitch accuracy evidence.
+- Practice Mode still uses the existing local estimator path and is not changed by the comparison adapter.
+
+## 12. P7g anomaly flag reporting
+
+P7g adds reporting-only anomaly flags to the pitch engine comparison rows. This does not fix, smooth, hide, or target-correct any engine output; raw `estimatedFrequencyHz` and `centsError` remain visible so regressions stay explicit.
+
+The anomaly fields identify conditions such as out-of-human-voice-range estimates, gross pitch errors, possible octave or catastrophic errors, no-pitch expectation mismatches, and exploratory-only observations. They are intended to make adapter caveats easier to review before any product decision.
+
+These flags are not formal scoring, not professional accuracy claims, not conservatory-grade assessment, and not a benchmark gate or tolerance change. Exploratory cases such as vibrato, drift, higher noise, and mixed harmonics can record anomalies, but those anomalies remain non-blocking. The P7f Pitchy vibrato exploratory result that reported roughly 1.00Hz / -10534.80 cents is therefore documented as a severe caveat rather than hidden or promoted into a product claim.
