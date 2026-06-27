@@ -323,3 +323,11 @@ P7d adds a reporting-only pitch engine comparison harness skeleton through `npm 
 The P7d output is separate from the existing synthetic pitch validation gate. It reuses generated in-memory synthetic cases for baseline reporting, but it does not change existing benchmark gates, validation blocker logic, tolerances, target frequencies, no-pitch behavior, or exploratory case status. Exploratory cases remain non-blocking diagnostics only.
 
 The harness is not a production accuracy claim. It does not install or connect Pitchy, Pitchfinder, CREPE, RMVPE, SwiftF0, or any other pitch library/model. It does not execute real phone recording benchmarks, upload audio, add scoring, add grades, add pass/fail labels, evaluate rhythm, or perform sight-singing assessment. Future P7e work may consider one browser-local candidate engine adapter only after separate review.
+
+## P7f Pitchy comparison adapter note
+
+P7f adds `pitchy@4.1.0` as the first comparison-only external browser-local pitch engine adapter in the P7d comparison harness. It does not replace the current in-repository autocorrelation estimator, does not modify the Practice Mode UI or workflow, does not add real-time recording, does not add a pitch trend chart, and does not add formal scoring.
+
+The comparison command reports both `in-repo-autocorrelation` and `pitchy-mcleod` rows using the same generated in-memory synthetic inputs. These rows are engineering diagnostics only: not a professional accuracy claim, not formal scoring, not a benchmark gate change, and not conservatory-grade assessment. Existing tolerances and blocking / exploratory boundaries remain unchanged.
+
+The P7f dependency review found MIT metadata for `pitchy@4.1.0` and its direct dependency `fft.js@4.0.4`, and confirmed that Pitchy's ESM-only import can run in the current TypeScript / Node validation path through dynamic import. This does not remove the need for future real phone recording validation, mobile Safari testing, Android Chrome testing, and broader no-pitch / gross-error analysis before any production estimator decision.

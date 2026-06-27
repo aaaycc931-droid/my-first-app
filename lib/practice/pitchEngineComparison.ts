@@ -12,11 +12,12 @@ import {
 } from "./syntheticPitchBenchmarkSuite";
 import {
   estimateLocalPitch,
+  getNearestPitchNote,
   type PitchAudioBufferLike,
   type PitchEstimateResult,
 } from "./pitchEstimate";
 
-export type PitchEngineId = "in-repo-autocorrelation";
+export type PitchEngineId = "in-repo-autocorrelation" | "pitchy-mcleod";
 
 export type PitchEngineDescriptor = {
   engineId: PitchEngineId;
@@ -49,6 +50,8 @@ export type PitchEngineResult = {
 export type PitchEngineAdapter = PitchEngineDescriptor & {
   estimate(audioBuffer: PitchAudioBufferLike): PitchEngineResult;
 };
+
+type PitchyModule = typeof import("pitchy");
 
 export type PitchEngineComparisonCaseKind =
   | "blocking-pitch"
@@ -151,6 +154,91 @@ export const inRepoAutocorrelationPitchEngine: PitchEngineAdapter = {
   },
 };
 
+const mapAudioBufferToMonoSamples = (
+  audioBuffer: PitchAudioBufferLike,
+): Float32Array => {
+  const monoSamples = new Float32Array(audioBuffer.length);
+
+  for (
+    let channelIndex = 0;
+    channelIndex < audioBuffer.numberOfChannels;
+    channelIndex += 1
+  ) {
+    const channelData = audioBuffer.getChannelData(channelIndex);
+
+    for (
+      let sampleIndex = 0;
+      sampleIndex < audioBuffer.length;
+      sampleIndex += 1
+    ) {
+      monoSamples[sampleIndex] +=
+        channelData[sampleIndex] / audioBuffer.numberOfChannels;
+    }
+  }
+
+  return monoSamples;
+};
+
+export const createPitchyMcleodPitchEngine = (
+  pitchyModule: PitchyModule,
+): PitchEngineAdapter => ({
+  engineId: "pitchy-mcleod",
+  engineLabel: "Pitchy / McLeod Pitch Method",
+  engineVersion: "pitchy@4.1.0",
+  implementationNote:
+    "Comparison-only adapter using Pitchy PitchDetector.findPitch over a full synthetic buffer; not wired into production practice evaluation.",
+  estimate(audioBuffer) {
+    if (audioBuffer.length <= 0) {
+      return {
+        noPitch: "too-short",
+        notes: ["Pitchy adapter received an empty buffer."],
+      };
+    }
+
+    const monoSamples = mapAudioBufferToMonoSamples(audioBuffer);
+    const detector = pitchyModule.PitchDetector.forFloat32Array(
+      monoSamples.length,
+    );
+    const [estimatedFrequencyHz, clarity] = detector.findPitch(
+      monoSamples,
+      audioBuffer.sampleRate,
+    );
+
+    if (
+      !Number.isFinite(estimatedFrequencyHz) ||
+      estimatedFrequencyHz <= 0 ||
+      clarity <= 0
+    ) {
+      return {
+        noPitch: "no-pitch",
+        clarity,
+        voicing: clarity,
+        notes: [
+          "Pitchy returned no detected pitch for this synthetic buffer.",
+          "Pitchy adapter does not provide frame-level diagnostics in this comparison harness.",
+        ],
+      };
+    }
+
+    const { nearestNote } = getNearestPitchNote(estimatedFrequencyHz);
+
+    return {
+      estimatedFrequencyHz,
+      nearestNote,
+      clarity,
+      confidence: clarity,
+      voicing: clarity,
+      notes: [
+        "Pitchy clarity is mapped to confidence/voicing for reporting only.",
+        "Frame min/median/max, half medians, and drift cents are unavailable for this adapter.",
+      ],
+    };
+  },
+});
+
+export const loadPitchyMcleodPitchEngine = async (): Promise<PitchEngineAdapter> =>
+  createPitchyMcleodPitchEngine(await import("pitchy"));
+
 const buildPitchRow = (
   engine: PitchEngineAdapter,
   benchmarkCase: SyntheticPitchBenchmarkSuitePitchCase,
@@ -252,8 +340,8 @@ export const runPitchEngineComparisonHarness = (
       ).length,
     },
     caveats: [
-      "Skeleton only: the only registered engine is the current in-repo autocorrelation estimator.",
-      "Pitchy, Pitchfinder, CREPE, RMVPE, and SwiftF0 are not installed or connected.",
+      "P7f registers Pitchy / McLeod Pitch Method as a comparison-only candidate beside the current in-repo baseline.",
+      "Pitchy is not a production replacement and is not used by Practice Mode UI or workflow.",
       "Synthetic comparison output is reporting-only and does not change existing benchmark gates or tolerances.",
       "No real phone recording benchmark is executed by this harness.",
       "Do not use this report as a conservatory-grade or professional accuracy claim.",
