@@ -89,3 +89,11 @@ P7b does not:
 - modify benchmark gates or tolerance;
 - modify `/api/recognize` or recognition provider unions;
 - add PDF upload or Audiveris integration.
+
+## 8. P7c local pitch engine comparison benchmark design
+
+P7c defines the future comparison benchmark before replacing the current MVP estimator. The current in-repository autocorrelation estimator remains the baseline. Future candidates such as Pitchy / McLeod, Pitchfinder YIN / McLeod / AMDF / Dynamic Wavelet, and later cloud candidates such as CREPE, RMVPE, or SwiftF0-style models must be compared on the same inputs and metrics before any product claim changes.
+
+The comparison design reinforces the mobile feedback direction: local trend feedback should show cents offset relative to the current target note, distinguish pitch correctness from sustained pitch instability, and show unknown / no pitch when frames are unreliable. It must not convert trend feedback into formal scoring, grades, pass/fail labels, rhythm evaluation, or sight-singing assessment.
+
+The recommended next path is P7d for a comparison harness skeleton without external libraries, then P7e for considering one browser-local candidate after license, bundle-size, latency, and no-pitch behavior review. Cloud candidates require separate license, privacy, opt-in upload, and server-cost review before any integration.

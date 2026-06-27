@@ -307,3 +307,11 @@ The near-term benchmark sequence should be:
 5. Evaluate cloud-oriented candidates such as CREPE, RMVPE, SwiftF0-style lightweight models, aubio, pYIN, and Essentia only after privacy, license, and real-recording benchmark requirements are defined.
 
 This P7b benchmark direction is documentation only. It does not install dependencies, connect any candidate engine, change the estimator algorithm, change benchmark pass/fail gates, relax tolerance, promote exploratory cases, modify Practice Mode, upload audio, call AI APIs, modify `/api/recognize`, modify the recognition provider union, add PDF upload, or connect Audiveris.
+
+## 16. P7c local pitch engine comparison design
+
+P7c adds a docs-only design for future local pitch engine comparison in `docs/pitch-engine-comparison-benchmark-design.md`. The design keeps the current in-repository autocorrelation estimator as the baseline and requires any future candidate engine to be compared against that baseline on the same synthetic and local real-recording inputs.
+
+The design separates existing blocking regression categories from exploratory comparison categories. Clean sine, quiet amplitude, short duration, deterministic light noise, and no-pitch / too-short behavior remain aligned with already gated baseline behavior where applicable. Higher noise, mixed harmonics, vibrato, and frequency drift remain exploratory comparison categories until a future PR records evidence and explicitly proposes promotion.
+
+P7c does not change benchmark gates, relax tolerance, modify the estimator algorithm, add dependencies, connect external pitch libraries or models, modify Practice Mode, add recording, upload audio, add scoring, modify `/api/recognize`, modify the recognition provider union, add PDF upload, or connect Audiveris.

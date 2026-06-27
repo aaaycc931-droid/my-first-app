@@ -239,3 +239,11 @@ Future dataset coverage should include:
 - separate labels or derived diagnostics for pitch correctness versus sustained pitch instability.
 
 The dataset should support side-by-side evaluation of the current estimator, future Pitchy/Pitchfinder browser baselines, traditional MIR baselines such as aubio/pYIN/Essentia, and future cloud/deep candidates such as CREPE, RMVPE, and SwiftF0-style models. This remains future work only: P7b does not collect recordings, commit audio, upload audio, connect external datasets, add dependencies, change Practice Mode, call AI APIs, add accounts, add persistence, or add formal scoring.
+
+## 16. P7c real phone recording comparison notes
+
+P7c documents how future local-only real phone recordings can support pitch engine comparison without entering the repository. Recordings should be made in a quiet indoor room with one singer, known target notes, multiple vowels, multiple ranges where available, soft and normal volume, stable / vibrato / drift examples, and more than one phone or microphone when available.
+
+Metadata should stay local and non-identifying. Useful fields include sample id, target note, expected frequency, vowel, duration, singer range category, device class, room condition, input distance, volume intent, performance type, engine version or commit SHA, consent status, local-only confirmation, and caveats.
+
+These recordings remain opt-in, local-only, non-blocking, and outside CI. They must not be committed, uploaded, used for formal grades, used for pass/fail labels, connected to persistence, or used to claim production-grade pitch evaluation.
