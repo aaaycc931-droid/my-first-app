@@ -113,3 +113,11 @@ P7h adds documentation for a future Song Learning Mode that could help users lea
 Future Song Learning Mode will need separate evaluation for source separation / stem separation, vocal melody extraction, target pitch curve generation, karaoke-style pitch trace UI, optional cloud deep assessment, GPT-assisted coaching from structured results, copyright / licensing / consent / storage policy, real song benchmark datasets, and the user-vocal-vs-original-vocal separation problem. Current Practice Mode remains focused on browser-local single-note and melody-step feedback.
 
 See `docs/future-song-learning-mode.md` for the full P7h boundary.
+
+## 11. P8a real-time pitch trend feedback plan
+
+P8a adds a dedicated plan for future browser-local real-time pitch trend feedback. The plan keeps the current estimator as the baseline, keeps Pitchy as a comparison candidate rather than a production replacement, and requires more real mobile recordings before any stronger accuracy claim.
+
+The planned UX shows the active Practice Mode target note, a `0 cents` target center line, guide bands such as `+50 / +25 / 0 / -25 / -50` cents, a live pitch trace, and status prompts such as `close`, `slightly sharp`, `slightly flat`, `unstable`, and `no pitch`. Low-confidence frames should be hidden, broken in the trace, or shown as `no pitch` instead of guessed note names.
+
+This is docs-only and does not implement real-time recording, trend charts, formal scoring, grades/pass/fail labels, Practice Mode workflow changes, estimator changes, Pitchy adapter changes, comparison harness changes, new dependencies, audio upload, cloud assessment, GPT / AI APIs, benchmark gate changes, tolerance changes, `/api/recognize` changes, recognition provider changes, PDF upload, or Audiveris changes. See `docs/real-time-pitch-trend-feedback-plan.md`.
