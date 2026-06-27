@@ -159,3 +159,11 @@ Remaining limitations after P7f:
 - There is still no mobile Safari or Android Chrome real-device performance conclusion.
 - The harness still cannot claim conservatory-grade accuracy.
 - Future work should validate against local-only real phone recordings and mobile performance before any production estimator change is considered.
+
+## P7g anomaly flag reporting
+
+P7g adds reporting-only anomaly flags to the pitch engine comparison rows. This does not fix, smooth, hide, or target-correct any engine output; raw `estimatedFrequencyHz` and `centsError` remain visible so regressions stay explicit.
+
+The anomaly fields include no-pitch expectation/result flags, unknown-result flags, gross pitch error flags, likely octave/catastrophic error flags, human-voice sanity range flags, expected-target range flags, exploratory-case flags, labels, and notes. The current reporting-only thresholds are intentionally simple: estimates below 50Hz or above 2000Hz are marked outside the common human-voice sanity range, absolute errors above 50 cents are marked gross pitch errors, and absolute errors above 1200 cents are additionally marked possible octave-or-catastrophic errors.
+
+These flags are not formal scoring, not professional accuracy claims, not conservatory-grade assessment, and not a benchmark gate or tolerance change. Exploratory cases such as vibrato, drift, higher noise, and mixed harmonics can record anomalies, but those anomalies remain non-blocking. The P7f Pitchy vibrato exploratory result that reported roughly 1.00Hz / -10534.80 cents is therefore documented as a severe caveat rather than hidden or promoted into a product claim.

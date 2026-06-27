@@ -331,3 +331,11 @@ P7f adds `pitchy@4.1.0` as the first comparison-only external browser-local pitc
 The comparison command reports both `in-repo-autocorrelation` and `pitchy-mcleod` rows using the same generated in-memory synthetic inputs. These rows are engineering diagnostics only: not a professional accuracy claim, not formal scoring, not a benchmark gate change, and not conservatory-grade assessment. Existing tolerances and blocking / exploratory boundaries remain unchanged.
 
 The P7f dependency review found MIT metadata for `pitchy@4.1.0` and its direct dependency `fft.js@4.0.4`, and confirmed that Pitchy's ESM-only import can run in the current TypeScript / Node validation path through dynamic import. This does not remove the need for future real phone recording validation, mobile Safari testing, Android Chrome testing, and broader no-pitch / gross-error analysis before any production estimator decision.
+
+## P7g comparison anomaly reporting
+
+P7g keeps the benchmark plan conservative by adding anomaly reporting only. It does not change the pitch estimator algorithm, Practice Mode, benchmark gates, tolerance, or any formal score. Current Pitchy comparison output must not be used to claim that the MVP is more accurate.
+
+The comparison harness can now mark expected no-pitch behavior, possible false voiced no-pitch cases, unknown results, gross pitch errors, possible octave-or-catastrophic errors, out-of-human-voice-range estimates, out-of-expected-target-range estimates, and exploratory non-blocking anomalies. These labels make reports more honest for follow-up real phone recording tests while preserving raw engine output.
+
+Real phone recording fixtures remain a required future step before any production estimator replacement, accuracy claim, or user-facing assessment change.
