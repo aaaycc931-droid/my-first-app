@@ -97,3 +97,11 @@ P7c defines the future comparison benchmark before replacing the current MVP est
 The comparison design reinforces the mobile feedback direction: local trend feedback should show cents offset relative to the current target note, distinguish pitch correctness from sustained pitch instability, and show unknown / no pitch when frames are unreliable. It must not convert trend feedback into formal scoring, grades, pass/fail labels, rhythm evaluation, or sight-singing assessment.
 
 The recommended next path is P7d for a comparison harness skeleton without external libraries, then P7e for considering one browser-local candidate after license, bundle-size, latency, and no-pitch behavior review. Cloud candidates require separate license, privacy, opt-in upload, and server-cost review before any integration.
+
+## 9. P7e browser-local dependency review update
+
+P7e narrows the near-term browser-local adapter path with a documentation-only candidate review. The recommended first future adapter is Pitchy / McLeod Pitch Method, only as a P7d harness comparison candidate and not as a production replacement. The decision is based on dependency triage factors: MIT package metadata, smaller npm unpacked footprint than Pitchfinder, browser-oriented real-time positioning, and clearer confidence / clarity mapping into the common report shape.
+
+Pitchfinder YIN and McLeod remain useful future comparison candidates, but Pitchfinder is not recommended as the first P7f adapter because npm metadata reports `GNU v3`, which leaves commercial use unresolved. AMDF and Dynamic Wavelet are lower-priority for cents trend feedback because public project documentation describes AMDF as slower / rougher and Dynamic Wavelet as weaker on lower frequencies.
+
+This update remains inside the existing product claim boundary: no dependency is installed, no external pitch engine is connected, no benchmark gate changes, and no candidate is described as conservatory-grade. Before any stronger claim or UI default change, candidates still need real mobile recordings, octave-error analysis, voicing / no-pitch behavior measurement, latency and CPU checks, and license review.

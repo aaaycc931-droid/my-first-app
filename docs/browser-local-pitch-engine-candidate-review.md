@@ -1,5 +1,15 @@
 # P7e / P7f Browser-local Pitch Engine Candidate Review
 
+## P7e candidate review result
+
+P7e was a documentation-only dependency review for choosing the first browser-local pitch engine candidate to try behind the P7d comparison harness. It did not install dependencies, connect Pitchy, Pitchfinder, CREPE, RMVPE, SwiftF0, or any other external pitch library, change the current estimator, change the P7d comparison harness, modify Practice Mode, add recording, add trend charts, upload audio, call AI APIs, add persistence, add scores, change benchmark gates, relax tolerance, or modify `/api/recognize`.
+
+The P7e review recommended trying Pitchy / McLeod Pitch Method first in P7f as a comparison-only adapter, not as a production replacement. The recommendation was based on package metadata and public project documentation rather than benchmark proof: Pitchy had MIT package metadata, a smaller npm unpacked footprint than Pitchfinder, browser-oriented real-time positioning, and a clarity-style output that could map into the common report shape. Pitchfinder YIN and McLeod remained useful later comparison candidates, but Pitchfinder was not recommended first because npm metadata reported `GNU v3`, leaving commercial compatibility unresolved at P7e review time. Pitchfinder AMDF and Dynamic Wavelet were lower-priority for cents-trend feedback because their documented tradeoffs were less aligned with fine real-time intonation feedback.
+
+P7e also recorded the criteria any future browser-local candidate must satisfy before product use: license / commercial risk, bundle size / dependency footprint, browser support, mobile performance, API shape, confidence / clarity / voicing support, no-pitch behavior, octave-error risk, TypeScript integration, maintenance status, and suitability for real-time cents relative to the current target note.
+
+P7e did not claim that Pitchy, Pitchfinder, or any other candidate had conservatory-grade accuracy. README and package statements were treated only as dependency triage inputs, not as measured benchmark conclusions.
+
 ## P7f dependency review result
 
 P7f reviewed and installed only the `pitchy` candidate dependency as the first browser-local comparison adapter candidate.

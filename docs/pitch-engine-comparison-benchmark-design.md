@@ -142,28 +142,33 @@ Current P7d limitations:
 - The output is engineering comparison scaffolding only, not conservatory-grade accuracy evidence, professional assessment, formal scoring, grade, pass, or fail.
 - P7e may consider adding one browser-local candidate adapter after dependency, license, bundle-size, browser-support, latency, and no-pitch behavior review.
 
-## 10. P7f Pitchy comparison adapter status
+## 10. P7e browser-local candidate review decision
+
+P7e adds a docs-only review in `docs/browser-local-pitch-engine-candidate-review.md`. The review compares Pitchy / McLeod Pitch Method, Pitchfinder YIN / McLeod / AMDF / Dynamic Wavelet, and a noted lightweight alternative candidate without installing or connecting any dependency.
+
+The P7e recommendation was to try Pitchy first in a future P7f comparison-adapter PR, if its transitive license and mobile bundle / CPU checks were acceptable. Pitchy was preferred for the first adapter because npm metadata reported an MIT license, a smaller package footprint than Pitchfinder, a browser-oriented real-time use case, and a clarity-style output that should map cleanly into the existing P7d report shape. Pitchfinder remained useful for later comparisons, but npm metadata reported `GNU v3`, so future commercial compatibility was unresolved at P7e review time and needed review before adoption.
+
+P7e did not claim that Pitchy, Pitchfinder, or any other candidate had conservatory-grade accuracy. It also did not modify the P7d comparison harness, estimator algorithm, Practice Mode workflow, benchmark gates, tolerance, `/api/recognize`, recognition providers, PDF upload, Audiveris, audio upload, persistence, scoring, rhythm evaluation, sight-singing assessment, or AI/API behavior.
+
+## 11. P7f Pitchy comparison adapter status
 
 P7f adds the first external browser-local comparison adapter: `pitchy-mcleod` (`Pitchy / McLeod Pitch Method`). The current `in-repo-autocorrelation` adapter remains the baseline and the existing pitch estimator algorithm is not replaced.
 
 The P7f harness output now registers two engines and produces reporting-only rows for both engines against the same generated in-memory synthetic cases. The output explicitly remains not a professional accuracy claim, not formal scoring, not a gate change, and not conservatory-grade assessment. Existing blocking gates, tolerances, no-pitch behavior gates, exploratory-case status, and benchmark inputs are unchanged.
 
-Pitchy's `findPitch` result is mapped to common report fields by using detected frequency as `estimatedFrequencyHz` and clarity as reporting-only `clarity` / `confidence` / `voicing`. Pitchy does not provide the current in-repo frame-level diagnostics in this adapter, so frame min / median / max, first-half median, second-half median, and drift cents remain unavailable for Pitchy rows rather than being fabricated.
-
 Dependency review for P7f found `pitchy@4.1.0` and its direct dependency `fft.js@4.0.4` both declare MIT license in installed package metadata. `pitchy@4.1.0` is ESM-only, so the harness loads it with dynamic `import("pitchy")` for the NodeNext validation path.
 
 Remaining limitations after P7f:
 
-- Pitchy is a comparison candidate only, not a production replacement.
-- There is still no real phone recording benchmark.
-- There is still no mobile Safari or Android Chrome real-device performance conclusion.
-- The harness still cannot claim conservatory-grade accuracy.
-- Future work should validate against local-only real phone recordings and mobile performance before any production estimator change is considered.
+- No real phone recording benchmark has been run.
+- Mobile Safari and Android Chrome runtime performance are still unverified.
+- Pitchy comparison results are not production pitch accuracy evidence.
+- Practice Mode still uses the existing local estimator path and is not changed by the comparison adapter.
 
-## P7g anomaly flag reporting
+## 12. P7g anomaly flag reporting
 
 P7g adds reporting-only anomaly flags to the pitch engine comparison rows. This does not fix, smooth, hide, or target-correct any engine output; raw `estimatedFrequencyHz` and `centsError` remain visible so regressions stay explicit.
 
-The anomaly fields include no-pitch expectation/result flags, unknown-result flags, gross pitch error flags, likely octave/catastrophic error flags, human-voice sanity range flags, expected-target range flags, exploratory-case flags, labels, and notes. The current reporting-only thresholds are intentionally simple: estimates below 50Hz or above 2000Hz are marked outside the common human-voice sanity range, absolute errors above 50 cents are marked gross pitch errors, and absolute errors above 1200 cents are additionally marked possible octave-or-catastrophic errors.
+The anomaly fields identify conditions such as out-of-human-voice-range estimates, gross pitch errors, possible octave or catastrophic errors, no-pitch expectation mismatches, and exploratory-only observations. They are intended to make adapter caveats easier to review before any product decision.
 
 These flags are not formal scoring, not professional accuracy claims, not conservatory-grade assessment, and not a benchmark gate or tolerance change. Exploratory cases such as vibrato, drift, higher noise, and mixed harmonics can record anomalies, but those anomalies remain non-blocking. The P7f Pitchy vibrato exploratory result that reported roughly 1.00Hz / -10534.80 cents is therefore documented as a severe caveat rather than hidden or promoted into a product claim.
