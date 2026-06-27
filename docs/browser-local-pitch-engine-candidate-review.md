@@ -38,3 +38,11 @@ The P7f output is reporting-only. It is not a professional accuracy claim, not f
 ## Current evidence gaps
 
 P7f still has no real phone recording benchmark, no mobile Safari performance conclusion, no Android Chrome performance conclusion, and no real singer / device robustness conclusion. Follow-up work needs local-only real phone recording fixtures and mobile performance testing before considering any production estimator change.
+
+## P7g anomaly reporting caveat
+
+P7g adds comparison-report anomaly flags around the P7f Pitchy adapter. It does not replace the estimator, repair Pitchy output, hide engine errors, change Practice Mode, change benchmark gates, relax tolerance, or add formal grades/pass/fail labels.
+
+The notable P7f observation remains: Pitchy showed useful no-pitch behavior on silent and too-short no-pitch cases, still diverged on the exploratory frequency-drift case, and produced a severe exploratory vibrato anomaly of roughly 1.00Hz / -10534.80 cents. P7g records that kind of result with reporting-only labels such as `out-of-human-voice-range`, `gross-pitch-error`, `possible-octave-or-catastrophic-error`, and `exploratory-reporting-only` while preserving the raw frequency and cents error.
+
+Because these are synthetic comparison diagnostics only, Pitchy integration still cannot support a stronger accuracy claim. Local-only real phone recording tests remain required before any production recommendation.
