@@ -328,3 +328,52 @@ Repeat the unchecked browser and microphone items in a local desktop browser wit
 * Open `/practice` in a local browser and confirm the Chinese copy is readable and natural.
 * Verify the visible boundary language still clearly communicates browser local-only operation, no audio upload, no AI API, no persistence, no formal score, no rhythm evaluation, and no sight-singing assessment.
 * Re-run the existing manual interaction checks from P6b for playback, step navigation, recording, estimate, recent attempts, retry target, and clearing attempt history.
+
+## 27. P6d Practice Mode Chinese browser QA addendum — 2026-06-26
+
+### Scope
+
+* Added a local desktop browser QA addendum for the P6c Chinese `/practice` page.
+* This is documentation only and does not modify Practice Mode implementation, pitch estimation, benchmark gates, tolerance, core workflow, melody step navigation, attempt history data logic, formal scoring, grade/pass/fail labels, rhythm evaluation, sight-singing assessment, persistence, audio upload, AI API usage, `/api/recognize`, recognition provider union, PDF upload, or Audiveris behavior.
+
+### Browser QA environment
+
+* Page under test: `/practice` after P6c Chinese localization.
+* Method: local browser interaction with the Chinese Practice Mode page and browser-local recording/estimate flow.
+* Result: browser and microphone interaction checks that were unavailable in the previous container-only QA pass are now recorded as completed.
+
+### Browser-confirmed results
+
+| Check | Result | Notes |
+| --- | --- | --- |
+| `/practice` page opens | Confirmed in local browser | The localized Practice Mode page loaded successfully. |
+| Chinese interface displays correctly | Confirmed in local browser | Chinese UI copy was visible and readable. |
+| `浏览器本地练习模式` copy is visible | Confirmed in local browser | The local-only Practice Mode label was visible. |
+| Boundary copy is visible | Confirmed in local browser | The page showed boundaries for no audio upload, no AI API call, no persistence, no formal score, no rhythm evaluation, and no sight-singing assessment. |
+| Melody step practice flow copy is visible | Confirmed in local browser | The `旋律逐步练习流程` guidance was visible. |
+| Step X / N displays correctly | Confirmed in local browser | Step progress rendered normally. |
+| Current target note matches the current step | Confirmed in local browser | The target note shown corresponded to the active melody step. |
+| Play target only plays the target note | Confirmed in local browser | Playback did not automatically start recording or run estimate. |
+| Previous step clamps at the first step | Confirmed in local browser | The first step did not navigate before Step 1. |
+| Next step clamps at the last step | Confirmed in local browser | The last step did not navigate past the final step. |
+| Restart melody returns to Step 1 | Confirmed in local browser | Restart returned the melody flow to Step 1. |
+| Switching steps has no automatic side effects | Confirmed in local browser | Step changes did not auto-play, auto-record, or auto-estimate. |
+| Record / Estimate remains local | Confirmed in local browser | The recording and estimate flow stayed in the browser-local workflow. |
+| Estimate compares only against the current step target note | Confirmed in local browser | Estimate output compared the recorded attempt with the active step target note only. |
+| Recent local attempts show Step # / target note / estimated note | Confirmed in local browser | Recent attempt history displayed the expected step, target, and estimate fields. |
+| Practice this target again returns to the stored step | Confirmed in local browser | Retrying an attempt returned to the corresponding step without auto-play, auto-record, or auto-estimate. |
+| Clear attempt history only clears local attempt history | Confirmed in local browser | Clearing removed the local attempt list only. |
+| Copy does not imply formal score / grade / pass / fail | Confirmed in local browser | No user-facing formal assessment language was found. |
+| Residual English or mixed-language QA issue | None found | No residual English or Chinese/English mixing issue affected QA. |
+
+### Issues found
+
+* None.
+
+### P6d result summary
+
+The P6c Chinese `/practice` page passed the local browser QA addendum. The previously unavailable browser and microphone interaction checks were completed locally, with no Practice Mode boundary regressions found.
+
+### Recommended next step
+
+Proceed with the next small MVP Practice Mode iteration only after preserving the documented browser-local-only boundaries and avoiding formal scoring, grade/pass/fail labels, rhythm evaluation, sight-singing assessment, persistence, audio upload, AI API usage, `/api/recognize` changes, recognition provider union changes, PDF upload, and Audiveris integration.
