@@ -186,3 +186,9 @@ P7i does not change the comparison harness behavior. It documents how a future o
 Future local execution may read `local-fixtures/real-voice/metadata.local.json`, use only samples with `includeInPitchEngineComparison: true`, load ignored local audio referenced by `audioFile`, and report the existing P7g anomaly categories for gross pitch error, octave error, false voiced, false unvoiced, out-of-human-range estimates, drift, and vibrato. Missing metadata or audio should produce a safe explanatory message and a successful exit for ordinary validation contexts.
 
 Real phone comparison output must remain reporting-only and outside CI. It must not add formal scores, grades, pass/fail labels, new benchmark gates, relaxed tolerance, new dependencies, new engines, cloud upload, AI APIs, Practice Mode workflow changes, estimator algorithm changes, or Pitchy adapter algorithm changes.
+
+## P7j local real phone comparison boundary
+
+P7j adds an opt-in local-only script, `npm run validate:local-real-phone-comparison`, for future ignored real phone fixtures. It is separate from the synthetic P7d/P7g benchmark harness and is not part of CI. Missing `metadata.local.json` exits `0`; missing audio is skipped; unsupported audio decoding is reported without fabricated estimates.
+
+Executable local PCM WAV samples are reported with the current estimator and Pitchy adapter using reporting-only fields such as engine id, target frequency, estimated frequency, nearest note, cents error, confidence/clarity/voicing, anomaly labels, anomaly notes, and caveats. These rows do not change gates, tolerances, Practice Mode behavior, or engine algorithms, and they are not formal scoring or conservatory-grade accuracy evidence.

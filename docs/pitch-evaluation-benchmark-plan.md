@@ -351,3 +351,7 @@ Future benchmark work should continue to treat these reports as diagnostics unti
 Synthetic benchmark gates remain the only automated pitch benchmark gates. P7i adds documentation for future local-only real phone recordings so the team can later compare candidate pitch engines against quiet-room mobile-browser samples, but those samples are not part of CI, do not affect `npm run validate:local`, and do not change tolerances.
 
 Future reporting may reuse anomaly flags for gross pitch error, octave error, false voiced, false unvoiced, out-of-human-range, drift, and vibrato observations. Those observations are diagnostic only and must not become a formal score, grade, pass/fail result, rhythm evaluation, sight-singing assessment, or production accuracy claim without a separate scoring-design PR.
+
+## P7j opt-in local real phone comparison
+
+P7j keeps real phone recording comparison outside the benchmark gate plan. The local script `npm run validate:local-real-phone-comparison` is for manually owned ignored fixtures only, exits `0` when metadata is absent, skips missing audio, and documents unsupported audio decoding instead of producing fake estimates. Its output is reporting-only and must not become a grade, pass/fail check, formal score, CI blocker, or conservatory-grade claim.

@@ -255,3 +255,11 @@ P7i narrows the next local-only real voice step to quiet indoor real phone recor
 The first local phone set should cover known target notes `C4`, `E4`, `G4`, `A4`, and `C5`, optional lower `A3` / `C3`, vowels `a/e/i/o/u`, durations `1s/3s/5s`, volumes `soft/normal/loud`, performance types `stable/light-vibrato/intentional-drift/no-pitch`, device classes `iphone-safari/android-chrome/laptop-mic`, `quiet-room`, and broad non-identifying singer range labels.
 
 The metadata extension adds local-only comparison fields such as `audioFile`, `targetFrequencyHz`, `browser`, `os`, `microphoneDistanceCm`, `playbackMode`, `roomCondition`, `volume`, `performanceType`, `includeInPitchEngineComparison`, and `expectedBehavior`. These fields are for future reporting-only local comparison, not formal scoring or CI gating.
+
+## P7j local real phone comparison script
+
+`npm run validate:local-real-phone-comparison` is available for developers who intentionally create ignored local phone metadata and ignored local audio fixtures. It is opt-in, local-only, outside CI, and reporting-only.
+
+The script exits successfully when `metadata.local.json` is absent. With metadata present, it considers only `includeInPitchEngineComparison: true` samples, skips missing audio as `skipped-missing-audio`, and skips unsupported formats as `unsupported-audio-decoding`. Current decoding is intentionally minimal and dependency-free: uncompressed PCM `.wav` only. No real recordings or `metadata.local.json` should be committed.
+
+Any generated rows are diagnostics for comparing the current in-repo estimator and Pitchy adapter only. They must not be described as a formal score, grade, pass/fail result, conservatory-grade assessment, or professional accuracy claim.
