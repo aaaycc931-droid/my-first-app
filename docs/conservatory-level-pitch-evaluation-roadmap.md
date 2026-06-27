@@ -113,3 +113,9 @@ P7h adds documentation for a future Song Learning Mode that could help users lea
 Future Song Learning Mode will need separate evaluation for source separation / stem separation, vocal melody extraction, target pitch curve generation, karaoke-style pitch trace UI, optional cloud deep assessment, GPT-assisted coaching from structured results, copyright / licensing / consent / storage policy, real song benchmark datasets, and the user-vocal-vs-original-vocal separation problem. Current Practice Mode remains focused on browser-local single-note and melody-step feedback.
 
 See `docs/future-song-learning-mode.md` for the full P7h boundary.
+
+## 11. P8b real-time feedback UI state-machine boundary
+
+P8b adds a documentation-only UI state-machine and mobile wireframe plan for future browser-local real-time pitch feedback. The planned states are `idle`, `requesting-microphone-permission`, `listening`, `no-pitch`, `low-confidence`, `active-pitch-detected`, `stopped`, `permission-denied`, `microphone-error`, and `unsupported-browser`. The plan keeps real-time feedback manually started, browser-local, target-relative, uncertainty-aware, and non-scoring. It explicitly separates Play target, Start live feedback, melody step switching, Stop live feedback, Record / Estimate, and attempt history side effects.
+
+P8b remains docs-only: it does not implement microphone access, real-time recording, frame-level analysis, pitch trend charts, estimator changes, Pitchy adapter changes, comparison harness behavior changes, cloud assessment, audio upload, GPT / AI APIs, formal scores, grades, pass/fail labels, rhythm evaluation, sight-singing assessment, Song Learning Mode, benchmark gate changes, `/api/recognize` changes, recognition provider union changes, PDF upload, or Audiveris integration.
