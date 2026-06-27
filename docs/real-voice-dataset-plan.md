@@ -223,3 +223,19 @@ Use this checklist when reviewing future local real voice PRs so the local exper
 
 - [ ] The PR explicitly preserves the local real voice workflow as local-only, opt-in, non-blocking, and outside CI.
 - [ ] The PR remains docs-only unless a future task explicitly authorizes a narrow non-doc change with the same privacy, product, and validation boundaries reviewed again.
+
+## 12. P7b mobile pitch-engine validation requirements
+
+The P7b pitch-engine evaluation matrix makes the real voice dataset a required prerequisite for stronger pitch-evaluation claims. Candidate engines must be tested on real phone recordings before the product can describe any local or cloud result as production-grade.
+
+Future dataset coverage should include:
+
+- real phone microphones rather than only generated buffers;
+- quiet indoor single-singer recordings;
+- multiple voice ranges and weak-voice examples;
+- sustained notes with stable pitch, vibrato, and drift;
+- examples that may trigger octave errors or no-pitch decisions;
+- metadata sufficient to compare cents error relative to the intended target note;
+- separate labels or derived diagnostics for pitch correctness versus sustained pitch instability.
+
+The dataset should support side-by-side evaluation of the current estimator, future Pitchy/Pitchfinder browser baselines, traditional MIR baselines such as aubio/pYIN/Essentia, and future cloud/deep candidates such as CREPE, RMVPE, and SwiftF0-style models. This remains future work only: P7b does not collect recordings, commit audio, upload audio, connect external datasets, add dependencies, change Practice Mode, call AI APIs, add accounts, add persistence, or add formal scoring.
