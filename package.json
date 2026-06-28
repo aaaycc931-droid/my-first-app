@@ -26,7 +26,8 @@
     "validate:local-real-phone-comparison": "rm -rf .next/local-real-phone-comparison && tsc --module NodeNext --moduleResolution NodeNext --target ES2020 --outDir .next/local-real-phone-comparison --noEmit false --declaration false --sourceMap false --incremental false scripts/validate-local-real-phone-comparison.ts lib/practice/pitchEstimate.ts lib/practice/pitchEngineComparison.ts && node .next/local-real-phone-comparison/scripts/validate-local-real-phone-comparison.js",
     "validate:local-melody-guide-fixtures": "node scripts/validate-local-melody-guide-fixtures.mjs",
     "test:local-melody-guide-validator": "node scripts/test-local-melody-guide-validator-negative.mjs",
-    "validate:local-melody-guide-wav-headers": "node scripts/inspect-local-melody-guide-wav-headers.mjs"
+    "validate:local-melody-guide-wav-headers": "node scripts/inspect-local-melody-guide-wav-headers.mjs",
+    "test:local-melody-guide-wav-header-inspector": "node scripts/test-local-melody-guide-wav-header-inspector.mjs"
   },
   "dependencies": {
     "fflate": "^0.8.2",
