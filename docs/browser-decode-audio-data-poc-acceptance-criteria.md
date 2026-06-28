@@ -235,3 +235,7 @@ P10q does not do any of the following:
 - Dependency changes.
 - Real audio commits.
 - `metadata.local.json` commits.
+
+## P10r surface decision addendum
+
+P10r chooses an isolated dev/research route as the future browser `decodeAudioData` POC surface while keeping implementation, `/practice` integration, pitch tracking, `TargetPitchCurve` generation, and product import flow deferred.
