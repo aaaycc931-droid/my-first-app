@@ -116,3 +116,7 @@ P9j does not do any of the following:
 * `/api/recognize` changes
 * PDF upload
 * Audiveris
+
+## P9k implementation note
+
+P9k implemented the first static preview integration using only the hand-authored `TargetPitchCurve` example, without converter/generated fixture/runtime `melodySteps` integration.
