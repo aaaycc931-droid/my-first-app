@@ -124,3 +124,9 @@ P8a and the future real-time MVP plan explicitly do not include:
 ## 9. Recommended next step
 
 The next small PR should remain implementation-light: add a UI wireframe / state-machine design for `Start live feedback`, `Listening`, `No pitch`, `Stopped`, and `Permission denied` states, still without recording implementation. After that, a separate prototype PR can test a browser-local microphone pipeline behind a clear manual QA checklist and without changing existing Practice Mode attempt history or benchmark gates.
+
+## 10. P8b state machine and wireframe follow-up
+
+P8b builds on this P8a parent plan by documenting the future UI state machine, user operation flow, mobile wireframe, button side-effect boundaries, Chinese copy draft, and P8c-P8g implementation split. See `docs/real-time-pitch-feedback-ui-state-machine.md`.
+
+P8b is still docs-only planning. It does not implement microphone access, real-time recording, pitch trend chart rendering, frame-level pitch analysis, Practice Mode UI workflow changes, estimator changes, Pitchy adapter changes, comparison harness changes, new dependencies, upload behavior, cloud assessment, GPT / AI APIs, persistence, formal scoring, grade/pass/fail labels, rhythm evaluation, sight-singing assessment, Song Learning Mode, benchmark-gate changes, `/api/recognize` changes, recognition provider changes, PDF upload, or Audiveris integration.

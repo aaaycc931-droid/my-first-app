@@ -117,6 +117,8 @@ The next stages should be:
 
 Pitch feedback should be introduced gradually. Early UI should communicate uncertainty, avoid overclaiming, and prefer actionable feedback over numeric authority.
 
+P8b further constrains future real-time pitch feedback as an explicit Start / Stop, browser-local UI state machine. Future live feedback should show target-relative cents trends, no-pitch / low-confidence uncertainty, and local-only privacy boundaries while avoiding automatic recording, automatic target playback, attempt-history writes, audio upload, formal scores, grades, pass/fail labels, rhythm evaluation, and sight-singing assessment.
+
 ## Learning System Strategy
 
 The learning system should grow from simple exercises into an adaptive curriculum. Future exercise families include:
