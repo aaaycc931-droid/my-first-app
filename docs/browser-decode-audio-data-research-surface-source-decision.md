@@ -174,3 +174,5 @@ P10r does not do any of the following:
 - Real audio commits.
 - `metadata.local.json` commits.
 - APK-ready claim.
+
+P10s plans the future isolated browser decode research route structure and copy while keeping route creation, browser decoding, `AudioContext`, `decodeAudioData`, pitch tracking, `TargetPitchCurve` generation, and Practice Mode integration unimplemented.
