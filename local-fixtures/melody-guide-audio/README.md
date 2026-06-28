@@ -43,3 +43,15 @@ The validator checks the committed fake/sample-only `metadata.example.json`. If 
 This validation is metadata-only. It does not read WAV binary contents, decode audio, analyze audio, create `AudioContext`, use `getUserMedia`, verify copyright ownership, prove the clip is actually monophonic, perform pitch tracking, or generate target curves.
 
 P10f does not integrate these fixtures with Practice Mode.
+
+## Metadata validator negative tests
+
+Run the local metadata validator negative case harness with:
+
+```bash
+npm run test:local-melody-guide-validator
+```
+
+The harness creates temporary fake fixture roots to confirm valid metadata passes, invalid metadata fails, and missing `metadata.local.json` skips cleanly. It does not write to the real `local-fixtures/melody-guide-audio/metadata.local.json`, does not touch user-local metadata, and deletes its temporary fixtures when finished.
+
+The harness may create an empty temporary `sample.wav` placeholder only for file existence checks. It does not read WAV binary contents, decode audio, analyze audio, create `AudioContext`, use `getUserMedia`, perform pitch tracking, or generate target curves.
