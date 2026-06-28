@@ -273,3 +273,7 @@ P10s does not do any of the following:
 ## 16. P10t static route shell note
 
 P10t adds the static research-only route shell while keeping file input, browser decoding, AudioContext, decodeAudioData, pitch tracking, TargetPitchCurve generation, and Practice Mode integration unimplemented.
+
+## 17. P10u source review QA note
+
+P10u reviewed the P10t static route shell and confirmed it remains static, research-only, unlinked from the homepage and `/practice`, and free of file input, browser decoding, `AudioContext`, `decodeAudioData`, pitch tracking, `TargetPitchCurve` generation, and Practice Mode integration.
