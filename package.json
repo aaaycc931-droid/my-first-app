@@ -24,7 +24,8 @@
     "validate:local-real-voice-fixtures": "rm -rf .next/local-real-voice-fixtures && tsc --module NodeNext --moduleResolution NodeNext --target ES2020 --outDir .next/local-real-voice-fixtures --noEmit false --declaration false --sourceMap false --incremental false scripts/validate-local-real-voice-fixtures.ts && node .next/local-real-voice-fixtures/validate-local-real-voice-fixtures.js",
     "validate:pitch-engine-comparison": "rm -rf .next/pitch-engine-comparison && tsc --module NodeNext --moduleResolution NodeNext --target ES2020 --outDir .next/pitch-engine-comparison --noEmit false --declaration false --sourceMap false --incremental false scripts/validate-pitch-engine-comparison.ts lib/practice/pitchEstimate.ts lib/practice/syntheticPitchBenchmark.ts lib/practice/syntheticPitchBenchmarkSuite.ts lib/practice/pitchEngineComparison.ts && node .next/pitch-engine-comparison/scripts/validate-pitch-engine-comparison.js",
     "validate:local-real-phone-comparison": "rm -rf .next/local-real-phone-comparison && tsc --module NodeNext --moduleResolution NodeNext --target ES2020 --outDir .next/local-real-phone-comparison --noEmit false --declaration false --sourceMap false --incremental false scripts/validate-local-real-phone-comparison.ts lib/practice/pitchEstimate.ts lib/practice/pitchEngineComparison.ts && node .next/local-real-phone-comparison/scripts/validate-local-real-phone-comparison.js",
-    "validate:local-melody-guide-fixtures": "node scripts/validate-local-melody-guide-fixtures.mjs"
+    "validate:local-melody-guide-fixtures": "node scripts/validate-local-melody-guide-fixtures.mjs",
+    "test:local-melody-guide-validator": "node scripts/test-local-melody-guide-validator-negative.mjs"
   },
   "dependencies": {
     "fflate": "^0.8.2",

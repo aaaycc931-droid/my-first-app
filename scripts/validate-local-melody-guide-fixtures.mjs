@@ -1,7 +1,20 @@
 import { access, readFile } from 'node:fs/promises';
 import path from 'node:path';
 
-const fixtureRoot = path.join(process.cwd(), 'local-fixtures', 'melody-guide-audio');
+function readFixtureRootOverride() {
+  const fixtureRootArg = process.argv.find((arg) => arg.startsWith('--fixture-root='));
+  if (fixtureRootArg) {
+    return path.resolve(fixtureRootArg.slice('--fixture-root='.length));
+  }
+
+  if (process.env.MELODY_GUIDE_FIXTURE_ROOT) {
+    return path.resolve(process.env.MELODY_GUIDE_FIXTURE_ROOT);
+  }
+
+  return path.join(process.cwd(), 'local-fixtures', 'melody-guide-audio');
+}
+
+const fixtureRoot = readFixtureRootOverride();
 const examplePath = path.join(fixtureRoot, 'metadata.example.json');
 const localPath = path.join(fixtureRoot, 'metadata.local.json');
 const audioRoot = path.join(fixtureRoot, 'audio');

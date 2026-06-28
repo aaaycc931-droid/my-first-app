@@ -210,3 +210,11 @@ The P10f script is metadata-only. It does not read or decode WAV contents, does 
 ## 15. P10g follow-up: metadata-only validator source review QA
 
 P10g reviewed the P10f validator source and confirmed it remains metadata-only, validates the committed fake/sample-only `metadata.example.json`, skips cleanly when `metadata.local.json` is absent, validates local metadata only when that ignored file exists, and does not read or decode WAV contents.
+
+## 16. P10h follow-up: metadata validator negative case tests
+
+P10h adds `npm run test:local-melody-guide-validator` as a small negative case test harness for the P10f metadata-only validator. The tests run against temporary fake fixture roots, not the real `local-fixtures/melody-guide-audio/` directory.
+
+The P10h tests cover clean skip behavior when `metadata.local.json` is absent, a valid local metadata pass case, and invalid metadata failures such as missing required fields, invalid format, invalid encoding, `expectedMonophonic: false`, unsafe filenames, invalid duration, invalid `channelCount`, and missing referenced local WAV files when local metadata exists.
+
+These tests do not read or decode WAV contents, do not create `AudioContext`, do not use `getUserMedia` or microphone access, do not perform pitch tracking, and do not generate target curves. Any temporary `sample.wav` file created by the harness is an empty placeholder used only for file existence checks and is deleted when the harness finishes.
