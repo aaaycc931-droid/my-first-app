@@ -165,3 +165,7 @@ P9e added a typed fixture-only example of a mock melody target curve, still with
 ## 11. P9f mock-only converter prototype follow-up
 
 P9f added an isolated mock-only converter prototype using fixed synthetic timing, still without Practice Mode integration.
+
+## 12. P9g generated fixture example follow-up
+
+P9g added an example-only generated fixture that calls the mock-only converter without Practice Mode runtime integration.
