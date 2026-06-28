@@ -206,3 +206,11 @@ A future Song Learning Mode may become a separate long-term module for helping u
 This direction must stay separate from current Practice Mode. Practice Mode remains focused on browser-local single notes, melody steps, target-aware pitch comparison, and local attempt history. Song Learning Mode would require its own source separation, vocal melody extraction, target pitch curve generation, copyright / consent policy, and real-song benchmark strategy before implementation.
 
 See `docs/future-song-learning-mode.md` for the detailed P7h planning boundary.
+
+## P8a Real-Time Pitch Trend Feedback Direction
+
+A future V1 pitch-feedback step may move from record-then-estimate toward explicit browser-local real-time trend feedback. The user should choose when to start listening, audio should remain local, and the UI should show cents offset relative to the active Practice Mode target note rather than presenting a formal score.
+
+The intended UX is a practice aid: target note, `0 cents` center line, simple sharp/flat guide bands, live pitch trace, `close` / `slightly sharp` / `slightly flat` / `unstable` / `no pitch` prompts, optional estimated note / Hz, and optional confidence / clarity context. It must separate pitch correctness from sustained pitch instability and must show unknown / no-pitch states for unreliable frames.
+
+This direction does not change the current MVP architecture. It does not add real-time recording, a trend chart, scoring, rhythm assessment, cloud assessment, uploads, AI API calls, accounts, persistence, estimator replacement, benchmark-gate changes, `/api/recognize` changes, provider changes, PDF upload, or Audiveris integration. Detailed plan: `docs/real-time-pitch-trend-feedback-plan.md`.

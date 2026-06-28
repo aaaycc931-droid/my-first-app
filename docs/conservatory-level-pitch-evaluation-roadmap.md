@@ -114,8 +114,16 @@ Future Song Learning Mode will need separate evaluation for source separation / 
 
 See `docs/future-song-learning-mode.md` for the full P7h boundary.
 
-## 11. P8b real-time feedback UI state-machine boundary
+## 11. P8a real-time pitch trend feedback plan
 
-P8b adds a documentation-only UI state-machine and mobile wireframe plan for future browser-local real-time pitch feedback. The planned states are `idle`, `requesting-microphone-permission`, `listening`, `no-pitch`, `low-confidence`, `active-pitch-detected`, `stopped`, `permission-denied`, `microphone-error`, and `unsupported-browser`. The plan keeps real-time feedback manually started, browser-local, target-relative, uncertainty-aware, and non-scoring. It explicitly separates Play target, Start live feedback, melody step switching, Stop live feedback, Record / Estimate, and attempt history side effects.
+P8a adds a dedicated plan for future browser-local real-time pitch trend feedback. The plan keeps the current estimator as the baseline, keeps Pitchy as a comparison candidate rather than a production replacement, and requires more real mobile recordings before any stronger accuracy claim.
 
-P8b remains docs-only: it does not implement microphone access, real-time recording, frame-level analysis, pitch trend charts, estimator changes, Pitchy adapter changes, comparison harness behavior changes, cloud assessment, audio upload, GPT / AI APIs, formal scores, grades, pass/fail labels, rhythm evaluation, sight-singing assessment, Song Learning Mode, benchmark gate changes, `/api/recognize` changes, recognition provider union changes, PDF upload, or Audiveris integration.
+The planned UX shows the active Practice Mode target note, a `0 cents` target center line, guide bands such as `+50 / +25 / 0 / -25 / -50` cents, a live pitch trace, and status prompts such as `close`, `slightly sharp`, `slightly flat`, `unstable`, and `no pitch`. Low-confidence frames should be hidden, broken in the trace, or shown as `no pitch` instead of guessed note names.
+
+This is docs-only and does not implement real-time recording, trend charts, formal scoring, grades/pass/fail labels, Practice Mode workflow changes, estimator changes, Pitchy adapter changes, comparison harness changes, new dependencies, audio upload, cloud assessment, GPT / AI APIs, benchmark gate changes, tolerance changes, `/api/recognize` changes, recognition provider changes, PDF upload, or Audiveris changes. See `docs/real-time-pitch-trend-feedback-plan.md`.
+
+## 12. P8b real-time feedback UI state-machine boundary
+
+P8b follows the P8a real-time pitch trend plan with a documentation-only UI state-machine and mobile wireframe plan for future browser-local live feedback. The planned states are `idle`, `requesting-microphone-permission`, `listening`, `no-pitch`, `low-confidence`, `active-pitch-detected`, `stopped`, `permission-denied`, `microphone-error`, and `unsupported-browser`. The plan keeps future live feedback manually started, browser-local, target-relative, uncertainty-aware, and non-scoring. It explicitly separates Play target, Start live feedback, melody step switching, Stop live feedback, Record / Estimate, and attempt history side effects.
+
+P8b remains docs-only: it does not implement microphone access, real-time recording, frame-level analysis, pitch trend charts, estimator changes, Pitchy adapter changes, comparison harness behavior changes, Practice Mode workflow changes, new dependencies, cloud assessment, audio upload, GPT / AI APIs, accounts, persistence, formal scores, grades/pass/fail labels, rhythm evaluation, sight-singing assessment, Song Learning Mode, benchmark gate changes, tolerance changes, `/api/recognize` changes, recognition provider union changes, PDF upload, or Audiveris integration.

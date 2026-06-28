@@ -200,3 +200,11 @@ P7k adds one documented local-only smoke test result for the P7j real phone comp
 The P7j script found metadata, included 1 sample, executed 1 sample, attempted 2 engines, and produced 2 comparison rows. The current in-repo autocorrelation estimator reported about 217.32Hz, nearest note A3, about -21.23 cents, and about 0.941 confidence. Pitchy / McLeod reported about 217.56Hz, nearest note A3, about -19.34 cents, and about 0.982 clarity / voicing. Both rows had no anomaly labels; aggregate anomaly counts for gross pitch errors, out-of-human-voice-range estimates, possible false voiced results, and unknown results were all zero.
 
 This is evidence that the local comparison plumbing can run on one ignored real phone PCM WAV fixture. It is not enough evidence to change engine defaults, change Practice Mode, change gates or tolerances, claim production accuracy, or decide that Pitchy should replace the baseline. The next comparison step should collect more local-only samples across target notes, vowels, devices, singer ranges, and performance types while preserving the reporting-only boundary.
+
+## P8a real-time pitch trend feedback architecture link
+
+P8a uses the P7 comparison work as evidence-gathering infrastructure, not as a product-accuracy claim. The current in-repository estimator remains the baseline, Pitchy / McLeod remains a comparison candidate, anomaly flags remain reporting-only, and the one local A3 phone smoke test is not enough to prove accuracy or replace the baseline.
+
+Future real-time trend feedback should prefer target-aware cents offset, confidence / clarity gating, no-pitch handling, smoothing / debounce for readability, and explicit separation between pitch correctness and sustained pitch instability. It should not change benchmark gates, relax tolerance, promote exploratory cases, hide raw anomalies, or convert comparison output into scores, grades, pass/fail labels, or conservatory-grade claims.
+
+See `docs/real-time-pitch-trend-feedback-plan.md` for the UX and architecture plan.
