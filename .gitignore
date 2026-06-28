@@ -15,3 +15,7 @@ local-fixtures/real-voice/**/*.flac
 local-fixtures/real-voice/**/*.aac
 local-fixtures/real-voice/**/*.ogg
 local-fixtures/real-voice/metadata.local.json
+
+# Local-only melody guide audio experiments: never commit WAV fixtures or local metadata.
+local-fixtures/melody-guide-audio/audio/*.wav
+local-fixtures/melody-guide-audio/metadata.local.json

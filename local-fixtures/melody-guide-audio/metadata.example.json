@@ -1,0 +1,23 @@
+{
+  "samples": [
+    {
+      "id": "sample-melody-guide-001",
+      "targetLabel": "sample five-note stepwise melody",
+      "expectedInstrument": "keyboard-placeholder",
+      "expectedMonophonic": true,
+      "fileName": "audio/sample-melody-guide-001.wav",
+      "format": "wav",
+      "encoding": "pcm",
+      "durationSeconds": 8,
+      "sampleRateHz": 44100,
+      "channelCount": 1,
+      "sourceType": "local-melody-guide-audio",
+      "rightsConfirmation": "user-provided-local-only",
+      "notes": [
+        "Fake example metadata only; no real audio is included.",
+        "Do not reference real songs, real teaching materials, commercial recordings, or user recordings in committed metadata."
+      ],
+      "includeInLocalResearch": false
+    }
+  ]
+}
