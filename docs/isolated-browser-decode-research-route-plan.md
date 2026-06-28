@@ -269,3 +269,7 @@ P10s does not do any of the following:
 - Real audio commits.
 - `metadata.local.json` commits.
 - APK-ready claim.
+
+## 16. P10t static route shell note
+
+P10t adds the static research-only route shell while keeping file input, browser decoding, AudioContext, decodeAudioData, pitch tracking, TargetPitchCurve generation, and Practice Mode integration unimplemented.
