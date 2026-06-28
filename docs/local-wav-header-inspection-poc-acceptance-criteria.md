@@ -221,3 +221,12 @@ P10l does not do any of the following:
 P10m adds the isolated Node-side WAV header inspector and the opt-in `validate:local-melody-guide-wav-headers` npm script. It reads ignored local WAV files only when `metadata.local.json` exists and samples explicitly set `includeInLocalResearch: true`.
 
 P10m does not decode WAV audio, does not analyze waveform data, does not track pitch, does not generate target curves, does not touch Practice Mode, does not add UI, does not upload audio, does not call cloud or AI services, and does not add dependencies.
+
+
+## 15. P10n temporary-fixture test harness status
+
+P10n adds a temporary-fixture test harness for the isolated Node-side WAV header inspector via `npm run test:local-melody-guide-wav-header-inspector`. The harness creates temporary fake fixture roots and temporary synthetic WAV-like files only, invokes `npm run validate:local-melody-guide-wav-headers` with `MELODY_GUIDE_FIXTURE_ROOT`, and deletes the temporary directories after each run.
+
+The P10n tests cover clean skip/no-op paths plus valid and invalid RIFF/WAVE/PCM header cases, including unsafe filename, missing file, invalid `RIFF`, invalid `WAVE`, missing `fmt `, missing `data`, non-PCM format, unsupported bit depth, duration mismatch, invalid channel count, and invalid duration range.
+
+P10n commits no real audio and no `metadata.local.json`. The tests do not use committed real audio, do not write to the real local fixture directory, do not decode WAV files, do not analyze waveform data, do not perform pitch tracking, and do not generate `TargetPitchCurve` data. P10n also does not create `AudioContext`, call `decodeAudioData`, use `getUserMedia`, access the microphone, connect Practice Mode, upload audio, call cloud/AI services, add dependencies, or change `/api/recognize`, PDF, Audiveris, estimator, Pitchy, comparison harness, benchmark gate, or tolerance behavior.

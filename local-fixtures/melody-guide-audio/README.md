@@ -59,6 +59,18 @@ Real WAV files remain local-only and ignored, and real `metadata.local.json` rem
 
 This inspection is WAV header/chunk metadata only. It is not WAV decoding, browser audio decoding, waveform analysis, pitch tracking, melody recognition, target curve generation, audio import UI, upload, cloud processing, or AI processing. It does not create `AudioContext`, call `decodeAudioData`, use `getUserMedia`, or connect to Practice Mode.
 
+## WAV header inspector temporary tests
+
+Run the isolated WAV header inspector temporary-fixture harness with:
+
+```bash
+npm run test:local-melody-guide-wav-header-inspector
+```
+
+The harness creates temporary fake melody-guide fixture roots and temporary synthetic WAV-like files to cover valid and invalid RIFF/WAVE/PCM header cases. These synthetic files are only used for bounded header/chunk inspection and are deleted after the test run.
+
+The harness does not write to the real `local-fixtures/melody-guide-audio/metadata.local.json`, does not touch user-local WAV files in `local-fixtures/melody-guide-audio/audio/`, does not commit real WAV files, and does not commit `metadata.local.json`. It does not decode WAV audio, analyze waveform data, create `AudioContext`, call `decodeAudioData`, use `getUserMedia`, access the microphone, perform pitch tracking, generate target curves, upload audio, call cloud/AI services, or connect to Practice Mode.
+
 ## Metadata validator negative tests
 
 Run the local metadata validator negative case harness with:
