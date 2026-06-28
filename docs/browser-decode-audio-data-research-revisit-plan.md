@@ -6,6 +6,8 @@ This document re-evaluates the boundary for future browser-side `decodeAudioData
 
 P10p is a docs-only research revisit plan. It does not implement browser decoding, audio import, audio analysis, Practice Mode integration, or any runtime behavior.
 
+P10q defines acceptance criteria for a future isolated browser `decodeAudioData` POC while keeping browser decoding, `AudioContext`, pitch tracking, `TargetPitchCurve` generation, and Practice Mode integration unimplemented.
+
 ## 2. Current status recap
 
 The project currently has:
