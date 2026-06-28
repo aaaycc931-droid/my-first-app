@@ -166,3 +166,5 @@ P10k does not do any of the following:
 ## 10. P10m follow-up
 
 P10m implements the chosen Node-side-first direction as an isolated, opt-in local fixture command: `npm run validate:local-melody-guide-wav-headers`. The script reads only minimal RIFF/WAVE/`fmt `/`data` header and chunk metadata for ignored local WAV files referenced by ignored `metadata.local.json` samples with `includeInLocalResearch: true`. It remains separate from browser `decodeAudioData` research and does not decode audio, analyze waveform data, track pitch, generate `TargetPitchCurve` data, touch Practice Mode, upload audio, call cloud/AI services, add dependencies, or commit real audio/metadata.
+
+P10p revisits browser `decodeAudioData` research after the Node-side header-only path, but keeps browser decoding, `AudioContext`, pitch tracking, `TargetPitchCurve` generation, and Practice Mode integration deferred.

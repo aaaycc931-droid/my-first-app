@@ -234,3 +234,5 @@ P10n commits no real audio and no `metadata.local.json`. The tests do not use co
 ## 16. P10o source review QA status
 
 P10o reviewed the P10m header inspector and P10n temporary-fixture harness, confirming they remain isolated, local-only, opt-in, header-only, and do not decode WAV, analyze waveform, track pitch, generate `TargetPitchCurve`, or affect Practice Mode. P10o also confirmed the harness uses temporary synthetic WAV-like files only, leaves the real fixture directory untouched, commits no real audio or `metadata.local.json`, adds no dependencies, and preserves the Android APK / WebView caveat that Node-side header inspection is a local research step rather than an APK-ready capability.
+
+P10p revisits browser `decodeAudioData` research after the Node-side header-only path, but keeps browser decoding, `AudioContext`, pitch tracking, `TargetPitchCurve` generation, and Practice Mode integration deferred.
