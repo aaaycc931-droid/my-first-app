@@ -206,3 +206,7 @@ P10e does not add or change:
 P10f adds the opt-in `npm run validate:local-melody-guide-fixtures` script for local melody guide fixture metadata. The script validates the committed fake/sample-only `metadata.example.json`, skips cleanly when ignored `metadata.local.json` is absent, and validates metadata shape, allowed values, numeric bounds, and safe local `audio/*.wav` references when `metadata.local.json` exists.
 
 The P10f script is metadata-only. It does not read or decode WAV contents, does not create `AudioContext`, does not perform pitch tracking, and does not generate target curves.
+
+## 15. P10g follow-up: metadata-only validator source review QA
+
+P10g reviewed the P10f validator source and confirmed it remains metadata-only, validates the committed fake/sample-only `metadata.example.json`, skips cleanly when `metadata.local.json` is absent, validates local metadata only when that ignored file exists, and does not read or decode WAV contents.
