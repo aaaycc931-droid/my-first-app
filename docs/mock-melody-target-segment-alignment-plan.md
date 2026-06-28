@@ -161,3 +161,7 @@ P9d added a small type-only target segment contract skeleton for future mock mel
 ## 10. P9e fixture-only example follow-up
 
 P9e added a typed fixture-only example of a mock melody target curve, still without converter or runtime integration.
+
+## 11. P9f mock-only converter prototype follow-up
+
+P9f added an isolated mock-only converter prototype using fixed synthetic timing, still without Practice Mode integration.
