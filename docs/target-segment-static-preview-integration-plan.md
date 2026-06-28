@@ -112,3 +112,7 @@ P9i does not do any of the following:
 - `/api/recognize` changes.
 - PDF upload.
 - Audiveris.
+
+## P9l QA note
+
+P9l reviewed the P9k hand-authored static preview integration and confirmed it remains non-interactive and does not affect Practice Mode runtime behavior.
