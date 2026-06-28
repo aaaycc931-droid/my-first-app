@@ -112,6 +112,8 @@ P10j proposed a staged WAV local capability POC plan. P10k maps onto that plan a
 
 This means the next implementation step, if approved, should be a tiny isolated Node-side header inspection POC rather than browser decoding or Practice Mode integration.
 
+P10l defines the future acceptance criteria for the isolated Node-side WAV header inspection POC, without implementing header parsing, WAV reading, decoding, or runtime behavior.
+
 ## 9. Non-goals
 
 P10k does not do any of the following:
