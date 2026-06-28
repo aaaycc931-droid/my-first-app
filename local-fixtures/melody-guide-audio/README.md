@@ -1,6 +1,6 @@
 # Local Melody Guide Audio Fixtures
 
-This directory defines the P10d WAV-only local fixture convention for future monophonic melody guide audio research. It is documentation and local directory structure only.
+This directory defines the P10d WAV-only local fixture convention for future monophonic melody guide audio research. It is documentation, local directory structure, and an opt-in metadata-only validation script.
 
 Do not commit real audio, real `metadata.local.json`, copyrighted materials, teaching-library audio, commercial song clips, or user recordings.
 
@@ -22,6 +22,24 @@ Future first-phase local research should use only short, user-provided, uncompre
 
 ## Metadata
 
-Copy `metadata.example.json` to ignored `metadata.local.json` only on a developer machine when preparing local research materials. Keep every value non-identifying and local-only.
+Copy `metadata.example.json` to ignored `metadata.local.json` only on a developer machine when preparing local research materials:
 
-P10d does not read metadata, read WAV files, decode audio, create `AudioContext`, track pitch, generate target curves, or integrate with Practice Mode.
+```bash
+cp local-fixtures/melody-guide-audio/metadata.example.json local-fixtures/melody-guide-audio/metadata.local.json
+```
+
+Then update only local-safe, non-identifying metadata values. Keep real WAV files under `local-fixtures/melody-guide-audio/audio/`; those WAV files and `metadata.local.json` stay local and ignored by git.
+
+## Metadata-only validation
+
+Run the opt-in local validator with:
+
+```bash
+npm run validate:local-melody-guide-fixtures
+```
+
+The validator checks the committed fake/sample-only `metadata.example.json`. If ignored `metadata.local.json` is absent, it prints a skip message and exits successfully. If `metadata.local.json` exists, it validates JSON shape, allowed metadata values, basic numeric constraints, safe `audio/*.wav` file references, and local referenced-file existence.
+
+This validation is metadata-only. It does not read WAV binary contents, decode audio, analyze audio, create `AudioContext`, use `getUserMedia`, verify copyright ownership, prove the clip is actually monophonic, perform pitch tracking, or generate target curves.
+
+P10f does not integrate these fixtures with Practice Mode.
