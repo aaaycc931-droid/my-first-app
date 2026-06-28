@@ -157,3 +157,7 @@ P9c does not do any of the following:
 ## 9. P9d type-only contract follow-up
 
 P9d added a small type-only target segment contract skeleton for future mock melody / `melodySteps` to target segment array conversion work. It does not implement conversion, rendering, target curve generation, scoring, audio import, microphone access, parser/import behavior, or Practice Mode UI changes.
+
+## 10. P9e fixture-only example follow-up
+
+P9e added a typed fixture-only example of a mock melody target curve, still without converter or runtime integration.
