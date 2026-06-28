@@ -44,6 +44,21 @@ This validation is metadata-only. It does not read WAV binary contents, decode a
 
 P10f does not integrate these fixtures with Practice Mode.
 
+## WAV header inspection
+
+After running the metadata-only validator, developers with ignored local WAV fixtures can run the isolated header inspector with:
+
+```bash
+npm run validate:local-melody-guide-fixtures
+npm run validate:local-melody-guide-wav-headers
+```
+
+The header inspector reads ignored `metadata.local.json` when present, checks only samples with `includeInLocalResearch: true`, and reads only minimal RIFF/WAVE/`fmt `/`data` chunk metadata from referenced ignored local WAV files under `audio/`. If `metadata.local.json` is absent, it prints a skip message and exits successfully; if no samples opt in, it prints a no-op summary and exits successfully.
+
+Real WAV files remain local-only and ignored, and real `metadata.local.json` remains local-only and ignored. Do not commit either file type.
+
+This inspection is WAV header/chunk metadata only. It is not WAV decoding, browser audio decoding, waveform analysis, pitch tracking, melody recognition, target curve generation, audio import UI, upload, cloud processing, or AI processing. It does not create `AudioContext`, call `decodeAudioData`, use `getUserMedia`, or connect to Practice Mode.
+
 ## Metadata validator negative tests
 
 Run the local metadata validator negative case harness with:
