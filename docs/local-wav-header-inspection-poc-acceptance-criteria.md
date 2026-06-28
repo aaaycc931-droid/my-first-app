@@ -4,7 +4,7 @@
 
 This document defines acceptance criteria for a future isolated Node-side WAV header inspection proof of concept (POC) for local monophonic melody guide audio research.
 
-P10l is documentation only. It does not implement any code, scripts, WAV reading, WAV header parsing, WAV decoding, audio analysis, runtime behavior, Practice Mode integration, or target pitch curve generation.
+P10l originally documented the acceptance criteria. P10m adds the isolated Node-side header inspector script while preserving the same boundary: it reads minimal WAV header/chunk metadata only and does not decode WAV audio, analyze waveform data, track pitch, generate target curves, or touch Practice Mode.
 
 ## 2. Current status
 
@@ -19,8 +19,6 @@ The project already has:
 
 The project still intentionally has no:
 
-- WAV header inspection script.
-- WAV binary reading.
 - WAV decoding.
 - `AudioContext` creation.
 - `decodeAudioData` call.
@@ -30,15 +28,15 @@ The project still intentionally has no:
 
 ## 3. Future POC location
 
-A future implementation may use an isolated Node script such as:
+P10m implements the isolated Node script:
 
 - `scripts/inspect-local-melody-guide-wav-headers.mjs`
 
-A future npm script may be named:
+P10m also adds the opt-in npm script:
 
 - `validate:local-melody-guide-wav-headers`
 
-P10l does not add that script and does not modify `package.json`.
+The script remains local-fixture-only and is not imported by application runtime code.
 
 ## 4. Future input source
 
@@ -60,7 +58,7 @@ If no samples have `includeInLocalResearch: true`, the future POC should:
 
 ## 5. Future WAV header inspection scope
 
-A future POC may perform only minimal header and chunk metadata inspection, including:
+The P10m inspector performs only minimal header and chunk metadata inspection, including:
 
 - `RIFF` marker.
 - `WAVE` marker.
@@ -80,12 +78,12 @@ This must remain container/header inspection only. It is not audio decoding, wav
 
 ## 6. Future reading limit
 
-A future implementation should:
+The P10m implementation:
 
-- Avoid reading the full WAV into memory when possible.
-- Read only enough bytes to find required `RIFF`, `WAVE`, `fmt `, and `data` metadata.
-- Impose a conservative maximum scan limit if chunk traversal is needed.
-- Fail with a clear error if required chunks are not found within the limit.
+- Avoids reading the full WAV into memory.
+- Reads only enough bytes to find required `RIFF`, `WAVE`, `fmt `, and `data` metadata.
+- Imposes a conservative 1MB maximum scan limit for chunk traversal.
+- Fails with a clear error if required chunks are not found within the limit.
 
 ## 7. Future pass criteria
 
@@ -180,7 +178,6 @@ P10l does not do any of the following:
 - `package.json` changes.
 - `app/practice/page.tsx` changes.
 - File input UI.
-- WAV binary reading.
 - WAV header parser implementation.
 - WAV decoding.
 - `AudioContext` creation.
@@ -218,3 +215,9 @@ P10l does not do any of the following:
 - Dependency changes.
 - Real audio commits.
 - `metadata.local.json` commits.
+
+## 14. P10m implementation status
+
+P10m adds the isolated Node-side WAV header inspector and the opt-in `validate:local-melody-guide-wav-headers` npm script. It reads ignored local WAV files only when `metadata.local.json` exists and samples explicitly set `includeInLocalResearch: true`.
+
+P10m does not decode WAV audio, does not analyze waveform data, does not track pitch, does not generate target curves, does not touch Practice Mode, does not add UI, does not upload audio, does not call cloud or AI services, and does not add dependencies.
