@@ -120,3 +120,7 @@ P9j does not do any of the following:
 ## P9k implementation note
 
 P9k implemented the first static preview integration using only the hand-authored `TargetPitchCurve` example, without converter/generated fixture/runtime `melodySteps` integration.
+
+## P9l QA note
+
+P9l reviewed the P9k hand-authored static preview integration and confirmed it remains non-interactive, keeps the converter and generated fixture unimported by `/practice`, and does not affect Practice Mode runtime behavior.
