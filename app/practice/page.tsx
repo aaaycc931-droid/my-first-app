@@ -896,6 +896,90 @@ export default function PracticePage() {
           ) : null}
         </section>
 
+
+        <section className="mt-6 rounded-3xl border border-cyan-200 bg-cyan-50 p-5 shadow-sm sm:p-6">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+            <div>
+              <p className="text-sm font-semibold uppercase tracking-wide text-cyan-700">UI-only static prototype</p>
+              <h2 className="mt-1 text-2xl font-bold text-cyan-950">实时音高趋势预览</h2>
+              <p className="mt-2 max-w-3xl text-sm leading-6 text-cyan-900">
+                未来这里会显示目标旋律曲线与用户演唱音高曲线。当前版本只是界面预览，不会打开麦克风，也不会分析音频。
+              </p>
+              <p className="mt-2 max-w-3xl text-sm leading-6 text-cyan-800">
+                长期方向：目标曲线可先来自五线谱 / MusicXML / MIDI，之后再探索用户本地提供的单旋律示范音频。P8c 不实现音频导入、旋律提取、人声分离或 Song Learning Mode。
+              </p>
+            </div>
+            <div className="rounded-2xl border border-cyan-300 bg-white p-4 text-sm text-cyan-950 shadow-sm lg:min-w-64">
+              <p className="font-semibold">当前状态</p>
+              <dl className="mt-3 space-y-2">
+                <div className="flex justify-between gap-4"><dt className="text-cyan-700">当前目标音</dt><dd className="font-bold">{selectedTargetNote}</dd></div>
+                <div className="flex justify-between gap-4"><dt className="text-cyan-700">反馈状态</dt><dd className="font-bold">未开始实时反馈</dd></div>
+                <div className="flex justify-between gap-4"><dt className="text-cyan-700">正式评分</dt><dd className="font-bold">无</dd></div>
+              </dl>
+            </div>
+          </div>
+
+          <div className="mt-5 flex flex-wrap gap-2">
+            <button type="button" disabled aria-disabled="true" className="cursor-not-allowed rounded-full bg-cyan-300 px-4 py-2 text-sm font-semibold text-cyan-950 opacity-70">
+              开始实时反馈（界面预览）
+            </button>
+            <button type="button" disabled aria-disabled="true" className="cursor-not-allowed rounded-full border border-cyan-300 bg-white px-4 py-2 text-sm font-semibold text-cyan-700 opacity-70">
+              停止实时反馈（界面预览）
+            </button>
+            <span className="rounded-full border border-amber-200 bg-amber-50 px-4 py-2 text-sm font-semibold text-amber-800">
+              当前为界面预览：不会打开麦克风
+            </span>
+          </div>
+
+          <div className="mt-5 overflow-hidden rounded-3xl border border-cyan-200 bg-white shadow-inner">
+            <div className="grid min-h-[420px] grid-cols-[4.5rem_1fr] sm:grid-cols-[5.5rem_1fr]">
+              <div className="flex flex-col justify-between border-r border-cyan-100 bg-slate-50 px-3 py-6 text-right text-xs font-semibold text-slate-500">
+                {['C4', 'B3', 'A3', 'G3', 'F3', 'E3', 'D3', 'C3'].map((note) => (
+                  <span key={note}>{note}</span>
+                ))}
+              </div>
+              <div className="relative overflow-hidden bg-[linear-gradient(to_right,rgba(14,165,233,0.14)_1px,transparent_1px),linear-gradient(to_bottom,rgba(14,165,233,0.14)_1px,transparent_1px)] bg-[size:12.5%_12.5%] p-4 sm:p-6">
+                <div className="absolute inset-x-0 top-1/2 border-t-2 border-cyan-500" aria-hidden="true" />
+                <div className="absolute left-3 top-[18%] rounded-full bg-white/90 px-2 py-1 text-xs font-semibold text-slate-500 ring-1 ring-slate-200">+50 cents</div>
+                <div className="absolute left-3 top-[34%] rounded-full bg-white/90 px-2 py-1 text-xs font-semibold text-slate-500 ring-1 ring-slate-200">+25 cents</div>
+                <div className="absolute left-3 top-1/2 -translate-y-1/2 rounded-full bg-cyan-600 px-2 py-1 text-xs font-semibold text-white">0 cents 目标中心线</div>
+                <div className="absolute left-3 top-[62%] rounded-full bg-white/90 px-2 py-1 text-xs font-semibold text-slate-500 ring-1 ring-slate-200">-25 cents</div>
+                <div className="absolute left-3 top-[78%] rounded-full bg-white/90 px-2 py-1 text-xs font-semibold text-slate-500 ring-1 ring-slate-200">-50 cents</div>
+
+                <div className="absolute left-[16%] top-[42%] h-5 w-[16%] rounded-full bg-emerald-500/80 shadow-sm" aria-label="静态目标音块 C4" />
+                <div className="absolute left-[34%] top-[34%] h-5 w-[15%] rounded-full bg-emerald-500/80 shadow-sm" aria-label="静态目标音块 D4" />
+                <div className="absolute left-[51%] top-[27%] h-5 w-[13%] rounded-full bg-emerald-500/80 shadow-sm" aria-label="静态目标音块 E4" />
+                <div className="absolute left-[67%] top-[38%] h-5 w-[17%] rounded-full bg-emerald-500/80 shadow-sm" aria-label="静态目标音块 G4" />
+
+                <svg className="absolute inset-0 h-full w-full" role="img" aria-label="静态用户音高曲线占位，不是真实音高数据" viewBox="0 0 100 100" preserveAspectRatio="none">
+                  <path d="M 10 56 C 18 52, 22 48, 29 49 S 42 42, 48 43" fill="none" stroke="#7c3aed" strokeWidth="1.5" strokeLinecap="round" strokeDasharray="0" />
+                  <path d="M 58 37 C 64 34, 70 40, 76 45 S 86 50, 93 48" fill="none" stroke="#7c3aed" strokeWidth="1.5" strokeLinecap="round" />
+                  <path d="M 49 43 L 57 38" fill="none" stroke="#94a3b8" strokeWidth="1.2" strokeLinecap="round" strokeDasharray="2 2" />
+                </svg>
+
+                <div className="absolute bottom-4 left-[45%] rounded-xl border border-slate-200 bg-white/95 px-3 py-2 text-xs font-semibold text-slate-600 shadow-sm">
+                  unknown / no pitch gap
+                </div>
+                <div className="absolute bottom-4 right-4 rounded-2xl border border-violet-200 bg-violet-50 px-4 py-3 text-xs text-violet-900 shadow-sm">
+                  <p className="font-bold">静态占位读数</p>
+                  <p className="mt-1">Estimated note: E4</p>
+                  <p>Hz: 329.63</p>
+                  <p>Confidence: mock 0.72</p>
+                </div>
+                <div className="absolute bottom-4 left-4 hidden gap-8 text-xs font-semibold text-slate-400 sm:flex">
+                  <span>0:00</span><span>小节 1</span><span>小节 2</span><span>0:08</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-4 grid gap-3 text-sm md:grid-cols-3">
+            <div className="rounded-2xl border border-cyan-200 bg-white p-4 text-cyan-900"><p className="font-semibold">Browser-local</p><p className="mt-1">未来实时分析也应优先浏览器本地处理；P8c 没有上传音频。</p></div>
+            <div className="rounded-2xl border border-cyan-200 bg-white p-4 text-cyan-900"><p className="font-semibold">No microphone now</p><p className="mt-1">本预览按钮禁用，不请求麦克风权限，不绑定 getUserMedia。</p></div>
+            <div className="rounded-2xl border border-cyan-200 bg-white p-4 text-cyan-900"><p className="font-semibold">No score</p><p className="mt-1">当前没有正式评分、等级、通过 / 失败、节奏或视唱评测。</p></div>
+          </div>
+        </section>
+
         <section className="mt-6 rounded-2xl border border-emerald-200 bg-emerald-50 p-5">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div>
