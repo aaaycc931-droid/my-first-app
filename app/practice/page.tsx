@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 
+import { mockMelodyTargetCurveExample } from "../../lib/practice/mock-melody-target-segments.example";
 import {
   estimateLocalPitch,
   type PitchEstimateResult,
@@ -86,6 +87,38 @@ const noteFrequencies: Record<string, number> = {
 };
 
 const maxPracticeAttemptHistory = 5;
+
+const staticPreviewTargetSegments = mockMelodyTargetCurveExample.segments.filter(
+  (segment) => segment.shouldRenderAsTargetBlock,
+);
+
+const staticPreviewTotalDurationMs = Math.max(
+  ...staticPreviewTargetSegments.map((segment) => segment.endTimeMs),
+  1,
+);
+
+const staticPreviewNoteTopPercent: Record<string, number> = {
+  C4: 42,
+  D4: 34,
+  E4: 27,
+  G4: 20,
+};
+
+const getStaticPreviewTargetBlockStyle = (segment: (typeof staticPreviewTargetSegments)[number]) => {
+  const usableWidthPercent = 78;
+  const leftPercent = 12 + (segment.startTimeMs / staticPreviewTotalDurationMs) * usableWidthPercent;
+  const widthPercent = Math.max(
+    10,
+    ((segment.endTimeMs - segment.startTimeMs) / staticPreviewTotalDurationMs) * usableWidthPercent - 2,
+  );
+  const topPercent = staticPreviewNoteTopPercent[segment.noteName] ?? 42;
+
+  return {
+    left: `${leftPercent}%`,
+    top: `${topPercent}%`,
+    width: `${widthPercent}%`,
+  };
+};
 
 const calculateCentsFromTarget = (estimatedFrequencyHz: number, targetFrequencyHz: number) =>
   1200 * Math.log2(estimatedFrequencyHz / targetFrequencyHz);
@@ -903,7 +936,7 @@ export default function PracticePage() {
               <p className="text-sm font-semibold uppercase tracking-wide text-cyan-700">UI-only static prototype</p>
               <h2 className="mt-1 text-2xl font-bold text-cyan-950">实时音高趋势预览</h2>
               <p className="mt-2 max-w-3xl text-sm leading-6 text-cyan-900">
-                未来这里会显示目标旋律曲线与用户演唱音高曲线。当前版本只是界面预览，不会打开麦克风，也不会分析音频。
+                目标音块读取 hand-authored TargetPitchCurve example；用户音高曲线仍是静态占位。当前版本只是界面预览，不会打开麦克风，也不会分析音频。
               </p>
               <p className="mt-2 max-w-3xl text-sm leading-6 text-cyan-800">
                 长期方向：目标曲线可先来自五线谱 / MusicXML / MIDI，之后再探索用户本地提供的单旋律示范音频。P8c 不实现音频导入、旋律提取、人声分离或 Song Learning Mode。
@@ -946,10 +979,16 @@ export default function PracticePage() {
                 <div className="absolute left-3 top-[62%] rounded-full bg-white/90 px-2 py-1 text-xs font-semibold text-slate-500 ring-1 ring-slate-200">-25 cents</div>
                 <div className="absolute left-3 top-[78%] rounded-full bg-white/90 px-2 py-1 text-xs font-semibold text-slate-500 ring-1 ring-slate-200">-50 cents</div>
 
-                <div className="absolute left-[16%] top-[42%] h-5 w-[16%] rounded-full bg-emerald-500/80 shadow-sm" aria-label="静态目标音块 C4" />
-                <div className="absolute left-[34%] top-[34%] h-5 w-[15%] rounded-full bg-emerald-500/80 shadow-sm" aria-label="静态目标音块 D4" />
-                <div className="absolute left-[51%] top-[27%] h-5 w-[13%] rounded-full bg-emerald-500/80 shadow-sm" aria-label="静态目标音块 E4" />
-                <div className="absolute left-[67%] top-[38%] h-5 w-[17%] rounded-full bg-emerald-500/80 shadow-sm" aria-label="静态目标音块 G4" />
+                {staticPreviewTargetSegments.map((segment) => (
+                  <div
+                    key={segment.targetId}
+                    className="absolute flex h-5 items-center justify-center rounded-full bg-emerald-500/80 px-2 text-[10px] font-bold text-white shadow-sm"
+                    style={getStaticPreviewTargetBlockStyle(segment)}
+                    aria-label={`静态目标音块 ${segment.displayLabel}`}
+                  >
+                    <span className="truncate">{segment.displayLabel}</span>
+                  </div>
+                ))}
 
                 <svg className="absolute inset-0 h-full w-full" role="img" aria-label="静态用户音高曲线占位，不是真实音高数据" viewBox="0 0 100 100" preserveAspectRatio="none">
                   <path d="M 10 56 C 18 52, 22 48, 29 49 S 42 42, 48 43" fill="none" stroke="#7c3aed" strokeWidth="1.5" strokeLinecap="round" strokeDasharray="0" />
