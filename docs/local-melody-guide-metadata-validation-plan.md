@@ -218,3 +218,7 @@ P10h adds `npm run test:local-melody-guide-validator` as a small negative case t
 The P10h tests cover clean skip behavior when `metadata.local.json` is absent, a valid local metadata pass case, and invalid metadata failures such as missing required fields, invalid format, invalid encoding, `expectedMonophonic: false`, unsafe filenames, invalid duration, invalid `channelCount`, and missing referenced local WAV files when local metadata exists.
 
 These tests do not read or decode WAV contents, do not create `AudioContext`, do not use `getUserMedia` or microphone access, do not perform pitch tracking, and do not generate target curves. Any temporary `sample.wav` file created by the harness is an empty placeholder used only for file existence checks and is deleted when the harness finishes.
+
+## 17. P10i follow-up: validator harness and fixture-root override source review QA
+
+P10i reviewed the P10h negative-case harness and validator fixture-root override path, confirming that tests use temporary fake fixtures only, default validator behavior remains unchanged, override selection remains opt-in only, and WAV contents remain unread, undecoded, and unanalyzed. The review also confirmed that the harness does not write real `local-fixtures/melody-guide-audio/metadata.local.json`, does not modify real `local-fixtures/melody-guide-audio/audio/`, does not add dependencies, and does not affect Practice Mode, upload/cloud/AI behavior, `/api/recognize`, PDF/Audiveris behavior, scoring, rhythm, sight-singing assessment, pitch tracking, or target curve generation.
