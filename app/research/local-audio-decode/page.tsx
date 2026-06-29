@@ -8,7 +8,7 @@ const warningItems = [
   "No cloud.",
   "No AI API.",
   "No microphone.",
-  "No pitch tracking.",
+  "Exploratory pitch-frame diagnostics only after a separate Extract pitch frames click.",
   "No melody recognition.",
   "No TargetPitchCurve generation.",
   "Not Practice Mode.",
@@ -17,7 +17,8 @@ const warningItems = [
 
 const currentStatusItems = [
   "Research route only",
-  "Browser decodeAudioData metadata-only POC implemented",
+  "Browser decodeAudioData metadata POC implemented",
+  "Exploratory diagnostic pitch-frame extraction is gated behind a separate button",
   "AudioContext is scoped to explicit decode attempts only",
   "decodeAudioData is called only from the Decode metadata button",
   "File selection UI remains separate from decoding",
@@ -27,8 +28,9 @@ const currentStatusItems = [
 const futureFlowItems = [
   "Select a local WAV file manually",
   "Confirm local-only decode attempt",
-  "Decode metadata only",
+  "Decode metadata",
   "Display duration / sample rate / channel count",
+  "Optionally click Extract pitch frames for diagnostic metadata only",
   "Handle decode errors",
   "Clear result",
 ];
@@ -38,7 +40,7 @@ const boundaryItems = [
   "arbitrary song analysis",
   "vocal separation",
   "accompaniment-to-melody inference",
-  "pitch tracking",
+  "product pitch tracking",
   "waveform analysis",
   "scoring",
   "TargetPitchCurve generation",
@@ -61,8 +63,10 @@ export default function LocalAudioDecodeResearchPage() {
             This route provides an isolated, WAV-first local file-selection
             shell for browser decodeAudioData metadata research. It only decodes
             after an explicit Decode metadata click and intentionally provides
-            no playback, waveform analysis, pitch tracking, TargetPitchCurve
-            generation, or Practice Mode entry.
+            no playback, waveform visualization, scoring, TargetPitchCurve
+            generation, or Practice Mode entry. A separate gated action can
+            produce exploratory pitch-frame diagnostic metadata only after a
+            successful decode.
           </p>
         </header>
 
