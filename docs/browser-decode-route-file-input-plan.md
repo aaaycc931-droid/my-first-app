@@ -6,6 +6,8 @@ This document plans a future file input step for the isolated browser decode res
 
 P10v is docs-only. It does not implement a file picker, client component, browser decoding, playback, waveform analysis, pitch tracking, `TargetPitchCurve` generation, or Practice Mode integration.
 
+Acceptance criteria for the future implementation are tracked separately in `docs/browser-decode-route-file-input-acceptance-criteria.md`. P10w keeps those criteria docs-only and does not change the route implementation.
+
 The future file input is only meant to let a user manually select one local audio file so the route can display pre-decode file-selection status and decide whether a later decode attempt should be allowed. File selection alone is not decoding, does not create an `AudioContext`, and does not call `decodeAudioData`.
 
 ## 2. Future isolated route file input purpose
