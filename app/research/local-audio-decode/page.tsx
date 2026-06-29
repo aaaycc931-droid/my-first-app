@@ -1,7 +1,9 @@
+import LocalAudioDecodeFileInputShell from "./LocalAudioDecodeFileInputShell";
+
 const warningItems = [
   "This is a research-only local browser audio decoding placeholder.",
   "No audio decoding is implemented yet.",
-  "No file input is available yet.",
+  "A WAV-first file picker is available for local selection metadata only.",
   "No upload.",
   "No cloud.",
   "No AI API.",
@@ -18,7 +20,7 @@ const currentStatusItems = [
   "Browser decoding not implemented",
   "AudioContext not created",
   "decodeAudioData not called",
-  "File selection not implemented",
+  "File selection UI shell implemented without decoding",
   "Practice Mode integration not implemented",
 ];
 
@@ -56,9 +58,10 @@ export default function LocalAudioDecodeResearchPage() {
             Local Audio Decode Research
           </h1>
           <p className="mt-4 max-w-3xl text-base leading-7 text-amber-50/90">
-            This static route shell documents a future isolated browser audio
-            decode research surface. It intentionally provides no file picker,
-            decoding action, playback, pitch analysis, or Practice Mode entry.
+            This route provides an isolated, WAV-first local file-selection
+            shell for future browser audio decode research. It intentionally
+            provides no decoding action, playback, pitch analysis,
+            TargetPitchCurve generation, or Practice Mode entry.
           </p>
         </header>
 
@@ -74,6 +77,8 @@ export default function LocalAudioDecodeResearchPage() {
             ))}
           </ul>
         </section>
+
+        <LocalAudioDecodeFileInputShell />
 
         <section className="rounded-3xl border border-slate-700 bg-slate-900 p-6">
           <h2 className="text-2xl font-semibold text-white">Current status</h2>
