@@ -24,6 +24,30 @@ type DecodedAudioMetadata = {
   frameCount: number;
 };
 
+type PitchExtractionState =
+  | "not-ready"
+  | "ready-to-extract"
+  | "extracting"
+  | "extracted"
+  | "extract-error";
+
+type PitchDiagnosticMetadata = {
+  analyzedDurationSeconds: number;
+  frameCount: number;
+  voicedFrameCount: number;
+  unvoicedFrameCount: number;
+  frequencyMinHz: number | null;
+  frequencyMedianHz: number | null;
+  frequencyMaxHz: number | null;
+  statusText: string;
+};
+
+const pitchFrameSize = 2048;
+const pitchHopSize = 1024;
+const minPitchHz = 80;
+const maxPitchHz = 1000;
+const minAutocorrelationClarity = 0.62;
+
 const wavMimeTypes = new Set([
   "audio/wav",
   "audio/wave",
@@ -53,6 +77,134 @@ function summarizeFile(file: File): SelectedFileSummary {
   };
 }
 
+function calculateMedian(values: number[]) {
+  const sortedValues = [...values].sort((a, b) => a - b);
+  const middleIndex = Math.floor(sortedValues.length / 2);
+
+  if (sortedValues.length % 2 === 0) {
+    return (sortedValues[middleIndex - 1] + sortedValues[middleIndex]) / 2;
+  }
+
+  return sortedValues[middleIndex];
+}
+
+function estimateResearchFrameFrequency(
+  samples: Float32Array,
+  sampleRate: number,
+  frameStart: number,
+) {
+  let rms = 0;
+  for (let index = 0; index < pitchFrameSize; index += 1) {
+    const sample = samples[frameStart + index] ?? 0;
+    rms += sample * sample;
+  }
+
+  rms = Math.sqrt(rms / pitchFrameSize);
+  if (rms < 0.01) {
+    return null;
+  }
+
+  const minLag = Math.floor(sampleRate / maxPitchHz);
+  const maxLag = Math.min(
+    Math.floor(sampleRate / minPitchHz),
+    pitchFrameSize - 1,
+  );
+  let bestLag = 0;
+  let bestCorrelation = 0;
+
+  for (let lag = minLag; lag <= maxLag; lag += 1) {
+    let correlation = 0;
+    let energyA = 0;
+    let energyB = 0;
+
+    for (let index = 0; index < pitchFrameSize - lag; index += 1) {
+      const sampleA = samples[frameStart + index] ?? 0;
+      const sampleB = samples[frameStart + index + lag] ?? 0;
+      correlation += sampleA * sampleB;
+      energyA += sampleA * sampleA;
+      energyB += sampleB * sampleB;
+    }
+
+    const normalizedCorrelation =
+      energyA > 0 && energyB > 0
+        ? correlation / Math.sqrt(energyA * energyB)
+        : 0;
+
+    if (normalizedCorrelation > bestCorrelation) {
+      bestCorrelation = normalizedCorrelation;
+      bestLag = lag;
+    }
+  }
+
+  if (bestLag === 0 || bestCorrelation < minAutocorrelationClarity) {
+    return null;
+  }
+
+  const frequency = sampleRate / bestLag;
+  if (frequency < minPitchHz || frequency > maxPitchHz) {
+    return null;
+  }
+
+  return frequency;
+}
+
+function extractResearchPitchDiagnostics(
+  audioBuffer: AudioBuffer,
+): PitchDiagnosticMetadata {
+  if (audioBuffer.length < pitchFrameSize) {
+    return {
+      analyzedDurationSeconds: audioBuffer.duration,
+      frameCount: 0,
+      voicedFrameCount: 0,
+      unvoicedFrameCount: 0,
+      frequencyMinHz: null,
+      frequencyMedianHz: null,
+      frequencyMaxHz: null,
+      statusText:
+        "Decoded audio is shorter than one research pitch frame; no diagnostic frames were analyzed.",
+    };
+  }
+
+  const channelData = audioBuffer.getChannelData(0);
+  const frequencies: number[] = [];
+  let frameCount = 0;
+
+  for (
+    let frameStart = 0;
+    frameStart + pitchFrameSize <= channelData.length;
+    frameStart += pitchHopSize
+  ) {
+    frameCount += 1;
+    const frequency = estimateResearchFrameFrequency(
+      channelData,
+      audioBuffer.sampleRate,
+      frameStart,
+    );
+
+    if (frequency !== null) {
+      frequencies.push(frequency);
+    }
+  }
+
+  const voicedFrameCount = frequencies.length;
+  const unvoicedFrameCount = frameCount - voicedFrameCount;
+
+  return {
+    analyzedDurationSeconds: audioBuffer.duration,
+    frameCount,
+    voicedFrameCount,
+    unvoicedFrameCount,
+    frequencyMinHz: voicedFrameCount > 0 ? Math.min(...frequencies) : null,
+    frequencyMedianHz:
+      voicedFrameCount > 0 ? calculateMedian(frequencies) : null,
+    frequencyMaxHz: voicedFrameCount > 0 ? Math.max(...frequencies) : null,
+    statusText:
+      voicedFrameCount > 0
+        ? "Exploratory diagnostic pitch frames were extracted locally from the decoded WAV buffer."
+        : "No voiced diagnostic pitch frames were found by this exploratory local probe.",
+  };
+}
+
 function getRejectedReason(file: File) {
   const hasWavExtension = file.name.toLowerCase().endsWith(".wav");
   const hasKnownWavMimeType = file.type ? wavMimeTypes.has(file.type) : false;
@@ -77,8 +229,17 @@ export default function LocalAudioDecodeFileInputShell() {
   const [decodeError, setDecodeError] = useState<string | null>(null);
   const [decodedMetadata, setDecodedMetadata] =
     useState<DecodedAudioMetadata | null>(null);
+  const [pitchExtractionState, setPitchExtractionState] =
+    useState<PitchExtractionState>("not-ready");
+  const [pitchDiagnostics, setPitchDiagnostics] =
+    useState<PitchDiagnosticMetadata | null>(null);
+  const [pitchExtractionError, setPitchExtractionError] = useState<
+    string | null
+  >(null);
   const [inputKey, setInputKey] = useState(0);
   const decodeRunIdRef = useRef(0);
+  const pitchExtractionRunIdRef = useRef(0);
+  const decodedAudioBufferRef = useRef<AudioBuffer | null>(null);
 
   const stateLabel = useMemo(() => {
     switch (decodeState) {
@@ -99,10 +260,22 @@ export default function LocalAudioDecodeFileInputShell() {
   }, [decodeState]);
 
   const canDecode = selectedFile !== null && decodeState === "ready-to-decode";
+  const canExtractPitch =
+    decodedAudioBufferRef.current !== null &&
+    pitchExtractionState === "ready-to-extract";
+
+  function resetPitchExtractionResult() {
+    pitchExtractionRunIdRef.current += 1;
+    decodedAudioBufferRef.current = null;
+    setPitchExtractionState("not-ready");
+    setPitchDiagnostics(null);
+    setPitchExtractionError(null);
+  }
 
   function resetDecodeResult() {
     setDecodedMetadata(null);
     setDecodeError(null);
+    resetPitchExtractionResult();
   }
 
   function handleFileChange(event: ChangeEvent<HTMLInputElement>) {
@@ -162,12 +335,14 @@ export default function LocalAudioDecodeFileInputShell() {
       const audioBuffer = await audioContext.decodeAudioData(audioBytes);
 
       if (decodeRunIdRef.current === decodeRunId) {
+        decodedAudioBufferRef.current = audioBuffer;
         setDecodedMetadata({
           durationSeconds: audioBuffer.duration,
           sampleRate: audioBuffer.sampleRate,
           numberOfChannels: audioBuffer.numberOfChannels,
           frameCount: audioBuffer.length,
         });
+        setPitchExtractionState("ready-to-extract");
         setDecodeState("decoded-metadata");
       }
     } catch (error) {
@@ -186,6 +361,40 @@ export default function LocalAudioDecodeFileInputShell() {
         } catch {
           // Best-effort cleanup only. The route still does not create playback nodes.
         }
+      }
+    }
+  }
+
+  async function handleExtractPitchFrames() {
+    if (!canExtractPitch || !decodedAudioBufferRef.current) {
+      return;
+    }
+
+    const pitchExtractionRunId = pitchExtractionRunIdRef.current + 1;
+    pitchExtractionRunIdRef.current = pitchExtractionRunId;
+
+    setPitchExtractionState("extracting");
+    setPitchDiagnostics(null);
+    setPitchExtractionError(null);
+
+    try {
+      await new Promise((resolve) => window.setTimeout(resolve, 0));
+      const diagnostics = extractResearchPitchDiagnostics(
+        decodedAudioBufferRef.current,
+      );
+
+      if (pitchExtractionRunIdRef.current === pitchExtractionRunId) {
+        setPitchDiagnostics(diagnostics);
+        setPitchExtractionState("extracted");
+      }
+    } catch (error) {
+      if (pitchExtractionRunIdRef.current === pitchExtractionRunId) {
+        setPitchExtractionError(
+          error instanceof Error
+            ? error.message
+            : "The exploratory pitch diagnostic probe failed.",
+        );
+        setPitchExtractionState("extract-error");
       }
     }
   }
@@ -213,17 +422,19 @@ export default function LocalAudioDecodeFileInputShell() {
           <p className="mt-3 leading-7 text-emerald-50/90">
             This control keeps file selection separate from decoding. It only
             attempts browser decodeAudioData after you click Decode metadata,
-            then shows decoded metadata only: no playback, waveform analysis,
-            pitch tracking, or TargetPitchCurve generation.
+            then shows decoded metadata. A separate Extract pitch frames button
+            can run exploratory diagnostic pitch-frame extraction only after
+            decode succeeds: no playback, waveform analysis UI, scoring, or
+            TargetPitchCurve generation.
           </p>
         </div>
 
         <div className="rounded-2xl border border-emerald-200/20 bg-slate-950/60 p-4 text-sm leading-6 text-emerald-50/90">
           Select only a local WAV file that you created or have rights to use.
-          This research route is local-only: no upload, decode metadata only,
-          no playback, no waveform analysis, no pitch tracking, no
-          TargetPitchCurve generation, not connected to Practice Mode, and not
-          APK-ready.
+          This research route is local-only: no upload, decode metadata only, no
+          playback, no waveform analysis UI, exploratory diagnostic pitch
+          metadata only after a separate click, no TargetPitchCurve generation,
+          not connected to Practice Mode, and not APK-ready.
         </div>
 
         <label className="flex flex-col gap-2 text-sm font-medium text-slate-100">
@@ -245,6 +456,14 @@ export default function LocalAudioDecodeFileInputShell() {
             className="rounded-2xl bg-emerald-300 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-emerald-200 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-400"
           >
             Decode metadata
+          </button>
+          <button
+            type="button"
+            onClick={handleExtractPitchFrames}
+            disabled={!canExtractPitch}
+            className="rounded-2xl bg-sky-300 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-sky-200 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-400"
+          >
+            Extract pitch frames
           </button>
           <button
             type="button"
@@ -325,9 +544,86 @@ export default function LocalAudioDecodeFileInputShell() {
             <p className="mt-3 text-emerald-100">
               The decoded AudioBuffer was used only for metadata fields. This
               route creates no playback nodes, makes no audio destination
-              connection, renders no waveform, performs no pitch tracking, and
-              generates no TargetPitchCurve.
+              connection, renders no waveform, does not extract pitch until the
+              separate Extract pitch frames button is clicked, and generates no
+              TargetPitchCurve.
             </p>
+          </div>
+        ) : null}
+
+        <div className="rounded-2xl bg-slate-900 p-4 text-sm leading-6 text-slate-300">
+          <p className="font-semibold text-white">
+            Pitch-frame diagnostic gate
+          </p>
+          <p className="mt-2">
+            Exploratory pitch extraction is disabled until decoded metadata
+            exists. Decode alone does not extract pitch; extraction reads
+            decoded channel data only after pressing Extract pitch frames.
+            Output is diagnostic research metadata only, not a score, grade,
+            pass/fail result, TargetPitchCurve, or Practice Mode input.
+          </p>
+        </div>
+
+        {pitchDiagnostics ? (
+          <div className="rounded-2xl border border-sky-300/30 bg-slate-900 p-4 text-sm text-slate-200">
+            <p className="font-semibold text-white">
+              Exploratory pitch diagnostics only
+            </p>
+            <dl className="mt-3 grid gap-2 sm:grid-cols-2">
+              <div>
+                <dt className="text-slate-400">Analyzed duration</dt>
+                <dd>{pitchDiagnostics.analyzedDurationSeconds.toFixed(3)} s</dd>
+              </div>
+              <div>
+                <dt className="text-slate-400">Research frame count</dt>
+                <dd>{pitchDiagnostics.frameCount}</dd>
+              </div>
+              <div>
+                <dt className="text-slate-400">Voiced frames</dt>
+                <dd>{pitchDiagnostics.voicedFrameCount}</dd>
+              </div>
+              <div>
+                <dt className="text-slate-400">No-pitch / unvoiced frames</dt>
+                <dd>{pitchDiagnostics.unvoicedFrameCount}</dd>
+              </div>
+              <div>
+                <dt className="text-slate-400">Estimated min frequency</dt>
+                <dd>
+                  {pitchDiagnostics.frequencyMinHz === null
+                    ? "Not available"
+                    : `${pitchDiagnostics.frequencyMinHz.toFixed(1)} Hz`}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-slate-400">Estimated median frequency</dt>
+                <dd>
+                  {pitchDiagnostics.frequencyMedianHz === null
+                    ? "Not available"
+                    : `${pitchDiagnostics.frequencyMedianHz.toFixed(1)} Hz`}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-slate-400">Estimated max frequency</dt>
+                <dd>
+                  {pitchDiagnostics.frequencyMaxHz === null
+                    ? "Not available"
+                    : `${pitchDiagnostics.frequencyMaxHz.toFixed(1)} Hz`}
+                </dd>
+              </div>
+            </dl>
+            <p className="mt-3 text-sky-100">
+              {pitchDiagnostics.statusText} This is exploratory research data
+              only and is not a score, grade, pass/fail assessment, product
+              import result, TargetPitchCurve, or Practice Mode state.
+            </p>
+          </div>
+        ) : null}
+
+        {pitchExtractionError ? (
+          <div className="rounded-2xl border border-rose-300/30 bg-rose-300/10 p-4 text-sm leading-6 text-rose-50">
+            Pitch diagnostic extraction failed. No audio was played, uploaded,
+            converted to a TargetPitchCurve, scored, graded, assessed, or sent
+            to Practice Mode. Browser message: {pitchExtractionError}
           </div>
         ) : null}
 
