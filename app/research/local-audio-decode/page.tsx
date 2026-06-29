@@ -1,9 +1,9 @@
 import LocalAudioDecodeFileInputShell from "./LocalAudioDecodeFileInputShell";
 
 const warningItems = [
-  "This is a research-only local browser audio decoding placeholder.",
-  "No audio decoding is implemented yet.",
-  "A WAV-first file picker is available for local selection metadata only.",
+  "This is a research-only local browser audio decode metadata POC.",
+  "Decoding is only triggered by a separate Decode metadata button.",
+  "A WAV-first file picker is available for local selection before metadata-only decoding.",
   "No upload.",
   "No cloud.",
   "No AI API.",
@@ -16,11 +16,11 @@ const warningItems = [
 ];
 
 const currentStatusItems = [
-  "Route shell only",
-  "Browser decoding not implemented",
-  "AudioContext not created",
-  "decodeAudioData not called",
-  "File selection UI shell implemented without decoding",
+  "Research route only",
+  "Browser decodeAudioData metadata-only POC implemented",
+  "AudioContext is scoped to explicit decode attempts only",
+  "decodeAudioData is called only from the Decode metadata button",
+  "File selection UI remains separate from decoding",
   "Practice Mode integration not implemented",
 ];
 
@@ -59,9 +59,10 @@ export default function LocalAudioDecodeResearchPage() {
           </h1>
           <p className="mt-4 max-w-3xl text-base leading-7 text-amber-50/90">
             This route provides an isolated, WAV-first local file-selection
-            shell for future browser audio decode research. It intentionally
-            provides no decoding action, playback, pitch analysis,
-            TargetPitchCurve generation, or Practice Mode entry.
+            shell for browser decodeAudioData metadata research. It only decodes
+            after an explicit Decode metadata click and intentionally provides
+            no playback, waveform analysis, pitch tracking, TargetPitchCurve
+            generation, or Practice Mode entry.
           </p>
         </header>
 
@@ -94,8 +95,8 @@ export default function LocalAudioDecodeResearchPage() {
             Future intended flow
           </h2>
           <p className="mt-3 text-slate-300">
-            These possible future steps are listed for planning only. They are
-            not implemented in this route shell.
+            These steps describe this isolated proof-of-concept flow. They are
+            research-only and are not connected to Practice Mode.
           </p>
           <ol className="mt-4 list-decimal space-y-2 pl-6 text-slate-200">
             {futureFlowItems.map((item) => (
