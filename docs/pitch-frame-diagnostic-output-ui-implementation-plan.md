@@ -343,3 +343,7 @@ P12j does not do any of the following:
 - real audio commits
 - `metadata.local.json` commits
 - APK-ready claim
+
+## P12k implementation note
+
+P12k applies a tiny UI copy-only update to the `/research/local-audio-decode` diagnostic output area while keeping route behavior, file/decode/extract actions, pitch extraction logic, note segmentation, TargetPitchCurve generation, Practice Mode integration, formal scoring, upload/cloud/AI behavior, and APK-ready claims unchanged.
