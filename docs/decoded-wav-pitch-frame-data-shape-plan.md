@@ -227,3 +227,17 @@ P12f does not do any of the following:
 - real audio commits
 - `metadata.local.json` commits
 - APK-ready claim
+
+## 16. P12g source review QA note
+
+P12g reviewed the P12f decoded WAV pitch frame data shape plan as documentation-only source review QA.
+
+The review confirms that the planned top-level result shape remains limited to research-only diagnostics for `sourceType: "decoded-wav-pitch-frame-research"` on `/research/local-audio-decode`, including the explicit boundaries `createdForResearchOnly: true`, `shouldCreateFormalScore: false`, and `shouldCreateTargetPitchCurve: false`.
+
+The review confirms that the planned frame shape remains frame-level diagnostics only: `frameIndex`, `startTimeMs`, `endTimeMs`, nullable `estimatedFrequencyHz`, nullable `confidence`, and `frameState` limited to `voiced`, `unvoiced`, `low-confidence`, and `invalid`. Frames are not notes, melody segments, rhythm events, Practice Mode steps, or scoring units. `unvoiced` and `low-confidence` frames must not be forced into notes, nullable frequency is expected when no reliable estimate exists, and confidence remains a diagnostic value rather than a grade or pass/fail result.
+
+The review confirms that the planned frequency summary remains a diagnostic summary only. Minimum, median, maximum, voiced-frame median, and voiced-frame range values do not claim formal pitch recognition accuracy, formal scoring, stable melody recognition, note results, rhythm inference, sight-singing assessment, or target curve output.
+
+The review confirms that the planned warnings remain research hints only, including `too-few-voiced-frames`, `high-unvoiced-ratio`, `unstable-frequency`, `possible-noise`, `possible-polyphonic-content`, `unsupported-input-risk`, `short-duration`, and `long-duration`. These warnings are not formal judgments, scoring outcomes, failure grades, Practice Mode feedback, or APK readiness checks.
+
+P12g also confirms that P12f does not describe or implement formal pitch recognition, melody recognition, note segmentation, rhythm inference, `TargetPitchCurve` generation, Practice Mode integration, scoring, source separation, vocal separation, upload/cloud/AI behavior, `/api/recognize` behavior, PDF upload, Audiveris behavior, dependency changes, committed real audio, committed `metadata.local.json`, or APK-ready support. Future Android APK / WebView packaging remains unverified and still requires separate validation of file picker behavior, `AudioContext` / `decodeAudioData`, memory limits, local processing, permissions, and performance.
