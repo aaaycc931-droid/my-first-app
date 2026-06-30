@@ -137,3 +137,5 @@ P12n does not do any of the following:
 - real audio commits
 - `metadata.local.json` commits
 - APK-ready claim
+
+P12o adds a research-route release readiness checklist after the Network panel QA pass while keeping route behavior, UI copy, file/decode/extract actions, pitch extraction logic, Practice Mode integration, TargetPitchCurve generation, formal scoring, upload/cloud/AI behavior, and APK-ready claims unchanged.
