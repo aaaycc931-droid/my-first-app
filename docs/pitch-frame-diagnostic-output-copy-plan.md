@@ -265,3 +265,11 @@ P12h does not do any of the following:
 - real audio commits
 - `metadata.local.json` commits
 - APK-ready claim
+
+## 18. P12i Source Review QA note
+
+P12i reviewed this diagnostic output copy plan and confirmed the proposed headings, summary text, field-level copy, warning copy, error copy, and boundary banner remain research-only diagnostics.
+
+The reviewed copy plan does not describe the diagnostics as formal pitch recognition, melody recognition, note segmentation, `TargetPitchCurve` generation, scoring, Practice Mode feedback, upload/cloud/AI behavior, or APK-ready support.
+
+P12i also confirmed the relationship to the P12f data shape remains limited: P12f plans research-only diagnostic fields, while P12h plans labels and explanations for those fields. Neither P12h nor P12i implements the data shape, route behavior, UI copy, pitch extraction algorithm changes, Practice Mode integration, note segmentation, scoring, or `TargetPitchCurve` generation.
