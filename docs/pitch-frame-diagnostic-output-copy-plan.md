@@ -273,3 +273,7 @@ P12i reviewed this diagnostic output copy plan and confirmed the proposed headin
 The reviewed copy plan does not describe the diagnostics as formal pitch recognition, melody recognition, note segmentation, `TargetPitchCurve` generation, scoring, Practice Mode feedback, upload/cloud/AI behavior, or APK-ready support.
 
 P12i also confirmed the relationship to the P12f data shape remains limited: P12f plans research-only diagnostic fields, while P12h plans labels and explanations for those fields. Neither P12h nor P12i implements the data shape, route behavior, UI copy, pitch extraction algorithm changes, Practice Mode integration, note segmentation, scoring, or `TargetPitchCurve` generation.
+
+## 19. P12j UI implementation planning note
+
+P12j plans how future UI copy-only implementation could apply this diagnostic output copy to `/research/local-audio-decode` while keeping route behavior, UI implementation, pitch extraction logic, note segmentation, `TargetPitchCurve` generation, Practice Mode integration, formal scoring, upload/cloud/AI behavior, and APK-ready claims unchanged.
