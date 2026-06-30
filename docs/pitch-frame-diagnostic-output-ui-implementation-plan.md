@@ -347,3 +347,7 @@ P12j does not do any of the following:
 ## P12k implementation note
 
 P12k applies a tiny UI copy-only update to the `/research/local-audio-decode` diagnostic output area while keeping route behavior, file/decode/extract actions, pitch extraction logic, note segmentation, TargetPitchCurve generation, Practice Mode integration, formal scoring, upload/cloud/AI behavior, and APK-ready claims unchanged.
+
+## P12l source review QA note
+
+P12l reviewed the P12k UI copy-only implementation and confirmed the `/research/local-audio-decode` diagnostic output copy remains research-only while route behavior, file/decode/extract actions, disabled/enabled gating, pitch extraction logic, note segmentation, TargetPitchCurve generation, Practice Mode integration, formal scoring, upload/cloud/AI behavior, and APK-ready claims remain unchanged.
