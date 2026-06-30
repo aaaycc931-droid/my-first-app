@@ -267,3 +267,7 @@ P12d does not implement or change:
 - Real audio commits.
 - `metadata.local.json` commits.
 - APK-ready claim.
+
+## 20. P12e manual browser QA result record
+
+P12e records a passing manual browser QA result for the decoded WAV pitch-frame extraction POC while keeping route behavior, pitch extraction logic, Practice Mode integration, TargetPitchCurve generation, formal scoring, upload/cloud/AI behavior, and APK-ready claims unchanged.
