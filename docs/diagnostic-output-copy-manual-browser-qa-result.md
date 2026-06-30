@@ -170,3 +170,5 @@ P12m does not do any of the following:
 - real audio commits
 - `metadata.local.json` commits
 - APK-ready claim
+
+P12n records a passing Network panel manual QA result for `/research/local-audio-decode`, confirming no WAV upload, cloud assessment, AI API, server storage, or account behavior was observed during the tested browser session while route behavior, file/decode/extract actions, pitch extraction logic, Practice Mode integration, `TargetPitchCurve` generation, formal scoring, and APK-ready claims remain unchanged.
