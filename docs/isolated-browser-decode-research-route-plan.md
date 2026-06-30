@@ -277,3 +277,11 @@ P10t adds the static research-only route shell while keeping file input, browser
 ## 17. P10u source review QA note
 
 P10u reviewed the P10t static route shell and confirmed it remains static, research-only, unlinked from the homepage and `/practice`, and free of file input, browser decoding, `AudioContext`, `decodeAudioData`, pitch tracking, `TargetPitchCurve` generation, and Practice Mode integration.
+
+## 18. P12c decoded WAV pitch-frame extraction source review QA note
+
+P12c reviewed the P12b decoded WAV pitch-frame extraction POC and confirmed it remains isolated, research-only, local-only, and separated into explicit file selection / decode metadata / extract pitch frames actions. The **Extract pitch frames** action remains gated behind decoded metadata, file selection alone does not decode or analyze audio, and decode metadata alone does not extract pitch frames.
+
+P12c confirmed the POC does not generate `TargetPitchCurve`, formal scores, grades, pass/fail outcomes, Practice Mode results, note segmentation, rhythm assessment, sight-singing assessment, melody recognition, arbitrary song analysis, source separation, vocal separation, Song Learning Mode behavior, uploads, cloud/AI behavior, server storage, account behavior, public sharing behavior, `/api/recognize` behavior, PDF behavior, or Audiveris behavior.
+
+P12c also confirmed the route remains WAV-first / local research only, makes no formal MP3 support or commercial song analysis claim, and keeps the Android APK / WebView caveat: future APK or WebView packaging must separately validate file picker behavior, `AudioContext` / `decodeAudioData`, memory limits, local processing, and permissions before any APK-ready claim.
