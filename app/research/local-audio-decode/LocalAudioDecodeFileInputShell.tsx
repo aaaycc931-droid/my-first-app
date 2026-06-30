@@ -567,35 +567,63 @@ export default function LocalAudioDecodeFileInputShell() {
         {pitchDiagnostics ? (
           <div className="rounded-2xl border border-sky-300/30 bg-slate-900 p-4 text-sm text-slate-200">
             <p className="font-semibold text-white">
-              Exploratory pitch diagnostics only
+              Pitch frame diagnostics
             </p>
+            <p className="mt-2 leading-6 text-sky-100">
+              These values summarize local research diagnostics from decoded
+              WAV frames. They are not a formal pitch score, melody
+              transcription, or Practice Mode result. No TargetPitchCurve is
+              generated from this output.
+            </p>
+            <div className="mt-3 rounded-2xl border border-sky-200/20 bg-slate-950/60 p-3 leading-6 text-sky-50/90">
+              Local-only research diagnostics: no upload, no cloud, no AI API,
+              no melody recognition, no scoring, no TargetPitchCurve
+              generation, not Practice Mode, and not APK-ready.
+            </div>
             <dl className="mt-3 grid gap-2 sm:grid-cols-2">
               <div>
                 <dt className="text-slate-400">Analyzed duration</dt>
                 <dd>{pitchDiagnostics.analyzedDurationSeconds.toFixed(3)} s</dd>
+                <dd className="text-xs text-slate-500">
+                  Decoded duration inspected for research diagnostics.
+                </dd>
               </div>
               <div>
-                <dt className="text-slate-400">Research frame count</dt>
+                <dt className="text-slate-400">Analysis frames</dt>
                 <dd>{pitchDiagnostics.frameCount}</dd>
+                <dd className="text-xs text-slate-500">
+                  Number of diagnostic frames inspected.
+                </dd>
               </div>
               <div>
-                <dt className="text-slate-400">Voiced frames</dt>
+                <dt className="text-slate-400">Voiced diagnostic frames</dt>
                 <dd>{pitchDiagnostics.voicedFrameCount}</dd>
+                <dd className="text-xs text-slate-500">
+                  Frames where the diagnostic extractor found a pitch-like
+                  signal.
+                </dd>
               </div>
               <div>
-                <dt className="text-slate-400">No-pitch / unvoiced frames</dt>
+                <dt className="text-slate-400">Unvoiced diagnostic frames</dt>
                 <dd>{pitchDiagnostics.unvoicedFrameCount}</dd>
+                <dd className="text-xs text-slate-500">
+                  Frames where no pitch-like signal was detected.
+                </dd>
               </div>
               <div>
-                <dt className="text-slate-400">Estimated min frequency</dt>
+                <dt className="text-slate-400">Frequency summary</dt>
                 <dd>
                   {pitchDiagnostics.frequencyMinHz === null
                     ? "Not available"
                     : `${pitchDiagnostics.frequencyMinHz.toFixed(1)} Hz`}
                 </dd>
+                <dd className="text-xs text-slate-500">
+                  Min / median / max frequency estimates across voiced
+                  diagnostic frames.
+                </dd>
               </div>
               <div>
-                <dt className="text-slate-400">Estimated median frequency</dt>
+                <dt className="text-slate-400">Median frequency estimate</dt>
                 <dd>
                   {pitchDiagnostics.frequencyMedianHz === null
                     ? "Not available"
@@ -603,7 +631,7 @@ export default function LocalAudioDecodeFileInputShell() {
                 </dd>
               </div>
               <div>
-                <dt className="text-slate-400">Estimated max frequency</dt>
+                <dt className="text-slate-400">Max frequency estimate</dt>
                 <dd>
                   {pitchDiagnostics.frequencyMaxHz === null
                     ? "Not available"
@@ -621,7 +649,7 @@ export default function LocalAudioDecodeFileInputShell() {
 
         {pitchExtractionError ? (
           <div className="rounded-2xl border border-rose-300/30 bg-rose-300/10 p-4 text-sm leading-6 text-rose-50">
-            Pitch diagnostic extraction failed. No audio was played, uploaded,
+            Pitch-frame extraction failed. No audio was played, uploaded,
             converted to a TargetPitchCurve, scored, graded, assessed, or sent
             to Practice Mode. Browser message: {pitchExtractionError}
           </div>
