@@ -148,3 +148,5 @@ P12e does not do or change:
 - Real audio commits.
 - `metadata.local.json` commits.
 - APK-ready claim.
+
+P12f plans a future research-only decoded WAV pitch frame diagnostic data shape while keeping route behavior, pitch extraction logic, note segmentation, `TargetPitchCurve` generation, Practice Mode integration, formal scoring, upload/cloud/AI behavior, and APK-ready claims unchanged.
