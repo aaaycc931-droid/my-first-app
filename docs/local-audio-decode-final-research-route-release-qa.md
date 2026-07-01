@@ -226,3 +226,7 @@ P12q does not do:
 - real audio commits
 - `metadata.local.json` commits
 - APK-ready claim
+
+## 17. P13a planning follow-up
+
+P13a begins docs-only planning for future pitch extraction accuracy and diagnostic quality improvements after the final research route release QA while keeping route behavior, UI copy, file / decode / extract actions, pitch extraction logic, Practice Mode integration, note segmentation, `TargetPitchCurve` generation, formal scoring, upload / cloud / AI behavior, and APK-ready claims unchanged.
