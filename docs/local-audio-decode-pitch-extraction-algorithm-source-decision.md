@@ -376,3 +376,7 @@ P13d implemented the chosen conservative diagnostic frequency bounds plus voiced
 This remains a research-only diagnostic guard, not a formal vocal range, product scoring range, or production recognition standard. P13d preserves route behavior, UI copy, file selection, decode metadata, **Extract pitch frames** action behavior, disabled / enabled gating, Practice Mode boundaries, `TargetPitchCurve` boundaries, note segmentation boundaries, scoring boundaries, upload / cloud / AI boundaries, dependency boundaries, real audio boundaries, and APK / WebView caveats.
 
 P13d synthetic checks use generated in-memory candidate values and an in-memory A4-like sine sample only. No WAV fixture, real audio, or `metadata.local.json` is committed.
+
+## P13e source review QA note
+
+P13e records docs-only source review QA for the P13d diagnostic frequency guard implementation, checking helper purity, valid-frequency filtering, valid-only min/median/max summaries, runtime integration boundaries, synthetic in-memory check boundaries, and unchanged route/UI/file/decode/extract/Practice Mode/TargetPitchCurve/scoring/upload/cloud/AI/dependency/APK boundaries.
