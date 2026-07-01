@@ -215,3 +215,5 @@ P12o does not do any of the following:
 - real audio commits
 - `metadata.local.json` commits
 - APK-ready claim
+
+P12p chooses a direct-URL-only, unlinked-by-default visibility strategy for `/research/local-audio-decode` as a limited research-only demonstration while keeping homepage links, `/practice` links, navigation entries, feature flag implementation, route behavior changes, Practice Mode integration, `TargetPitchCurve` generation, formal scoring, upload / cloud / AI behavior, and APK-ready claims deferred.
