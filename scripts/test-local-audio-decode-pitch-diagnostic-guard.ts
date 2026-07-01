@@ -2,6 +2,7 @@ import {
   DIAGNOSTIC_MAX_FREQUENCY_HZ,
   DIAGNOSTIC_MIN_FREQUENCY_HZ,
   isValidDiagnosticFrequencyEstimate,
+  smoothDiagnosticFrequencies,
   summarizeDiagnosticFrequencies,
 } from "../lib/research/local-audio-decode/pitch-frame-diagnostics";
 
@@ -86,5 +87,64 @@ assert(
   "invalid values should not set median",
 );
 assert(filteredSummary.frequencyMaxHz === 440, "invalid values should not set max");
+
+const cleanSmoothedFrequencies = smoothDiagnosticFrequencies([220, 221, 222]);
+assert(
+  cleanSmoothedFrequencies[0] === 220 &&
+    cleanSmoothedFrequencies[1] === 221 &&
+    cleanSmoothedFrequencies[2] === 222,
+  "clean valid frequencies should remain stable after tiny median smoothing",
+);
+
+const outlierSmoothedFrequencies = smoothDiagnosticFrequencies([440, 880, 441]);
+assert(
+  outlierSmoothedFrequencies[1] === 441,
+  "one-frame valid diagnostic outlier should be reduced by median smoothing",
+);
+
+const nullableSmoothedFrequencies = smoothDiagnosticFrequencies([
+  440,
+  null,
+  880,
+]);
+assert(
+  nullableSmoothedFrequencies[1] === null,
+  "null frames should remain null after smoothing",
+);
+assert(
+  nullableSmoothedFrequencies[0] === 440 &&
+    nullableSmoothedFrequencies[2] === 880,
+  "smoothing should not cross unvoiced gaps",
+);
+
+const invalidSmoothedFrequencies = smoothDiagnosticFrequencies([
+  DIAGNOSTIC_MIN_FREQUENCY_HZ - 1,
+  Number.NaN,
+  DIAGNOSTIC_MAX_FREQUENCY_HZ + 1,
+]);
+assert(
+  invalidSmoothedFrequencies.every((frequency) => frequency === null),
+  "invalid and out-of-range frames should remain excluded after smoothing",
+);
+
+const silenceSmoothedFrequencies = smoothDiagnosticFrequencies([
+  null,
+  null,
+  null,
+]);
+assert(
+  silenceSmoothedFrequencies.every((frequency) => frequency === null),
+  "smoothing should not create valid pitch from silence",
+);
+
+const smoothedSummary = summarizeDiagnosticFrequencies(
+  outlierSmoothedFrequencies.filter(
+    (frequency): frequency is number => frequency !== null,
+  ),
+);
+assert(
+  smoothedSummary.frequencyMedianHz === 441,
+  "summary should use valid diagnostic frequencies after smoothing",
+);
 
 console.log("local audio decode pitch diagnostic guard synthetic checks passed");
