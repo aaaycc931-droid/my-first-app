@@ -184,3 +184,5 @@ P13k does not do any of the following:
 - Real audio commits.
 - `metadata.local.json` commits.
 - APK-ready claim.
+
+P13m chooses diagnostic clarity / voiced-unvoiced threshold review as the next future tiny isolated pitch extraction improvement direction after the P13i/P13j/P13k diagnostic median smoothing implementation/source review/manual QA loop, while keeping route behavior, UI copy, file/decode/extract actions, gating, Practice Mode integration, note segmentation, TargetPitchCurve generation, formal scoring, upload/cloud/AI behavior, dependencies, real audio commits, and APK-ready claims unchanged.
