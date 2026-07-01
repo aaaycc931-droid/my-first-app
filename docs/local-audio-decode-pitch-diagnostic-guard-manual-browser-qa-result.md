@@ -193,3 +193,5 @@ P13f does not do any of the following:
 - Real audio commits.
 - `metadata.local.json` commits.
 - APK-ready claim.
+
+P13h chooses conservative diagnostic median smoothing over valid diagnostic frequency estimates as the next future tiny isolated improvement direction after the P13d/P13e/P13f diagnostic guard implementation/source review/manual QA loop, while keeping route behavior, UI copy, file/decode/extract actions, gating, Practice Mode integration, note segmentation, TargetPitchCurve generation, formal scoring, upload/cloud/AI behavior, dependencies, real audio commits, and APK-ready claims unchanged.
