@@ -255,3 +255,5 @@ P13e does not do any of the following:
 - Real audio commits.
 - `metadata.local.json` commits.
 - APK-ready claim.
+
+P13f records passing manual browser QA for the P13d diagnostic guard after P13e source review, confirming the tested browser session preserved route loading, explicit file/decode/extract actions, disabled/enabled gating, diagnostic-only output, local-only boundaries, Practice Mode boundaries, `TargetPitchCurve` boundaries, scoring boundaries, and APK / WebView caveats.
