@@ -169,3 +169,13 @@ Before P14b is merged, reviewers should confirm:
 - Pitch jumps split segments.
 - Short voiced islands are discarded or clearly marked low confidence.
 - No `TargetPitchCurve`, scoring, upload, cloud, AI, or APK-ready claim was introduced.
+
+## P14b implementation note
+
+P14b implements the first isolated runtime POC as a deterministic pure helper in `lib/research/local-audio-decode/note-like-segment-diagnostics.ts`, plus a synthetic in-memory script in `scripts/test-local-audio-decode-note-like-segment-diagnostics.ts`.
+
+The helper accepts only diagnostic frame objects with `timeSeconds`, nullable `frequencyHz`, and optional nullable `clarity`. It does not read files, decode audio, inspect `AudioBuffer`, call browser APIs, upload data, call AI APIs, or depend on Practice Mode state. The output is explicitly named note-like segment diagnostics and includes timing, valid-frequency-only representative / min / median / max summaries, frame counts, bridged-null counts, optional nearest note label, diagnostic confidence, and optional diagnostic split reason.
+
+The POC uses conservative research diagnostic rules: continuous valid voiced frames can form a segment; at most one null / invalid diagnostic frame may be bridged between valid voiced frames; two consecutive unusable frames split; a pitch jump above the 120-cent research diagnostic threshold splits; short voiced islands remain visible only as `low` diagnostic confidence; and null / invalid frames never create voiced pitch or enter representative-frequency summaries.
+
+P14b remains research-only. It does not integrate with `/research/local-audio-decode` UI, `/practice`, `TargetPitchCurve`, `/api/recognize`, recognition providers, scoring, grading, pass/fail, melody recognition, rhythm assessment, upload/cloud/AI behavior, package files, audio fixtures, `metadata.local.json`, homepage navigation, or APK/WebView readiness claims.
