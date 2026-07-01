@@ -2,6 +2,13 @@
 
 import { ChangeEvent, useMemo, useRef, useState } from "react";
 
+import {
+  DIAGNOSTIC_MAX_FREQUENCY_HZ,
+  DIAGNOSTIC_MIN_FREQUENCY_HZ,
+  isValidDiagnosticFrequencyEstimate,
+  summarizeDiagnosticFrequencies,
+} from "../../../lib/research/local-audio-decode/pitch-frame-diagnostics";
+
 type DecodeState =
   | "not-ready"
   | "ready-to-decode"
@@ -44,8 +51,8 @@ type PitchDiagnosticMetadata = {
 
 const pitchFrameSize = 2048;
 const pitchHopSize = 1024;
-const minPitchHz = 80;
-const maxPitchHz = 1000;
+const minPitchHz = DIAGNOSTIC_MIN_FREQUENCY_HZ;
+const maxPitchHz = DIAGNOSTIC_MAX_FREQUENCY_HZ;
 const minAutocorrelationClarity = 0.62;
 
 const wavMimeTypes = new Set([
@@ -75,17 +82,6 @@ function summarizeFile(file: File): SelectedFileSummary {
     type: file.type,
     lastModified: file.lastModified,
   };
-}
-
-function calculateMedian(values: number[]) {
-  const sortedValues = [...values].sort((a, b) => a - b);
-  const middleIndex = Math.floor(sortedValues.length / 2);
-
-  if (sortedValues.length % 2 === 0) {
-    return (sortedValues[middleIndex - 1] + sortedValues[middleIndex]) / 2;
-  }
-
-  return sortedValues[middleIndex];
 }
 
 function estimateResearchFrameFrequency(
@@ -141,7 +137,7 @@ function estimateResearchFrameFrequency(
   }
 
   const frequency = sampleRate / bestLag;
-  if (frequency < minPitchHz || frequency > maxPitchHz) {
+  if (!isValidDiagnosticFrequencyEstimate(frequency)) {
     return null;
   }
 
@@ -186,6 +182,7 @@ function extractResearchPitchDiagnostics(
     }
   }
 
+  const validFrequencySummary = summarizeDiagnosticFrequencies(frequencies);
   const voicedFrameCount = frequencies.length;
   const unvoicedFrameCount = frameCount - voicedFrameCount;
 
@@ -194,10 +191,9 @@ function extractResearchPitchDiagnostics(
     frameCount,
     voicedFrameCount,
     unvoicedFrameCount,
-    frequencyMinHz: voicedFrameCount > 0 ? Math.min(...frequencies) : null,
-    frequencyMedianHz:
-      voicedFrameCount > 0 ? calculateMedian(frequencies) : null,
-    frequencyMaxHz: voicedFrameCount > 0 ? Math.max(...frequencies) : null,
+    frequencyMinHz: validFrequencySummary.frequencyMinHz,
+    frequencyMedianHz: validFrequencySummary.frequencyMedianHz,
+    frequencyMaxHz: validFrequencySummary.frequencyMaxHz,
     statusText:
       voicedFrameCount > 0
         ? "Exploratory diagnostic pitch frames were extracted locally from the decoded WAV buffer."
