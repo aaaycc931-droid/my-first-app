@@ -6,6 +6,7 @@ import {
   DIAGNOSTIC_MAX_FREQUENCY_HZ,
   DIAGNOSTIC_MIN_FREQUENCY_HZ,
   isValidDiagnosticFrequencyEstimate,
+  smoothDiagnosticFrequencies,
   summarizeDiagnosticFrequencies,
 } from "../../../lib/research/local-audio-decode/pitch-frame-diagnostics";
 
@@ -162,7 +163,7 @@ function extractResearchPitchDiagnostics(
   }
 
   const channelData = audioBuffer.getChannelData(0);
-  const frequencies: number[] = [];
+  const frameFrequencies: Array<number | null> = [];
   let frameCount = 0;
 
   for (
@@ -177,13 +178,18 @@ function extractResearchPitchDiagnostics(
       frameStart,
     );
 
-    if (frequency !== null) {
-      frequencies.push(frequency);
-    }
+    frameFrequencies.push(frequency);
   }
 
-  const validFrequencySummary = summarizeDiagnosticFrequencies(frequencies);
-  const voicedFrameCount = frequencies.length;
+  const smoothedFrequencies = smoothDiagnosticFrequencies(frameFrequencies);
+  const validFrequencySummary = summarizeDiagnosticFrequencies(
+    smoothedFrequencies.filter(
+      (frequency): frequency is number => frequency !== null,
+    ),
+  );
+  const voicedFrameCount = smoothedFrequencies.filter(
+    (frequency) => frequency !== null,
+  ).length;
   const unvoicedFrameCount = frameCount - voicedFrameCount;
 
   return {

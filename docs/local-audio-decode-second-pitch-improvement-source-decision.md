@@ -379,3 +379,7 @@ P13h does not do any of the following:
 - Real audio commits.
 - `metadata.local.json` commits.
 - APK-ready claim.
+
+## 16. P13i follow-up implementation note
+
+P13i implemented the chosen conservative diagnostic median smoothing as a tiny isolated runtime change for `/research/local-audio-decode`. The implementation preserves the P13d 50–1200 Hz diagnostic bounds, invalid-frame exclusion, invalid / out-of-range summary exclusion, route behavior, UI copy, explicit file selection / decode / extract actions, disabled / enabled gating, Practice Mode boundaries, note segmentation boundaries, `TargetPitchCurve` boundaries, scoring boundaries, upload / cloud / AI boundaries, dependency boundaries, real audio boundaries, and APK / WebView caveats.
