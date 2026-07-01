@@ -1,5 +1,6 @@
 export const DIAGNOSTIC_MIN_FREQUENCY_HZ = 50;
 export const DIAGNOSTIC_MAX_FREQUENCY_HZ = 1200;
+export const DIAGNOSTIC_MIN_CLARITY = 0.62;
 
 export type DiagnosticFrequencySummary = {
   frequencyMinHz: number | null;
@@ -20,6 +21,20 @@ export function filterValidDiagnosticFrequencies(frequencies: number[]) {
   return frequencies.filter(isValidDiagnosticFrequencyEstimate);
 }
 
+export function isReliableDiagnosticClarity(clarity: number) {
+  return Number.isFinite(clarity) && clarity >= DIAGNOSTIC_MIN_CLARITY;
+}
+
+export function isValidDiagnosticVoicedFrame(
+  frequency: number,
+  clarity: number,
+) {
+  return (
+    isValidDiagnosticFrequencyEstimate(frequency) &&
+    isReliableDiagnosticClarity(clarity)
+  );
+}
+
 function getMedianFrequency(frequencies: number[]) {
   const sortedFrequencies = [...frequencies].sort((a, b) => a - b);
   const middleIndex = Math.floor(sortedFrequencies.length / 2);
@@ -29,14 +44,9 @@ function getMedianFrequency(frequencies: number[]) {
     : sortedFrequencies[middleIndex];
 }
 
-export function smoothDiagnosticFrequencies(
-  frequencies: Array<number | null>,
-) {
+export function smoothDiagnosticFrequencies(frequencies: Array<number | null>) {
   return frequencies.map((frequency, index) => {
-    if (
-      frequency === null ||
-      !isValidDiagnosticFrequencyEstimate(frequency)
-    ) {
+    if (frequency === null || !isValidDiagnosticFrequencyEstimate(frequency)) {
       return null;
     }
 
