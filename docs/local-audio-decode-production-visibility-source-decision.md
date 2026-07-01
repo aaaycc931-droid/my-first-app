@@ -270,3 +270,5 @@ P12p does not do any of the following:
 - real audio commits
 - `metadata.local.json` commits
 - APK-ready claim
+
+P12q records final research route release QA after the direct-URL-only visibility decision, confirming `/research/local-audio-decode` is ready only for limited research-only demonstration while keeping homepage links, `/practice` links, navigation changes, route behavior changes, Practice Mode integration, `TargetPitchCurve` generation, formal scoring, upload/cloud/AI behavior, and APK-ready claims deferred.
