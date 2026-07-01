@@ -1,7 +1,10 @@
 import {
   DIAGNOSTIC_MAX_FREQUENCY_HZ,
   DIAGNOSTIC_MIN_FREQUENCY_HZ,
+  DIAGNOSTIC_MIN_CLARITY,
+  isReliableDiagnosticClarity,
   isValidDiagnosticFrequencyEstimate,
+  isValidDiagnosticVoicedFrame,
   smoothDiagnosticFrequencies,
   summarizeDiagnosticFrequencies,
 } from "../lib/research/local-audio-decode/pitch-frame-diagnostics";
@@ -12,7 +15,7 @@ function assert(condition: boolean, message: string) {
   }
 }
 
-function generateSineFrequencyEstimate(frequencyHz: number) {
+function generateSineDiagnosticCandidate(frequencyHz: number) {
   const sampleRate = 44100;
   const frameSize = 2048;
   const samples = new Float32Array(frameSize);
@@ -53,7 +56,10 @@ function generateSineFrequencyEstimate(frequencyHz: number) {
     }
   }
 
-  return bestLag === 0 ? Number.NaN : sampleRate / bestLag;
+  return {
+    clarity: bestCorrelation,
+    frequency: bestLag === 0 ? Number.NaN : sampleRate / bestLag,
+  };
 }
 
 const silenceSummary = summarizeDiagnosticFrequencies([]);
@@ -64,10 +70,45 @@ assert(
 );
 assert(silenceSummary.frequencyMaxHz === null, "silence should not set max");
 
-const a4LikeEstimate = generateSineFrequencyEstimate(440);
+const a4LikeCandidate = generateSineDiagnosticCandidate(440);
 assert(
-  isValidDiagnosticFrequencyEstimate(a4LikeEstimate),
-  `A4-like estimate should remain valid, got ${a4LikeEstimate}`,
+  isValidDiagnosticFrequencyEstimate(a4LikeCandidate.frequency),
+  `A4-like estimate should remain frequency-valid, got ${a4LikeCandidate.frequency}`,
+);
+assert(
+  isReliableDiagnosticClarity(a4LikeCandidate.clarity),
+  `A4-like estimate should have reliable diagnostic clarity, got ${a4LikeCandidate.clarity}`,
+);
+assert(
+  isValidDiagnosticVoicedFrame(
+    a4LikeCandidate.frequency,
+    a4LikeCandidate.clarity,
+  ),
+  "A4-like candidate should remain a valid diagnostic voiced frame",
+);
+
+assert(
+  isReliableDiagnosticClarity(DIAGNOSTIC_MIN_CLARITY),
+  "the diagnostic clarity threshold should be inclusive",
+);
+assert(
+  !isReliableDiagnosticClarity(DIAGNOSTIC_MIN_CLARITY - 0.01),
+  "low-clarity candidates should not be reliable diagnostic frames",
+);
+assert(
+  !isReliableDiagnosticClarity(Number.NaN),
+  "non-finite clarity should not be reliable",
+);
+assert(
+  !isValidDiagnosticVoicedFrame(440, DIAGNOSTIC_MIN_CLARITY - 0.01),
+  "low-clarity candidate should not enter the valid voiced summary",
+);
+assert(
+  !isValidDiagnosticVoicedFrame(
+    DIAGNOSTIC_MAX_FREQUENCY_HZ + 1,
+    DIAGNOSTIC_MIN_CLARITY,
+  ),
+  "out-of-range values should remain excluded by the P13d guard",
 );
 
 const filteredSummary = summarizeDiagnosticFrequencies([
@@ -81,12 +122,34 @@ const filteredSummary = summarizeDiagnosticFrequencies([
   DIAGNOSTIC_MAX_FREQUENCY_HZ + 1,
 ]);
 
-assert(filteredSummary.frequencyMinHz === 220, "invalid values should not set min");
+assert(
+  filteredSummary.frequencyMinHz === 220,
+  "invalid values should not set min",
+);
 assert(
   filteredSummary.frequencyMedianHz === 330,
   "invalid values should not set median",
 );
-assert(filteredSummary.frequencyMaxHz === 440, "invalid values should not set max");
+assert(
+  filteredSummary.frequencyMaxHz === 440,
+  "invalid values should not set max",
+);
+
+const lowClarityFrameFrequencies = [
+  isValidDiagnosticVoicedFrame(440, DIAGNOSTIC_MIN_CLARITY - 0.01) ? 440 : null,
+  isValidDiagnosticVoicedFrame(441, 0) ? 441 : null,
+];
+const lowClaritySummary = summarizeDiagnosticFrequencies(
+  lowClarityFrameFrequencies.filter(
+    (frequency): frequency is number => frequency !== null,
+  ),
+);
+assert(
+  lowClaritySummary.frequencyMinHz === null &&
+    lowClaritySummary.frequencyMedianHz === null &&
+    lowClaritySummary.frequencyMaxHz === null,
+  "low-clarity candidates should not produce misleading summary values",
+);
 
 const cleanSmoothedFrequencies = smoothDiagnosticFrequencies([220, 221, 222]);
 assert(
@@ -115,6 +178,18 @@ assert(
   nullableSmoothedFrequencies[0] === 440 &&
     nullableSmoothedFrequencies[2] === 880,
   "smoothing should not cross unvoiced gaps",
+);
+
+const lowClaritySmoothedFrequencies = smoothDiagnosticFrequencies([
+  440,
+  isValidDiagnosticVoicedFrame(660, DIAGNOSTIC_MIN_CLARITY - 0.01) ? 660 : null,
+  880,
+]);
+assert(
+  lowClaritySmoothedFrequencies[1] === null &&
+    lowClaritySmoothedFrequencies[0] === 440 &&
+    lowClaritySmoothedFrequencies[2] === 880,
+  "smoothing should not create voiced pitch from low-clarity frames",
 );
 
 const invalidSmoothedFrequencies = smoothDiagnosticFrequencies([
@@ -147,4 +222,6 @@ assert(
   "summary should use valid diagnostic frequencies after smoothing",
 );
 
-console.log("local audio decode pitch diagnostic guard synthetic checks passed");
+console.log(
+  "local audio decode pitch diagnostic guard synthetic checks passed",
+);

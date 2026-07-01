@@ -5,7 +5,7 @@ import { ChangeEvent, useMemo, useRef, useState } from "react";
 import {
   DIAGNOSTIC_MAX_FREQUENCY_HZ,
   DIAGNOSTIC_MIN_FREQUENCY_HZ,
-  isValidDiagnosticFrequencyEstimate,
+  isValidDiagnosticVoicedFrame,
   smoothDiagnosticFrequencies,
   summarizeDiagnosticFrequencies,
 } from "../../../lib/research/local-audio-decode/pitch-frame-diagnostics";
@@ -54,7 +54,6 @@ const pitchFrameSize = 2048;
 const pitchHopSize = 1024;
 const minPitchHz = DIAGNOSTIC_MIN_FREQUENCY_HZ;
 const maxPitchHz = DIAGNOSTIC_MAX_FREQUENCY_HZ;
-const minAutocorrelationClarity = 0.62;
 
 const wavMimeTypes = new Set([
   "audio/wav",
@@ -133,12 +132,12 @@ function estimateResearchFrameFrequency(
     }
   }
 
-  if (bestLag === 0 || bestCorrelation < minAutocorrelationClarity) {
+  if (bestLag === 0) {
     return null;
   }
 
   const frequency = sampleRate / bestLag;
-  if (!isValidDiagnosticFrequencyEstimate(frequency)) {
+  if (!isValidDiagnosticVoicedFrame(frequency, bestCorrelation)) {
     return null;
   }
 
@@ -568,19 +567,17 @@ export default function LocalAudioDecodeFileInputShell() {
 
         {pitchDiagnostics ? (
           <div className="rounded-2xl border border-sky-300/30 bg-slate-900 p-4 text-sm text-slate-200">
-            <p className="font-semibold text-white">
-              Pitch frame diagnostics
-            </p>
+            <p className="font-semibold text-white">Pitch frame diagnostics</p>
             <p className="mt-2 leading-6 text-sky-100">
-              These values summarize local research diagnostics from decoded
-              WAV frames. They are not a formal pitch score, melody
-              transcription, or Practice Mode result. No TargetPitchCurve is
-              generated from this output.
+              These values summarize local research diagnostics from decoded WAV
+              frames. They are not a formal pitch score, melody transcription,
+              or Practice Mode result. No TargetPitchCurve is generated from
+              this output.
             </p>
             <div className="mt-3 rounded-2xl border border-sky-200/20 bg-slate-950/60 p-3 leading-6 text-sky-50/90">
               Local-only research diagnostics: no upload, no cloud, no AI API,
-              no melody recognition, no scoring, no TargetPitchCurve
-              generation, not Practice Mode, and not APK-ready.
+              no melody recognition, no scoring, no TargetPitchCurve generation,
+              not Practice Mode, and not APK-ready.
             </div>
             <dl className="mt-3 grid gap-2 sm:grid-cols-2">
               <div>

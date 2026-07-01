@@ -390,3 +390,9 @@ P13m does not do any of the following:
 - Real audio commits.
 - `metadata.local.json` commits.
 - APK-ready claim.
+
+## 16. P13n follow-up implementation note
+
+P13n implemented the chosen diagnostic clarity / voiced-unvoiced guard refinement as a tiny isolated runtime change. It extracted the existing autocorrelation clarity threshold into a named research diagnostic constant and pure helper, preserving the P13d 50–1200 Hz diagnostic frequency bounds, P13i valid-frequency-only median smoothing, route behavior, UI copy, file selection / decode metadata / Extract pitch frames actions, disabled / enabled gating, Practice Mode boundaries, note segmentation boundaries, `TargetPitchCurve` boundaries, scoring boundaries, upload / cloud / AI boundaries, dependency boundaries, real audio boundaries, and APK / WebView caveats.
+
+Low-clarity diagnostic candidates continue through the existing aggregate voiced / unvoiced behavior as unvoiced diagnostic frames rather than becoming formal confidence states. Broader per-frame confidence state and confidence calibration remain future work; P13n is not formal pitch recognition, note segmentation, melody recognition, scoring, grading, pass/fail assessment, Practice Mode integration, product-ready audio import, or APK-ready functionality.
