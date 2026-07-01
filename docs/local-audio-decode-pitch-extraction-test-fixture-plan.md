@@ -249,3 +249,7 @@ P13b does not do:
 - Real audio commits.
 - `metadata.local.json` commits.
 - APK-ready claim.
+
+## 16. P13c source decision update
+
+P13c chooses conservative frequency bounds plus confidence / voiced-unvoiced diagnostic guarding as the first future tiny isolated pitch extraction improvement direction while keeping route behavior, UI copy, file / decode / extract actions, pitch extraction logic, Practice Mode integration, note segmentation, `TargetPitchCurve` generation, formal scoring, upload / cloud / AI behavior, dependencies, real audio commits, and APK-ready claims unchanged.
