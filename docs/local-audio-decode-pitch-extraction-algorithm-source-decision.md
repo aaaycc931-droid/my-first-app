@@ -368,3 +368,11 @@ P13c does not do:
 - Real audio commits.
 - `metadata.local.json` commits.
 - APK-ready claim.
+
+## P13d follow-up implementation note
+
+P13d implemented the chosen conservative diagnostic frequency bounds plus voiced / unvoiced guard as a tiny isolated runtime change for `/research/local-audio-decode` decoded WAV pitch-frame extraction. Invalid, non-finite, non-positive, and out-of-range estimates are treated as invalid diagnostics rather than valid voiced pitch, so they do not pollute min / median / max frequency summaries. The current extractor continues to use its existing autocorrelation clarity threshold; broader confidence calibration remains future work.
+
+This remains a research-only diagnostic guard, not a formal vocal range, product scoring range, or production recognition standard. P13d preserves route behavior, UI copy, file selection, decode metadata, **Extract pitch frames** action behavior, disabled / enabled gating, Practice Mode boundaries, `TargetPitchCurve` boundaries, note segmentation boundaries, scoring boundaries, upload / cloud / AI boundaries, dependency boundaries, real audio boundaries, and APK / WebView caveats.
+
+P13d synthetic checks use generated in-memory candidate values and an in-memory A4-like sine sample only. No WAV fixture, real audio, or `metadata.local.json` is committed.
