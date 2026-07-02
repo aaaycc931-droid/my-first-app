@@ -166,3 +166,9 @@ P15b adds the first isolated runtime POC for this plan: `convertNoteLikeSegments
 The converter preserves input order, maps each input segment to exactly one research target-curve-like segment, uses `representativeFrequencyHz` as `targetFrequencyHz`, maps `nearestNoteName` only to optional diagnostic `targetNoteLabel`, preserves `diagnosticConfidence`, and computes only `segmentCount`, `lowConfidenceSegmentCount`, and summed `totalDurationSeconds`.
 
 P15b remains isolated research-only. It does not read files, inspect `AudioBuffer`, call browser APIs, upload data, call cloud or AI APIs, integrate with `/research/local-audio-decode`, integrate with `/practice`, generate a formal `TargetPitchCurve`, perform formal note or melody recognition, interpolate pitch, correct notes, detect key, assess rhythm, score, add dependencies, change package files, commit audio fixtures, commit `metadata.local.json`, or claim APK / WebView readiness.
+
+## 9. P15d Implementation Note
+
+P15d wires the P15b research-only converter into the existing `/research/local-audio-decode` diagnostic UI after the explicit **Extract pitch frames** action. It reuses the P14 note-like segment diagnostics that the route already derives from guarded and smoothed diagnostic pitch frames, then displays the resulting `ResearchTargetPitchCurveDiagnostic` in a small diagnostics-only section.
+
+The P15d UI remains research-only. It is not formal `TargetPitchCurve` generation, not Practice Mode integration, not Practice Mode audio import, not formal note recognition, not melody recognition, and not scoring. P15d does not alter file selection, decode metadata, Extract pitch frames gating, the pitch extraction algorithm, P13d / P13i / P13n guards, P14b segmentation semantics, or P15b converter semantics.
