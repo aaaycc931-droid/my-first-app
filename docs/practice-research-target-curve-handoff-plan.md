@@ -160,3 +160,18 @@ P16h and the planned future handoff explicitly do not include:
 - Rhythm / sight-singing assessment.
 - Song Learning Mode.
 - APK-ready claim.
+
+## 9. P16i Implementation Note — Isolated Manual JSON Handoff Parser
+
+P16i implements only the isolated runtime helper for a future manual paste handoff. It does not add a copy button, paste panel, `/practice` UI integration, `/research/local-audio-decode` UI integration, storage, scoring, target replacement, or real audio import.
+
+The helper accepts only JSON text as a `string` and returns an explicit result union:
+
+- `ok: true` with a `ResearchTargetPitchCurveDiagnostic` when the pasted text matches the conservative research-only contract.
+- `ok: false` with an error code and non-scoring diagnostic message for empty input, invalid JSON, invalid shape, unsupported source, unsupported confidence, or invalid numbers.
+
+P16i uses strict summary validation instead of implicit summary normalization. `summary.segmentCount` must equal `segments.length`, and `summary.lowConfidenceSegmentCount` must equal the number of `low` diagnostic segments. This avoids silently rewriting pasted diagnostics.
+
+The helper validates only the research source `local-audio-decode-note-like-segments`; segment numeric fields must be finite; `targetFrequencyHz` must be positive; frame counts must be non-negative; `diagnosticConfidence` must be exactly `normal` or `low`; `high` and `medium` are rejected; optional `targetNoteLabel` must be a string when present; and `summary.totalDurationSeconds` must be finite and non-negative.
+
+Synthetic tests cover empty input, invalid JSON, missing top-level fields, unsupported source, valid empty / one-segment / multi-segment diagnostics, normal and low confidence acceptance, high and medium confidence rejection, non-finite numbers, negative target frequency, missing segment fields, optional note label omission and string acceptance, summary count mismatches, returned diagnostic copy isolation from parsed input, and non-scoring error wording.
