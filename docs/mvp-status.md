@@ -493,4 +493,8 @@ P12d commits no real audio and no `metadata.local.json`. Android APK / WebView b
 
 ## 51. P16e Practice Preview Diagnostic Confidence Contract Source Review QA
 
-- 2026-07-02: Added P16e docs-only source review QA for the P16d `/practice` research target curve diagnostic preview confidence contract cleanup. P16e confirms P16d only aligned the active preview fixture/runtime with the P15b `diagnosticConfidence` contract, active fixture/runtime values no longer use `high` or `medium`, active values are constrained to `normal` and `low`, and remaining `high` / `medium` wording is limited to P16c historical finding or P16d/P16e regression-prevention documentation. The review also confirms the fixture uses P15b research-only `ResearchTargetPitchCurveDiagnostic` / `ResearchTargetPitchCurveSegmentDiagnostic` types with `satisfies` constraints, UI confidence labels use conservative diagnostic wording rather than raw enum display, and the low-confidence segment still displays as low-confidence. This docs-only QA does not change runtime behavior, `/practice` UI behavior, the preview fixture, Practice Mode flow, research route, formal `TargetPitchCurve` runtime files, scoring / assessment behavior, dependencies, package files, audio fixtures, real recordings, or `metadata.local.json`. P16e does not complete the P16c-missing full interactive browser QA or Network panel QA; those remain required in a future environment with a runnable browser, and this PR does not claim a full browser QA pass.
+- 2026-07-02: Added P16e docs-only source review QA for the P16d `/practice` research target curve diagnostic preview confidence contract...
+
+## 52. P16f Practice Browser QA Recovery Plan / Manual QA Guide
+
+- 2026-07-02: Added P16f docs-only browser QA recovery guidance for the P16 `/practice` read-only research target curve diagnostic preview...
