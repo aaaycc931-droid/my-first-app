@@ -3,6 +3,11 @@
 import { ChangeEvent, useMemo, useRef, useState } from "react";
 
 import {
+  deriveNoteLikeSegmentDiagnostics,
+  type DiagnosticPitchFrame,
+  type NoteLikeSegmentDiagnostic,
+} from "../../../lib/research/local-audio-decode/note-like-segment-diagnostics";
+import {
   DIAGNOSTIC_MAX_FREQUENCY_HZ,
   DIAGNOSTIC_MIN_FREQUENCY_HZ,
   isValidDiagnosticVoicedFrame,
@@ -48,6 +53,8 @@ type PitchDiagnosticMetadata = {
   frequencyMedianHz: number | null;
   frequencyMaxHz: number | null;
   statusText: string;
+  diagnosticFrames: DiagnosticPitchFrame[];
+  noteLikeSegments: NoteLikeSegmentDiagnostic[];
 };
 
 const pitchFrameSize = 2048;
@@ -158,6 +165,8 @@ function extractResearchPitchDiagnostics(
       frequencyMaxHz: null,
       statusText:
         "Decoded audio is shorter than one research pitch frame; no diagnostic frames were analyzed.",
+      diagnosticFrames: [],
+      noteLikeSegments: [],
     };
   }
 
@@ -181,6 +190,10 @@ function extractResearchPitchDiagnostics(
   }
 
   const smoothedFrequencies = smoothDiagnosticFrequencies(frameFrequencies);
+  const diagnosticFrames = smoothedFrequencies.map((frequencyHz, index) => ({
+    timeSeconds: (index * pitchHopSize) / audioBuffer.sampleRate,
+    frequencyHz,
+  }));
   const validFrequencySummary = summarizeDiagnosticFrequencies(
     smoothedFrequencies.filter(
       (frequency): frequency is number => frequency !== null,
@@ -190,6 +203,7 @@ function extractResearchPitchDiagnostics(
     (frequency) => frequency !== null,
   ).length;
   const unvoicedFrameCount = frameCount - voicedFrameCount;
+  const noteLikeSegments = deriveNoteLikeSegmentDiagnostics(diagnosticFrames);
 
   return {
     analyzedDurationSeconds: audioBuffer.duration,
@@ -203,6 +217,8 @@ function extractResearchPitchDiagnostics(
       voicedFrameCount > 0
         ? "Exploratory diagnostic pitch frames were extracted locally from the decoded WAV buffer."
         : "No voiced diagnostic pitch frames were found by this exploratory local probe.",
+    diagnosticFrames,
+    noteLikeSegments,
   };
 }
 
@@ -643,6 +659,78 @@ export default function LocalAudioDecodeFileInputShell() {
               only and is not a score, grade, pass/fail assessment, product
               import result, TargetPitchCurve, or Practice Mode state.
             </p>
+
+            <div className="mt-4 rounded-2xl border border-amber-200/20 bg-slate-950/60 p-3 leading-6 text-amber-50/90">
+              <p className="font-semibold text-white">
+                Note-like segment diagnostics
+              </p>
+              <p className="mt-2">
+                Research-only. Not formal note recognition. Not melody
+                recognition. Not scoring. These diagnostics only group the
+                current extracted pitch frames for inspection on this isolated
+                route.
+              </p>
+              <dl className="mt-3 grid gap-2 sm:grid-cols-2">
+                <div>
+                  <dt className="text-slate-400">Segment count</dt>
+                  <dd>{pitchDiagnostics.noteLikeSegments.length}</dd>
+                </div>
+              </dl>
+              {pitchDiagnostics.noteLikeSegments.length > 0 ? (
+                <div className="mt-3 space-y-3">
+                  {pitchDiagnostics.noteLikeSegments.map((segment, index) => (
+                    <div
+                      key={`${segment.startTimeSeconds}-${segment.endTimeSeconds}-${index}`}
+                      className="rounded-xl border border-amber-200/10 bg-slate-900/80 p-3"
+                    >
+                      <p className="font-semibold text-amber-100">
+                        Segment {index + 1}
+                      </p>
+                      <dl className="mt-2 grid gap-2 sm:grid-cols-2">
+                        <div>
+                          <dt className="text-slate-400">Start / end</dt>
+                          <dd>
+                            {segment.startTimeSeconds.toFixed(3)} s / {" "}
+                            {segment.endTimeSeconds.toFixed(3)} s
+                          </dd>
+                        </div>
+                        <div>
+                          <dt className="text-slate-400">Duration</dt>
+                          <dd>{segment.durationSeconds.toFixed(3)} s</dd>
+                        </div>
+                        <div>
+                          <dt className="text-slate-400">Representative frequency</dt>
+                          <dd>
+                            {segment.representativeFrequencyHz.toFixed(1)} Hz
+                          </dd>
+                        </div>
+                        <div>
+                          <dt className="text-slate-400">Nearest note label</dt>
+                          <dd>{segment.nearestNoteName ?? "Not available"}</dd>
+                        </div>
+                        <div>
+                          <dt className="text-slate-400">Voiced frame count</dt>
+                          <dd>{segment.voicedFrameCount}</dd>
+                        </div>
+                        <div>
+                          <dt className="text-slate-400">Bridged null frame count</dt>
+                          <dd>{segment.bridgedNullFrameCount}</dd>
+                        </div>
+                        <div>
+                          <dt className="text-slate-400">Diagnostic confidence</dt>
+                          <dd>{segment.diagnosticConfidence}</dd>
+                        </div>
+                      </dl>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="mt-3 text-amber-100">
+                  No note-like segment diagnostics available from the current
+                  extracted pitch frames.
+                </p>
+              )}
+            </div>
           </div>
         ) : null}
 
