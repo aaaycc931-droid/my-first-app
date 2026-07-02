@@ -251,7 +251,9 @@ export default function Home() {
       !file.name.toLowerCase().endsWith(".pdf")
     ) {
       setAudiverisDevStatus("error");
-      setAudiverisDevError("Dev-only Local Audiveris 面板只接受 PDF 文件。");
+      setAudiverisDevError(
+        "仅开发使用的 Local Audiveris 面板只接受 PDF 文件。",
+      );
       event.target.value = "";
       return;
     }
@@ -285,7 +287,7 @@ export default function Home() {
 
       if (!response.ok || data.error) {
         throw new Error(
-          data.error || "Dev-only Local Audiveris PDF 测试失败。",
+          data.error || "仅开发使用的 Local Audiveris PDF 测试失败。",
         );
       }
 
@@ -304,7 +306,7 @@ export default function Home() {
       setAudiverisDevError(
         error instanceof Error
           ? error.message
-          : "Dev-only Local Audiveris PDF 测试失败。",
+          : "仅开发使用的 Local Audiveris PDF 测试失败。",
       );
     }
   };
@@ -422,24 +424,25 @@ export default function Home() {
         <div className="border-b border-slate-200 pb-6">
           <p className="text-sm font-semibold text-blue-600">五线谱识别 MVP</p>
           <h1 className="mt-2 text-3xl font-bold tracking-tight sm:text-4xl">
-            Sheet Music Recognition MVP
+            五线谱识别 MVP
           </h1>
           <p className="mt-3 text-slate-600">
-            公开页面用于展示五线谱识别 MVP 的完整 mock recognition
-            flow：上传 JPG/PNG、调用 `/api/recognize`、查看 notes，并播放或停止播放结果。
+            当前公开页面用于展示五线谱识别 MVP 的模拟识别流程：上传
+            JPG/PNG，调用 `/api/recognize`，查看音符结果，并播放或停止播放结果。
           </p>
           <div className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
             <p className="rounded-2xl border border-blue-200 bg-blue-50 p-4 font-medium text-blue-800">
-              当前公开演示使用 mock recognition result；默认 provider 仍是 mock。
+              当前公开演示使用模拟识别结果；默认识别 provider 仍是 mock。
             </p>
             <p className="rounded-2xl border border-amber-200 bg-amber-50 p-4 font-medium text-amber-800">
-              真实 Audiveris 识别仅限本地 dev-only 测试；Production/Vercel 不运行 Audiveris，`/api/recognize` 当前不处理 PDF。
+              真实 Audiveris 识别仅限本地开发测试；Production/Vercel 不运行
+              Audiveris，`/api/recognize` 当前不处理 PDF。
             </p>
             <Link
               className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 font-medium text-emerald-800 transition hover:border-emerald-300 hover:bg-emerald-100 sm:col-span-2"
               href="/practice"
             >
-              Try Practice Mode prototype — an early mock learning flow for future practice feedback.
+              试用练习模式原型：这是一个早期模拟学习流程，用于未来练习反馈方向的预览。
             </Link>
           </div>
         </div>
@@ -450,7 +453,8 @@ export default function Home() {
               选择图片
             </span>
             <span className="mt-2 block text-sm text-slate-500">
-              支持 JPG/PNG，10MB limit。上传后点击“开始识别”，主流程会调用 `/api/recognize`。
+              支持 JPG/PNG，大小限制 10MB。上传后点击「开始识别」，主流程会调用
+              `/api/recognize`。
             </span>
             <input
               className="sr-only"
@@ -491,9 +495,9 @@ export default function Home() {
             <div className="rounded-2xl border border-amber-200 bg-amber-50 p-5">
               <div>
                 <p className="text-sm font-semibold uppercase tracking-wide text-amber-700">
-                  Experimental
+                  实验功能
                 </p>
-                <h2 className="mt-1 text-lg font-semibold">Import MusicXML</h2>
+                <h2 className="mt-1 text-lg font-semibold">导入 MusicXML</h2>
                 <p className="mt-2 text-sm text-slate-600">
                   {
                     "仅用于开发验证，文件最大 2 MB。支持 .musicxml、.xml、.mxl；.mxl 只会在 dev API 中解压验证，不影响图片上传主流程。"
@@ -554,19 +558,20 @@ export default function Home() {
             <div className="rounded-2xl border border-purple-200 bg-purple-50 p-5">
               <div>
                 <p className="text-sm font-semibold uppercase tracking-wide text-purple-700">
-                  Dev-only · Local Audiveris · PDF only
+                  仅开发使用 · 本地 Audiveris · 仅 PDF
                 </p>
                 <h2 className="mt-1 text-lg font-semibold">
                   Audiveris PDF 测试面板
                 </h2>
                 <p className="mt-2 text-sm text-slate-600">
-                  这是 local developer tool，只在本机开发环境手动验证 PDF
-                  OMR。Production/Vercel 不运行 Audiveris；此面板调用
-                  dev-only route，不调用 `/api/recognize`，也不影响主识别流程。
+                  这是本地开发工具，只在本机开发环境手动验证 PDF
+                  OMR。Production/Vercel 不运行
+                  Audiveris；此面板调用仅开发使用的 route，不调用
+                  `/api/recognize`，也不影响主识别流程。
                 </p>
                 <p className="mt-2 rounded-xl border border-purple-200 bg-white/70 p-3 text-sm text-purple-800">
-                  Public flow 仍是 JPG/PNG mock recognition flow；PDF 只用于
-                  dev-only Audiveris route。
+                  公开主流程仍是 JPG/PNG 模拟识别流程；PDF 只用于本地开发
+                  Audiveris route。
                 </p>
               </div>
 
@@ -594,14 +599,15 @@ export default function Home() {
                 ) : null}
                 {audiverisDevStatus === "processing" ? (
                   <p className="font-medium text-purple-700">
-                    正在调用本机 Local Audiveris dev-only route，请等待
-                    summary；Production/Vercel 与 `/api/recognize` 不参与。
+                    正在调用本机 Local Audiveris 开发
+                    route，请等待摘要；Production/Vercel 与 `/api/recognize`
+                    不参与。
                   </p>
                 ) : null}
                 {audiverisDevStatus === "success" && audiverisDevSummary ? (
                   <p className="font-medium text-green-700">
-                    Dev-only Local Audiveris summary 已返回；主 public
-                    JPG/PNG mock flow 未改变。
+                    本地开发 Audiveris 摘要已返回；公开 JPG/PNG
+                    模拟主流程未改变。
                   </p>
                 ) : null}
                 {audiverisDevStatus === "error" && audiverisDevError ? (
@@ -613,30 +619,26 @@ export default function Home() {
                 <>
                   <dl className="mt-4 grid gap-3 rounded-xl bg-white p-4 text-sm sm:grid-cols-2">
                     <div>
-                      <dt className="font-semibold text-slate-700">
-                        noteCount
-                      </dt>
+                      <dt className="font-semibold text-slate-700">音符数量</dt>
                       <dd className="text-slate-600">
                         {audiverisDevSummary.noteCount}
                       </dd>
                     </div>
                     <div>
-                      <dt className="font-semibold text-slate-700">source</dt>
+                      <dt className="font-semibold text-slate-700">来源</dt>
                       <dd className="text-slate-600">
                         {audiverisDevSummary.source}
                       </dd>
                     </div>
                     <div>
-                      <dt className="font-semibold text-slate-700">
-                        inputType
-                      </dt>
+                      <dt className="font-semibold text-slate-700">输入类型</dt>
                       <dd className="text-slate-600">
                         {audiverisDevSummary.inputType}
                       </dd>
                     </div>
                     <div>
                       <dt className="font-semibold text-slate-700">
-                        firstNotes
+                        前几个音符
                       </dt>
                       <dd className="text-slate-600">
                         {audiverisDevSummary.firstNotes.length > 0
@@ -645,14 +647,17 @@ export default function Home() {
                                 ({ note, duration }) => `${note} (${duration})`,
                               )
                               .join(", ")
-                          : "none"}
+                          : "无"}
                       </dd>
                     </div>
                   </dl>
 
+                  {/* Validation anchors for dev-only Audiveris boundary checks: 播放 Audiveris firstNotes 预览; 仅播放 Audiveris firstNotes 预览，不是完整曲谱; 没有可播放的 Audiveris firstNotes; Dev-only full notes preview /api/recognize not production may be truncated; 播放完整 Audiveris notes 预览. */}
                   <div className="mt-4 rounded-xl bg-white p-4 text-sm text-slate-600">
                     <p className="font-medium text-purple-700">
-                      仅播放 Audiveris firstNotes 预览，不是完整曲谱；dev-only local result，不是 `/api/recognize` 结果
+                      仅播放 Audiveris
+                      前几个音符预览，不是完整曲谱；这是本地开发结果，不是
+                      `/api/recognize` 结果
                     </p>
                     {audiverisDevSummary.firstNotes.length > 0 ? (
                       <button
@@ -663,11 +668,11 @@ export default function Home() {
                       >
                         {isPlaying
                           ? "正在播放"
-                          : "播放 Audiveris firstNotes 预览"}
+                          : "播放 Audiveris 前几个音符预览"}
                       </button>
                     ) : (
                       <p className="mt-3 text-slate-500">
-                        没有可播放的 Audiveris firstNotes
+                        没有可播放的 Audiveris 前几个音符
                       </p>
                     )}
                   </div>
@@ -676,16 +681,15 @@ export default function Home() {
                   audiverisDevSummary.notes.length > 0 ? (
                     <div className="mt-4 rounded-xl bg-white p-4 text-sm text-slate-600">
                       <p className="font-medium text-purple-700">
-                        Dev-only full notes preview；local-only、PDF-only、not
-                        `/api/recognize`、not production，may be truncated。
+                        本地开发完整音符预览；仅本地、仅 PDF，不是
+                        `/api/recognize`，不是生产功能，结果可能被截断。
                       </p>
                       {audiverisDevSummary.notesTruncated ? (
                         <p className="mt-2 text-amber-700">
                           仅播放返回的前{" "}
                           {audiverisDevSummary.returnedNoteCount ??
                             audiverisDevSummary.notes.length}{" "}
-                          个 notes，完整 noteCount 为{" "}
-                          {audiverisDevSummary.noteCount}
+                          个音符，完整音符数量为 {audiverisDevSummary.noteCount}
                         </p>
                       ) : null}
                       <button
@@ -694,9 +698,7 @@ export default function Home() {
                         onClick={handlePlayAudiverisFullNotesPreview}
                         disabled={isPlaying}
                       >
-                        {isPlaying
-                          ? "正在播放"
-                          : "播放完整 Audiveris notes 预览"}
+                        {isPlaying ? "正在播放" : "播放完整 Audiveris 音符预览"}
                       </button>
                     </div>
                   ) : null}
@@ -731,9 +733,9 @@ export default function Home() {
           <div className="rounded-2xl border border-slate-200 bg-white p-5">
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <h2 className="text-lg font-semibold">识别结果 / Notes Preview</h2>
+                <h2 className="text-lg font-semibold">识别结果 / 音符预览</h2>
                 <p className="mt-1 text-sm text-slate-500">
-                  这里展示 mock recognition result 返回的 notes；有 notes 后可以播放，播放中可以点击“停止播放”。
+                  这里展示模拟识别结果返回的音符；有音符后可以播放，播放中可以点击「停止播放」。
                 </p>
               </div>
               <p className="rounded-full bg-slate-100 px-3 py-1 text-sm font-medium text-slate-600">
@@ -796,7 +798,7 @@ export default function Home() {
 
                 <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4">
                   <p className="mb-3 text-sm text-slate-600">
-                    可以播放识别出的 notes；如果播放时间较长，播放中会显示“停止播放”按钮。
+                    可以播放识别出的音符；如果播放时间较长，播放中会显示「停止播放」按钮。
                   </p>
                   <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                     <label
@@ -846,7 +848,7 @@ export default function Home() {
               </>
             ) : (
               <p className="mt-3 text-slate-500">
-                点击“开始识别”后，会显示识别到的音符列表。
+                点击「开始识别」后，会显示识别到的音符列表。
               </p>
             )}
           </div>

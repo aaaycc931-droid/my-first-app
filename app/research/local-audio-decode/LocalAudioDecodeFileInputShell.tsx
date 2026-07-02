@@ -1,6 +1,7 @@
 "use client";
 
 import { ChangeEvent, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 
 import {
   deriveNoteLikeSegmentDiagnostics,
@@ -66,6 +67,8 @@ const pitchFrameSize = 2048;
 const pitchHopSize = 1024;
 const minPitchHz = DIAGNOSTIC_MIN_FREQUENCY_HZ;
 const maxPitchHz = DIAGNOSTIC_MAX_FREQUENCY_HZ;
+const practiceResearchTargetCurveDiagnosticPreviewKey =
+  "practiceResearchTargetCurveDiagnosticPreview";
 
 const wavMimeTypes = new Set([
   "audio/wav",
@@ -168,8 +171,7 @@ function extractResearchPitchDiagnostics(
       frequencyMinHz: null,
       frequencyMedianHz: null,
       frequencyMaxHz: null,
-      statusText:
-        "Decoded audio is shorter than one research pitch frame; no diagnostic frames were analyzed.",
+      statusText: "解码后的音频短于一个研究音高帧；没有分析诊断帧。",
       diagnosticFrames: [],
       noteLikeSegments: [],
       researchTargetPitchCurve:
@@ -226,8 +228,8 @@ function extractResearchPitchDiagnostics(
     frequencyMaxHz: validFrequencySummary.frequencyMaxHz,
     statusText:
       voicedFrameCount > 0
-        ? "Exploratory diagnostic pitch frames were extracted locally from the decoded WAV buffer."
-        : "No voiced diagnostic pitch frames were found by this exploratory local probe.",
+        ? "已从解码后的 WAV 缓冲区本地提取研究音高帧。"
+        : "这个本地研究探针没有找到有声诊断音高帧。",
     diagnosticFrames,
     noteLikeSegments,
     researchTargetPitchCurve,
@@ -239,17 +241,18 @@ function getRejectedReason(file: File) {
   const hasKnownWavMimeType = file.type ? wavMimeTypes.has(file.type) : false;
 
   if (!hasWavExtension) {
-    return "Only .wav files are accepted in this research shell. No audio was decoded, played, uploaded, analyzed, or sent to Practice Mode.";
+    return "此研究工具只接受 .wav 文件。未解码、播放、上传、分析音频，也未发送到练习页。";
   }
 
   if (file.type && !hasKnownWavMimeType) {
-    return "The browser reported a non-WAV MIME type for this file, so it was rejected before decoding. No audio was decoded, played, uploaded, analyzed, or sent to Practice Mode.";
+    return "浏览器报告的文件类型不是 WAV，因此已在解码前拒绝。未解码、播放、上传、分析音频，也未发送到练习页。";
   }
 
   return null;
 }
 
 export default function LocalAudioDecodeFileInputShell() {
+  const router = useRouter();
   const [decodeState, setDecodeState] = useState<DecodeState>("not-ready");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [selectedFileSummary, setSelectedFileSummary] =
@@ -268,6 +271,7 @@ export default function LocalAudioDecodeFileInputShell() {
   const [copyDiagnosticJsonStatus, setCopyDiagnosticJsonStatus] = useState<
     string | null
   >(null);
+  const [sendPreviewError, setSendPreviewError] = useState<string | null>(null);
   const [inputKey, setInputKey] = useState(0);
   const decodeRunIdRef = useRef(0);
   const pitchExtractionRunIdRef = useRef(0);
@@ -276,18 +280,18 @@ export default function LocalAudioDecodeFileInputShell() {
   const stateLabel = useMemo(() => {
     switch (decodeState) {
       case "ready-to-decode":
-        return "Ready to decode metadata";
+        return "可解码音频信息";
       case "decoding":
-        return "Decoding metadata";
+        return "正在解码音频信息";
       case "decoded-metadata":
-        return "Decoded metadata only";
+        return "已解码音频信息";
       case "decode-error":
-        return "Decode error";
+        return "解码失败";
       case "cleared":
-        return "Cleared / reset";
+        return "已清除 / 重置";
       case "not-ready":
       default:
-        return "Not ready";
+        return "未准备好";
     }
   }, [decodeState]);
 
@@ -306,6 +310,7 @@ export default function LocalAudioDecodeFileInputShell() {
     setPitchDiagnostics(null);
     setPitchExtractionError(null);
     setCopyDiagnosticJsonStatus(null);
+    setSendPreviewError(null);
   }
 
   function resetDecodeResult() {
@@ -324,7 +329,7 @@ export default function LocalAudioDecodeFileInputShell() {
       setSelectedFile(null);
       setSelectedFileSummary(null);
       setRejectedReason(
-        "No file was selected. The page remains not-ready, and no audio was decoded, played, uploaded, analyzed, or sent to Practice Mode.",
+        "未选择文件。页面仍未准备好；未解码、播放、上传、分析音频，也未发送到练习页。",
       );
       setDecodeState("not-ready");
       return;
@@ -386,7 +391,7 @@ export default function LocalAudioDecodeFileInputShell() {
         setDecodeError(
           error instanceof Error
             ? error.message
-            : "The browser could not decode this WAV file.",
+            : "此浏览器无法解码这个 WAV 文件。",
         );
         setDecodeState("decode-error");
       }
@@ -413,6 +418,7 @@ export default function LocalAudioDecodeFileInputShell() {
     setPitchDiagnostics(null);
     setPitchExtractionError(null);
     setCopyDiagnosticJsonStatus(null);
+    setSendPreviewError(null);
 
     try {
       await new Promise((resolve) => window.setTimeout(resolve, 0));
@@ -427,9 +433,7 @@ export default function LocalAudioDecodeFileInputShell() {
     } catch (error) {
       if (pitchExtractionRunIdRef.current === pitchExtractionRunId) {
         setPitchExtractionError(
-          error instanceof Error
-            ? error.message
-            : "The exploratory pitch diagnostic probe failed.",
+          error instanceof Error ? error.message : "研究音高诊断探针运行失败。",
         );
         setPitchExtractionState("extract-error");
       }
@@ -442,10 +446,29 @@ export default function LocalAudioDecodeFileInputShell() {
     }
 
     try {
-      await navigator.clipboard.writeText(researchTargetPitchCurveDiagnosticJson);
-      setCopyDiagnosticJsonStatus("Copied diagnostic JSON.");
+      await navigator.clipboard.writeText(
+        researchTargetPitchCurveDiagnosticJson,
+      );
+      setCopyDiagnosticJsonStatus("已复制诊断 JSON。");
     } catch {
-      setCopyDiagnosticJsonStatus("Copy failed. Please copy manually.");
+      setCopyDiagnosticJsonStatus("复制失败。请手动复制。");
+    }
+  }
+
+  function handleSendDiagnosticPreviewToPractice() {
+    if (!pitchDiagnostics) {
+      return;
+    }
+
+    try {
+      window.sessionStorage.setItem(
+        practiceResearchTargetCurveDiagnosticPreviewKey,
+        JSON.stringify(pitchDiagnostics.researchTargetPitchCurve),
+      );
+      setSendPreviewError(null);
+      router.push("/practice");
+    } catch {
+      setSendPreviewError("发送失败。你仍然可以使用下方的诊断 JSON 手动复制。");
     }
   }
 
@@ -464,31 +487,25 @@ export default function LocalAudioDecodeFileInputShell() {
       <div className="flex flex-col gap-4">
         <div>
           <p className="text-sm font-semibold uppercase tracking-[0.25em] text-emerald-200">
-            WAV-first local decode metadata POC
+            本地音频研究工具
           </p>
           <h2 className="mt-2 text-2xl font-semibold text-white">
-            Select one local WAV file
+            选择本地 WAV 文件
           </h2>
           <p className="mt-3 leading-7 text-emerald-50/90">
-            This control keeps file selection separate from decoding. It only
-            attempts browser decodeAudioData after you click Decode metadata,
-            then shows decoded metadata. A separate Extract pitch frames button
-            can run exploratory diagnostic pitch-frame extraction only after
-            decode succeeds: no playback, waveform analysis UI, scoring, or
-            TargetPitchCurve generation.
+            请选择一个本地 WAV
+            文件。只有点击「解码音频信息」后，浏览器才会在本地读取并解码；只有解码成功后，才能点击「提取音高帧」运行研究诊断。仅在本浏览器中处理，不上传。
           </p>
         </div>
 
         <div className="rounded-2xl border border-emerald-200/20 bg-slate-950/60 p-4 text-sm leading-6 text-emerald-50/90">
-          Select only a local WAV file that you created or have rights to use.
-          This research route is local-only: no upload, decode metadata only, no
-          playback, no waveform analysis UI, exploratory diagnostic pitch
-          metadata only after a separate click, no TargetPitchCurve generation,
-          not connected to Practice Mode, and not APK-ready.
+          请选择你自己创建或有权使用的本地 WAV
+          文件。此页面是研究预览，不是正式旋律识别；不上传音频，不调用
+          API，不写入账号或数据库。
         </div>
 
         <label className="flex flex-col gap-2 text-sm font-medium text-slate-100">
-          WAV file
+          WAV 文件
           <input
             key={inputKey}
             type="file"
@@ -505,7 +522,7 @@ export default function LocalAudioDecodeFileInputShell() {
             disabled={!canDecode}
             className="rounded-2xl bg-emerald-300 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-emerald-200 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-400"
           >
-            Decode metadata
+            解码音频信息
           </button>
           <button
             type="button"
@@ -513,138 +530,120 @@ export default function LocalAudioDecodeFileInputShell() {
             disabled={!canExtractPitch}
             className="rounded-2xl bg-sky-300 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-sky-200 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-400"
           >
-            Extract pitch frames
+            提取音高帧
           </button>
           <button
             type="button"
             onClick={handleClear}
             className="rounded-2xl border border-slate-500 px-4 py-2 text-sm font-semibold text-slate-100 hover:border-emerald-300 hover:text-emerald-100"
           >
-            Clear selection
+            清除选择
           </button>
         </div>
 
         <div className="rounded-2xl bg-slate-900 p-4">
           <p className="text-sm uppercase tracking-[0.2em] text-slate-400">
-            Decode state
+            解码状态
           </p>
           <p className="mt-2 text-lg font-semibold text-white">{stateLabel}</p>
           <p className="mt-2 text-sm leading-6 text-slate-300">
-            File selection alone does not read bytes, create AudioContext, or
-            call decodeAudioData. Decode is available only for an accepted WAV
-            file and only after pressing the separate Decode metadata button.
+            只选择文件不会读取音频字节，也不会创建 AudioContext。只有接受 WAV
+            文件并点击「解码音频信息」后才会本地解码。
           </p>
         </div>
 
         {selectedFileSummary ? (
           <div className="rounded-2xl bg-slate-900 p-4 text-sm text-slate-200">
-            <p className="font-semibold text-white">
-              Selected browser file metadata
-            </p>
+            <p className="font-semibold text-white">已选择的浏览器文件信息</p>
             <dl className="mt-3 grid gap-2 sm:grid-cols-2">
               <div>
-                <dt className="text-slate-400">Name</dt>
+                <dt className="text-slate-400">名称</dt>
                 <dd className="break-all">{selectedFileSummary.name}</dd>
               </div>
               <div>
-                <dt className="text-slate-400">Size</dt>
+                <dt className="text-slate-400">大小</dt>
                 <dd>{formatBytes(selectedFileSummary.size)}</dd>
               </div>
               <div>
-                <dt className="text-slate-400">MIME type</dt>
+                <dt className="text-slate-400">MIME 类型</dt>
                 <dd>{selectedFileSummary.type || "Not reported by browser"}</dd>
               </div>
               <div>
-                <dt className="text-slate-400">Last modified</dt>
+                <dt className="text-slate-400">最后修改时间</dt>
                 <dd>
                   {new Date(selectedFileSummary.lastModified).toLocaleString()}
                 </dd>
               </div>
             </dl>
             <p className="mt-3 text-emerald-100">
-              This file has only been selected. It has not been decoded until
-              you press Decode metadata, and it is never played, uploaded,
-              waveform-analyzed, pitch-tracked, converted to a TargetPitchCurve,
-              or sent to Practice Mode.
+              当前只是选择文件。点击「解码音频信息」前不会解码；不会播放、上传、做正式练习目标转换，也不会自动发送到练习页。
             </p>
           </div>
         ) : null}
 
         {decodedMetadata ? (
           <div className="rounded-2xl border border-emerald-300/30 bg-slate-900 p-4 text-sm text-slate-200">
-            <p className="font-semibold text-white">Decoded metadata only</p>
+            <p className="font-semibold text-white">仅解码音频信息</p>
             <dl className="mt-3 grid gap-2 sm:grid-cols-2">
               <div>
-                <dt className="text-slate-400">Duration seconds</dt>
+                <dt className="text-slate-400">时长（秒）</dt>
                 <dd>{decodedMetadata.durationSeconds.toFixed(3)}</dd>
               </div>
               <div>
-                <dt className="text-slate-400">Sample rate</dt>
+                <dt className="text-slate-400">采样率</dt>
                 <dd>{decodedMetadata.sampleRate} Hz</dd>
               </div>
               <div>
-                <dt className="text-slate-400">Channels</dt>
+                <dt className="text-slate-400">声道数</dt>
                 <dd>{decodedMetadata.numberOfChannels}</dd>
               </div>
               <div>
-                <dt className="text-slate-400">Frame count / length</dt>
+                <dt className="text-slate-400">帧数 / 长度</dt>
                 <dd>{decodedMetadata.frameCount}</dd>
               </div>
             </dl>
             <p className="mt-3 text-emerald-100">
-              The decoded AudioBuffer was used only for metadata fields. This
-              route creates no playback nodes, makes no audio destination
-              connection, renders no waveform, does not extract pitch until the
-              separate Extract pitch frames button is clicked, and generates no
-              TargetPitchCurve.
+              解码后的 AudioBuffer
+              仅用于展示音频信息。页面不会创建播放节点，不连接音频输出；只有点击「提取音高帧」后才会做研究诊断。
             </p>
           </div>
         ) : null}
 
         <div className="rounded-2xl bg-slate-900 p-4 text-sm leading-6 text-slate-300">
-          <p className="font-semibold text-white">
-            Pitch-frame diagnostic gate
-          </p>
+          <p className="font-semibold text-white">音高帧诊断开关</p>
           <p className="mt-2">
-            Exploratory pitch extraction is disabled until decoded metadata
-            exists. Decode alone does not extract pitch; extraction reads
-            decoded channel data only after pressing Extract pitch frames.
-            Output is diagnostic research metadata only, not a score, grade,
-            pass/fail result, TargetPitchCurve, or Practice Mode input.
+            解码成功前不能提取音高帧。解码本身不会提取音高；只有点击「提取音高帧」后才读取已解码的通道数据。输出只是研究诊断数据，不是评分，不是正式练习目标。
           </p>
         </div>
 
         {pitchDiagnostics ? (
           <div className="rounded-2xl border border-sky-300/30 bg-slate-900 p-4 text-sm text-slate-200">
-            <p className="font-semibold text-white">Pitch frame diagnostics</p>
+            <p className="font-semibold text-white">音高帧诊断</p>
             <p className="mt-2 leading-6 text-sky-100">
-              These values summarize local research diagnostics from decoded WAV
-              frames. They are not a formal pitch score, melody transcription,
-              or Practice Mode result. No TargetPitchCurve is generated from
-              this output.
+              这些数值汇总了解码 WAV
+              帧的本地研究诊断。它们不是正式评分，不是正式旋律识别，也不是正式练习结果。
             </p>
             <div className="mt-3 rounded-2xl border border-sky-200/20 bg-slate-950/60 p-3 leading-6 text-sky-50/90">
-              Local-only research diagnostics: no upload, no cloud, no AI API,
-              no melody recognition, no scoring, no TargetPitchCurve generation,
-              not Practice Mode, and not APK-ready.
+              本地研究诊断：不上传、不使用云端、不调用 AI
+              API、不是旋律识别、不是评分、不是正式练习目标，也不是 APK-ready。
             </div>
             <dl className="mt-3 grid gap-2 sm:grid-cols-2">
               <div>
-                <dt className="text-slate-400">Analyzed duration</dt>
+                <dt className="text-slate-400">分析时长</dt>
                 <dd>{pitchDiagnostics.analyzedDurationSeconds.toFixed(3)} s</dd>
                 <dd className="text-xs text-slate-500">
                   Decoded duration inspected for research diagnostics.
                 </dd>
               </div>
               <div>
-                <dt className="text-slate-400">Analysis frames</dt>
+                <dt className="text-slate-400">分析帧数</dt>
                 <dd>{pitchDiagnostics.frameCount}</dd>
                 <dd className="text-xs text-slate-500">
                   Number of diagnostic frames inspected.
                 </dd>
               </div>
               <div>
-                <dt className="text-slate-400">Voiced diagnostic frames</dt>
+                <dt className="text-slate-400">有声诊断帧</dt>
                 <dd>{pitchDiagnostics.voicedFrameCount}</dd>
                 <dd className="text-xs text-slate-500">
                   Frames where the diagnostic extractor found a pitch-like
@@ -652,17 +651,17 @@ export default function LocalAudioDecodeFileInputShell() {
                 </dd>
               </div>
               <div>
-                <dt className="text-slate-400">Unvoiced diagnostic frames</dt>
+                <dt className="text-slate-400">无声诊断帧</dt>
                 <dd>{pitchDiagnostics.unvoicedFrameCount}</dd>
                 <dd className="text-xs text-slate-500">
                   Frames where no pitch-like signal was detected.
                 </dd>
               </div>
               <div>
-                <dt className="text-slate-400">Frequency summary</dt>
+                <dt className="text-slate-400">频率摘要</dt>
                 <dd>
                   {pitchDiagnostics.frequencyMinHz === null
-                    ? "Not available"
+                    ? "暂无"
                     : `${pitchDiagnostics.frequencyMinHz.toFixed(1)} Hz`}
                 </dd>
                 <dd className="text-xs text-slate-500">
@@ -671,41 +670,35 @@ export default function LocalAudioDecodeFileInputShell() {
                 </dd>
               </div>
               <div>
-                <dt className="text-slate-400">Median frequency estimate</dt>
+                <dt className="text-slate-400">中位频率估计</dt>
                 <dd>
                   {pitchDiagnostics.frequencyMedianHz === null
-                    ? "Not available"
+                    ? "暂无"
                     : `${pitchDiagnostics.frequencyMedianHz.toFixed(1)} Hz`}
                 </dd>
               </div>
               <div>
-                <dt className="text-slate-400">Max frequency estimate</dt>
+                <dt className="text-slate-400">最高频率估计</dt>
                 <dd>
                   {pitchDiagnostics.frequencyMaxHz === null
-                    ? "Not available"
+                    ? "暂无"
                     : `${pitchDiagnostics.frequencyMaxHz.toFixed(1)} Hz`}
                 </dd>
               </div>
             </dl>
             <p className="mt-3 text-sky-100">
-              {pitchDiagnostics.statusText} This is exploratory research data
-              only and is not a score, grade, pass/fail assessment, product
-              import result, TargetPitchCurve, or Practice Mode state.
+              {pitchDiagnostics.statusText}{" "}
+              这是研究预览，不是正式评分，不是正式练习目标，不替换当前练习旋律。
             </p>
 
             <div className="mt-4 rounded-2xl border border-amber-200/20 bg-slate-950/60 p-3 leading-6 text-amber-50/90">
-              <p className="font-semibold text-white">
-                Note-like segment diagnostics
-              </p>
+              <p className="font-semibold text-white">类音符片段诊断</p>
               <p className="mt-2">
-                Research-only. Not formal note recognition. Not melody
-                recognition. Not scoring. These diagnostics only group the
-                current extracted pitch frames for inspection on this isolated
-                route.
+                研究预览。不是正式音符识别，不是正式旋律识别，不参与评分；这里只把当前提取的音高帧分组为便于查看的诊断片段。
               </p>
               <dl className="mt-3 grid gap-2 sm:grid-cols-2">
                 <div>
-                  <dt className="text-slate-400">Segment count</dt>
+                  <dt className="text-slate-400">片段数量</dt>
                   <dd>{pitchDiagnostics.noteLikeSegments.length}</dd>
                 </div>
               </dl>
@@ -717,46 +710,40 @@ export default function LocalAudioDecodeFileInputShell() {
                       className="rounded-xl border border-amber-200/10 bg-slate-900/80 p-3"
                     >
                       <p className="font-semibold text-amber-100">
-                        Segment {index + 1}
+                        片段 {index + 1}
                       </p>
                       <dl className="mt-2 grid gap-2 sm:grid-cols-2">
                         <div>
-                          <dt className="text-slate-400">Start / end</dt>
+                          <dt className="text-slate-400">开始 / 结束</dt>
                           <dd>
                             {segment.startTimeSeconds.toFixed(3)} s /{" "}
                             {segment.endTimeSeconds.toFixed(3)} s
                           </dd>
                         </div>
                         <div>
-                          <dt className="text-slate-400">Duration</dt>
+                          <dt className="text-slate-400">时长</dt>
                           <dd>{segment.durationSeconds.toFixed(3)} s</dd>
                         </div>
                         <div>
-                          <dt className="text-slate-400">
-                            Representative frequency
-                          </dt>
+                          <dt className="text-slate-400">代表频率</dt>
                           <dd>
                             {segment.representativeFrequencyHz.toFixed(1)} Hz
                           </dd>
                         </div>
                         <div>
-                          <dt className="text-slate-400">Nearest note label</dt>
-                          <dd>{segment.nearestNoteName ?? "Not available"}</dd>
+                          <dt className="text-slate-400">最近音名标签</dt>
+                          <dd>{segment.nearestNoteName ?? "暂无"}</dd>
                         </div>
                         <div>
-                          <dt className="text-slate-400">Voiced frame count</dt>
+                          <dt className="text-slate-400">有声帧数量</dt>
                           <dd>{segment.voicedFrameCount}</dd>
                         </div>
                         <div>
-                          <dt className="text-slate-400">
-                            Bridged null frame count
-                          </dt>
+                          <dt className="text-slate-400">桥接空帧数量</dt>
                           <dd>{segment.bridgedNullFrameCount}</dd>
                         </div>
                         <div>
-                          <dt className="text-slate-400">
-                            Diagnostic confidence
-                          </dt>
+                          <dt className="text-slate-400">诊断置信度</dt>
                           <dd>{segment.diagnosticConfidence}</dd>
                         </div>
                       </dl>
@@ -765,30 +752,23 @@ export default function LocalAudioDecodeFileInputShell() {
                 </div>
               ) : (
                 <p className="mt-3 text-amber-100">
-                  No note-like segment diagnostics available from the current
-                  extracted pitch frames.
+                  当前提取的音高帧没有可用的类音符片段诊断。
                 </p>
               )}
             </div>
 
             <div className="mt-4 rounded-2xl border border-fuchsia-200/20 bg-slate-950/60 p-3 leading-6 text-fuchsia-50/90">
-              <p className="font-semibold text-white">
-                Research target pitch curve diagnostics
-              </p>
+              <p className="font-semibold text-white">研究用目标音高曲线诊断</p>
               <p className="mt-2">
-                Research-only. Not formal TargetPitchCurve generation. Not
-                Practice Mode integration. Not scoring. This diagnostic view
-                only converts the current note-like segment diagnostics into a
-                target-curve-like research object for inspection on this
-                isolated route.
+                研究预览。不是正式目标音高曲线生成，不是正式练习页集成，不参与评分；这里只把当前类音符片段转换为便于查看的研究对象。
               </p>
               <dl className="mt-3 grid gap-2 sm:grid-cols-2">
                 <div>
-                  <dt className="text-slate-400">Curve source</dt>
+                  <dt className="text-slate-400">曲线来源</dt>
                   <dd>{pitchDiagnostics.researchTargetPitchCurve.source}</dd>
                 </div>
                 <div>
-                  <dt className="text-slate-400">Segment count</dt>
+                  <dt className="text-slate-400">片段数量</dt>
                   <dd>
                     {
                       pitchDiagnostics.researchTargetPitchCurve.summary
@@ -797,7 +777,7 @@ export default function LocalAudioDecodeFileInputShell() {
                   </dd>
                 </div>
                 <div>
-                  <dt className="text-slate-400">Total duration</dt>
+                  <dt className="text-slate-400">总时长</dt>
                   <dd>
                     {pitchDiagnostics.researchTargetPitchCurve.summary.totalDurationSeconds.toFixed(
                       3,
@@ -806,9 +786,7 @@ export default function LocalAudioDecodeFileInputShell() {
                   </dd>
                 </div>
                 <div>
-                  <dt className="text-slate-400">
-                    Low confidence segment count
-                  </dt>
+                  <dt className="text-slate-400">低诊断置信度片段数量</dt>
                   <dd>
                     {
                       pitchDiagnostics.researchTargetPitchCurve.summary
@@ -822,30 +800,41 @@ export default function LocalAudioDecodeFileInputShell() {
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                   <div>
                     <p className="font-semibold text-white">
-                      Manual diagnostic JSON handoff
+                      诊断 JSON（开发/调试备用入口）
                     </p>
                     <p className="mt-2">
-                      Research-only manual handoff. This is not automatic import,
-                      not upload, not scoring, and not a Practice Mode target.
-                      Paste this JSON into /practice research preview only.
+                      主流程请点击「发送到练习页预览」。下方复制 / 粘贴 JSON
+                      仅作为开发/调试备用入口；不上传音频，不写入服务器，不参与评分，也不是正式练习目标。
                     </p>
                   </div>
+                  <button
+                    type="button"
+                    onClick={handleSendDiagnosticPreviewToPractice}
+                    className="rounded-2xl bg-emerald-300 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-emerald-200"
+                  >
+                    发送到练习页预览
+                  </button>
                   <button
                     type="button"
                     onClick={handleCopyDiagnosticJson}
                     disabled={!researchTargetPitchCurveDiagnosticJson}
                     className="rounded-2xl bg-fuchsia-300 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-fuchsia-200 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-400"
                   >
-                    Copy diagnostic JSON
+                    复制诊断 JSON（开发/调试）
                   </button>
                 </div>
+                {sendPreviewError ? (
+                  <p className="mt-3 font-semibold text-amber-100">
+                    {sendPreviewError}
+                  </p>
+                ) : null}
                 {copyDiagnosticJsonStatus ? (
                   <p className="mt-3 font-semibold text-fuchsia-100">
                     {copyDiagnosticJsonStatus}
                   </p>
                 ) : null}
                 <label className="mt-3 flex flex-col gap-2 text-sm font-medium text-fuchsia-100">
-                  Read-only diagnostic JSON fallback for manual copy
+                  诊断 JSON
                   <textarea
                     readOnly
                     value={researchTargetPitchCurveDiagnosticJson}
@@ -864,48 +853,38 @@ export default function LocalAudioDecodeFileInputShell() {
                         className="rounded-xl border border-fuchsia-200/10 bg-slate-900/80 p-3"
                       >
                         <p className="font-semibold text-fuchsia-100">
-                          Curve segment {segment.segmentIndex}
+                          曲线片段 {segment.segmentIndex}
                         </p>
                         <dl className="mt-2 grid gap-2 sm:grid-cols-2">
                           <div>
-                            <dt className="text-slate-400">Start / end</dt>
+                            <dt className="text-slate-400">开始 / 结束</dt>
                             <dd>
                               {segment.startTimeSeconds.toFixed(3)} s /{" "}
                               {segment.endTimeSeconds.toFixed(3)} s
                             </dd>
                           </div>
                           <div>
-                            <dt className="text-slate-400">Duration</dt>
+                            <dt className="text-slate-400">时长</dt>
                             <dd>{segment.durationSeconds.toFixed(3)} s</dd>
                           </div>
                           <div>
-                            <dt className="text-slate-400">Target frequency</dt>
+                            <dt className="text-slate-400">目标频率</dt>
                             <dd>{segment.targetFrequencyHz.toFixed(1)} Hz</dd>
                           </div>
                           <div>
-                            <dt className="text-slate-400">
-                              Diagnostic target note label
-                            </dt>
-                            <dd>
-                              {segment.targetNoteLabel ?? "Not available"}
-                            </dd>
+                            <dt className="text-slate-400">诊断目标音标签</dt>
+                            <dd>{segment.targetNoteLabel ?? "暂无"}</dd>
                           </div>
                           <div>
-                            <dt className="text-slate-400">
-                              Diagnostic confidence
-                            </dt>
+                            <dt className="text-slate-400">诊断置信度</dt>
                             <dd>{segment.diagnosticConfidence}</dd>
                           </div>
                           <div>
-                            <dt className="text-slate-400">
-                              Source frame count
-                            </dt>
+                            <dt className="text-slate-400">来源帧数量</dt>
                             <dd>{segment.sourceFrameCount}</dd>
                           </div>
                           <div>
-                            <dt className="text-slate-400">
-                              Bridged null frame count
-                            </dt>
+                            <dt className="text-slate-400">桥接空帧数量</dt>
                             <dd>{segment.bridgedNullFrameCount}</dd>
                           </div>
                         </dl>
@@ -915,8 +894,7 @@ export default function LocalAudioDecodeFileInputShell() {
                 </div>
               ) : (
                 <p className="mt-3 text-fuchsia-100">
-                  No research target pitch curve diagnostics available from the
-                  current note-like segment diagnostics.
+                  当前类音符片段没有可用的研究目标音高曲线诊断。
                 </p>
               )}
             </div>
@@ -925,9 +903,8 @@ export default function LocalAudioDecodeFileInputShell() {
 
         {pitchExtractionError ? (
           <div className="rounded-2xl border border-rose-300/30 bg-rose-300/10 p-4 text-sm leading-6 text-rose-50">
-            Pitch-frame extraction failed. No audio was played, uploaded,
-            converted to a TargetPitchCurve, scored, graded, assessed, or sent
-            to Practice Mode. Browser message: {pitchExtractionError}
+            音高帧提取失败。未播放或上传音频，未生成正式练习目标，未参与评分，也未发送到练习页。浏览器信息：
+            {pitchExtractionError}
           </div>
         ) : null}
 
@@ -939,9 +916,8 @@ export default function LocalAudioDecodeFileInputShell() {
 
         {decodeError ? (
           <div className="rounded-2xl border border-rose-300/30 bg-rose-300/10 p-4 text-sm leading-6 text-rose-50">
-            Decode failed. No audio was played, uploaded, waveform-analyzed,
-            pitch-tracked, converted to a TargetPitchCurve, or sent to Practice
-            Mode. Browser message: {decodeError}
+            解码失败。未播放或上传音频，未做波形分析，未提取音高，未生成正式练习目标，也未发送到练习页。浏览器信息：
+            {decodeError}
           </div>
         ) : null}
       </div>

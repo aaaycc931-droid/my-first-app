@@ -4,51 +4,66 @@
 
 This project is a sheet music recognition MVP. Its purpose is to validate a minimal product flow for recognizing sheet music and previewing the resulting notes. It is not a portfolio page.
 
+## 产品原则：用户便捷交互体验第一优先级
+
+用户便捷的交互体验是本项目的第一优先级。项目最终不是为了展示技术链路，而是为了让中文用户能够低理解成本、低操作负担地完成视唱练耳练习。
+
+未来所有功能设计都必须优先满足：
+
+1. 操作步骤尽可能少。
+2. 用户不需要理解 JSON、诊断数据结构、内部类型名或开发者概念。
+3. 用户不应该在多个页面之间手动复制复杂数据，除非这是开发/调试备用入口。
+4. 主流程应尽量一键完成，例如「发送到练习页预览」「开始练习」「清除导入预览」。
+5. 用户可见文案应面向中文用户，当前阶段优先使用中文，不需要中英双语。
+6. 所有研究性边界说明也要用中文表达，例如：这是研究预览，不是正式评分；不替换当前练习旋律；不上传音频；不写入练习历史；不参与音高评分。
+7. 技术安全边界不能以牺牲用户体验为代价。JSON copy/paste 可以保留为开发/调试 fallback，但不能作为普通用户主路径。
+8. 每个未来 PR 都应检查是否增加了用户操作负担；如果增加了，必须说明原因，并优先考虑更简单的交互方案。
+
 ## 2. Main user-facing flow
 
 The current main user-facing flow is:
 
-* Users upload a JPG or PNG image.
-* The main API is `/api/recognize`.
-* The upload limit is 10MB.
-* The current default recognizer provider is `mock`.
-* Recognition results can be displayed on the page as notes and played back.
-* Playback now has an explicit stop control for stopping long previews without refreshing the page.
-* This main flow is currently not Audiveris and is not real PDF OMR.
+- Users upload a JPG or PNG image.
+- The main API is `/api/recognize`.
+- The upload limit is 10MB.
+- The current default recognizer provider is `mock`.
+- Recognition results can be displayed on the page as notes and played back.
+- Playback now has an explicit stop control for stopping long previews without refreshing the page.
+- This main flow is currently not Audiveris and is not real PDF OMR.
 
 Important boundaries for the main flow:
 
-* `/api/recognize` does not accept PDF input.
-* `/api/recognize` does not call Audiveris.
-* Production and Vercel default deployments do not run Audiveris.
+- `/api/recognize` does not accept PDF input.
+- `/api/recognize` does not call Audiveris.
+- Production and Vercel default deployments do not run Audiveris.
 
 ## 3. Dev-only Audiveris local flow
 
 A local dev-only Audiveris flow has been completed for developer validation:
 
-* A local PDF score is used as input.
-* Local Audiveris is executed outside the production flow.
-* The dev-only API route is `/api/dev/recognize-audiveris`.
-* Generated MXL output is written in a temp directory.
-* MusicXML is extracted from the generated MXL.
-* Notes are parsed from the extracted MusicXML.
-* The dev-only UI displays `noteCount`, `source`, `inputType`, and `firstNotes`.
-* The dev-only UI can play a `firstNotes` preview.
-* The dev-only UI can play a full notes preview when explicit full notes flags are enabled.
-* The explicit stop playback control applies to the main mock notes playback, the dev-only `firstNotes` preview, and the dev-only full notes preview.
-* The dev-only Audiveris panel copy now states that it is a local developer tool, not production/Vercel, not `/api/recognize`, and that PDF input is only for the dev-only route.
+- A local PDF score is used as input.
+- Local Audiveris is executed outside the production flow.
+- The dev-only API route is `/api/dev/recognize-audiveris`.
+- Generated MXL output is written in a temp directory.
+- MusicXML is extracted from the generated MXL.
+- Notes are parsed from the extracted MusicXML.
+- The dev-only UI displays `noteCount`, `source`, `inputType`, and `firstNotes`.
+- The dev-only UI can play a `firstNotes` preview.
+- The dev-only UI can play a full notes preview when explicit full notes flags are enabled.
+- The explicit stop playback control applies to the main mock notes playback, the dev-only `firstNotes` preview, and the dev-only full notes preview.
+- The dev-only Audiveris panel copy now states that it is a local developer tool, not production/Vercel, not `/api/recognize`, and that PDF input is only for the dev-only route.
 
 This playback stop control does not change `/api/recognize`, provider behavior, or dev-only Audiveris boundaries.
 
 This Audiveris flow is:
 
-* local-only
-* dev-only
-* not production
-* not Vercel
-* not `/api/recognize`
-* not a default provider change
-* not an Audiveris provider
+- local-only
+- dev-only
+- not production
+- not Vercel
+- not `/api/recognize`
+- not a default provider change
+- not an Audiveris provider
 
 ## 4. Required dev-only flags
 
@@ -65,9 +80,9 @@ AUDIVERIS_DEV_API_TIMEOUT_MS
 
 Full notes are not returned by default. Returning full notes requires all of the following:
 
-* the server flag is enabled
-* the frontend flag is enabled
-* the request explicitly opts in with `includeNotes=full`
+- the server flag is enabled
+- the frontend flag is enabled
+- the request explicitly opts in with `includeNotes=full`
 
 Even when full notes are enabled, the response returns at most 2000 notes and may be truncated.
 
@@ -75,12 +90,12 @@ Even when full notes are enabled, the response returns at most 2000 notes and ma
 
 The repository safety boundaries are:
 
-* the default provider remains `mock`
-* the provider union remains `"mock" | "ai" | "musicxml"`
-* there is no `audiveris` provider
-* no PDF, MXL, XML, OMR, log, image, or sample score files are committed
-* Audiveris binaries and local score files stay outside the repository
-* generated files stay outside the repository or in temp directories only
+- the default provider remains `mock`
+- the provider union remains `"mock" | "ai" | "musicxml"`
+- there is no `audiveris` provider
+- no PDF, MXL, XML, OMR, log, image, or sample score files are committed
+- Audiveris binaries and local score files stay outside the repository
+- generated files stay outside the repository or in temp directories only
 
 ## 6. How to demo
 
@@ -88,9 +103,9 @@ The repository safety boundaries are:
 
 Production and Vercel demos should only show the main mock recognition flow:
 
-* upload a JPG or PNG image
-* display mock notes
-* play back the displayed notes
+- upload a JPG or PNG image
+- display mock notes
+- play back the displayed notes
 
 ### Local dev demo
 
@@ -98,11 +113,11 @@ For local development setup, see `docs/audiveris-dev-quickstart.md`.
 
 A local developer demo can show the complete dev-only Audiveris flow:
 
-* local PDF input
-* Local Audiveris execution
-* `noteCount` 651 for the developer-reported local score
-* `firstNotes` playback
-* full notes playback when the explicit full notes flags are enabled
+- local PDF input
+- Local Audiveris execution
+- `noteCount` 651 for the developer-reported local score
+- `firstNotes` playback
+- full notes playback when the explicit full notes flags are enabled
 
 `score.pdf` is a developer local file and is not stored in this repository.
 
@@ -120,12 +135,12 @@ Public demo polish is complete for the production-safe MVP page. Production/Verc
 
 Current known non-goals are:
 
-* production OMR
-* hosted Audiveris
-* PDF upload to `/api/recognize`
-* Audiveris provider in the recognizer union
-* committing real score samples
-* treating dev-only results as Codex-verified
+- production OMR
+- hosted Audiveris
+- PDF upload to `/api/recognize`
+- Audiveris provider in the recognizer union
+- committing real score samples
+- treating dev-only results as Codex-verified
 
 ## 8. Suggested next productization steps
 
@@ -156,16 +171,13 @@ These are candidates only and are not implemented here:
 
 - 2026-06-18: Documented the current synthetic pitch benchmark baseline results in `docs/pitch-evaluation-benchmark-results.md` after running `npm run validate:synthetic-pitch-benchmark`. This is docs-only and does not change the pitch estimate algorithm, confidence calculation, target comparison algorithm, UI, validation behavior, formal scoring, rhythm evaluation, AI API calls, audio upload, providers, default `mock` provider, provider union, package dependencies, `/api/recognize`, or Audiveris behavior.
 
-
 - 2026-06-18: Improved the experimental local pitch estimator with a small synthetic benchmark-guided autocorrelation peak selection change for sine-wave subharmonic / octave-down errors. This remains an experimental local pitch estimate, not formal scoring and not production accuracy proof. The change does not modify UI, rhythm evaluation, AI API behavior, audio upload behavior, provider behavior, default `mock` provider, provider union, package dependencies, `/api/recognize`, Audiveris behavior, target comparison, benchmark tolerances, or benchmark case targets.
 
 - 2026-06-18: Hardened `npm run validate:synthetic-pitch-benchmark` so the default A4/C4/G4/E4 synthetic known-frequency pitch cases are now blocking regression cases and any regression fails validation, while the silent sustained and too-short no-pitch cases remain blocking. This is a synthetic regression gate only, not production accuracy proof, not formal scoring, and not proof of real singing accuracy. The change does not modify the pitch estimate algorithm, confidence calculation, target comparison algorithm, UI, scoring, rhythm evaluation, AI API calls, audio upload, providers, default `mock` provider, provider union, dependencies, `/api/recognize`, or Audiveris behavior.
 
 - 2026-06-18: Expanded synthetic pitch benchmark coverage with generated in-memory extended exploratory diagnostics for A3/C3/E3/C5/A5 while keeping A4/C4/G4/E4 synthetic pitch cases and no-pitch cases as blocking gates. Extended diagnostics are non-blocking and guide future estimator work only; they are not production accuracy proof, formal scoring, product failure claims, or real singing accuracy claims. This does not change the pitch estimate algorithm, confidence calculation, target comparison algorithm, UI, scoring, rhythm evaluation, AI API calls, audio upload, providers, default `mock` provider, provider union, dependencies, `package.json`, `/api/recognize`, or Audiveris behavior.
 
-
 - 2026-06-18: Expanded the blocking synthetic pitch regression gate from A4/C4/G4/E4 to include the PR #116 passing A3/C3/E3/C5/A5 generated in-memory synthetic cases. The silent sustained and too-short no-pitch cases remain blocking. This is a synthetic regression gate only, not production accuracy proof, not formal scoring, and not proof of real singing accuracy. This does not change the pitch estimate algorithm, confidence calculation, target comparison algorithm, UI, scoring, rhythm evaluation, AI API calls, audio upload, providers, default `mock` provider, provider union, dependencies, `package.json`, `/api/recognize`, or Audiveris behavior.
-
 
 - 2026-06-18: Added generated in-memory synthetic pitch robustness diagnostics for quiet amplitude, short duration, and deterministic light-noise A4/C4 variants. These diagnostics are exploratory/non-blocking and guide future estimator work only; the clean sine A3/C3/E3/A4/C4/E4/G4/C5/A5 pitch cases and silent sustained plus too-short no-pitch cases remain blocking. This does not change the pitch estimate algorithm, confidence calculation, target comparison algorithm, UI, scoring, formal scoring, rhythm evaluation, AI API calls, audio upload, providers, default `mock` provider, provider union, dependencies, `package.json`, `/api/recognize`, Audiveris behavior, or repository audio/sample fixture boundaries.
 
@@ -176,7 +188,6 @@ These are candidates only and are not implemented here:
 - 2026-06-18: Added Practice Mode local in-session recent attempt history for successful experimental local pitch estimates. The history is browser state only, keeps the most recent 5 attempts, and can be cleared with a local Clear attempt history button. This does not upload audio, does not persist to a server, does not use localStorage, IndexedDB, or cookies, does not add formal scoring, does not add rhythm evaluation, does not call AI, does not add dependencies, does not change provider behavior, keeps the default provider as `mock`, keeps the provider union as `"mock" | "ai" | "musicxml"`, does not change `/api/recognize`, does not add PDF handling, and does not call Audiveris. It also does not change the pitch estimate algorithm, confidence calculation, or target comparison algorithm.
 
 - 2026-06-18: Polished Practice Mode local in-session recent attempt history so repeated successful estimates of the same recording do not create duplicate history entries, while a new recording can still add a new attempt and Clear attempt history only clears local React state. The history remains browser-session-only and is not uploaded, not persisted to a server, not stored in localStorage, IndexedDB, or cookies, not formal scoring, not rhythm evaluation, and not AI-generated. This does not change the pitch estimate algorithm, confidence calculation, target comparison algorithm, providers, default `mock` provider, provider union, package dependencies, `package.json`, `/api/recognize`, PDF handling, or Audiveris behavior.
-
 
 - 2026-06-18: Added a local-only Practice Mode recent attempt target retry control. Each recent local attempt can switch the selected target note back to that attempt target for another manual practice pass. This only updates local React state: it does not upload audio, persist to a server, write localStorage, IndexedDB, or cookies, add formal scoring, add rhythm evaluation, call AI, change providers, change the default `mock` provider, change the provider union (`"mock" | "ai" | "musicxml"`), change `/api/recognize`, add PDF handling, call Audiveris, add dependencies, or change the pitch estimate algorithm, confidence calculation, or target comparison algorithm.
 
@@ -193,7 +204,6 @@ These are candidates only and are not implemented here:
 - 2026-06-21: Added P4a pitch estimator frame aggregation outlier robustness. The experimental local pitch estimator now applies a minimal dominant rounded-MIDI-cluster filter before aggregating per-frame candidates. Existing clean sine, robustness, and no-pitch synthetic benchmark gates remain blocking, exploratory cases remain non-blocking, no tolerance was relaxed, no blocking target frequency changed, and no exploratory input case was changed. This does not rewrite the pitch estimator, add formal pitch scoring, add rhythm evaluation, add sight-singing assessment, upload audio, add a real voice dataset, call AI APIs, change `/api/recognize`, change the recognition provider union, add PDF upload, connect Audiveris, change Practice Mode UI workflow, or change P1/P2 melody flow/history behavior.
 
 - 2026-06-21: Clarified P4b frequency-drift exploratory benchmark semantics by adding generated benchmark metadata/output for drift start, midpoint / expected median, end, and cents offsets against each reference. Frequency drift remains exploratory and non-blocking, and this does not claim production accuracy or formal pitch scoring. This does not change the pitch estimator algorithm, benchmark tolerance, blocking target frequencies, `/api/recognize`, provider union, PDF upload, Audiveris, AI API usage, audio upload, real voice datasets, rhythm evaluation, sight-singing assessment, Practice Mode UI workflow, or P1/P2 melody flow/history behavior.
-
 
 - 2026-06-25: Added the P4c frequency drift semantics decision. The existing generated 440.00Hz → 466.16Hz exploratory drift case is now documented as a pitch drift / unstable sustained pitch diagnostic candidate for sustained pitch / single target note practice, not as correct ending-pitch matching, production pitch accuracy, formal scoring, grade, pass, or fail. It remains exploratory-only and non-blocking. Future work may detect and surface sustained-pitch instability separately from the nearest-note estimate. This is docs-only and does not change the pitch estimator algorithm, Practice Mode UI workflow, validation pass/fail logic, existing blocking gates, benchmark tolerance, blocking target frequencies, frequency drift input, `/api/recognize`, recognition provider union, PDF upload, Audiveris, AI API usage, audio upload, real voice datasets, rhythm evaluation, or sight-singing assessment.
 
@@ -267,7 +277,6 @@ P7j is implemented as a local-only preparation script: `npm run validate:local-r
 
 - 2026-06-28: Added P9e mock melody target segment fixture example. P9e adds a fixture-only / example-only mock melody target curve example using the P9d `TargetPitchCurve` / `TargetPitchSegment` type contract. It does not implement a converter, change the Practice Mode UI, change runtime behavior, import the example into `/practice`, generate target curves at runtime, add MusicXML / MIDI parser or import, add MP3 / WAV import, add melody guide audio import, add microphone / recording / live pitch analysis, add scoring / rhythm / sight-singing assessment, or change `/api/recognize`, PDF handling, or Audiveris behavior.
 
-
 - 2026-06-28: Added P9f Mock Melody to Target Segment Converter Prototype. P9f adds an isolated mock melody to target curve converter prototype that maps mock-only melody step inputs to the P9d `TargetPitchCurve` / `TargetPitchSegment[]` shape with fixed synthetic timing only. It is not imported into `/practice`, makes no Practice Mode UI changes, has no existing `melodySteps` runtime integration, changes no Record / Estimate workflow, changes no attempt history, adds no MusicXML / MIDI parser, adds no MP3 / WAV import, adds no melody guide audio import, adds no accompaniment playback, adds no microphone / recording / live pitch analysis, adds no live chart rendering, adds no scoring / rhythm / sight-singing assessment, and changes no `/api/recognize`, PDF, or Audiveris behavior.
 
 - 2026-06-28: Added P9g Mock Melody Converter Generated Fixture Example. P9g adds an example-only generated fixture for the mock melody converter, uses the P9f `createMockMelodyTargetCurveFromSteps` converter, and remains not imported into `/practice`. It makes no Practice Mode UI changes, no runtime behavior changes, no replacement of existing `melodySteps`, no Record / Estimate workflow changes, no attempt history changes, no MusicXML / MIDI parser, no MP3 / WAV import, no melody guide audio import, no microphone / recording / live pitch analysis, no live chart rendering, no scoring / rhythm / sight-singing assessment, and no `/api/recognize` / PDF / Audiveris changes.
@@ -306,9 +315,7 @@ P7j is implemented as a local-only preparation script: `npm run validate:local-r
 
 - 2026-06-28: Added P10l docs-only acceptance criteria for a future isolated Node-side WAV header inspection POC. The criteria define future pass/fail behavior, input boundaries, minimum container/header fields, reading limits, allowed first-phase WAV subset, test direction, relationship to the metadata validator, and Android APK / WebView caveats. This adds no runtime code, scripts, `package.json` changes, Practice Mode UI changes, file input, WAV binary reading, WAV header parser implementation, WAV decoding, `AudioContext`, `decodeAudioData`, `getUserMedia`, microphone access, pitch tracking, target curve generation, source separation, vocal separation, Song Learning Mode implementation, upload/cloud/AI behavior, scoring, rhythm evaluation, sight-singing assessment, `/api/recognize` changes, PDF handling, Audiveris changes, real audio, or `metadata.local.json` commits.
 
-
 - 2026-06-28: Added P10m Node-side WAV Header Inspector Script. P10m adds an isolated opt-in `npm run validate:local-melody-guide-wav-headers` script that reads minimal RIFF/WAVE/`fmt `/`data` metadata for ignored local WAV files referenced by ignored `local-fixtures/melody-guide-audio/metadata.local.json`. It skips cleanly if `metadata.local.json` is absent, checks only `includeInLocalResearch: true` samples, uses no dependencies, reads only bounded header/chunk bytes, and commits no real audio or `metadata.local.json`. This adds no full audio decoding, no waveform analysis, no `AudioContext`, no `decodeAudioData`, no `getUserMedia` or microphone access, no pitch tracking, no target curve generation, no Practice Mode UI/runtime changes, no upload/cloud/AI behavior, no scoring/rhythm/sight-singing assessment, no `/api/recognize`, PDF, or Audiveris changes, and no package-lock change.
-
 
 - 2026-06-28: Added P10n WAV Header Inspector Temporary Fixture Test Harness. P10n adds `npm run test:local-melody-guide-wav-header-inspector` for the isolated Node-side WAV header inspector using temporary fake fixture roots and temporary synthetic WAV-like files only. The harness covers clean skip/no-op behavior plus valid and invalid RIFF/WAVE/PCM header cases while leaving the real `local-fixtures/melody-guide-audio/` directory untouched. It commits no real audio and no `metadata.local.json`, adds no dependencies, changes no Practice Mode UI/runtime behavior, adds no browser decoding, creates no `AudioContext`, calls no `decodeAudioData`, uses no `getUserMedia` or microphone, performs no waveform analysis, pitch tracking, or target curve generation, adds no upload/cloud/AI behavior, adds no scoring/rhythm/sight-singing assessment, and changes no `/api/recognize`, PDF, Audiveris, estimator, Pitchy, comparison harness, benchmark gate, or tolerance behavior.
 
@@ -424,8 +431,6 @@ P12d commits no real audio and no `metadata.local.json`. Android APK / WebView b
 
 - 2026-07-01: P13i implements tiny isolated diagnostic median smoothing over valid diagnostic frequency estimates for `/research/local-audio-decode` decoded WAV pitch-frame extraction. The P13d diagnostic frequency guard remains intact: the 50–1200 Hz bounds still apply, invalid / non-finite / non-positive / out-of-range estimates remain excluded, invalid estimates do not enter the voiced diagnostic list, and invalid estimates do not enter min / median / max summaries. The smoothing is conservative, diagnostic-only, preserves null / invalid / unvoiced frames, does not create voiced pitch from null or unvoiced frames, and does not smooth across unvoiced gaps. Min / median / max summaries remain diagnostic-only and return null values when no valid diagnostic frequencies remain. Route behavior is unchanged; UI copy is unchanged; file selection, decode metadata, and **Extract pitch frames** actions are unchanged; disabled / enabled gating is unchanged; there are no Practice Mode UI/runtime changes; no note segmentation; no `TargetPitchCurve` generation; no formal scoring / rhythm / sight-singing assessment; no melody recognition / source separation / vocal separation; no upload / cloud / AI behavior added; no `/api/recognize` / PDF / Audiveris changes; no dependencies; and no WAV fixtures, real audio, or `metadata.local.json` committed. APK/WebView remains unverified.
 
-
-
 ## 36. P13n Tiny Isolated Diagnostic Clarity / Voiced-Unvoiced Guard Implementation
 
 - 2026-07-01: P13n implements a tiny isolated diagnostic clarity / voiced-unvoiced guard refinement for `/research/local-audio-decode` decoded WAV pitch-frame extraction. The existing autocorrelation clarity threshold is now exposed as a named research diagnostic constant and pure helper, without broad confidence calibration or formal scoring. P13d diagnostic frequency guard remains intact: the 50–1200 Hz diagnostic bounds still reject invalid, non-finite, non-positive, and out-of-range estimates before they can enter valid voiced summaries. P13i diagnostic median smoothing remains intact: smoothing still operates only on valid diagnostic frequency estimates, preserves null / invalid / unvoiced frames, does not create voiced pitch from silence, and does not cross unvoiced gaps. Weak / low-clarity diagnostic candidates do not pollute valid voiced summaries, smoothed diagnostic frequencies, or min / median / max summaries; when no valid reliable frequencies remain, summary values remain null and diagnostic-only. Route behavior is unchanged; UI copy is unchanged; file selection, decode metadata, and **Extract pitch frames** actions are unchanged; disabled / enabled gating is unchanged; there are no Practice Mode UI/runtime changes; no note segmentation; no `TargetPitchCurve` generation; no formal scoring / rhythm / sight-singing assessment; no melody recognition / source separation / vocal separation; no upload / cloud / AI behavior added; no `/api/recognize` / PDF / Audiveris changes; no dependencies; and no WAV fixtures, real audio, or `metadata.local.json` committed. Broader per-frame confidence state remains future work, and APK/WebView remains unverified.
@@ -485,7 +490,6 @@ P12d commits no real audio and no `metadata.local.json`. Android APK / WebView b
 ## 49. P16c Practice Read-only Research Target Curve Preview Source Review + Manual Practice QA
 
 - 2026-07-02: Added P16c docs-only source review and environment-limited manual Practice QA documentation for the P16b `/practice` read-only research target curve diagnostic preview. P16c confirms the preview is isolated to static display of the synthetic / fake / hand-authored / non-audio-derived fixture; it does not read WAV files, user recordings, `metadata.local.json`, files, storage, APIs, uploads, database, or account data; and the preview section has no buttons, event handlers, state setters, storage writes, API calls, or attempt-history writes. P16c also records that the preview does not replace existing mock melody targets, change `currentMelodyStepIndex`, Step X/N display, previous / next / restart controls, target note playback, local attempt history, pitch estimation, target-aware comparison, retry controls, existing static pitch trend preview, scoring, or assessment behavior. The QA notes one source-review finding: P16b currently defines and displays `diagnosticConfidence` values as `"high" | "medium" | "low"`, so this docs-only QA cannot confirm a `"normal" | "low"`-only contract without a later runtime follow-up. Real browser and Network panel click-through were attempted with Playwright Chromium, but the container could not install or launch a browser because the Playwright browser download was blocked by `403 Domain forbidden` and Ubuntu browser packages were snap launchers without working snapd. P16c changes no runtime behavior, `/practice` UI behavior, preview fixture, Practice Mode flow, research route, formal `TargetPitchCurve` runtime files, converter behavior, scoring, dependencies, package files, audio fixtures, real recordings, or `metadata.local.json`; APK/WebView remains unverified and cannot be claimed APK-ready.
-
 
 ## 50. P16d Practice Preview Diagnostic Confidence Contract Alignment
 
