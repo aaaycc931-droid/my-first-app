@@ -158,3 +158,11 @@ P15 explicitly does not include:
 5. Add synthetic in-memory tests for the acceptance criteria above.
 6. Keep UI integration deferred to a separately scoped future PR.
 7. Keep all product claims research-only and diagnostic-only until separate validation proves a production use case.
+
+## 8. P15b Implementation Note
+
+P15b adds the first isolated runtime POC for this plan: `convertNoteLikeSegmentsToResearchTargetPitchCurveDiagnostic` converts only in-memory `NoteLikeSegmentDiagnostic[]` values into a research-only `ResearchTargetPitchCurveDiagnostic` object.
+
+The converter preserves input order, maps each input segment to exactly one research target-curve-like segment, uses `representativeFrequencyHz` as `targetFrequencyHz`, maps `nearestNoteName` only to optional diagnostic `targetNoteLabel`, preserves `diagnosticConfidence`, and computes only `segmentCount`, `lowConfidenceSegmentCount`, and summed `totalDurationSeconds`.
+
+P15b remains isolated research-only. It does not read files, inspect `AudioBuffer`, call browser APIs, upload data, call cloud or AI APIs, integrate with `/research/local-audio-decode`, integrate with `/practice`, generate a formal `TargetPitchCurve`, perform formal note or melody recognition, interpolate pitch, correct notes, detect key, assess rhythm, score, add dependencies, change package files, commit audio fixtures, commit `metadata.local.json`, or claim APK / WebView readiness.
