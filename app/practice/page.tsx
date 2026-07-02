@@ -270,6 +270,10 @@ export default function PracticePage() {
     manualResearchTargetCurvePreview,
     setManualResearchTargetCurvePreview,
   ] = useState<ResearchTargetCurvePreviewState>({ status: "idle" });
+  const [importedPracticeLiteActive, setImportedPracticeLiteActive] =
+    useState(false);
+  const [selectedImportedSegmentIndex, setSelectedImportedSegmentIndex] =
+    useState<number | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const mediaStreamRef = useRef<MediaStream | null>(null);
   const recordingChunksRef = useRef<Blob[]>([]);
@@ -308,6 +312,16 @@ export default function PracticePage() {
         : null,
     [pitchEstimateResult],
   );
+
+  const validImportedPreviewSegments =
+    importedResearchTargetCurvePreview.status === "valid"
+      ? importedResearchTargetCurvePreview.diagnostic.segments
+      : [];
+  const canEnterImportedPracticeLite = validImportedPreviewSegments.length > 0;
+  const selectedImportedSegment =
+    selectedImportedSegmentIndex === null
+      ? null
+      : (validImportedPreviewSegments[selectedImportedSegmentIndex] ?? null);
 
   const pitchComparisonResult = useMemo<PitchComparisonResult | null>(() => {
     const targetFrequencyHz = noteFrequencies[selectedTargetNote];
@@ -399,6 +413,11 @@ export default function PracticePage() {
       message: "本地导入的诊断数据格式无效，请确认它来自本地音频研究工具。",
     });
   }, []);
+
+  useEffect(() => {
+    setImportedPracticeLiteActive(false);
+    setSelectedImportedSegmentIndex(null);
+  }, [importedResearchTargetCurvePreview]);
 
   useEffect(
     () => () => {
@@ -886,10 +905,25 @@ export default function PracticePage() {
     });
   };
 
+  const handleStartImportedPracticeLite = () => {
+    if (!canEnterImportedPracticeLite) {
+      return;
+    }
+
+    setSelectedImportedSegmentIndex(0);
+    setImportedPracticeLiteActive(true);
+  };
+
+  const handleExitImportedPracticeLite = () => {
+    setImportedPracticeLiteActive(false);
+  };
+
   const handleClearImportedResearchTargetCurvePreview = () => {
     window.sessionStorage.removeItem(
       practiceResearchTargetCurveDiagnosticPreviewKey,
     );
+    setImportedPracticeLiteActive(false);
+    setSelectedImportedSegmentIndex(null);
     setImportedResearchTargetCurvePreview({ status: "idle" });
   };
 
@@ -1623,6 +1657,29 @@ export default function PracticePage() {
                   </dd>
                 </div>
               </dl>
+              <div className="mt-4 flex flex-col gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 sm:flex-row sm:items-center sm:justify-between">
+                <p className="text-sm font-medium text-emerald-900">
+                  {canEnterImportedPracticeLite
+                    ? importedPracticeLiteActive
+                      ? "当前已进入导入练习预览。"
+                      : "可以显式进入导入练习预览；它不会替换当前练习旋律。"
+                    : "当前导入预览没有可用片段，不能进入导入练习预览。"}
+                </p>
+                {importedPracticeLiteActive ? (
+                  <span className="rounded-full bg-emerald-700 px-4 py-2 text-sm font-semibold text-white">
+                    已进入导入练习预览
+                  </span>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={handleStartImportedPracticeLite}
+                    disabled={!canEnterImportedPracticeLite}
+                    className="rounded-full bg-emerald-700 px-4 py-2 text-sm font-semibold text-white disabled:bg-slate-300"
+                  >
+                    使用导入预览练习
+                  </button>
+                )}
+              </div>
               <div className="mt-4 overflow-hidden rounded-2xl border border-emerald-200">
                 <div className="overflow-x-auto">
                   <table className="min-w-full divide-y divide-emerald-100 text-left text-sm">
@@ -1681,6 +1738,137 @@ export default function PracticePage() {
                 </div>
               </div>
             </div>
+          ) : null}
+
+          {importedPracticeLiteActive && selectedImportedSegment ? (
+            <section className="mt-5 rounded-3xl border border-teal-200 bg-white p-5 text-teal-950 shadow-sm">
+              <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                <div>
+                  <p className="text-sm font-semibold uppercase tracking-wide text-teal-700">
+                    imported practice lite
+                  </p>
+                  <h3 className="mt-1 text-2xl font-bold">导入练习预览</h3>
+                  <ul className="mt-3 grid gap-2 text-sm font-semibold text-teal-900 sm:grid-cols-2">
+                    <li className="rounded-xl bg-teal-50 p-3 ring-1 ring-teal-200">
+                      这是研究练习预览，不是正式评分。
+                    </li>
+                    <li className="rounded-xl bg-teal-50 p-3 ring-1 ring-teal-200">
+                      不写入练习历史。
+                    </li>
+                    <li className="rounded-xl bg-teal-50 p-3 ring-1 ring-teal-200">
+                      不替换当前练习旋律。
+                    </li>
+                    <li className="rounded-xl bg-teal-50 p-3 ring-1 ring-teal-200">
+                      当前阶段不会判断对错。
+                    </li>
+                  </ul>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleExitImportedPracticeLite}
+                  className="rounded-full border border-teal-300 bg-white px-4 py-2 text-sm font-semibold text-teal-800 hover:bg-teal-50"
+                >
+                  退出导入练习预览
+                </button>
+              </div>
+
+              <div className="mt-5 grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
+                <div className="rounded-2xl border border-teal-200 bg-teal-50 p-4">
+                  <h4 className="font-bold text-teal-950">片段列表</h4>
+                  <div className="mt-3 space-y-3">
+                    {validImportedPreviewSegments.map((segment, index) => {
+                      const isSelected = index === selectedImportedSegmentIndex;
+
+                      return (
+                        <button
+                          key={`${segment.segmentIndex}-${segment.startTimeSeconds}-${segment.endTimeSeconds}`}
+                          type="button"
+                          onClick={() => setSelectedImportedSegmentIndex(index)}
+                          className={`w-full rounded-2xl p-4 text-left text-sm ring-1 ${
+                            isSelected
+                              ? "bg-teal-700 text-white ring-teal-700"
+                              : "bg-white text-teal-950 ring-teal-200 hover:bg-teal-100"
+                          }`}
+                        >
+                          <span className="block font-bold">
+                            片段 {index + 1}
+                            {isSelected ? " · 当前选中" : ""}
+                          </span>
+                          <span className="mt-2 block">
+                            目标音高 {segment.targetFrequencyHz.toFixed(2)} Hz
+                            {segment.targetNoteLabel
+                              ? ` · 目标音名 ${segment.targetNoteLabel}`
+                              : ""}
+                          </span>
+                          <span className="mt-1 block">
+                            {segment.startTimeSeconds.toFixed(3)}s → {" "}
+                            {segment.endTimeSeconds.toFixed(3)}s · 持续 {" "}
+                            {segment.durationSeconds.toFixed(3)}s
+                          </span>
+                          <span className="mt-1 block">
+                            {formatDiagnosticConfidenceLabel(
+                              segment.diagnosticConfidence,
+                            )}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div className="rounded-2xl border border-teal-200 bg-teal-50 p-4">
+                  <h4 className="font-bold text-teal-950">当前导入片段详情</h4>
+                  <dl className="mt-3 space-y-3 text-sm">
+                    <div className="rounded-xl bg-white p-3 ring-1 ring-teal-200">
+                      <dt className="font-semibold text-teal-700">当前导入片段</dt>
+                      <dd className="mt-1 font-bold">
+                        片段 {(selectedImportedSegmentIndex ?? 0) + 1}
+                      </dd>
+                    </div>
+                    <div className="rounded-xl bg-white p-3 ring-1 ring-teal-200">
+                      <dt className="font-semibold text-teal-700">目标音高</dt>
+                      <dd className="mt-1 font-bold">
+                        {selectedImportedSegment.targetFrequencyHz.toFixed(2)} Hz
+                      </dd>
+                    </div>
+                    {selectedImportedSegment.targetNoteLabel ? (
+                      <div className="rounded-xl bg-white p-3 ring-1 ring-teal-200">
+                        <dt className="font-semibold text-teal-700">目标音名</dt>
+                        <dd className="mt-1 font-bold">
+                          {selectedImportedSegment.targetNoteLabel}
+                        </dd>
+                      </div>
+                    ) : null}
+                    <div className="rounded-xl bg-white p-3 ring-1 ring-teal-200">
+                      <dt className="font-semibold text-teal-700">开始时间</dt>
+                      <dd className="mt-1 font-bold">
+                        {selectedImportedSegment.startTimeSeconds.toFixed(3)}s
+                      </dd>
+                    </div>
+                    <div className="rounded-xl bg-white p-3 ring-1 ring-teal-200">
+                      <dt className="font-semibold text-teal-700">结束时间</dt>
+                      <dd className="mt-1 font-bold">
+                        {selectedImportedSegment.endTimeSeconds.toFixed(3)}s
+                      </dd>
+                    </div>
+                    <div className="rounded-xl bg-white p-3 ring-1 ring-teal-200">
+                      <dt className="font-semibold text-teal-700">持续时间</dt>
+                      <dd className="mt-1 font-bold">
+                        {selectedImportedSegment.durationSeconds.toFixed(3)}s
+                      </dd>
+                    </div>
+                    <div className="rounded-xl bg-white p-3 ring-1 ring-teal-200">
+                      <dt className="font-semibold text-teal-700">诊断置信度</dt>
+                      <dd className="mt-1 font-bold">
+                        {formatDiagnosticConfidenceLabel(
+                          selectedImportedSegment.diagnosticConfidence,
+                        )}
+                      </dd>
+                    </div>
+                  </dl>
+                </div>
+              </div>
+            </section>
           ) : null}
         </section>
 
