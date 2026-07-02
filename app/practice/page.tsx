@@ -1070,7 +1070,7 @@ export default function PracticePage() {
                       <td className="px-4 py-3">{segment.startTimeSeconds.toFixed(2)}s / {segment.endTimeSeconds.toFixed(2)}s / {segment.durationSeconds.toFixed(2)}s</td>
                       <td className="px-4 py-3">{segment.targetFrequencyHz.toFixed(2)} Hz</td>
                       <td className="px-4 py-3">{segment.targetNoteLabel ?? "No diagnostic label"}</td>
-                      <td className="px-4 py-3"><span className={segment.diagnosticConfidence === "low" ? "rounded-full bg-amber-100 px-2 py-1 font-bold text-amber-800" : "rounded-full bg-fuchsia-100 px-2 py-1 font-bold text-fuchsia-800"}>{segment.diagnosticConfidence}</span></td>
+                      <td className="px-4 py-3"><span className={segment.diagnosticConfidence === "low" ? "rounded-full bg-amber-100 px-2 py-1 font-bold text-amber-800" : "rounded-full bg-fuchsia-100 px-2 py-1 font-bold text-fuchsia-800"}>{segment.diagnosticConfidence === "low" ? "Low diagnostic confidence" : "Normal diagnostic confidence"}</span></td>
                       <td className="px-4 py-3">{segment.sourceFrameCount}</td>
                       <td className="px-4 py-3">{segment.bridgedNullFrameCount}</td>
                     </tr>

@@ -103,12 +103,17 @@ type PracticeResearchTargetCurveDiagnosticPreviewInput = {
     durationSeconds: number;
     targetFrequencyHz: number;
     targetNoteLabel?: string;
-    diagnosticConfidence: "high" | "medium" | "low";
+    diagnosticConfidence: "normal" | "low";
     sourceFrameCount: number;
     bridgedNullFrameCount: number;
   }>;
 };
 ```
+
+
+## P16d Runtime Contract Alignment Note
+
+- 2026-07-02: P16d aligns the `/practice` read-only research target curve diagnostic preview fixture with the P15b research-only diagnostic confidence contract. Active preview fixture values now use only `"normal"` and `"low"`, with `"low"` still reserved for low-confidence segment display. The preview fixture is constrained with the P15b `ResearchTargetPitchCurveDiagnostic` / `ResearchTargetPitchCurveSegmentDiagnostic` types so TypeScript rejects future `"high"` or `"medium"` diagnostic confidence values. This is a contract-alignment cleanup only and does not add scoring, grades, pass/fail behavior, target replacement, research handoff, real audio import, formal `TargetPitchCurve` integration, upload/cloud/AI behavior, account persistence, or APK/WebView readiness claims.
 
 ## 5. UI Acceptance Criteria for Future P16b
 
