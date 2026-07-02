@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { mockMelodyTargetCurveExample } from "../../lib/practice/mock-melody-target-segments.example";
+import { researchTargetCurvePreviewExample } from "../../lib/practice/research-target-curve-preview.example";
 import {
   estimateLocalPitch,
   type PitchEstimateResult,
@@ -1017,6 +1018,70 @@ export default function PracticePage() {
             <div className="rounded-2xl border border-cyan-200 bg-white p-4 text-cyan-900"><p className="font-semibold">No microphone now</p><p className="mt-1">本预览按钮禁用，不请求麦克风权限，不绑定 getUserMedia。</p></div>
             <div className="rounded-2xl border border-cyan-200 bg-white p-4 text-cyan-900"><p className="font-semibold">No score</p><p className="mt-1">当前没有正式评分、等级、通过 / 失败、节奏或视唱评测。</p></div>
           </div>
+        </section>
+
+
+        <section className="mt-6 rounded-3xl border border-fuchsia-200 bg-fuchsia-50 p-5 shadow-sm sm:p-6">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+            <div>
+              <p className="text-sm font-semibold uppercase tracking-wide text-fuchsia-700">Research-only · Static preview</p>
+              <h2 className="mt-1 text-2xl font-bold text-fuchsia-950">Research target curve diagnostic preview</h2>
+              <p className="mt-2 max-w-3xl text-sm leading-6 text-fuchsia-900">
+                This read-only section uses synthetic / fake / hand-authored example data to preview the P15 research target curve diagnostic shape. It is non-audio-derived and does not read files, storage, APIs, uploads, database, or account data.
+              </p>
+              <ul className="mt-3 grid gap-2 text-sm font-semibold text-fuchsia-950 sm:grid-cols-2">
+                <li className="rounded-xl bg-white p-3 ring-1 ring-fuchsia-200">Research-only</li>
+                <li className="rounded-xl bg-white p-3 ring-1 ring-fuchsia-200">Static preview</li>
+                <li className="rounded-xl bg-white p-3 ring-1 ring-fuchsia-200">Not a formal Practice Mode target</li>
+                <li className="rounded-xl bg-white p-3 ring-1 ring-fuchsia-200">Not scoring</li>
+                <li className="rounded-xl bg-white p-3 ring-1 ring-fuchsia-200">Not assessment</li>
+                <li className="rounded-xl bg-white p-3 ring-1 ring-fuchsia-200">Does not replace the current mock melody practice flow</li>
+              </ul>
+            </div>
+            <div className="rounded-2xl border border-fuchsia-200 bg-white p-4 text-sm text-fuchsia-950 shadow-sm lg:min-w-72">
+              <p className="font-semibold">Diagnostic summary</p>
+              <dl className="mt-3 space-y-2">
+                <div><dt className="text-fuchsia-700">Curve source</dt><dd className="mt-1 font-medium">{researchTargetCurvePreviewExample.source}</dd></div>
+                <div className="flex justify-between gap-4"><dt className="text-fuchsia-700">Segment count</dt><dd className="font-bold">{researchTargetCurvePreviewExample.summary.segmentCount}</dd></div>
+                <div className="flex justify-between gap-4"><dt className="text-fuchsia-700">Total duration</dt><dd className="font-bold">{researchTargetCurvePreviewExample.summary.totalDurationSeconds.toFixed(2)}s</dd></div>
+                <div className="flex justify-between gap-4"><dt className="text-fuchsia-700">Low confidence segments</dt><dd className="font-bold">{researchTargetCurvePreviewExample.summary.lowConfidenceSegmentCount}</dd></div>
+              </dl>
+            </div>
+          </div>
+
+          <div className="mt-5 overflow-hidden rounded-2xl border border-fuchsia-200 bg-white">
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-fuchsia-100 text-left text-sm">
+                <thead className="bg-fuchsia-100/70 text-xs uppercase tracking-wide text-fuchsia-800">
+                  <tr>
+                    <th scope="col" className="px-4 py-3">Index</th>
+                    <th scope="col" className="px-4 py-3">Start / end / duration</th>
+                    <th scope="col" className="px-4 py-3">Target frequency</th>
+                    <th scope="col" className="px-4 py-3">Diagnostic target note label</th>
+                    <th scope="col" className="px-4 py-3">Diagnostic confidence</th>
+                    <th scope="col" className="px-4 py-3">Source frames</th>
+                    <th scope="col" className="px-4 py-3">Bridged null frames</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-fuchsia-100 text-fuchsia-950">
+                  {researchTargetCurvePreviewExample.segments.map((segment) => (
+                    <tr key={segment.segmentIndex} className={segment.diagnosticConfidence === "low" ? "bg-amber-50" : "bg-white"}>
+                      <td className="px-4 py-3 font-semibold">{segment.segmentIndex}</td>
+                      <td className="px-4 py-3">{segment.startTimeSeconds.toFixed(2)}s / {segment.endTimeSeconds.toFixed(2)}s / {segment.durationSeconds.toFixed(2)}s</td>
+                      <td className="px-4 py-3">{segment.targetFrequencyHz.toFixed(2)} Hz</td>
+                      <td className="px-4 py-3">{segment.targetNoteLabel ?? "No diagnostic label"}</td>
+                      <td className="px-4 py-3"><span className={segment.diagnosticConfidence === "low" ? "rounded-full bg-amber-100 px-2 py-1 font-bold text-amber-800" : "rounded-full bg-fuchsia-100 px-2 py-1 font-bold text-fuchsia-800"}>{segment.diagnosticConfidence}</span></td>
+                      <td className="px-4 py-3">{segment.sourceFrameCount}</td>
+                      <td className="px-4 py-3">{segment.bridgedNullFrameCount}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <p className="mt-3 text-sm font-medium text-fuchsia-900">
+            The diagnostic target note label is only an optional label in this fake preview data. It is not a recognized note and it is not used by the current target, pitch comparison, local attempt history, or any assessment flow.
+          </p>
         </section>
 
         <section className="mt-6 rounded-2xl border border-emerald-200 bg-emerald-50 p-5">

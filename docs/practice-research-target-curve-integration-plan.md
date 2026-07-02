@@ -189,3 +189,11 @@ P16a and the recommended P16b path explicitly do not include:
 - Upload, cloud, or AI behavior.
 - Account, persistence, or database work.
 - APK-ready claims.
+
+## 9. P16b Implementation Note
+
+P16b adds the first runtime step from this plan: a read-only research target curve diagnostic preview section on `/practice`.
+
+The preview uses a synthetic, fake, hand-authored, non-audio-derived example fixture. It is not sourced from a WAV file, user recording, `metadata.local.json`, storage, upload, API, database, or account data. The fixture exists only to verify that the Practice page can safely render a P15-like diagnostic data shape without changing the existing practice target loop.
+
+P16b intentionally does not replace the existing mock melody targets, does not change `currentMelodyStepIndex`, does not change previous / next / restart behavior, does not change target note playback, does not write research segments into local attempt history, does not participate in pitch comparison, and does not add formal target replacement, scoring, assessment, melody recognition, note recognition, rhythm assessment, sight-singing assessment, or Song Learning Mode behavior.
