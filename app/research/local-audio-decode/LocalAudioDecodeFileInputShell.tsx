@@ -8,6 +8,10 @@ import {
   type NoteLikeSegmentDiagnostic,
 } from "../../../lib/research/local-audio-decode/note-like-segment-diagnostics";
 import {
+  convertNoteLikeSegmentsToResearchTargetPitchCurveDiagnostic,
+  type ResearchTargetPitchCurveDiagnostic,
+} from "../../../lib/research/local-audio-decode/research-target-pitch-curve-diagnostics";
+import {
   DIAGNOSTIC_MAX_FREQUENCY_HZ,
   DIAGNOSTIC_MIN_FREQUENCY_HZ,
   isValidDiagnosticVoicedFrame,
@@ -55,6 +59,7 @@ type PitchDiagnosticMetadata = {
   statusText: string;
   diagnosticFrames: DiagnosticPitchFrame[];
   noteLikeSegments: NoteLikeSegmentDiagnostic[];
+  researchTargetPitchCurve: ResearchTargetPitchCurveDiagnostic;
 };
 
 const pitchFrameSize = 2048;
@@ -167,6 +172,8 @@ function extractResearchPitchDiagnostics(
         "Decoded audio is shorter than one research pitch frame; no diagnostic frames were analyzed.",
       diagnosticFrames: [],
       noteLikeSegments: [],
+      researchTargetPitchCurve:
+        convertNoteLikeSegmentsToResearchTargetPitchCurveDiagnostic([]),
     };
   }
 
@@ -204,6 +211,10 @@ function extractResearchPitchDiagnostics(
   ).length;
   const unvoicedFrameCount = frameCount - voicedFrameCount;
   const noteLikeSegments = deriveNoteLikeSegmentDiagnostics(diagnosticFrames);
+  const researchTargetPitchCurve =
+    convertNoteLikeSegmentsToResearchTargetPitchCurveDiagnostic(
+      noteLikeSegments,
+    );
 
   return {
     analyzedDurationSeconds: audioBuffer.duration,
@@ -219,6 +230,7 @@ function extractResearchPitchDiagnostics(
         : "No voiced diagnostic pitch frames were found by this exploratory local probe.",
     diagnosticFrames,
     noteLikeSegments,
+    researchTargetPitchCurve,
   };
 }
 
@@ -690,7 +702,7 @@ export default function LocalAudioDecodeFileInputShell() {
                         <div>
                           <dt className="text-slate-400">Start / end</dt>
                           <dd>
-                            {segment.startTimeSeconds.toFixed(3)} s / {" "}
+                            {segment.startTimeSeconds.toFixed(3)} s /{" "}
                             {segment.endTimeSeconds.toFixed(3)} s
                           </dd>
                         </div>
@@ -699,7 +711,9 @@ export default function LocalAudioDecodeFileInputShell() {
                           <dd>{segment.durationSeconds.toFixed(3)} s</dd>
                         </div>
                         <div>
-                          <dt className="text-slate-400">Representative frequency</dt>
+                          <dt className="text-slate-400">
+                            Representative frequency
+                          </dt>
                           <dd>
                             {segment.representativeFrequencyHz.toFixed(1)} Hz
                           </dd>
@@ -713,11 +727,15 @@ export default function LocalAudioDecodeFileInputShell() {
                           <dd>{segment.voicedFrameCount}</dd>
                         </div>
                         <div>
-                          <dt className="text-slate-400">Bridged null frame count</dt>
+                          <dt className="text-slate-400">
+                            Bridged null frame count
+                          </dt>
                           <dd>{segment.bridgedNullFrameCount}</dd>
                         </div>
                         <div>
-                          <dt className="text-slate-400">Diagnostic confidence</dt>
+                          <dt className="text-slate-400">
+                            Diagnostic confidence
+                          </dt>
                           <dd>{segment.diagnosticConfidence}</dd>
                         </div>
                       </dl>
@@ -728,6 +746,118 @@ export default function LocalAudioDecodeFileInputShell() {
                 <p className="mt-3 text-amber-100">
                   No note-like segment diagnostics available from the current
                   extracted pitch frames.
+                </p>
+              )}
+            </div>
+
+            <div className="mt-4 rounded-2xl border border-fuchsia-200/20 bg-slate-950/60 p-3 leading-6 text-fuchsia-50/90">
+              <p className="font-semibold text-white">
+                Research target pitch curve diagnostics
+              </p>
+              <p className="mt-2">
+                Research-only. Not formal TargetPitchCurve generation. Not
+                Practice Mode integration. Not scoring. This diagnostic view
+                only converts the current note-like segment diagnostics into a
+                target-curve-like research object for inspection on this
+                isolated route.
+              </p>
+              <dl className="mt-3 grid gap-2 sm:grid-cols-2">
+                <div>
+                  <dt className="text-slate-400">Curve source</dt>
+                  <dd>{pitchDiagnostics.researchTargetPitchCurve.source}</dd>
+                </div>
+                <div>
+                  <dt className="text-slate-400">Segment count</dt>
+                  <dd>
+                    {
+                      pitchDiagnostics.researchTargetPitchCurve.summary
+                        .segmentCount
+                    }
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-slate-400">Total duration</dt>
+                  <dd>
+                    {pitchDiagnostics.researchTargetPitchCurve.summary.totalDurationSeconds.toFixed(
+                      3,
+                    )}{" "}
+                    s
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-slate-400">
+                    Low confidence segment count
+                  </dt>
+                  <dd>
+                    {
+                      pitchDiagnostics.researchTargetPitchCurve.summary
+                        .lowConfidenceSegmentCount
+                    }
+                  </dd>
+                </div>
+              </dl>
+              {pitchDiagnostics.researchTargetPitchCurve.segments.length > 0 ? (
+                <div className="mt-3 space-y-3">
+                  {pitchDiagnostics.researchTargetPitchCurve.segments.map(
+                    (segment) => (
+                      <div
+                        key={`${segment.segmentIndex}-${segment.startTimeSeconds}-${segment.endTimeSeconds}`}
+                        className="rounded-xl border border-fuchsia-200/10 bg-slate-900/80 p-3"
+                      >
+                        <p className="font-semibold text-fuchsia-100">
+                          Curve segment {segment.segmentIndex}
+                        </p>
+                        <dl className="mt-2 grid gap-2 sm:grid-cols-2">
+                          <div>
+                            <dt className="text-slate-400">Start / end</dt>
+                            <dd>
+                              {segment.startTimeSeconds.toFixed(3)} s /{" "}
+                              {segment.endTimeSeconds.toFixed(3)} s
+                            </dd>
+                          </div>
+                          <div>
+                            <dt className="text-slate-400">Duration</dt>
+                            <dd>{segment.durationSeconds.toFixed(3)} s</dd>
+                          </div>
+                          <div>
+                            <dt className="text-slate-400">Target frequency</dt>
+                            <dd>{segment.targetFrequencyHz.toFixed(1)} Hz</dd>
+                          </div>
+                          <div>
+                            <dt className="text-slate-400">
+                              Diagnostic target note label
+                            </dt>
+                            <dd>
+                              {segment.targetNoteLabel ?? "Not available"}
+                            </dd>
+                          </div>
+                          <div>
+                            <dt className="text-slate-400">
+                              Diagnostic confidence
+                            </dt>
+                            <dd>{segment.diagnosticConfidence}</dd>
+                          </div>
+                          <div>
+                            <dt className="text-slate-400">
+                              Source frame count
+                            </dt>
+                            <dd>{segment.sourceFrameCount}</dd>
+                          </div>
+                          <div>
+                            <dt className="text-slate-400">
+                              Bridged null frame count
+                            </dt>
+                            <dd>{segment.bridgedNullFrameCount}</dd>
+                          </div>
+                        </dl>
+                      </div>
+                    ),
+                  )}
+                </div>
+              ) : (
+                <p className="mt-3 text-fuchsia-100">
+                  No research target pitch curve diagnostics available from the
+                  current note-like segment diagnostics.
                 </p>
               )}
             </div>
