@@ -265,6 +265,9 @@ export default function LocalAudioDecodeFileInputShell() {
   const [pitchExtractionError, setPitchExtractionError] = useState<
     string | null
   >(null);
+  const [copyDiagnosticJsonStatus, setCopyDiagnosticJsonStatus] = useState<
+    string | null
+  >(null);
   const [inputKey, setInputKey] = useState(0);
   const decodeRunIdRef = useRef(0);
   const pitchExtractionRunIdRef = useRef(0);
@@ -292,6 +295,9 @@ export default function LocalAudioDecodeFileInputShell() {
   const canExtractPitch =
     decodedAudioBufferRef.current !== null &&
     pitchExtractionState === "ready-to-extract";
+  const researchTargetPitchCurveDiagnosticJson = pitchDiagnostics
+    ? JSON.stringify(pitchDiagnostics.researchTargetPitchCurve, null, 2)
+    : "";
 
   function resetPitchExtractionResult() {
     pitchExtractionRunIdRef.current += 1;
@@ -299,6 +305,7 @@ export default function LocalAudioDecodeFileInputShell() {
     setPitchExtractionState("not-ready");
     setPitchDiagnostics(null);
     setPitchExtractionError(null);
+    setCopyDiagnosticJsonStatus(null);
   }
 
   function resetDecodeResult() {
@@ -405,6 +412,7 @@ export default function LocalAudioDecodeFileInputShell() {
     setPitchExtractionState("extracting");
     setPitchDiagnostics(null);
     setPitchExtractionError(null);
+    setCopyDiagnosticJsonStatus(null);
 
     try {
       await new Promise((resolve) => window.setTimeout(resolve, 0));
@@ -425,6 +433,19 @@ export default function LocalAudioDecodeFileInputShell() {
         );
         setPitchExtractionState("extract-error");
       }
+    }
+  }
+
+  async function handleCopyDiagnosticJson() {
+    if (!researchTargetPitchCurveDiagnosticJson) {
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(researchTargetPitchCurveDiagnosticJson);
+      setCopyDiagnosticJsonStatus("Copied diagnostic JSON.");
+    } catch {
+      setCopyDiagnosticJsonStatus("Copy failed. Please copy manually.");
     }
   }
 
@@ -796,6 +817,44 @@ export default function LocalAudioDecodeFileInputShell() {
                   </dd>
                 </div>
               </dl>
+
+              <div className="mt-4 rounded-2xl border border-fuchsia-200/20 bg-slate-950/60 p-3 leading-6 text-fuchsia-50/90">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                  <div>
+                    <p className="font-semibold text-white">
+                      Manual diagnostic JSON handoff
+                    </p>
+                    <p className="mt-2">
+                      Research-only manual handoff. This is not automatic import,
+                      not upload, not scoring, and not a Practice Mode target.
+                      Paste this JSON into /practice research preview only.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleCopyDiagnosticJson}
+                    disabled={!researchTargetPitchCurveDiagnosticJson}
+                    className="rounded-2xl bg-fuchsia-300 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-fuchsia-200 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-400"
+                  >
+                    Copy diagnostic JSON
+                  </button>
+                </div>
+                {copyDiagnosticJsonStatus ? (
+                  <p className="mt-3 font-semibold text-fuchsia-100">
+                    {copyDiagnosticJsonStatus}
+                  </p>
+                ) : null}
+                <label className="mt-3 flex flex-col gap-2 text-sm font-medium text-fuchsia-100">
+                  Read-only diagnostic JSON fallback for manual copy
+                  <textarea
+                    readOnly
+                    value={researchTargetPitchCurveDiagnosticJson}
+                    rows={10}
+                    className="w-full rounded-xl border border-fuchsia-200/20 bg-slate-950 p-3 font-mono text-xs text-fuchsia-50"
+                  />
+                </label>
+              </div>
+
               {pitchDiagnostics.researchTargetPitchCurve.segments.length > 0 ? (
                 <div className="mt-3 space-y-3">
                   {pitchDiagnostics.researchTargetPitchCurve.segments.map(

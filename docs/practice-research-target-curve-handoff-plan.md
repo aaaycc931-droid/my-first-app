@@ -175,3 +175,16 @@ P16i uses strict summary validation instead of implicit summary normalization. `
 The helper validates only the research source `local-audio-decode-note-like-segments`; segment numeric fields must be finite; `targetFrequencyHz` must be positive; frame counts must be non-negative; `diagnosticConfidence` must be exactly `normal` or `low`; `high` and `medium` are rejected; optional `targetNoteLabel` must be a string when present; and `summary.totalDurationSeconds` must be finite and non-negative.
 
 Synthetic tests cover empty input, invalid JSON, missing top-level fields, unsupported source, valid empty / one-segment / multi-segment diagnostics, normal and low confidence acceptance, high and medium confidence rejection, non-finite numbers, negative target frequency, missing segment fields, optional note label omission and string acceptance, summary count mismatches, returned diagnostic copy isolation from parsed input, and non-scoring error wording.
+
+## 10. P16j Runtime Beta Slice — Manual JSON Copy/Paste Preview
+
+P16j implements the minimal research-only manual JSON handoff beta UI from `/research/local-audio-decode` to `/practice`:
+
+1. `/research/local-audio-decode` shows a **Copy diagnostic JSON** action only after a `ResearchTargetPitchCurveDiagnostic` exists from the existing explicit Extract pitch frames flow.
+2. The research route exposes the same diagnostic JSON in a read-only textarea fallback for manual copying.
+3. `/practice` adds a **Manual research target curve diagnostic JSON preview** panel that accepts pasted JSON and previews it read-only after explicit user action.
+4. The `/practice` paste panel uses the P16i `parseResearchTargetCurveHandoffJson` helper without changing parser semantics.
+
+P16j remains research-only. It is not automatic import, not formal Practice Mode audio import, not formal TargetPitchCurve integration, not target replacement, not scoring, not assessment, not melody recognition, not note recognition, not Song Learning Mode, and not APK-ready.
+
+The runtime slice intentionally does not use `localStorage`, `sessionStorage`, URL payload handoff, APIs, upload, cloud, AI calls, account data, database data, or server storage. The imported preview is read-only and does not affect mock melody targets, `currentMelodyStepIndex`, target note playback, pitch estimation, target-aware comparison, or attempt history.

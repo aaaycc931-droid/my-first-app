@@ -5,6 +5,11 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { mockMelodyTargetCurveExample } from "../../lib/practice/mock-melody-target-segments.example";
 import { researchTargetCurvePreviewExample } from "../../lib/practice/research-target-curve-preview.example";
 import {
+  parseResearchTargetCurveHandoffJson,
+  type ParseResearchTargetCurveHandoffJsonResult,
+} from "../../lib/practice/research-target-curve-handoff-json";
+import type { ResearchTargetPitchCurveDiagnostic } from "../../lib/research/local-audio-decode/research-target-pitch-curve-diagnostics";
+import {
   estimateLocalPitch,
   type PitchEstimateResult,
 } from "../../lib/practice/pitchEstimate";
@@ -36,6 +41,11 @@ type PitchConfidenceFeedback = {
   label: string;
   explanation: string;
 };
+
+type ManualResearchTargetCurvePreviewState =
+  | { status: "idle" }
+  | { status: "invalid"; message: string }
+  | { status: "valid"; diagnostic: ResearchTargetPitchCurveDiagnostic };
 
 type PracticeAttemptSummary = {
   id: number;
@@ -88,6 +98,13 @@ const noteFrequencies: Record<string, number> = {
 };
 
 const maxPracticeAttemptHistory = 5;
+
+const formatDiagnosticConfidenceLabel = (
+  confidence: ResearchTargetPitchCurveDiagnostic["segments"][number]["diagnosticConfidence"],
+) =>
+  confidence === "low"
+    ? "Low diagnostic confidence"
+    : "Normal diagnostic confidence";
 
 const staticPreviewTargetSegments = mockMelodyTargetCurveExample.segments.filter(
   (segment) => segment.shouldRenderAsTargetBlock,
@@ -240,6 +257,9 @@ export default function PracticePage() {
   const [isSelectedTargetNotePlaying, setIsSelectedTargetNotePlaying] = useState(false);
   const [recordingSeconds, setRecordingSeconds] = useState(0);
   const [practiceAttempts, setPracticeAttempts] = useState<PracticeAttemptSummary[]>([]);
+  const [manualResearchTargetCurveJson, setManualResearchTargetCurveJson] = useState("");
+  const [manualResearchTargetCurvePreview, setManualResearchTargetCurvePreview] =
+    useState<ManualResearchTargetCurvePreviewState>({ status: "idle" });
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const mediaStreamRef = useRef<MediaStream | null>(null);
   const recordingChunksRef = useRef<Blob[]>([]);
@@ -758,6 +778,24 @@ export default function PracticePage() {
     setCurrentMelodyStepIndex(0);
   };
 
+  const handlePreviewManualResearchTargetCurveJson = () => {
+    const result: ParseResearchTargetCurveHandoffJsonResult =
+      parseResearchTargetCurveHandoffJson(manualResearchTargetCurveJson);
+
+    if (result.ok) {
+      setManualResearchTargetCurvePreview({
+        status: "valid",
+        diagnostic: result.diagnostic,
+      });
+      return;
+    }
+
+    setManualResearchTargetCurvePreview({
+      status: "invalid",
+      message: result.message,
+    });
+  };
+
   const handlePracticeAttemptTargetAgain = (melodyStepIndex: number) => {
     if (melodyStepIndex >= 0 && melodyStepIndex < melodySteps.length) {
       setCurrentMelodyStepIndex(melodyStepIndex);
@@ -1082,6 +1120,88 @@ export default function PracticePage() {
           <p className="mt-3 text-sm font-medium text-fuchsia-900">
             The diagnostic target note label is only an optional label in this fake preview data. It is not a recognized note and it is not used by the current target, pitch comparison, local attempt history, or any assessment flow.
           </p>
+        </section>
+
+
+        <section className="mt-6 rounded-3xl border border-purple-200 bg-purple-50 p-5 shadow-sm sm:p-6">
+          <div>
+            <p className="text-sm font-semibold uppercase tracking-wide text-purple-700">Research-only · Manual pasted diagnostic preview</p>
+            <h2 className="mt-1 text-2xl font-bold text-purple-950">Manual research target curve diagnostic JSON preview</h2>
+            <p className="mt-2 max-w-3xl text-sm leading-6 text-purple-900">
+              Research-only manual pasted diagnostic preview. This is not a formal Practice Mode target, not Practice Mode audio import, not scoring, not assessment, and does not replace current mock melody practice flow.
+            </p>
+            <ul className="mt-3 grid gap-2 text-sm font-semibold text-purple-950 sm:grid-cols-2">
+              <li className="rounded-xl bg-white p-3 ring-1 ring-purple-200">Read-only imported research preview</li>
+              <li className="rounded-xl bg-white p-3 ring-1 ring-purple-200">No storage, upload, API, account, or database</li>
+              <li className="rounded-xl bg-white p-3 ring-1 ring-purple-200">No target replacement</li>
+              <li className="rounded-xl bg-white p-3 ring-1 ring-purple-200">No pitch comparison or attempt history writes</li>
+            </ul>
+          </div>
+
+          <label className="mt-4 flex flex-col gap-2 text-sm font-semibold text-purple-950">
+            Paste diagnostic JSON from /research/local-audio-decode
+            <textarea
+              value={manualResearchTargetCurveJson}
+              onChange={(event) => setManualResearchTargetCurveJson(event.target.value)}
+              rows={8}
+              className="w-full rounded-2xl border border-purple-200 bg-white p-3 font-mono text-xs font-normal text-slate-900 shadow-sm"
+              placeholder="Paste research diagnostic JSON here."
+            />
+          </label>
+          <button type="button" onClick={handlePreviewManualResearchTargetCurveJson} className="mt-3 rounded-full bg-purple-700 px-4 py-2 text-sm font-semibold text-white hover:bg-purple-800">
+            Preview pasted diagnostic JSON
+          </button>
+
+          {manualResearchTargetCurvePreview.status === "invalid" ? (
+            <p className="mt-3 rounded-xl border border-amber-200 bg-white p-4 text-sm font-semibold text-amber-900">
+              {manualResearchTargetCurvePreview.message} This preview was not updated.
+            </p>
+          ) : null}
+
+          {manualResearchTargetCurvePreview.status === "valid" ? (
+            <div className="mt-5 rounded-2xl border border-purple-200 bg-white p-4 text-purple-950 shadow-sm">
+              <p className="text-sm font-semibold uppercase tracking-wide text-purple-700">Read-only imported diagnostic preview</p>
+              <dl className="mt-3 grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-4">
+                <div><dt className="text-purple-700">Curve source</dt><dd className="mt-1 break-all font-semibold">{manualResearchTargetCurvePreview.diagnostic.source}</dd></div>
+                <div><dt className="text-purple-700">Segment count</dt><dd className="mt-1 font-semibold">{manualResearchTargetCurvePreview.diagnostic.summary.segmentCount}</dd></div>
+                <div><dt className="text-purple-700">Total duration</dt><dd className="mt-1 font-semibold">{manualResearchTargetCurvePreview.diagnostic.summary.totalDurationSeconds.toFixed(3)}s</dd></div>
+                <div><dt className="text-purple-700">Low confidence segment count</dt><dd className="mt-1 font-semibold">{manualResearchTargetCurvePreview.diagnostic.summary.lowConfidenceSegmentCount}</dd></div>
+              </dl>
+              <div className="mt-4 overflow-hidden rounded-2xl border border-purple-200">
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-purple-100 text-left text-sm">
+                    <thead className="bg-purple-100/70 text-xs uppercase tracking-wide text-purple-800">
+                      <tr>
+                        <th scope="col" className="px-4 py-3">Segment index</th>
+                        <th scope="col" className="px-4 py-3">Start / end / duration</th>
+                        <th scope="col" className="px-4 py-3">Target frequency</th>
+                        <th scope="col" className="px-4 py-3">Optional diagnostic target note label</th>
+                        <th scope="col" className="px-4 py-3">Diagnostic confidence</th>
+                        <th scope="col" className="px-4 py-3">Source frame count</th>
+                        <th scope="col" className="px-4 py-3">Bridged null frame count</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-purple-100 text-purple-950">
+                      {manualResearchTargetCurvePreview.diagnostic.segments.map((segment) => (
+                        <tr key={`${segment.segmentIndex}-${segment.startTimeSeconds}-${segment.endTimeSeconds}`} className={segment.diagnosticConfidence === "low" ? "bg-amber-50" : "bg-white"}>
+                          <td className="px-4 py-3 font-semibold">{segment.segmentIndex}</td>
+                          <td className="px-4 py-3">{segment.startTimeSeconds.toFixed(3)}s / {segment.endTimeSeconds.toFixed(3)}s / {segment.durationSeconds.toFixed(3)}s</td>
+                          <td className="px-4 py-3">{segment.targetFrequencyHz.toFixed(2)} Hz</td>
+                          <td className="px-4 py-3">{segment.targetNoteLabel ?? "No diagnostic label"}</td>
+                          <td className="px-4 py-3"><span className={segment.diagnosticConfidence === "low" ? "rounded-full bg-amber-100 px-2 py-1 font-bold text-amber-800" : "rounded-full bg-purple-100 px-2 py-1 font-bold text-purple-800"}>{formatDiagnosticConfidenceLabel(segment.diagnosticConfidence)}</span></td>
+                          <td className="px-4 py-3">{segment.sourceFrameCount}</td>
+                          <td className="px-4 py-3">{segment.bridgedNullFrameCount}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+              <p className="mt-3 text-sm font-medium text-purple-900">
+                The optional diagnostic target note label is only diagnostic metadata. It is not used by the current target, pitch comparison, local attempt history, or any assessment flow.
+              </p>
+            </div>
+          ) : null}
         </section>
 
         <section className="mt-6 rounded-2xl border border-emerald-200 bg-emerald-50 p-5">
