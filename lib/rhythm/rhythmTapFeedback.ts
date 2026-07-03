@@ -63,6 +63,7 @@ export type RhythmTapFeedbackSummary = {
   tapCount: number;
   closeToleranceMs: number;
   matchWindowMs: number;
+  appliedLatencyOffsetMs: number;
 };
 
 export const rhythmCloseToleranceMs = 80;
@@ -130,6 +131,7 @@ export const getRhythmTapFeedback = ({
   nowMs,
   closeToleranceMs = rhythmCloseToleranceMs,
   matchWindowMs = rhythmMatchWindowMs,
+  latencyOffsetMs = 0,
 }: {
   targets: RhythmTargetEvent[];
   taps: RhythmTapEvent[];
@@ -137,6 +139,7 @@ export const getRhythmTapFeedback = ({
   nowMs: number;
   closeToleranceMs?: number;
   matchWindowMs?: number;
+  latencyOffsetMs?: number;
 }): RhythmTapFeedbackSummary => {
   if (phase === "idle" || phase === "count-in") {
     return {
@@ -147,6 +150,7 @@ export const getRhythmTapFeedback = ({
       tapCount: 0,
       closeToleranceMs,
       matchWindowMs,
+      appliedLatencyOffsetMs: latencyOffsetMs,
     };
   }
 
@@ -161,6 +165,7 @@ export const getRhythmTapFeedback = ({
       tapCount: 0,
       closeToleranceMs,
       matchWindowMs,
+      appliedLatencyOffsetMs: latencyOffsetMs,
     };
   }
 
@@ -175,7 +180,8 @@ export const getRhythmTapFeedback = ({
       if (usedTapIds.has(tap.id)) {
         return;
       }
-      const absOffset = Math.abs(tap.timestampMs - target.targetTimeMs);
+      const adjustedTapTimeMs = tap.timestampMs - latencyOffsetMs;
+      const absOffset = Math.abs(adjustedTapTimeMs - target.targetTimeMs);
       if (absOffset <= matchWindowMs && absOffset < bestAbsOffset) {
         bestTapIndex = tapIndex;
         bestAbsOffset = absOffset;
@@ -186,7 +192,8 @@ export const getRhythmTapFeedback = ({
 
     if (bestTap) {
       usedTapIds.add(bestTap.id);
-      const offsetMs = bestTap.timestampMs - target.targetTimeMs;
+      const adjustedTapTimeMs = bestTap.timestampMs - latencyOffsetMs;
+      const offsetMs = adjustedTapTimeMs - target.targetTimeMs;
       const category =
         Math.abs(offsetMs) <= closeToleranceMs
           ? "close"
@@ -198,7 +205,7 @@ export const getRhythmTapFeedback = ({
         targetIndex: target.targetIndex,
         tapId: bestTap.id,
         targetTimeMs: target.targetTimeMs,
-        tapTimeMs: bestTap.timestampMs,
+        tapTimeMs: adjustedTapTimeMs,
         offsetMs,
         message:
           category === "close"
@@ -250,6 +257,7 @@ export const getRhythmTapFeedback = ({
     tapCount: practiceTaps.length,
     closeToleranceMs,
     matchWindowMs,
+    appliedLatencyOffsetMs: latencyOffsetMs,
   };
 };
 
