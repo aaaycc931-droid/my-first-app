@@ -1,5 +1,21 @@
 # MVP status
 
+
+## P26 — Browser-local Audio Onset Detection Foundation (2026-07-03)
+
+P26 adds a Browser-local Audio Onset Detection Foundation for future voice and instrument rhythm training. The new reusable helper accepts decoded samples / `Float32Array` plus `sampleRate`, frames the audio, computes RMS energy, derives onset strength from energy changes, applies an adaptive diagnostic threshold plus a minimum onset gap, and returns onset candidates with frame/time/strength/energy/threshold/diagnostic confidence metadata. `/practice` now includes a lightweight research panel that can run onset detection against the latest browser-local recording and display onset count, detected onset times, metadata, warnings, and limitations.
+
+P26 is foundation work for future human voice rhythm training, piano, guitar / plucked instruments, percussion, other short-attack instruments, future audio-based rhythm feedback, future rhythm scoring research, and future sight-singing rhythm alignment. It is not formal scoring or assessment.
+
+Strict P26 boundaries:
+
+- P26 is not rhythm scoring, not formal rhythm assessment, not complete voice/instrument rhythm evaluation, and not sight-singing comprehensive scoring.
+- P26 does not produce pass/fail, grade, accuracy percentage, score, or final assessment. Diagnostic confidence only describes onset-candidate strength relative to the local detector threshold.
+- P26 is browser-local: no upload, cloud processing, AI API, account, database, server storage, or persistent rhythm history is added.
+- P26 does not modify `/api/recognize`, parser/converter behavior, production Audiveris behavior, audio fixtures, `metadata.local.json`, piano runtime, or `/piano`.
+- Instrument-specific onset tuning, noise reduction, microphone-specific assessment, and connecting detected onsets to rhythm feedback matching are deferred to future stages such as P27.
+- Current limitations remain explicit: human voice, flute, violin, legato passages, weak attacks, and noisy environments may be harder to detect and are not guaranteed suitable for formal evaluation.
+
 ## P25 — Tap Latency Calibration Foundation (2026-07-03)
 
 P25 adds a lightweight Tap Latency Calibration Foundation for `/practice`. It serves future rhythm feedback reliability by estimating a browser-session tap offset against quarter-note metronome targets after count-in. The calibration is session-only React state, is not saved to account, database, localStorage, IndexedDB, cookies, or persistent history, and can optionally adjust Rhythm Practice Alpha tap feedback offsets for the current session.
