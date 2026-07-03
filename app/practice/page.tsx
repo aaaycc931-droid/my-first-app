@@ -4,8 +4,12 @@ import { useEffect, useMemo, useRef, useState } from "react";
 
 import {
   defaultMetronomeConfig,
+  supportedCountInBars,
   supportedMetronomeMeters,
+  supportedMetronomeSubdivisions,
+  type CountInBars,
   type MetronomeMeter,
+  type MetronomeSubdivision,
 } from "../../lib/metronome/metronomeConfig";
 import { BrowserMetronomeScheduler } from "../../lib/metronome/metronomeScheduler";
 import type { MetronomeBeatMetadata } from "../../lib/metronome/metronomeGrid";
@@ -268,6 +272,10 @@ export default function PracticePage() {
   const [metronomeMeter, setMetronomeMeter] = useState<MetronomeMeter>(
     defaultMetronomeConfig.meter,
   );
+  const [metronomeCountInBars, setMetronomeCountInBars] =
+    useState<CountInBars>(0);
+  const [metronomeSubdivision, setMetronomeSubdivision] =
+    useState<MetronomeSubdivision>("quarter");
   const [isMetronomeRunning, setIsMetronomeRunning] = useState(false);
   const [metronomeBeat, setMetronomeBeat] =
     useState<MetronomeBeatMetadata | null>(null);
@@ -511,7 +519,15 @@ export default function PracticePage() {
     setMetronomeError("");
 
     const scheduler = new BrowserMetronomeScheduler({
-      config: { bpm: metronomeBpm, meter: metronomeMeter },
+      config: {
+        bpm: metronomeBpm,
+        meter: metronomeMeter,
+        countIn: {
+          enabled: metronomeCountInBars > 0,
+          bars: metronomeCountInBars,
+        },
+        subdivision: metronomeSubdivision,
+      },
       onBeat: (beat) => {
         if (isMountedRef.current) {
           setMetronomeBeat(beat);
@@ -1157,16 +1173,16 @@ export default function PracticePage() {
               </h2>
               <p className="mt-2 max-w-3xl text-sm leading-6 text-teal-900">
                 这是 browser-local Web Audio 节拍器基础模块，用于未来
-                count-in、tap-based rhythm practice
-                和节奏训练复用。当前只提供稳定节拍与 beat metadata，不做 rhythm
-                scoring、正式评测、通过 / 失败或等级。
+                count-in、subdivision metadata、tap-based rhythm practice
+                和节奏训练复用。当前只提供稳定节拍、预备拍与 metadata，不做
+                rhythm scoring、正式评测、通过 / 失败或等级。
               </p>
             </div>
             <div className="rounded-2xl border border-teal-200 bg-white p-4 text-sm text-teal-950 shadow-sm lg:min-w-64">
               <p className="font-semibold">当前 beat</p>
               <p className="mt-2 text-3xl font-bold">
                 {metronomeBeat
-                  ? `${metronomeBeat.barNumber}.${metronomeBeat.beatNumber}`
+                  ? `${metronomeBeat.phase === "count-in" ? "Count-in " : "Practice "}${metronomeBeat.barNumber}.${metronomeBeat.beatNumber}`
                   : "—"}
               </p>
               <p className="mt-1 font-medium">
@@ -1179,7 +1195,7 @@ export default function PracticePage() {
             </div>
           </div>
 
-          <div className="mt-5 grid gap-3 text-sm md:grid-cols-4">
+          <div className="mt-5 grid gap-3 text-sm md:grid-cols-6">
             <label className="rounded-2xl bg-white p-4 font-semibold text-teal-950 ring-1 ring-teal-200">
               BPM
               <input
@@ -1211,16 +1227,59 @@ export default function PracticePage() {
                 ))}
               </select>
             </label>
+            <label className="rounded-2xl bg-white p-4 font-semibold text-teal-950 ring-1 ring-teal-200">
+              Count-in
+              <select
+                value={metronomeCountInBars}
+                onChange={(event) =>
+                  setMetronomeCountInBars(
+                    Number(event.target.value) as CountInBars,
+                  )
+                }
+                disabled={isMetronomeRunning}
+                className="mt-2 w-full rounded-xl border border-teal-200 px-3 py-2 text-slate-900 disabled:bg-slate-100"
+              >
+                {supportedCountInBars.map((bars) => (
+                  <option key={bars} value={bars}>
+                    {bars === 0 ? "Off" : `${bars} bar${bars > 1 ? "s" : ""}`}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="rounded-2xl bg-white p-4 font-semibold text-teal-950 ring-1 ring-teal-200">
+              Subdivision
+              <select
+                value={metronomeSubdivision}
+                onChange={(event) =>
+                  setMetronomeSubdivision(
+                    event.target.value as MetronomeSubdivision,
+                  )
+                }
+                disabled={isMetronomeRunning}
+                className="mt-2 w-full rounded-xl border border-teal-200 px-3 py-2 text-slate-900 disabled:bg-slate-100"
+              >
+                {supportedMetronomeSubdivisions.map((subdivision) => (
+                  <option key={subdivision} value={subdivision}>
+                    {subdivision === "quarter"
+                      ? "Quarter"
+                      : subdivision === "eighth"
+                        ? "Eighth"
+                        : "Sixteenth"}
+                  </option>
+                ))}
+              </select>
+            </label>
             <div className="rounded-2xl bg-white p-4 ring-1 ring-teal-200">
               <p className="font-semibold text-teal-950">Strong / weak</p>
               <p className="mt-2 text-teal-800">
-                每小节第 1 拍为 strong beat，其余为 weak beat。
+                每小节第 1 拍为 strong beat；count-in 与 practice phase 分开。
               </p>
             </div>
             <div className="rounded-2xl bg-white p-4 ring-1 ring-teal-200">
               <p className="font-semibold text-teal-950">本地边界</p>
               <p className="mt-2 text-teal-800">
-                只使用浏览器 Web Audio；不上传、不调用云端或 AI。
+                subdivision 当前是 future rhythm practice metadata；音频只播放
+                beat-level click。
               </p>
             </div>
           </div>
