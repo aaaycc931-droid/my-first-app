@@ -41,6 +41,11 @@ const onsetResult = (times: number[]): AudioOnsetDetectionResult => ({
   averageStrength: 0.1,
   strengthDeviation: 0.02,
   maxStrength: 0.8,
+  timeline: [],
+  timelinePointCount: 0,
+  timelineSourcePointCount: 0,
+  timelineMaxPoints: 300,
+  isTimelineDownsampled: false,
 });
 
 assert.deepEqual(

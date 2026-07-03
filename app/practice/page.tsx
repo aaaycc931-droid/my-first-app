@@ -2167,6 +2167,16 @@ export default function PracticePage() {
               {audioOnsetError}
             </p>
           ) : null}
+          {!audioOnsetResult ? (
+            <div className="mt-5 rounded-2xl border border-dashed border-orange-300 bg-white p-4 text-sm text-orange-900">
+              <p className="font-bold text-orange-950">No onset timeline yet</p>
+              <p className="mt-2">
+                Detect onsets from latest local recording to preview onset
+                strength. This is a browser-local diagnostic preview, not
+                scoring.
+              </p>
+            </div>
+          ) : null}
           {audioOnsetResult ? (
             <div className="mt-5 grid gap-3 text-sm lg:grid-cols-[0.8fr_1.2fr]">
               <div className="rounded-2xl bg-white p-4 ring-1 ring-orange-200">
@@ -2189,6 +2199,82 @@ export default function PracticePage() {
                     ))}
                   </ul>
                 ) : null}
+              </div>
+              <div className="rounded-2xl bg-white p-4 ring-1 ring-orange-200 lg:col-span-2">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                  <div>
+                    <p className="font-bold text-orange-950">
+                      Onset strength timeline preview
+                    </p>
+                    <p className="mt-1 text-orange-800">
+                      Diagnostic preview only, not a score. Bars show local
+                      onset strength, the dashed reference shows threshold, and
+                      markers show detected onset candidates.
+                    </p>
+                  </div>
+                  <p className="rounded-full bg-orange-50 px-3 py-1 font-semibold text-orange-800">
+                    preset {audioOnsetResult.sensitivityPreset} · {audioOnsetResult.onsetCount} onset{audioOnsetResult.onsetCount === 1 ? "" : "s"}
+                  </p>
+                </div>
+                {audioOnsetResult.timeline.length > 0 ? (
+                  <div className="mt-4">
+                    <div
+                      className="relative flex h-36 items-end gap-px overflow-hidden rounded-2xl border border-orange-200 bg-orange-50 px-2 pb-4 pt-3"
+                      aria-label="Onset strength timeline diagnostic preview"
+                    >
+                      {audioOnsetResult.timeline.map((point) => {
+                        const visualMax = Math.max(
+                          audioOnsetResult.maxStrength,
+                          audioOnsetResult.threshold,
+                          0.0001,
+                        );
+                        const barHeightPercent = Math.max(
+                          2,
+                          Math.min(100, (point.onsetStrength / visualMax) * 100),
+                        );
+                        return (
+                          <div
+                            key={`${point.frameIndex}-${point.timeMs}`}
+                            className={`relative flex-1 rounded-t-sm ${
+                              point.isCandidate ? "bg-orange-700" : "bg-orange-300"
+                            }`}
+                            style={{ height: `${barHeightPercent}%` }}
+                            title={`time ${point.timeMs.toFixed(0)}ms · strength ${point.onsetStrength.toFixed(4)} · threshold ${point.threshold.toFixed(4)}${point.isCandidate ? " · detected onset candidate" : ""}`}
+                          >
+                            {point.isCandidate ? (
+                              <span className="absolute -top-3 left-1/2 h-3 w-0.5 -translate-x-1/2 rounded-full bg-orange-950" />
+                            ) : null}
+                          </div>
+                        );
+                      })}
+                      <div
+                        className="pointer-events-none absolute left-0 right-0 border-t-2 border-dashed border-red-500"
+                        style={{
+                          bottom: `${Math.min(95, Math.max(8, (audioOnsetResult.threshold / Math.max(audioOnsetResult.maxStrength, audioOnsetResult.threshold, 0.0001)) * 100))}%`,
+                        }}
+                      />
+                      <span className="pointer-events-none absolute right-3 rounded-full bg-white/90 px-2 py-1 text-xs font-bold text-red-700 shadow-sm"
+                        style={{
+                          bottom: `${Math.min(95, Math.max(8, (audioOnsetResult.threshold / Math.max(audioOnsetResult.maxStrength, audioOnsetResult.threshold, 0.0001)) * 100))}%`,
+                        }}
+                      >
+                        threshold {audioOnsetResult.threshold.toFixed(4)}
+                      </span>
+                    </div>
+                    <p className="mt-2 text-orange-800">
+                      {audioOnsetResult.isTimelineDownsampled
+                        ? `Timeline preview is downsampled to ${audioOnsetResult.timelinePointCount}/${audioOnsetResult.timelineSourcePointCount} frame points for safe rendering.`
+                        : `Timeline preview shows ${audioOnsetResult.timelinePointCount} frame points.`}
+                      {" "}Duration {audioOnsetResult.durationMs.toFixed(0)}ms.
+                    </p>
+                  </div>
+                ) : (
+                  <p className="mt-3 rounded-xl bg-orange-50 p-3 text-orange-800">
+                    No onset timeline yet. Detect onsets from latest local
+                    recording to preview onset strength. This remains
+                    browser-local diagnostic preview.
+                  </p>
+                )}
               </div>
               <div className="rounded-2xl bg-white p-4 ring-1 ring-orange-200">
                 <p className="font-bold text-orange-950">

@@ -5,6 +5,7 @@ import { getNonScoringImportedTargetPitchFeedback } from "../lib/practice/nonSco
 import { getRhythmLatencyCalibration } from "../lib/rhythm/rhythmLatencyCalibration";
 import { getRhythmTapFeedback } from "../lib/rhythm/rhythmTapFeedback";
 import {
+  createAudioOnsetTimeline,
   detectAudioOnsets,
   getAudioOnsetSensitivityConfig,
   hasAudioOnsetScoringFields,
@@ -23,6 +24,9 @@ const withImpulse = (positions: number[], amplitude = 1) => {
 
 const silentBalanced = detectAudioOnsets(makeSamples(), sampleRate);
 assert.equal(silentBalanced.onsetCount, 0);
+assert.ok(silentBalanced.timeline.length > 0);
+assert.equal(silentBalanced.timeline.some((point) => point.isCandidate), false);
+assert.ok(silentBalanced.timeline.every((point) => point.threshold === silentBalanced.threshold));
 assert.equal(silentBalanced.sensitivityPreset, "balanced");
 assert.ok(silentBalanced.diagnosticSummary.includes("diagnostic"));
 assert.equal(silentBalanced.thresholdMultiplier, getAudioOnsetSensitivityConfig("balanced").thresholdMultiplier);
@@ -51,6 +55,12 @@ const single = detectAudioOnsets(withImpulse([500]), sampleRate, {
 });
 assert.equal(single.onsetCount, 1);
 assert.ok(Math.abs(single.candidates[0]!.onsetTimeMs - 490) <= 20);
+assert.ok(single.timeline.length > 0);
+assert.ok(single.timeline.some((point) => point.isCandidate && point.candidateIndex === 0));
+assert.ok(single.timeline.every((point) => point.sensitivityPreset === "balanced"));
+assert.ok(single.timeline.every((point) => Number.isFinite(point.energy)));
+assert.ok(single.timeline.every((point) => Number.isFinite(point.onsetStrength)));
+assert.ok(single.timeline.every((point) => point.threshold === single.threshold));
 
 const multiple = detectAudioOnsets(withImpulse([200, 500, 900]), sampleRate, {
   frameSize: 20,
@@ -102,6 +112,8 @@ assert.equal(sensitiveWeak.onsetCount, 1);
 assert.equal(balancedWeak.onsetCount, 0);
 assert.equal(conservativeWeak.onsetCount, 0);
 assert.ok(sensitiveWeak.threshold < conservativeWeak.threshold);
+assert.ok(sensitiveWeak.timeline.every((point) => point.sensitivityPreset === "sensitive"));
+assert.ok(conservativeWeak.timeline.every((point) => point.sensitivityPreset === "conservative"));
 assert.equal(
   detectAudioOnsets(weakForPreset, sampleRate, {
     sensitivityPreset: "unknown",
@@ -135,12 +147,42 @@ assert.equal(multiple.frameSize, 20);
 assert.equal(multiple.hopSize, 10);
 assert.equal(Math.round(multiple.durationMs), 1200);
 
+const limitedTimeline = detectAudioOnsets(withImpulse([200, 500, 900]), sampleRate, {
+  frameSize: 20,
+  hopSize: 5,
+  minOnsetGapMs: 80,
+  minimumEnergy: 0.02,
+  minimumStrength: 0.02,
+  maxTimelinePoints: 25,
+});
+assert.ok(limitedTimeline.timeline.length <= 25);
+assert.equal(limitedTimeline.timelineMaxPoints, 25);
+assert.equal(limitedTimeline.isTimelineDownsampled, true);
+assert.ok(limitedTimeline.timeline.some((point) => point.isCandidate));
+
 assert.equal(detectAudioOnsets(new Float32Array(), sampleRate).onsetCount, 0);
+assert.equal(detectAudioOnsets(new Float32Array(), sampleRate).timeline.length, 0);
 assert.equal(detectAudioOnsets(makeSamples(), 0).sampleRate, 0);
+assert.equal(detectAudioOnsets(makeSamples(), 0).timeline.length, 0);
+assert.deepEqual(
+  createAudioOnsetTimeline({
+    energies: [0],
+    strengths: [0],
+    threshold: 0.1,
+    hopSize: 10,
+    sampleRate: 0,
+    candidates: [],
+    sensitivityPreset: "balanced",
+  }),
+  [],
+);
 
 assert.equal(hasAudioOnsetScoringFields(single), false);
 single.candidates.forEach((candidate) =>
   assert.equal(hasAudioOnsetScoringFields(candidate), false),
+);
+single.timeline.forEach((point) =>
+  assert.equal(hasAudioOnsetScoringFields(point), false),
 );
 
 assert.equal(
@@ -178,4 +220,7 @@ assert.match(practicePage, /Onset sensitivity preset/);
 assert.match(practicePage, /Sensitive may detect weaker onsets/);
 assert.match(practicePage, /Conservative may reduce extra candidates/);
 assert.match(practicePage, /threshold/);
+assert.match(practicePage, /Onset strength timeline preview/);
+assert.match(practicePage, /No onset timeline yet/);
+assert.match(practicePage, /Timeline preview is downsampled/);
 assert.doesNotMatch(practicePage, /accuracyPercentage/);
