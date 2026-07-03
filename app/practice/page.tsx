@@ -30,8 +30,10 @@ import {
   type RhythmLatencyCalibrationTap,
 } from "../../lib/rhythm/rhythmLatencyCalibration";
 import {
+  audioOnsetSensitivityPresets,
   detectAudioOnsets,
   type AudioOnsetDetectionResult,
+  type AudioOnsetSensitivityPreset,
 } from "../../lib/rhythm/audioOnsetDetection";
 import {
   getAudioOnsetRhythmFeedback,
@@ -118,6 +120,11 @@ const mockFeedback = {
 
 const practiceSteps = ["听目标音", "录制一次本地练习", "查看模拟反馈", "重试"];
 const audioOnsetBoundaryCopy = "No upload / cloud / AI";
+const audioOnsetSensitivityOptions: AudioOnsetSensitivityPreset[] = [
+  "balanced",
+  "sensitive",
+  "conservative",
+];
 
 const melodySteps = mockExercise.targetNotes.map((targetNote, index) => ({
   id: `melody-step-${index + 1}`,
@@ -353,6 +360,8 @@ export default function PracticePage() {
   const [audioOnsetResult, setAudioOnsetResult] =
     useState<AudioOnsetDetectionResult | null>(null);
   const [audioOnsetError, setAudioOnsetError] = useState("");
+  const [audioOnsetSensitivityPreset, setAudioOnsetSensitivityPreset] =
+    useState<AudioOnsetSensitivityPreset>("balanced");
   const [isDetectingAudioOnsets, setIsDetectingAudioOnsets] = useState(false);
   const [audioOnsetAlignmentMode, setAudioOnsetAlignmentMode] =
     useState<AudioOnsetRhythmAlignmentMode>("recording-start");
@@ -1386,7 +1395,9 @@ export default function PracticePage() {
       const audioData = await recordedAudioBlob.arrayBuffer();
       const audioBuffer = await audioContext.decodeAudioData(audioData);
       const channelData = audioBuffer.getChannelData(0);
-      const result = detectAudioOnsets(channelData, audioBuffer.sampleRate);
+      const result = detectAudioOnsets(channelData, audioBuffer.sampleRate, {
+        sensitivityPreset: audioOnsetSensitivityPreset,
+      });
 
       if (
         isMountedRef.current &&
@@ -2106,6 +2117,35 @@ export default function PracticePage() {
             </div>
           </div>
 
+          <div className="mt-5 rounded-2xl border border-orange-200 bg-white p-4">
+            <p className="text-sm font-bold text-orange-950">Onset sensitivity preset</p>
+            <div className="mt-3 grid gap-2 text-sm md:grid-cols-3">
+              {audioOnsetSensitivityOptions.map((preset) => (
+                <label
+                  key={preset}
+                  className="rounded-2xl border border-orange-200 bg-orange-50 p-3 text-orange-950"
+                >
+                  <span className="flex items-center gap-2 font-semibold capitalize">
+                    <input
+                      type="radio"
+                      name="audio-onset-sensitivity"
+                      value={preset}
+                      checked={audioOnsetSensitivityPreset === preset}
+                      onChange={() => setAudioOnsetSensitivityPreset(preset)}
+                    />
+                    {preset}
+                  </span>
+                  <span className="mt-1 block text-orange-800">
+                    {audioOnsetSensitivityPresets[preset].description}
+                  </span>
+                </label>
+              ))}
+            </div>
+            <p className="mt-3 text-sm leading-6 text-orange-900">
+              Sensitive may detect weaker onsets but can add extra candidates. Conservative may reduce extra candidates but can miss weak onsets. This is diagnostic, not scoring. Voice and sustained instruments may still need future tuning. Change the preset, then click Detect onsets again to re-run browser-local detection on the latest local recording.
+            </p>
+          </div>
+
           <div className="mt-5 flex flex-wrap gap-2">
             <button
               type="button"
@@ -2133,6 +2173,9 @@ export default function PracticePage() {
                 <p className="font-bold text-orange-950">Diagnostic summary</p>
                 <p className="mt-2 text-orange-900">
                   {audioOnsetResult.diagnosticSummary}
+                </p>
+                <p className="mt-2 text-orange-800">
+                  preset {audioOnsetResult.sensitivityPreset} · threshold {audioOnsetResult.threshold.toFixed(4)} · max strength {audioOnsetResult.maxStrength.toFixed(4)} · min gap {audioOnsetResult.minOnsetGapMs}ms
                 </p>
                 <p className="mt-2 text-orange-800">
                   sampleRate {audioOnsetResult.sampleRate} Hz · duration{" "}
@@ -2164,7 +2207,7 @@ export default function PracticePage() {
                             {candidate.onsetTimeMs.toFixed(0)}ms
                           </span>
                           <span className="ml-2">
-                            {candidate.confidence} diagnostic confidence
+                            {candidate.confidence} diagnostic confidence · strength {candidate.strength.toFixed(4)} · threshold {candidate.threshold.toFixed(4)}
                           </span>
                         </li>
                       ))}
@@ -2232,6 +2275,19 @@ export default function PracticePage() {
                   alignment offset {Math.round(audioOnsetRhythmFeedback.alignmentOffsetMs)}ms · latency estimate applied {Math.round(audioOnsetRhythmFeedback.latencyOffsetAppliedMs)}ms
                 </p>
               </div>
+            </div>
+            <div className="mt-3 rounded-2xl border border-orange-200 bg-orange-50 p-4 text-sm text-orange-950">
+              <p className="font-bold">Alignment diagnostics</p>
+              <div className="mt-2 grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
+                <span>mode {audioOnsetRhythmFeedback.alignmentDiagnostics.mode}</span>
+                <span>offset {Math.round(audioOnsetRhythmFeedback.alignmentDiagnostics.alignmentOffsetMs)}ms</span>
+                <span>first onset {audioOnsetRhythmFeedback.alignmentDiagnostics.firstOnsetTimeMs === null ? "—" : `${Math.round(audioOnsetRhythmFeedback.alignmentDiagnostics.firstOnsetTimeMs)}ms`}</span>
+                <span>first target {audioOnsetRhythmFeedback.alignmentDiagnostics.firstTargetTimeMs === null ? "—" : `${Math.round(audioOnsetRhythmFeedback.alignmentDiagnostics.firstTargetTimeMs)}ms`}</span>
+                <span>latency offset applied {Math.round(audioOnsetRhythmFeedback.alignmentDiagnostics.latencyOffsetAppliedMs)}ms</span>
+              </div>
+              <p className="mt-2 text-orange-800">
+                {audioOnsetRhythmFeedback.alignmentDiagnostics.diagnosticNote}
+              </p>
             </div>
             <p className="mt-3 rounded-2xl border border-amber-200 bg-amber-50 p-3 text-sm font-semibold text-amber-800">
               {audioOnsetRhythmFeedback.nonScoringBoundary}

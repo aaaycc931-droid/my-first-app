@@ -1,4 +1,14 @@
 export type AudioOnsetDiagnosticConfidence = "low" | "medium" | "high";
+export type AudioOnsetSensitivityPreset = "balanced" | "sensitive" | "conservative";
+
+export type AudioOnsetSensitivityConfig = {
+  preset: AudioOnsetSensitivityPreset;
+  thresholdMultiplier: number;
+  minOnsetGapMs: number;
+  minimumEnergy: number;
+  minimumStrength: number;
+  description: string;
+};
 
 export type AudioOnsetCandidate = {
   onsetTimeMs: number;
@@ -20,9 +30,20 @@ export type AudioOnsetDetectionResult = {
   candidates: AudioOnsetCandidate[];
   diagnosticSummary: string;
   warnings: string[];
+  sensitivityPreset: AudioOnsetSensitivityPreset;
+  sensitivityDescription: string;
+  thresholdMultiplier: number;
+  minimumEnergy: number;
+  minimumStrength: number;
+  minOnsetGapMs: number;
+  threshold: number;
+  averageStrength: number;
+  strengthDeviation: number;
+  maxStrength: number;
 };
 
 export type AudioOnsetDetectionOptions = {
+  sensitivityPreset?: AudioOnsetSensitivityPreset | string;
   frameSize?: number;
   hopSize?: number;
   minOnsetGapMs?: number;
@@ -37,6 +58,43 @@ const defaultMinOnsetGapMs = 90;
 const defaultThresholdMultiplier = 2.8;
 const defaultMinimumEnergy = 0.015;
 const defaultMinimumStrength = 0.012;
+
+export const audioOnsetSensitivityPresets: Record<
+  AudioOnsetSensitivityPreset,
+  AudioOnsetSensitivityConfig
+> = {
+  balanced: {
+    preset: "balanced",
+    thresholdMultiplier: defaultThresholdMultiplier,
+    minOnsetGapMs: defaultMinOnsetGapMs,
+    minimumEnergy: defaultMinimumEnergy,
+    minimumStrength: defaultMinimumStrength,
+    description: "Balanced default for browser-local diagnostic onset detection.",
+  },
+  sensitive: {
+    preset: "sensitive",
+    thresholdMultiplier: 1.9,
+    minOnsetGapMs: 70,
+    minimumEnergy: 0.008,
+    minimumStrength: 0.006,
+    description: "More likely to detect weak onsets; may add extra candidates.",
+  },
+  conservative: {
+    preset: "conservative",
+    thresholdMultiplier: 3.6,
+    minOnsetGapMs: 120,
+    minimumEnergy: 0.025,
+    minimumStrength: 0.02,
+    description: "More likely to reduce extra candidates; may miss weak onsets.",
+  },
+};
+
+export const getAudioOnsetSensitivityConfig = (
+  preset: AudioOnsetDetectionOptions["sensitivityPreset"] = "balanced",
+): AudioOnsetSensitivityConfig =>
+  preset === "sensitive" || preset === "conservative" || preset === "balanced"
+    ? audioOnsetSensitivityPresets[preset]
+    : audioOnsetSensitivityPresets.balanced;
 
 const sanitizePositiveInteger = (
   value: number | undefined,
@@ -78,6 +136,13 @@ export const detectAudioOnsets = (
   );
   const hopSize = sanitizePositiveInteger(options.hopSize, defaultHopSize);
   const warnings: string[] = [];
+  const sensitivityConfig = getAudioOnsetSensitivityConfig(options.sensitivityPreset);
+  if (
+    options.sensitivityPreset !== undefined &&
+    options.sensitivityPreset !== sensitivityConfig.preset
+  ) {
+    warnings.push("Unknown sensitivity preset; using balanced diagnostic defaults.");
+  }
 
   if (!Number.isFinite(sampleRate) || sampleRate <= 0) {
     return {
@@ -89,8 +154,19 @@ export const detectAudioOnsets = (
       candidates: [],
       diagnosticSummary: "Audio onset detection skipped: invalid sample rate.",
       warnings: [
+        ...warnings,
         "Invalid sampleRate; returning empty browser-local diagnostic result.",
       ],
+      sensitivityPreset: sensitivityConfig.preset,
+      sensitivityDescription: sensitivityConfig.description,
+      thresholdMultiplier: options.thresholdMultiplier ?? sensitivityConfig.thresholdMultiplier,
+      minimumEnergy: options.minimumEnergy ?? sensitivityConfig.minimumEnergy,
+      minimumStrength: options.minimumStrength ?? sensitivityConfig.minimumStrength,
+      minOnsetGapMs: options.minOnsetGapMs ?? sensitivityConfig.minOnsetGapMs,
+      threshold: 0,
+      averageStrength: 0,
+      strengthDeviation: 0,
+      maxStrength: 0,
     };
   }
 
@@ -104,8 +180,19 @@ export const detectAudioOnsets = (
       candidates: [],
       diagnosticSummary: "Audio onset detection skipped: empty samples.",
       warnings: [
+        ...warnings,
         "Empty samples; returning empty browser-local diagnostic result.",
       ],
+      sensitivityPreset: sensitivityConfig.preset,
+      sensitivityDescription: sensitivityConfig.description,
+      thresholdMultiplier: options.thresholdMultiplier ?? sensitivityConfig.thresholdMultiplier,
+      minimumEnergy: options.minimumEnergy ?? sensitivityConfig.minimumEnergy,
+      minimumStrength: options.minimumStrength ?? sensitivityConfig.minimumStrength,
+      minOnsetGapMs: options.minOnsetGapMs ?? sensitivityConfig.minOnsetGapMs,
+      threshold: 0,
+      averageStrength: 0,
+      strengthDeviation: 0,
+      maxStrength: 0,
     };
   }
 
@@ -132,18 +219,18 @@ export const detectAudioOnsets = (
   );
   const averageStrength = mean(strengths);
   const strengthDeviation = standardDeviation(strengths, averageStrength);
-  const minimumStrength = options.minimumStrength ?? defaultMinimumStrength;
+  const minimumStrength = options.minimumStrength ?? sensitivityConfig.minimumStrength;
   const threshold = Math.max(
     minimumStrength,
     averageStrength +
       strengthDeviation *
-        (options.thresholdMultiplier ?? defaultThresholdMultiplier),
+        (options.thresholdMultiplier ?? sensitivityConfig.thresholdMultiplier),
   );
-  const minimumEnergy = options.minimumEnergy ?? defaultMinimumEnergy;
+  const minimumEnergy = options.minimumEnergy ?? sensitivityConfig.minimumEnergy;
   const minGapFrames = Math.max(
     1,
     Math.ceil(
-      (((options.minOnsetGapMs ?? defaultMinOnsetGapMs) / 1000) * sampleRate) /
+      (((options.minOnsetGapMs ?? sensitivityConfig.minOnsetGapMs) / 1000) * sampleRate) /
         hopSize,
     ),
   );
@@ -174,6 +261,11 @@ export const detectAudioOnsets = (
     warnings.push("No onset candidates crossed the diagnostic threshold.");
   }
 
+  const thresholdMultiplier =
+    options.thresholdMultiplier ?? sensitivityConfig.thresholdMultiplier;
+  const minOnsetGapMs = options.minOnsetGapMs ?? sensitivityConfig.minOnsetGapMs;
+  const maxStrength = strengths.length > 0 ? Math.max(...strengths) : 0;
+
   return {
     sampleRate,
     durationMs,
@@ -181,8 +273,18 @@ export const detectAudioOnsets = (
     hopSize,
     onsetCount: candidates.length,
     candidates,
-    diagnosticSummary: `Detected ${candidates.length} browser-local onset candidate${candidates.length === 1 ? "" : "s"}; diagnostic only, not rhythm scoring.`,
+    diagnosticSummary: `Detected ${candidates.length} browser-local onset candidate${candidates.length === 1 ? "" : "s"} with ${sensitivityConfig.preset} sensitivity; threshold ${threshold.toFixed(4)}, max strength ${maxStrength.toFixed(4)}; diagnostic only, not rhythm scoring.`,
     warnings,
+    sensitivityPreset: sensitivityConfig.preset,
+    sensitivityDescription: sensitivityConfig.description,
+    thresholdMultiplier,
+    minimumEnergy,
+    minimumStrength,
+    minOnsetGapMs,
+    threshold,
+    averageStrength,
+    strengthDeviation,
+    maxStrength,
   };
 };
 
