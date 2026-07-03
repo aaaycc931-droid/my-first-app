@@ -65,4 +65,24 @@ assert.match(
 
 assert.match(practicePageSource, /This is practice\s+feedback, not a score\./);
 
+assert.match(
+  practicePageSource,
+  /const importedTargetPitchFeedbackMayBeStale =\n\s+Boolean\(pitchEstimateResult && selectedImportedSegment\) &&\n\s+pitchEstimateImportedSegmentKey !== selectedImportedSegmentKey;/,
+);
+
+assert.match(
+  practicePageSource,
+  /Segment changed after the latest local pitch estimate\.\s+Record again for the clearest feedback on this segment\./,
+);
+
+const freshnessWarningCopy =
+  "Segment changed after the latest local pitch estimate. " +
+  "Record again for the clearest feedback on this segment. " +
+  "This is still non-scoring practice feedback.";
+
+assert.doesNotMatch(
+  freshnessWarningCopy,
+  /\b(?:Score|Grade|Pass|Fail|Accuracy %|Final result|Assessment|Rating|Rhythm score|Sight-singing score)\b/,
+);
+
 console.log("non-scoring imported target pitch feedback helper tests passed");
