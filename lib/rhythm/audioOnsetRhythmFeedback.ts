@@ -21,6 +21,29 @@ export type AudioOnsetRhythmFeedbackItem = {
   targetIndex: number | null;
   pattern: RhythmTargetPattern;
   diagnosticNote: string;
+  onsetCandidateIndex: number | null;
+  markerId: string;
+};
+
+export type AudioOnsetRhythmTargetMarker = {
+  markerId: string;
+  targetIndex: number;
+  targetTimeMs: number;
+  pattern: RhythmTargetPattern;
+  alignmentMode: AudioOnsetRhythmAlignmentMode;
+  diagnosticLabel: string;
+};
+
+export type AudioOnsetRhythmTimelineMarker = {
+  markerId: string;
+  category: AudioOnsetRhythmFeedbackItem["category"];
+  targetIndex: number | null;
+  onsetCandidateIndex: number | null;
+  targetTimeMs: number | null;
+  onsetTimeMs: number | null;
+  adjustedOnsetTimeMs: number | null;
+  displayTimeMs: number;
+  diagnosticLabel: string;
 };
 
 export type AudioOnsetRhythmAlignmentDiagnostics = {
@@ -28,6 +51,8 @@ export type AudioOnsetRhythmAlignmentDiagnostics = {
   alignmentOffsetMs: number;
   firstOnsetTimeMs: number | null;
   firstTargetTimeMs: number | null;
+  firstOnsetCandidateIndex: number | null;
+  originMarkerId: string | null;
   latencyOffsetAppliedMs: number;
   diagnosticNote: string;
 };
@@ -41,6 +66,8 @@ export type AudioOnsetRhythmFeedbackResult = {
   missedCount: number;
   extraCount: number;
   feedbackItems: AudioOnsetRhythmFeedbackItem[];
+  targetMarkers: AudioOnsetRhythmTargetMarker[];
+  timelineMarkers: AudioOnsetRhythmTimelineMarker[];
   diagnosticSummary: string;
   warnings: string[];
   latencyOffsetAppliedMs: number;
@@ -123,8 +150,9 @@ export const getAudioOnsetRhythmFeedback = ({
     nowMs,
     latencyOffsetMs,
   });
-  const feedbackItems = tapFeedback.feedback.map((item) => {
-    const onset = item.tapId === null ? null : onsetByTapId.get(item.tapId) ?? null;
+  const feedbackItems = tapFeedback.feedback.map((item, feedbackIndex) => {
+    const onsetCandidateIndex = item.tapId === null ? null : item.tapId - 1;
+    const onset = onsetCandidateIndex === null ? null : onsetByTapId.get(item.tapId!) ?? null;
     const category = item.category as AudioOnsetRhythmFeedbackItem["category"];
     return {
       category,
@@ -136,8 +164,30 @@ export const getAudioOnsetRhythmFeedback = ({
       targetIndex: item.targetIndex,
       pattern,
       diagnosticNote: getItemNote(category),
+      onsetCandidateIndex,
+      markerId: `feedback-${feedbackIndex}-${category}-${item.targetIndex ?? "extra"}-${onsetCandidateIndex ?? "missed"}`,
     };
   });
+
+  const targetMarkers: AudioOnsetRhythmTargetMarker[] = targets.map((target) => ({
+    markerId: `target-${target.targetIndex}`,
+    targetIndex: target.targetIndex,
+    targetTimeMs: target.targetTimeMs,
+    pattern,
+    alignmentMode,
+    diagnosticLabel: `${rhythmTargetPatternLabels[pattern]} target ${target.targetIndex + 1}; diagnostic reference only.`,
+  }));
+  const timelineMarkers: AudioOnsetRhythmTimelineMarker[] = feedbackItems.map((item) => ({
+    markerId: item.markerId,
+    category: item.category,
+    targetIndex: item.targetIndex,
+    onsetCandidateIndex: item.onsetCandidateIndex,
+    targetTimeMs: item.targetTimeMs,
+    onsetTimeMs: item.onsetTimeMs,
+    adjustedOnsetTimeMs: item.adjustedOnsetTimeMs,
+    displayTimeMs: item.adjustedOnsetTimeMs ?? item.targetTimeMs ?? item.onsetTimeMs ?? 0,
+    diagnosticLabel: item.diagnosticNote,
+  }));
   const missedCount = feedbackItems.filter((item) => item.category === "missed").length;
   const extraCount = feedbackItems.filter((item) => item.category === "extra").length;
   const matchedCount = feedbackItems.filter((item) =>
@@ -148,6 +198,8 @@ export const getAudioOnsetRhythmFeedback = ({
     alignmentOffsetMs,
     firstOnsetTimeMs,
     firstTargetTimeMs,
+    firstOnsetCandidateIndex: firstOnsetTimeMs === null ? null : 0,
+    originMarkerId: alignmentMode === "first-onset" && firstOnsetTimeMs !== null ? "candidate-0" : null,
     latencyOffsetAppliedMs: latencyOffsetMs,
     diagnosticNote:
       alignmentMode === "first-onset"
@@ -189,6 +241,8 @@ export const getAudioOnsetRhythmFeedback = ({
     missedCount,
     extraCount,
     feedbackItems,
+    targetMarkers,
+    timelineMarkers,
     diagnosticSummary:
       taps.length === 0
         ? "Waiting for detected audio onsets before onset-based rhythm feedback."
