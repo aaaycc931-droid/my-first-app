@@ -1,5 +1,10 @@
 export type LocalTargetPitchCurveDraftStatus = "draft" | "empty" | "invalid";
 
+/**
+ * A browser-local estimated draft frame for P38 review/correction.
+ * frequencyHz may be null when the frame is diagnostically unvoiced or unreliable.
+ * voiced and confidence are diagnostic hints only; confidence is not a score.
+ */
 export type LocalTargetPitchCurveDraftFrame = {
   frameIndex: number;
   timeMs: number;
@@ -18,7 +23,17 @@ export type LocalTargetPitchCurveDraftDiagnostics = {
   nonScoring: true;
 };
 
+/**
+ * Draft-only, browser-local target pitch curve metadata.
+ *
+ * This output is intentionally not a final target, official melody, formal
+ * transcription, score, grade, pass/fail result, or accuracy percentage. P38 may
+ * consume frames for review/correction, but review should happen before any
+ * formal scoring or safe practice integration treats reviewed data as a target.
+ */
 export type LocalTargetPitchCurveDraft = {
+  draftOnly: true;
+  needsReview: true;
   status: LocalTargetPitchCurveDraftStatus;
   sampleRate: number;
   durationMs: number;
@@ -158,6 +173,8 @@ export const createLocalTargetPitchCurveDraft = (
 
   if (!Number.isFinite(sampleRate) || sampleRate <= 0 || channelData.length === 0) {
     return {
+      draftOnly: true,
+      needsReview: true,
       status: "invalid",
       sampleRate: Number.isFinite(sampleRate) && sampleRate > 0 ? sampleRate : 0,
       durationMs: 0,
@@ -201,6 +218,8 @@ export const createLocalTargetPitchCurveDraft = (
   const voicedFrameCount = voicedFrequencies.length;
 
   return {
+    draftOnly: true,
+    needsReview: true,
     status: voicedFrameCount > 0 ? "draft" : "empty",
     sampleRate,
     durationMs,
