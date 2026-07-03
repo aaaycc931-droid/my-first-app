@@ -49,6 +49,7 @@ import {
 
 import { LocalMelodyGuideAudioImportPanel } from "../../components/practice/LocalMelodyGuideAudioImportPanel";
 import { LocalTargetPitchCurveDraftPanel } from "../../components/practice/LocalTargetPitchCurveDraftPanel";
+import { LocalTargetPitchCurveReviewPreviewPanel } from "../../components/practice/LocalTargetPitchCurveReviewPreviewPanel";
 import { getNonScoringImportedTargetPitchFeedback } from "../../lib/practice/nonScoringImportedTargetPitchFeedback";
 import {
   createLocalTargetPitchCurveDraft,
@@ -1806,6 +1807,10 @@ export default function PracticePage() {
           draft={localTargetPitchCurveDraft}
           isAnalysisReady={Boolean(localMelodyGuideDecodedAudio?.analysisReady)}
           onGenerate={handleGenerateLocalTargetPitchCurveDraft}
+        />
+
+        <LocalTargetPitchCurveReviewPreviewPanel
+          draft={localTargetPitchCurveDraft}
         />
 
         <section className="mt-6 rounded-3xl border border-teal-200 bg-teal-50 p-5 shadow-sm sm:p-6">
