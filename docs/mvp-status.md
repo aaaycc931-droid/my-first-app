@@ -1,3 +1,11 @@
+## P32 — Rhythm Diagnostic UX Stabilization and Compact Marker Legend (2026-07-03)
+
+P32 stabilizes the P31 onset timeline diagnostic UI on `/practice`. The timeline now includes a compact marker legend for candidate markers, rhythm target markers, close / early / late / missed / extra feedback chips, the first-onset origin marker, and the threshold reference. The preview also adds a marker-count diagnostic summary near the timeline so users can see candidates, targets, feedback markers, missed markers, extra markers, alignment mode, selected sensitivity preset, and target pattern without inspecting every marker. Dense marker situations use compact C / E / L / M / X / T / O / TH labels with a readable density note instead of expanding into long overlapping chip text.
+
+This extends P31 timeline marker interaction and alignment markers for future human voice and instrument rhythm training diagnostics. It is diagnostic / practice foundation work only. It is not rhythm scoring, not formal rhythm assessment, not full microphone or instrument evaluation, and not sight-singing comprehensive scoring. It does not produce a rhythm score, pass/fail, grade, accuracy percentage, final result, formal assessment, or persistent rhythm history.
+
+P32 does not upload audio, call cloud / AI, add accounts or databases, modify `/api/recognize`, change parser/converter behavior, change production Audiveris behavior, modify audio fixtures or `metadata.local.json`, modify piano runtime or `/piano`, or add package dependencies. Chart libraries, zoom / pan, automatic noise reduction, instrument-specific formal tuning, persistent rhythm history, live microphone scoring, and formal rhythm scoring remain deferred.
+
 ## P31 — Onset Timeline Candidate Interaction and Alignment Markers (2026-07-03)
 
 P31 extends the P30 Audio Onset Strength Timeline Preview and the P27/P28 onset rhythm feedback bridge with a user-visible diagnostic explainability slice. `/practice` now links detected onset candidate markers to the candidate list with session-only candidate indexes and click / focus highlighting, so a candidate list item, timeline marker, and onset-derived feedback item can be inspected together without creating persistent IDs or rhythm history.

@@ -36,7 +36,10 @@ import {
   type AudioOnsetSensitivityPreset,
 } from "../../lib/rhythm/audioOnsetDetection";
 import {
+  audioOnsetRhythmCompactMarkerLabels,
+  audioOnsetRhythmMarkerLegendItems,
   getAudioOnsetRhythmFeedback,
+  getAudioOnsetRhythmMarkerDensitySummary,
   type AudioOnsetRhythmAlignmentMode,
 } from "../../lib/rhythm/audioOnsetRhythmFeedback";
 import {
@@ -549,6 +552,24 @@ export default function PracticePage() {
     ...audioOnsetRhythmFeedback.targetMarkers.map((marker) => marker.targetTimeMs),
     ...audioOnsetRhythmFeedback.timelineMarkers.map((marker) => marker.displayTimeMs),
     1,
+  );
+
+  const audioOnsetMarkerDensitySummary = useMemo(
+    () =>
+      getAudioOnsetRhythmMarkerDensitySummary({
+        candidateCount: audioOnsetResult?.candidates.length ?? 0,
+        targetCount: audioOnsetRhythmFeedback.targetMarkers.length,
+        feedbackMarkerCount: audioOnsetRhythmFeedback.timelineMarkers.length,
+        missedCount: audioOnsetRhythmFeedback.missedCount,
+        extraCount: audioOnsetRhythmFeedback.extraCount,
+      }),
+    [
+      audioOnsetResult?.candidates.length,
+      audioOnsetRhythmFeedback.targetMarkers.length,
+      audioOnsetRhythmFeedback.timelineMarkers.length,
+      audioOnsetRhythmFeedback.missedCount,
+      audioOnsetRhythmFeedback.extraCount,
+    ],
   );
 
   const importedTargetPitchFeedback = useMemo(
@@ -2220,15 +2241,31 @@ export default function PracticePage() {
                       onset strength, the dashed reference shows threshold, markers show detected onset candidates, target markers show the current rhythm pattern, and feedback labels explain close / early / late / missed / extra relationships.
                     </p>
                   </div>
-                  <p className="rounded-full bg-orange-50 px-3 py-1 font-semibold text-orange-800">
-                    preset {audioOnsetResult.sensitivityPreset} · {audioOnsetResult.onsetCount} onset{audioOnsetResult.onsetCount === 1 ? "" : "s"}
-                  </p>
+                  <div className="flex flex-wrap gap-2 text-xs font-semibold text-orange-800">
+                    <span className="rounded-full bg-orange-50 px-3 py-1">
+                      preset {audioOnsetResult.sensitivityPreset}
+                    </span>
+                    <span className="rounded-full bg-sky-50 px-3 py-1 text-sky-800">
+                      pattern {audioOnsetRhythmFeedback.targetPatternLabel}
+                    </span>
+                    <span className="rounded-full bg-purple-50 px-3 py-1 text-purple-800">
+                      alignment {audioOnsetRhythmFeedback.alignmentMode}
+                    </span>
+                  </div>
                 </div>
                 {audioOnsetResult.timeline.length > 0 ? (
                   <div className="mt-4">
+                    <div className="mb-3 grid gap-2 rounded-2xl bg-orange-50 p-3 text-xs text-orange-900 sm:grid-cols-3 lg:grid-cols-6">
+                      <span>Candidates: {audioOnsetMarkerDensitySummary.candidateCount}</span>
+                      <span>Targets: {audioOnsetMarkerDensitySummary.targetCount}</span>
+                      <span>Feedback markers: {audioOnsetMarkerDensitySummary.feedbackMarkerCount}</span>
+                      <span>Missed: {audioOnsetMarkerDensitySummary.missedCount}</span>
+                      <span>Extra: {audioOnsetMarkerDensitySummary.extraCount}</span>
+                      <span>Total markers: {audioOnsetMarkerDensitySummary.totalMarkerCount}</span>
+                    </div>
                     <div
                       className="relative flex h-36 items-end gap-px overflow-hidden rounded-2xl border border-orange-200 bg-orange-50 px-2 pb-4 pt-3"
-                      aria-label="Onset strength timeline diagnostic preview"
+                      aria-label="Onset strength timeline diagnostic preview; diagnostic markers only; no pass fail grade or percentage result"
                     >
                       {audioOnsetResult.timeline.map((point) => {
                         const visualMax = Math.max(
@@ -2281,7 +2318,7 @@ export default function PracticePage() {
                           style={{ left: `${Math.min(98, Math.max(2, (marker.targetTimeMs / audioOnsetTimelineDurationMs) * 100))}%` }}
                           title={marker.diagnosticLabel}
                         >
-                          <span className="absolute -top-1 left-1/2 -translate-x-1/2 rounded-full bg-sky-700 px-1 text-[10px] font-bold text-white">T{marker.targetIndex + 1}</span>
+                          <span className="absolute -top-1 left-1/2 -translate-x-1/2 rounded-full bg-sky-700 px-1 text-[10px] font-bold text-white">{audioOnsetRhythmCompactMarkerLabels.target}{marker.targetIndex + 1}</span>
                         </span>
                       ))}
                       {audioOnsetRhythmFeedback.timelineMarkers.map((marker) => (
@@ -2297,11 +2334,11 @@ export default function PracticePage() {
                           style={{ left: `${Math.min(94, Math.max(2, (marker.displayTimeMs / audioOnsetTimelineDurationMs) * 100))}%` }}
                           title={marker.diagnosticLabel}
                         >
-                          {marker.category}{marker.onsetCandidateIndex !== null ? ` #${marker.onsetCandidateIndex + 1}` : ""}
+                          {audioOnsetRhythmCompactMarkerLabels[marker.category]}{marker.onsetCandidateIndex !== null ? marker.onsetCandidateIndex + 1 : ""}
                         </span>
                       ))}
                       {audioOnsetRhythmFeedback.alignmentDiagnostics.originMarkerId ? (
-                        <span className="pointer-events-none absolute top-8 rounded-full bg-purple-700 px-2 py-1 text-[10px] font-bold text-white" style={{ left: `${Math.min(94, Math.max(2, ((audioOnsetRhythmFeedback.firstOnsetTimeMs ?? 0) / audioOnsetTimelineDurationMs) * 100))}%` }}>first onset origin</span>
+                        <span className="pointer-events-none absolute top-8 rounded-full bg-purple-700 px-2 py-1 text-[10px] font-bold text-white" style={{ left: `${Math.min(94, Math.max(2, ((audioOnsetRhythmFeedback.firstOnsetTimeMs ?? 0) / audioOnsetTimelineDurationMs) * 100))}%` }}>{audioOnsetRhythmCompactMarkerLabels.firstOnsetOrigin} origin</span>
                       ) : null}
                       <span className="pointer-events-none absolute right-3 rounded-full bg-white/90 px-2 py-1 text-xs font-bold text-red-700 shadow-sm"
                         style={{
@@ -2312,8 +2349,28 @@ export default function PracticePage() {
                       </span>
                     </div>
                     <p className="mt-2 text-orange-800">
-                      Click a candidate marker or list item to highlight its session-only marker ID. Blue T markers are current rhythm targets for {audioOnsetRhythmFeedback.targetPatternLabel}; feedback chips are diagnostic labels, not scoring.
+                      Click a candidate marker or list item to highlight its session-only marker ID. Blue T markers are current rhythm targets for {audioOnsetRhythmFeedback.targetPatternLabel}; compact feedback chips use C / E / L / M / X labels explained below. These are diagnostic markers only, not scoring labels, grades, pass/fail, or accuracy percentages.
                     </p>
+                    <p className={`mt-2 rounded-xl p-3 text-xs font-semibold ${audioOnsetMarkerDensitySummary.isDense ? "bg-purple-50 text-purple-800" : "bg-orange-50 text-orange-800"}`}>
+                      {audioOnsetMarkerDensitySummary.compactModeNote}
+                    </p>
+                    <div className="mt-3 rounded-2xl border border-orange-200 bg-white p-3">
+                      <p className="font-bold text-orange-950">Compact marker legend</p>
+                      <p className="mt-1 text-xs text-orange-800">
+                        These are diagnostic markers for preview only. They do not mean pass/fail, grade, or a formal result. Audio stays browser-local; no upload / cloud / AI.
+                      </p>
+                      <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                        {audioOnsetRhythmMarkerLegendItems.map((item) => (
+                          <div key={item.key} className="rounded-xl bg-orange-50 p-2 text-xs text-orange-900">
+                            <span className="mr-2 inline-flex min-w-6 justify-center rounded-full bg-white px-2 py-0.5 font-bold text-orange-950 ring-1 ring-orange-200">
+                              {item.shortLabel}
+                            </span>
+                            <span className="font-bold">{item.label}</span>
+                            <p className="mt-1 text-orange-800">{item.description}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
                     <p className="mt-2 text-orange-800">
                       {audioOnsetResult.isTimelineDownsampled
                         ? `Timeline preview is downsampled to ${audioOnsetResult.timelinePointCount}/${audioOnsetResult.timelineSourcePointCount} frame points for safe rendering.`

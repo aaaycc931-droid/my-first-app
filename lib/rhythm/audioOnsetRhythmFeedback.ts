@@ -81,6 +81,73 @@ export type AudioOnsetRhythmFeedbackResult = {
 export const audioOnsetRhythmFeedbackBoundary =
   "Diagnostic practice feedback only; not a score, grade, pass/fail result, accuracy percentage, final result, or formal assessment.";
 
+export const audioOnsetRhythmMarkerLegendItems = [
+  { key: "candidate", label: "Candidate marker", shortLabel: "C", description: "Detected onset candidate from browser-local audio strength." },
+  { key: "target", label: "Rhythm target marker", shortLabel: "T", description: "Expected rhythm event from the selected target pattern." },
+  { key: "close", label: "Close", shortLabel: "C", description: "Detected onset is close to a target event." },
+  { key: "early", label: "Early", shortLabel: "E", description: "Detected onset is before a target event." },
+  { key: "late", label: "Late", shortLabel: "L", description: "Detected onset is after a target event." },
+  { key: "missed", label: "Missed", shortLabel: "M", description: "Target event has no matched detected onset." },
+  { key: "extra", label: "Extra", shortLabel: "X", description: "Detected onset did not match a target event." },
+  { key: "first-onset-origin", label: "First-onset origin", shortLabel: "O", description: "First detected onset used as the origin in first-onset alignment mode." },
+  { key: "threshold", label: "Threshold reference", shortLabel: "TH", description: "Dashed reference line for the selected sensitivity preset." },
+] as const;
+
+export const audioOnsetRhythmCompactMarkerLabels = {
+  close: "C",
+  early: "E",
+  late: "L",
+  missed: "M",
+  extra: "X",
+  target: "T",
+  candidate: "C",
+  firstOnsetOrigin: "O",
+  threshold: "TH",
+} as const;
+
+export type AudioOnsetRhythmMarkerDensitySummary = {
+  candidateCount: number;
+  targetCount: number;
+  feedbackMarkerCount: number;
+  missedCount: number;
+  extraCount: number;
+  totalMarkerCount: number;
+  isDense: boolean;
+  compactModeNote: string;
+};
+
+export const getAudioOnsetRhythmMarkerDensitySummary = ({
+  candidateCount,
+  targetCount,
+  feedbackMarkerCount,
+  missedCount,
+  extraCount,
+  densityThreshold = 18,
+}: {
+  candidateCount: number;
+  targetCount: number;
+  feedbackMarkerCount: number;
+  missedCount: number;
+  extraCount: number;
+  densityThreshold?: number;
+}): AudioOnsetRhythmMarkerDensitySummary => {
+  const totalMarkerCount = candidateCount + targetCount + feedbackMarkerCount;
+  const isDense = totalMarkerCount >= densityThreshold;
+
+  return {
+    candidateCount,
+    targetCount,
+    feedbackMarkerCount,
+    missedCount,
+    extraCount,
+    totalMarkerCount,
+    isDense,
+    compactModeNote: isDense
+      ? "Dense diagnostic marker view uses compact labels and the legend for readability."
+      : "Diagnostic marker density is within the regular compact preview range.",
+  };
+};
+
 export const convertAudioOnsetsToRhythmTapEvents = (
   onsetResult: AudioOnsetDetectionResult | null | undefined,
   alignmentOffsetMs = 0,
