@@ -9,12 +9,13 @@ import {
   type RhythmTapFeedbackCategory,
 } from "./rhythmTapFeedback";
 
-export type AudioOnsetRhythmAlignmentMode = "recording-start";
+export type AudioOnsetRhythmAlignmentMode = "recording-start" | "first-onset";
 
 export type AudioOnsetRhythmFeedbackItem = {
   category: Exclude<RhythmTapFeedbackCategory, "not-started" | "waiting-for-taps">;
   targetTimeMs: number | null;
   onsetTimeMs: number | null;
+  adjustedOnsetTimeMs: number | null;
   offsetMs: number | null;
   onsetStrength: number | null;
   targetIndex: number | null;
@@ -34,6 +35,9 @@ export type AudioOnsetRhythmFeedbackResult = {
   diagnosticSummary: string;
   warnings: string[];
   latencyOffsetAppliedMs: number;
+  alignmentOffsetMs: number;
+  firstOnsetTimeMs: number | null;
+  firstTargetTimeMs: number | null;
   nonScoringBoundary: string;
 };
 
@@ -42,10 +46,11 @@ export const audioOnsetRhythmFeedbackBoundary =
 
 export const convertAudioOnsetsToRhythmTapEvents = (
   onsetResult: AudioOnsetDetectionResult | null | undefined,
+  alignmentOffsetMs = 0,
 ): RhythmTapEvent[] =>
   (onsetResult?.candidates ?? []).map((candidate, index) => ({
     id: index + 1,
-    timestampMs: candidate.onsetTimeMs,
+    timestampMs: candidate.onsetTimeMs - alignmentOffsetMs,
     phase: "practice",
   }));
 
@@ -78,9 +83,20 @@ export const getAudioOnsetRhythmFeedback = ({
     barCount,
     pattern,
   });
-  const taps = convertAudioOnsetsToRhythmTapEvents(onsetResult);
+  const candidates = onsetResult?.candidates ?? [];
+  const firstOnsetTimeMs = candidates[0]?.onsetTimeMs ?? null;
+  const firstTargetTimeMs = targets[0]?.targetTimeMs ?? null;
+  const alignmentOffsetMs =
+    alignmentMode === "first-onset" &&
+    firstOnsetTimeMs !== null &&
+    firstTargetTimeMs !== null
+      ? firstOnsetTimeMs - firstTargetTimeMs
+      : 0;
+  // Apply alignment first, then pass the session latency offset into tap feedback.
+  // The tap helper subtracts latencyOffsetMs from already-aligned onset times.
+  const taps = convertAudioOnsetsToRhythmTapEvents(onsetResult, alignmentOffsetMs);
   const onsetByTapId = new Map(
-    (onsetResult?.candidates ?? []).map((candidate, index) => [
+    candidates.map((candidate, index) => [
       index + 1,
       candidate,
     ]),
@@ -103,7 +119,8 @@ export const getAudioOnsetRhythmFeedback = ({
     return {
       category,
       targetTimeMs: item.targetTimeMs,
-      onsetTimeMs: item.tapTimeMs,
+      onsetTimeMs: onset?.onsetTimeMs ?? null,
+      adjustedOnsetTimeMs: item.tapTimeMs,
       offsetMs: item.offsetMs,
       onsetStrength: onset?.strength ?? null,
       targetIndex: item.targetIndex,
@@ -118,7 +135,9 @@ export const getAudioOnsetRhythmFeedback = ({
   ).length;
   const warnings = [
     ...(onsetResult?.warnings ?? []),
-    "This assumes recording timing aligns with the target timeline.",
+    alignmentMode === "first-onset"
+      ? "First-onset alignment maps the first detected onset to the first target event; this can hide late-start recording offset."
+      : "This assumes recording timing aligns with the target timeline.",
     "This is diagnostic practice feedback, not a score.",
     "No pass/fail, grade, or accuracy percentage.",
     "No upload / cloud / AI.",
@@ -126,7 +145,17 @@ export const getAudioOnsetRhythmFeedback = ({
   ];
 
   if (!onsetResult || (onsetResult.candidates ?? []).length === 0) {
-    warnings.unshift("No onset candidates available for rhythm feedback yet.");
+    warnings.unshift(
+      alignmentMode === "first-onset"
+        ? "No onset candidates available; first-onset alignment falls back to no alignment offset."
+        : "No onset candidates available for rhythm feedback yet.",
+    );
+  }
+
+  if (alignmentMode === "first-onset") {
+    warnings.push(
+      "First-onset alignment changes timing interpretation and is a research / diagnostic practice option only.",
+    );
   }
 
   return {
@@ -141,9 +170,12 @@ export const getAudioOnsetRhythmFeedback = ({
     diagnosticSummary:
       taps.length === 0
         ? "Waiting for detected audio onsets before onset-based rhythm feedback."
-        : `Aligned ${taps.length} detected onset candidate${taps.length === 1 ? "" : "s"} to ${targets.length} ${rhythmTargetPatternLabels[pattern]} target event${targets.length === 1 ? "" : "s"} using recording-start alignment; diagnostic only, not rhythm scoring.`,
+        : `Aligned ${taps.length} detected onset candidate${taps.length === 1 ? "" : "s"} to ${targets.length} ${rhythmTargetPatternLabels[pattern]} target event${targets.length === 1 ? "" : "s"} using ${alignmentMode} alignment (alignment offset ${Math.round(alignmentOffsetMs)}ms); diagnostic only, not rhythm scoring.`,
     warnings,
     latencyOffsetAppliedMs: latencyOffsetMs,
+    alignmentOffsetMs,
+    firstOnsetTimeMs,
+    firstTargetTimeMs,
     nonScoringBoundary: audioOnsetRhythmFeedbackBoundary,
   };
 };

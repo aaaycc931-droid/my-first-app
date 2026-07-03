@@ -38,11 +38,15 @@ assert.deepEqual(
   [0, 500],
 );
 
-assert.equal(
-  getAudioOnsetRhythmFeedback({ onsetResult: onsetResult([40]), config, barCount: 1 })
-    .feedbackItems[0]?.category,
-  "close",
-);
+const recordingStartClose = getAudioOnsetRhythmFeedback({
+  onsetResult: onsetResult([40]),
+  config,
+  barCount: 1,
+  alignmentMode: "recording-start",
+});
+assert.equal(recordingStartClose.feedbackItems[0]?.category, "close");
+assert.equal(recordingStartClose.alignmentMode, "recording-start");
+assert.equal(recordingStartClose.alignmentOffsetMs, 0);
 assert.equal(
   getAudioOnsetRhythmFeedback({ onsetResult: onsetResult([380]), config, barCount: 1 })
     .feedbackItems.some((item) => item.category === "early"),
@@ -82,9 +86,59 @@ const eighth = getAudioOnsetRhythmFeedback({
 assert.equal(eighth.targetPattern, "eighth-note-pulse");
 assert.equal(eighth.matchedCount, 8);
 
-const empty = getAudioOnsetRhythmFeedback({ onsetResult: onsetResult([]), config, barCount: 1 });
+const firstOnsetClose = getAudioOnsetRhythmFeedback({
+  onsetResult: onsetResult([700, 1200, 1700, 2200]),
+  config,
+  barCount: 1,
+  alignmentMode: "first-onset",
+});
+assert.equal(firstOnsetClose.alignmentMode, "first-onset");
+assert.equal(firstOnsetClose.alignmentOffsetMs, 700);
+assert.equal(firstOnsetClose.firstOnsetTimeMs, 700);
+assert.equal(firstOnsetClose.firstTargetTimeMs, 0);
+assert.equal(firstOnsetClose.matchedCount, 4);
+assert.equal(firstOnsetClose.feedbackItems[0]?.category, "close");
+assert.equal(firstOnsetClose.feedbackItems[0]?.onsetTimeMs, 700);
+assert.equal(firstOnsetClose.feedbackItems[0]?.adjustedOnsetTimeMs, 0);
+
+const leadingSilenceRecordingStart = getAudioOnsetRhythmFeedback({
+  onsetResult: onsetResult([700, 1200, 1700, 2200]),
+  config,
+  barCount: 1,
+  alignmentMode: "recording-start",
+});
+assert.ok(leadingSilenceRecordingStart.missedCount > firstOnsetClose.missedCount);
+assert.ok(leadingSilenceRecordingStart.extraCount > firstOnsetClose.extraCount);
+
+const firstOnsetMissed = getAudioOnsetRhythmFeedback({
+  onsetResult: onsetResult([700, 1200, 2200]),
+  config,
+  barCount: 1,
+  alignmentMode: "first-onset",
+});
+assert.equal(firstOnsetMissed.missedCount, 1);
+
+const firstOnsetExtra = getAudioOnsetRhythmFeedback({
+  onsetResult: onsetResult([700, 1200, 1700, 2200, 2900]),
+  config,
+  barCount: 1,
+  alignmentMode: "first-onset",
+});
+assert.equal(firstOnsetExtra.extraCount, 1);
+
+const empty = getAudioOnsetRhythmFeedback({
+  onsetResult: onsetResult([]),
+  config,
+  barCount: 1,
+  alignmentMode: "first-onset",
+});
 assert.match(empty.diagnosticSummary, /Waiting for detected audio onsets/);
 assert.equal(empty.onsetCount, 0);
+assert.equal(empty.alignmentOffsetMs, 0);
+assert.equal(
+  empty.warnings.some((warning) => warning.includes("No onset candidates available")),
+  true,
+);
 
 const latencyAdjusted = getAudioOnsetRhythmFeedback({
   onsetResult: onsetResult([120]),
@@ -96,8 +150,21 @@ assert.equal(latencyAdjusted.feedbackItems[0]?.category, "close");
 assert.equal(latencyAdjusted.feedbackItems[0]?.offsetMs, 20);
 assert.equal(latencyAdjusted.latencyOffsetAppliedMs, 100);
 
+const firstOnsetWithLatency = getAudioOnsetRhythmFeedback({
+  onsetResult: onsetResult([700, 1300]),
+  config,
+  barCount: 1,
+  alignmentMode: "first-onset",
+  latencyOffsetMs: 100,
+});
+assert.equal(firstOnsetWithLatency.alignmentOffsetMs, 700);
+assert.equal(firstOnsetWithLatency.feedbackItems[0]?.adjustedOnsetTimeMs, -100);
+assert.equal(firstOnsetWithLatency.feedbackItems[0]?.category, "early");
+assert.equal(firstOnsetWithLatency.feedbackItems[1]?.category, "close");
+assert.equal(firstOnsetWithLatency.feedbackItems[1]?.offsetMs, 0);
+
 assert.match(audioOnsetRhythmFeedbackBoundary, /not a score/);
-[quarter, eighth, empty, latencyAdjusted].forEach((result) => {
+[recordingStartClose, quarter, eighth, empty, latencyAdjusted, firstOnsetClose, firstOnsetWithLatency].forEach((result) => {
   assert.equal(hasAudioOnsetRhythmFeedbackScoringFields(result), false);
   result.feedbackItems.forEach((item) =>
     assert.equal(hasAudioOnsetRhythmFeedbackScoringFields(item), false),
@@ -130,5 +197,8 @@ assert.equal(
 const practicePage = readFileSync("app/practice/page.tsx", "utf8");
 assert.match(practicePage, /Use detected onsets for rhythm feedback/);
 assert.match(practicePage, /recording-start/);
+assert.match(practicePage, /first-onset/);
+assert.match(practicePage, /First detected onset/);
+assert.match(practicePage, /not a score/);
 assert.equal(quarter.warnings.includes("This assumes recording timing aligns with the target timeline."), true);
 assert.doesNotMatch(practicePage, /accuracyPercentage/);
