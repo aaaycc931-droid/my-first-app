@@ -12,6 +12,7 @@ import {
   type MetronomeSubdivision,
 } from "../../lib/metronome/metronomeConfig";
 import { BrowserMetronomeScheduler } from "../../lib/metronome/metronomeScheduler";
+import { AudioOnsetRhythmFeedbackPanel } from "../../components/practice/AudioOnsetRhythmFeedbackPanel";
 import { AudioOnsetTimelinePreview } from "../../components/practice/AudioOnsetTimelinePreview";
 import {
   createRhythmTargetPattern,
@@ -121,7 +122,6 @@ const mockFeedback = {
 };
 
 const practiceSteps = ["听目标音", "录制一次本地练习", "查看模拟反馈", "重试"];
-const audioOnsetBoundaryCopy = "No upload / cloud / AI";
 const audioOnsetSensitivityOptions: AudioOnsetSensitivityPreset[] = [
   "balanced",
   "sensitive",
@@ -2273,120 +2273,13 @@ export default function PracticePage() {
             </div>
           ) : null}
 
-          <div className="mt-5 rounded-2xl border border-orange-200 bg-white p-4">
-            <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-              <div>
-                <p className="text-sm font-semibold uppercase tracking-wide text-orange-700">
-                  Use detected onsets for rhythm feedback
-                </p>
-                <h3 className="mt-1 text-xl font-bold text-orange-950">
-                  Audio-derived non-scoring rhythm feedback bridge
-                </h3>
-                <p className="mt-2 text-sm leading-6 text-orange-900">
-                  Current target pattern: {audioOnsetRhythmFeedback.targetPatternLabel}. Alignment mode: {audioOnsetRhythmFeedback.alignmentMode}.
-                </p>
-                <div className="mt-3 grid gap-2 text-sm sm:grid-cols-2">
-                  <label className="rounded-2xl border border-orange-200 bg-orange-50 p-3 text-orange-950">
-                    <span className="flex items-center gap-2 font-semibold">
-                      <input
-                        type="radio"
-                        name="audio-onset-alignment-mode"
-                        value="recording-start"
-                        checked={audioOnsetAlignmentMode === "recording-start"}
-                        onChange={() => setAudioOnsetAlignmentMode("recording-start")}
-                      />
-                      Recording start
-                    </span>
-                    <span className="mt-1 block text-orange-800">
-                      Assumes recording starts on the target timeline.
-                    </span>
-                  </label>
-                  <label className="rounded-2xl border border-orange-200 bg-orange-50 p-3 text-orange-950">
-                    <span className="flex items-center gap-2 font-semibold">
-                      <input
-                        type="radio"
-                        name="audio-onset-alignment-mode"
-                        value="first-onset"
-                        checked={audioOnsetAlignmentMode === "first-onset"}
-                        onChange={() => setAudioOnsetAlignmentMode("first-onset")}
-                      />
-                      First detected onset
-                    </span>
-                    <span className="mt-1 block text-orange-800">
-                      Aligns the first detected onset to the first target event. This can hide late-start recording offset and changes timing interpretation.
-                    </span>
-                  </label>
-                </div>
-              </div>
-              <div className="rounded-2xl bg-orange-50 p-3 text-sm text-orange-950 ring-1 ring-orange-100">
-                <p className="font-semibold">Summary</p>
-                <p className="mt-1">
-                  onsets {audioOnsetRhythmFeedback.onsetCount} · matched {audioOnsetRhythmFeedback.matchedCount} · missed {audioOnsetRhythmFeedback.missedCount} · extra {audioOnsetRhythmFeedback.extraCount}
-                </p>
-                <p className="mt-1">
-                  alignment offset {Math.round(audioOnsetRhythmFeedback.alignmentOffsetMs)}ms · latency estimate applied {Math.round(audioOnsetRhythmFeedback.latencyOffsetAppliedMs)}ms
-                </p>
-              </div>
-            </div>
-            <div className="mt-3 rounded-2xl border border-orange-200 bg-orange-50 p-4 text-sm text-orange-950">
-              <p className="font-bold">Alignment diagnostics</p>
-              <div className="mt-2 grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
-                <span>mode {audioOnsetRhythmFeedback.alignmentDiagnostics.mode}</span>
-                <span>offset {Math.round(audioOnsetRhythmFeedback.alignmentDiagnostics.alignmentOffsetMs)}ms</span>
-                <span>first onset {audioOnsetRhythmFeedback.alignmentDiagnostics.firstOnsetTimeMs === null ? "—" : `${Math.round(audioOnsetRhythmFeedback.alignmentDiagnostics.firstOnsetTimeMs)}ms`}</span>
-                <span>first target {audioOnsetRhythmFeedback.alignmentDiagnostics.firstTargetTimeMs === null ? "—" : `${Math.round(audioOnsetRhythmFeedback.alignmentDiagnostics.firstTargetTimeMs)}ms`}</span>
-                <span>latency offset applied {Math.round(audioOnsetRhythmFeedback.alignmentDiagnostics.latencyOffsetAppliedMs)}ms</span>
-                <span>origin marker {audioOnsetRhythmFeedback.alignmentDiagnostics.originMarkerId ?? "—"}</span>
-              </div>
-              <p className="mt-2 text-orange-800">
-                {audioOnsetRhythmFeedback.alignmentDiagnostics.diagnosticNote}
-              </p>
-            </div>
-            <p className="mt-3 rounded-2xl border border-amber-200 bg-amber-50 p-3 text-sm font-semibold text-amber-800">
-              {audioOnsetRhythmFeedback.nonScoringBoundary}
-            </p>
-            <p className="mt-3 text-sm leading-6 text-orange-900">
-              {audioOnsetRhythmFeedback.diagnosticSummary}
-            </p>
-            {audioOnsetRhythmFeedback.feedbackItems.length > 0 ? (
-              <ul className="mt-3 grid gap-2 text-sm sm:grid-cols-2">
-                {audioOnsetRhythmFeedback.feedbackItems.slice(0, 12).map((item, index) => (
-                  <li
-                    key={`${item.category}-${item.targetIndex ?? "extra"}-${item.onsetTimeMs ?? index}`}
-                    className="rounded-xl bg-orange-50 p-3 text-orange-900"
-                  >
-                    <span className="font-bold">{item.category}</span>
-                    {item.targetTimeMs !== null ? (
-                      <span className="ml-2">target {Math.round(item.targetTimeMs)}ms</span>
-                    ) : null}
-                    {item.onsetCandidateIndex !== null ? (
-                      <button type="button" onClick={() => setFocusedAudioOnsetCandidateIndex(item.onsetCandidateIndex)} className="ml-2 font-semibold underline decoration-orange-300">candidate #{item.onsetCandidateIndex + 1}</button>
-                    ) : null}
-                    {item.onsetTimeMs !== null ? (
-                      <span className="ml-2">raw onset {Math.round(item.onsetTimeMs)}ms</span>
-                    ) : null}
-                    {item.adjustedOnsetTimeMs !== null ? (
-                      <span className="ml-2">aligned onset {Math.round(item.adjustedOnsetTimeMs)}ms</span>
-                    ) : null}
-                    {item.offsetMs !== null ? (
-                      <span className="ml-2">offset {Math.round(item.offsetMs)}ms</span>
-                    ) : null}
-                    <span className="mt-1 block text-orange-800">{item.diagnosticNote}</span>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p className="mt-3 text-sm text-orange-800">
-                Waiting for detected onset candidates from the latest local recording.
-              </p>
-            )}
-            <ul className="mt-3 list-disc space-y-1 pl-5 text-sm text-orange-800">
-              {audioOnsetRhythmFeedback.warnings.map((warning) => (
-                <li key={warning}>{warning}</li>
-              ))}
-              <li>Session latency offset is optional and temporary; it is not a persistent calibration profile.</li>
-            </ul>
-          </div>
+          {/* P34 extracted panel preserves boundary copy: No upload / cloud / AI. */}
+          <AudioOnsetRhythmFeedbackPanel
+            rhythmFeedback={audioOnsetRhythmFeedback}
+            alignmentMode={audioOnsetAlignmentMode}
+            onAlignmentModeChange={setAudioOnsetAlignmentMode}
+            onFocusCandidate={setFocusedAudioOnsetCandidateIndex}
+          />
 
           <p className="mt-4 text-sm leading-6 text-orange-900">
             当前限制：人声、长笛、小提琴、连音、弱起音、强噪声环境可能更难检测；本阶段不做
