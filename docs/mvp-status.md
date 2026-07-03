@@ -1,3 +1,11 @@
+## P30 — Audio Onset Strength Timeline Preview (2026-07-03)
+
+P30 extends the P26 browser-local audio onset detector and the P29 sensitivity diagnostics with a lightweight onset strength timeline preview. The detector now returns session-only timeline preview data for each retained frame point, including time, frame index, onset strength, RMS energy, threshold, above-threshold state, sensitivity preset, and detected-candidate markers. The preview is safely limited / downsampled for UI rendering and reports when it is downsampled. This reuses the detector's existing energy / strength / threshold calculations rather than introducing a separate scoring path.
+
+`/practice` now displays an Audio Onset Strength Timeline Preview after running detection on the latest local recording. The visualization is a dependency-free div-based diagnostic preview: bars show onset strength, a dashed threshold reference shows the selected preset threshold, and candidate markers show detected onset positions. It also shows the selected sensitivity preset, onset count, duration, and copy explaining that sensitive / balanced / conservative can change candidate detection. Empty state copy explains that users must detect onsets from the latest local recording before timeline data is available.
+
+P30 is diagnostic / practice foundation work for future human voice and instrument rhythm training debugging. It is not rhythm scoring, not formal assessment, not full microphone or instrument evaluation, and not a final result. It does not produce a rhythm score, grade, pass/fail result, accuracy percentage, formal assessment result, or persistent rhythm history. It does not upload audio, call cloud / AI, add accounts or databases, modify `/api/recognize`, change parser/converter behavior, change audio fixtures or `metadata.local.json`, modify piano runtime or `/piano`, or add package dependencies. Instrument-specific tuning, automatic noise reduction, live microphone scoring, persistent rhythm history, and formal scoring remain deferred.
+
 # MVP status
 
 ## P28 — Audio Onset Alignment Modes for Non-scoring Rhythm Feedback (2026-07-03)
