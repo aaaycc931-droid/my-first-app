@@ -2,6 +2,14 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 
+import {
+  defaultMetronomeConfig,
+  supportedMetronomeMeters,
+  type MetronomeMeter,
+} from "../../lib/metronome/metronomeConfig";
+import { BrowserMetronomeScheduler } from "../../lib/metronome/metronomeScheduler";
+import type { MetronomeBeatMetadata } from "../../lib/metronome/metronomeGrid";
+
 import { getNonScoringImportedTargetPitchFeedback } from "../../lib/practice/nonScoringImportedTargetPitchFeedback";
 import { mockMelodyTargetCurveExample } from "../../lib/practice/mock-melody-target-segments.example";
 import { researchTargetCurvePreviewExample } from "../../lib/practice/research-target-curve-preview.example";
@@ -256,6 +264,14 @@ const stopOscillator = (oscillator: OscillatorNode) => {
 
 export default function PracticePage() {
   const [flowState, setFlowState] = useState<PracticeFlowState>("idle");
+  const [metronomeBpm, setMetronomeBpm] = useState(defaultMetronomeConfig.bpm);
+  const [metronomeMeter, setMetronomeMeter] = useState<MetronomeMeter>(
+    defaultMetronomeConfig.meter,
+  );
+  const [isMetronomeRunning, setIsMetronomeRunning] = useState(false);
+  const [metronomeBeat, setMetronomeBeat] =
+    useState<MetronomeBeatMetadata | null>(null);
+  const [metronomeError, setMetronomeError] = useState("");
   const [playError, setPlayError] = useState("");
   const [activeNoteIndex, setActiveNoteIndex] = useState<number | null>(null);
   const [hasMockFeedback, setHasMockFeedback] = useState(false);
@@ -294,6 +310,7 @@ export default function PracticePage() {
     useState(false);
   const [selectedImportedSegmentIndex, setSelectedImportedSegmentIndex] =
     useState<number | null>(null);
+  const metronomeSchedulerRef = useRef<BrowserMetronomeScheduler | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const mediaStreamRef = useRef<MediaStream | null>(null);
   const recordingChunksRef = useRef<Blob[]>([]);
@@ -395,6 +412,13 @@ export default function PracticePage() {
     }
   };
 
+  const stopMetronome = () => {
+    metronomeSchedulerRef.current?.stop();
+    metronomeSchedulerRef.current = null;
+    setIsMetronomeRunning(false);
+    setMetronomeBeat(null);
+  };
+
   const stopRecordingTracks = () => {
     mediaStreamRef.current?.getTracks().forEach((track) => {
       track.stop();
@@ -470,6 +494,7 @@ export default function PracticePage() {
       playbackOscillatorsRef.current = [];
       void playbackAudioContextRef.current?.close();
       playbackAudioContextRef.current = null;
+      stopMetronome();
       stopRecordingTimer();
       if (mediaRecorderRef.current?.state === "recording") {
         mediaRecorderRef.current.stop();
@@ -480,6 +505,37 @@ export default function PracticePage() {
     },
     [],
   );
+
+  const handleStartMetronome = async () => {
+    stopMetronome();
+    setMetronomeError("");
+
+    const scheduler = new BrowserMetronomeScheduler({
+      config: { bpm: metronomeBpm, meter: metronomeMeter },
+      onBeat: (beat) => {
+        if (isMountedRef.current) {
+          setMetronomeBeat(beat);
+        }
+      },
+    });
+
+    metronomeSchedulerRef.current = scheduler;
+
+    try {
+      await scheduler.start();
+      setIsMetronomeRunning(true);
+    } catch {
+      metronomeSchedulerRef.current = null;
+      setIsMetronomeRunning(false);
+      setMetronomeError(
+        "此浏览器无法启动 Web Audio 节拍器；请确认在用户手势中点击开始。",
+      );
+    }
+  };
+
+  const handleStopMetronome = () => {
+    stopMetronome();
+  };
 
   const handleListenToTarget = async () => {
     stopPlayback();
@@ -1089,6 +1145,113 @@ export default function PracticePage() {
             </ol>
           </section>
         </div>
+
+        <section className="mt-6 rounded-3xl border border-teal-200 bg-teal-50 p-5 shadow-sm sm:p-6">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+            <div>
+              <p className="text-sm font-semibold uppercase tracking-wide text-teal-700">
+                Metronome foundation
+              </p>
+              <h2 className="mt-1 text-2xl font-bold text-teal-950">
+                未来节奏训练基础节拍器
+              </h2>
+              <p className="mt-2 max-w-3xl text-sm leading-6 text-teal-900">
+                这是 browser-local Web Audio 节拍器基础模块，用于未来
+                count-in、tap-based rhythm practice
+                和节奏训练复用。当前只提供稳定节拍与 beat metadata，不做 rhythm
+                scoring、正式评测、通过 / 失败或等级。
+              </p>
+            </div>
+            <div className="rounded-2xl border border-teal-200 bg-white p-4 text-sm text-teal-950 shadow-sm lg:min-w-64">
+              <p className="font-semibold">当前 beat</p>
+              <p className="mt-2 text-3xl font-bold">
+                {metronomeBeat
+                  ? `${metronomeBeat.barNumber}.${metronomeBeat.beatNumber}`
+                  : "—"}
+              </p>
+              <p className="mt-1 font-medium">
+                {metronomeBeat
+                  ? metronomeBeat.isStrongBeat
+                    ? "Strong beat / 小节重拍"
+                    : "Weak beat / 弱拍"
+                  : "等待开始"}
+              </p>
+            </div>
+          </div>
+
+          <div className="mt-5 grid gap-3 text-sm md:grid-cols-4">
+            <label className="rounded-2xl bg-white p-4 font-semibold text-teal-950 ring-1 ring-teal-200">
+              BPM
+              <input
+                type="number"
+                min="30"
+                max="240"
+                value={metronomeBpm}
+                onChange={(event) =>
+                  setMetronomeBpm(Number(event.target.value))
+                }
+                disabled={isMetronomeRunning}
+                className="mt-2 w-full rounded-xl border border-teal-200 px-3 py-2 text-slate-900 disabled:bg-slate-100"
+              />
+            </label>
+            <label className="rounded-2xl bg-white p-4 font-semibold text-teal-950 ring-1 ring-teal-200">
+              拍号
+              <select
+                value={metronomeMeter}
+                onChange={(event) =>
+                  setMetronomeMeter(event.target.value as MetronomeMeter)
+                }
+                disabled={isMetronomeRunning}
+                className="mt-2 w-full rounded-xl border border-teal-200 px-3 py-2 text-slate-900 disabled:bg-slate-100"
+              >
+                {supportedMetronomeMeters.map((meter) => (
+                  <option key={meter} value={meter}>
+                    {meter}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <div className="rounded-2xl bg-white p-4 ring-1 ring-teal-200">
+              <p className="font-semibold text-teal-950">Strong / weak</p>
+              <p className="mt-2 text-teal-800">
+                每小节第 1 拍为 strong beat，其余为 weak beat。
+              </p>
+            </div>
+            <div className="rounded-2xl bg-white p-4 ring-1 ring-teal-200">
+              <p className="font-semibold text-teal-950">本地边界</p>
+              <p className="mt-2 text-teal-800">
+                只使用浏览器 Web Audio；不上传、不调用云端或 AI。
+              </p>
+            </div>
+          </div>
+
+          <div className="mt-5 flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={handleStartMetronome}
+              disabled={isMetronomeRunning}
+              className="rounded-full bg-teal-700 px-4 py-2 text-sm font-semibold text-white disabled:bg-teal-300"
+            >
+              开始节拍器
+            </button>
+            <button
+              type="button"
+              onClick={handleStopMetronome}
+              disabled={!isMetronomeRunning}
+              className="rounded-full border border-teal-300 bg-white px-4 py-2 text-sm font-semibold text-teal-800 disabled:text-slate-400"
+            >
+              停止节拍器
+            </button>
+            <span className="rounded-full border border-amber-200 bg-amber-50 px-4 py-2 text-sm font-semibold text-amber-800">
+              Foundation only：没有 rhythm score / pass / fail / grade
+            </span>
+          </div>
+          {metronomeError ? (
+            <p className="mt-3 text-sm font-semibold text-red-700">
+              {metronomeError}
+            </p>
+          ) : null}
+        </section>
 
         <section className="mt-6 rounded-2xl border border-blue-200 bg-blue-50 p-5">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -1844,8 +2007,8 @@ export default function PracticePage() {
                               : ""}
                           </span>
                           <span className="mt-1 block">
-                            {segment.startTimeSeconds.toFixed(3)}s → {" "}
-                            {segment.endTimeSeconds.toFixed(3)}s · 持续 {" "}
+                            {segment.startTimeSeconds.toFixed(3)}s →{" "}
+                            {segment.endTimeSeconds.toFixed(3)}s · 持续{" "}
                             {segment.durationSeconds.toFixed(3)}s
                           </span>
                           <span className="mt-1 block">
@@ -1863,7 +2026,9 @@ export default function PracticePage() {
                   <h4 className="font-bold text-teal-950">当前导入片段详情</h4>
                   <dl className="mt-3 space-y-3 text-sm">
                     <div className="rounded-xl bg-white p-3 ring-1 ring-teal-200">
-                      <dt className="font-semibold text-teal-700">当前导入片段</dt>
+                      <dt className="font-semibold text-teal-700">
+                        当前导入片段
+                      </dt>
                       <dd className="mt-1 font-bold">
                         片段 {(selectedImportedSegmentIndex ?? 0) + 1}
                       </dd>
@@ -1871,12 +2036,15 @@ export default function PracticePage() {
                     <div className="rounded-xl bg-white p-3 ring-1 ring-teal-200">
                       <dt className="font-semibold text-teal-700">目标音高</dt>
                       <dd className="mt-1 font-bold">
-                        {selectedImportedSegment.targetFrequencyHz.toFixed(2)} Hz
+                        {selectedImportedSegment.targetFrequencyHz.toFixed(2)}{" "}
+                        Hz
                       </dd>
                     </div>
                     {selectedImportedSegment.targetNoteLabel ? (
                       <div className="rounded-xl bg-white p-3 ring-1 ring-teal-200">
-                        <dt className="font-semibold text-teal-700">目标音名</dt>
+                        <dt className="font-semibold text-teal-700">
+                          目标音名
+                        </dt>
                         <dd className="mt-1 font-bold">
                           {selectedImportedSegment.targetNoteLabel}
                         </dd>
@@ -1901,7 +2069,9 @@ export default function PracticePage() {
                       </dd>
                     </div>
                     <div className="rounded-xl bg-white p-3 ring-1 ring-teal-200">
-                      <dt className="font-semibold text-teal-700">诊断置信度</dt>
+                      <dt className="font-semibold text-teal-700">
+                        诊断置信度
+                      </dt>
                       <dd className="mt-1 font-bold">
                         {formatDiagnosticConfidenceLabel(
                           selectedImportedSegment.diagnosticConfidence,
@@ -1931,8 +2101,8 @@ export default function PracticePage() {
                 {importedTargetPitchFeedbackMayBeStale ? (
                   <p className="mt-2 rounded-xl bg-amber-50 p-3 text-sm font-semibold leading-6 text-amber-800 ring-1 ring-amber-200">
                     Segment changed after the latest local pitch estimate.
-                    Record again for the clearest feedback on this segment.
-                    This is still non-scoring practice feedback.
+                    Record again for the clearest feedback on this segment. This
+                    is still non-scoring practice feedback.
                   </p>
                 ) : null}
                 <dl className="mt-3 grid gap-3 text-sm sm:grid-cols-3">
