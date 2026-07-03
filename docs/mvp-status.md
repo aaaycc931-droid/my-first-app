@@ -1,3 +1,13 @@
+## P35 — Private Cloud Song Practice Pipeline Plan (2026-07-03)
+
+P35 is a docs-only route and architecture boundary update for the future private cloud song practice pipeline. It adds `docs/private-cloud-song-practice-pipeline-plan.md` to define the product decision that the project will not build community upload, public music sharing, public resource browsing, public download, or public playback of user-uploaded copyrighted audio. Future product direction allows private cloud upload, private user library, private song analysis, private practice drafts, and private practice feedback, but only as a later formal product stage.
+
+The current MVP remains browser-local, non-scoring, no upload, no cloud, no account, and no database. This remains the current implementation boundary for `/practice`: local recording, local pitch estimation, local onset diagnostics, local rhythm diagnostic feedback, and imported target feedback can continue without server upload or persistent cloud storage. P35 clarifies that this is a current MVP boundary, not a permanent product boundary.
+
+The new plan separates three capability stages: Current MVP Boundary, Future Local Import Stage, and Future Private Cloud Stage. It recommends validating local melody guide audio import, local target pitch curve drafts, and practice draft review before implementing private cloud upload runtime. It also documents the future private pipeline: private object storage, audio preprocessing, source separation, vocal melody extraction, rhythm / beat / onset / phrase analysis, practice draft generation, user review, practice mode integration, and deferred formal scoring.
+
+P35 explicitly keeps community features out of scope. It also confirms no runtime, API, parser, converter, scoring, package, dependency, audio fixture, `metadata.local.json`, piano runtime, `/piano`, upload runtime, cloud runtime, AI API, account, database, object storage, or production Audiveris behavior changes were made.
+
 ## P32 — Rhythm Diagnostic UX Stabilization and Compact Marker Legend (2026-07-03)
 
 P32 stabilizes the P31 onset timeline diagnostic UI on `/practice`. The timeline now includes a compact marker legend for candidate markers, rhythm target markers, close / early / late / missed / extra feedback chips, the first-onset origin marker, and the threshold reference. The preview also adds a marker-count diagnostic summary near the timeline so users can see candidates, targets, feedback markers, missed markers, extra markers, alignment mode, selected sensitivity preset, and target pattern without inspecting every marker. Dense marker situations use compact C / E / L / M / X / T / O / TH labels with a readable density note instead of expanding into long overlapping chip text.
