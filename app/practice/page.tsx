@@ -116,6 +116,23 @@ const staticPreviewNoteTopPercent: Record<string, number> = {
   G4: 20,
 };
 
+const getImportedPracticeLiteSegmentIdentity = (
+  segment: ResearchTargetPitchCurveDiagnostic["segments"][number] | null,
+  segmentListIndex: number | null,
+) => {
+  if (!segment || segmentListIndex === null) {
+    return null;
+  }
+
+  return [
+    segment.segmentIndex,
+    segmentListIndex,
+    segment.startTimeSeconds,
+    segment.endTimeSeconds,
+    segment.targetFrequencyHz,
+  ].join(":");
+};
+
 const getStaticPreviewTargetBlockStyle = (
   segment: (typeof staticPreviewTargetSegments)[number],
 ) => {
@@ -252,6 +269,8 @@ export default function PracticePage() {
   const [isAnalyzingAudio, setIsAnalyzingAudio] = useState(false);
   const [pitchEstimateResult, setPitchEstimateResult] =
     useState<PitchEstimateResult | null>(null);
+  const [pitchEstimateImportedSegmentKey, setPitchEstimateImportedSegmentKey] =
+    useState<string | null>(null);
   const [pitchEstimateError, setPitchEstimateError] = useState("");
   const [isEstimatingPitch, setIsEstimatingPitch] = useState(false);
   const [currentMelodyStepIndex, setCurrentMelodyStepIndex] = useState(0);
@@ -323,6 +342,13 @@ export default function PracticePage() {
     selectedImportedSegmentIndex === null
       ? null
       : (validImportedPreviewSegments[selectedImportedSegmentIndex] ?? null);
+  const selectedImportedSegmentKey = getImportedPracticeLiteSegmentIdentity(
+    selectedImportedSegment,
+    selectedImportedSegmentIndex,
+  );
+  const importedTargetPitchFeedbackMayBeStale =
+    Boolean(pitchEstimateResult && selectedImportedSegment) &&
+    pitchEstimateImportedSegmentKey !== selectedImportedSegmentKey;
 
   const pitchComparisonResult = useMemo<PitchComparisonResult | null>(() => {
     const targetFrequencyHz = noteFrequencies[selectedTargetNote];
@@ -591,6 +617,7 @@ export default function PracticePage() {
     setAudioAnalysisResult(null);
     setIsAnalyzingAudio(false);
     setPitchEstimateResult(null);
+    setPitchEstimateImportedSegmentKey(null);
     setPitchEstimateError("");
     setIsEstimatingPitch(false);
     setRecordingSeconds(0);
@@ -788,9 +815,11 @@ export default function PracticePage() {
     const attemptedMelodyStepIndex = currentMelodyStepIndex;
     const attemptedMelodyStep =
       melodySteps[attemptedMelodyStepIndex] ?? melodySteps[0];
+    const attemptedImportedSegmentKey = selectedImportedSegmentKey;
 
     setPitchEstimateError("");
     setPitchEstimateResult(null);
+    setPitchEstimateImportedSegmentKey(null);
     setIsEstimatingPitch(true);
 
     const pitchEstimateRunId = pitchEstimateRunIdRef.current + 1;
@@ -812,6 +841,7 @@ export default function PracticePage() {
         const targetFrequencyHz = noteFrequencies[targetNote];
 
         setPitchEstimateResult(result);
+        setPitchEstimateImportedSegmentKey(attemptedImportedSegmentKey);
 
         if (
           targetFrequencyHz &&
@@ -973,6 +1003,7 @@ export default function PracticePage() {
     setAudioAnalysisResult(null);
     setIsAnalyzingAudio(false);
     setPitchEstimateResult(null);
+    setPitchEstimateImportedSegmentKey(null);
     setPitchEstimateError("");
     setIsEstimatingPitch(false);
     setRecordingSeconds(0);
@@ -1897,6 +1928,13 @@ export default function PracticePage() {
                   switching segments for the clearest result. This is practice
                   feedback, not a score.
                 </p>
+                {importedTargetPitchFeedbackMayBeStale ? (
+                  <p className="mt-2 rounded-xl bg-amber-50 p-3 text-sm font-semibold leading-6 text-amber-800 ring-1 ring-amber-200">
+                    Segment changed after the latest local pitch estimate.
+                    Record again for the clearest feedback on this segment.
+                    This is still non-scoring practice feedback.
+                  </p>
+                ) : null}
                 <dl className="mt-3 grid gap-3 text-sm sm:grid-cols-3">
                   <div className="rounded-xl bg-white p-3 ring-1 ring-teal-200">
                     <dt className="font-semibold text-teal-700">目标音高</dt>
