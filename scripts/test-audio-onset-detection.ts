@@ -213,14 +213,18 @@ assert.equal(
 );
 
 const practicePage = readFileSync("app/practice/page.tsx", "utf8");
+const audioOnsetTimelinePreview = readFileSync("components/practice/AudioOnsetTimelinePreview.tsx", "utf8");
 assert.match(practicePage, /Audio Onset Detection Foundation/);
 assert.match(practicePage, /No upload \/ cloud \/ AI/);
 assert.match(practicePage, /This is not rhythm scoring/);
 assert.match(practicePage, /Onset sensitivity preset/);
 assert.match(practicePage, /Sensitive may detect weaker onsets/);
 assert.match(practicePage, /Conservative may reduce extra candidates/);
-assert.match(practicePage, /threshold/);
-assert.match(practicePage, /Onset strength timeline preview/);
+assert.match(`${practicePage}
+${audioOnsetTimelinePreview}`, /threshold/);
+assert.match(`${practicePage}
+${audioOnsetTimelinePreview}`, /Onset strength timeline preview/);
 assert.match(practicePage, /No onset timeline yet/);
-assert.match(practicePage, /Timeline preview is downsampled/);
+assert.match(`${practicePage}
+${audioOnsetTimelinePreview}`, /Timeline preview is downsampled/);
 assert.doesNotMatch(practicePage, /accuracyPercentage/);
