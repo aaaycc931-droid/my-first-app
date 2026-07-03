@@ -1,0 +1,160 @@
+import type { MetronomeConfig } from "../metronome/metronomeConfig";
+import type { AudioOnsetDetectionResult } from "./audioOnsetDetection";
+import {
+  createRhythmTargetPattern,
+  getRhythmTapFeedback,
+  rhythmTargetPatternLabels,
+  type RhythmTargetPattern,
+  type RhythmTapEvent,
+  type RhythmTapFeedbackCategory,
+} from "./rhythmTapFeedback";
+
+export type AudioOnsetRhythmAlignmentMode = "recording-start";
+
+export type AudioOnsetRhythmFeedbackItem = {
+  category: Exclude<RhythmTapFeedbackCategory, "not-started" | "waiting-for-taps">;
+  targetTimeMs: number | null;
+  onsetTimeMs: number | null;
+  offsetMs: number | null;
+  onsetStrength: number | null;
+  targetIndex: number | null;
+  pattern: RhythmTargetPattern;
+  diagnosticNote: string;
+};
+
+export type AudioOnsetRhythmFeedbackResult = {
+  alignmentMode: AudioOnsetRhythmAlignmentMode;
+  targetPattern: RhythmTargetPattern;
+  targetPatternLabel: string;
+  onsetCount: number;
+  matchedCount: number;
+  missedCount: number;
+  extraCount: number;
+  feedbackItems: AudioOnsetRhythmFeedbackItem[];
+  diagnosticSummary: string;
+  warnings: string[];
+  latencyOffsetAppliedMs: number;
+  nonScoringBoundary: string;
+};
+
+export const audioOnsetRhythmFeedbackBoundary =
+  "Diagnostic practice feedback only; not a score, grade, pass/fail result, accuracy percentage, final result, or formal assessment.";
+
+export const convertAudioOnsetsToRhythmTapEvents = (
+  onsetResult: AudioOnsetDetectionResult | null | undefined,
+): RhythmTapEvent[] =>
+  (onsetResult?.candidates ?? []).map((candidate, index) => ({
+    id: index + 1,
+    timestampMs: candidate.onsetTimeMs,
+    phase: "practice",
+  }));
+
+const getItemNote = (category: AudioOnsetRhythmFeedbackItem["category"]) => {
+  if (category === "close") return "Detected onset is close to the target event.";
+  if (category === "early") return "Detected onset is before the target event.";
+  if (category === "late") return "Detected onset is after the target event.";
+  if (category === "missed") return "No detected onset matched this target event.";
+  return "Detected onset did not match a target event.";
+};
+
+export const getAudioOnsetRhythmFeedback = ({
+  onsetResult,
+  config,
+  pattern = "quarter-note-pulse",
+  barCount = 2,
+  alignmentMode = "recording-start",
+  latencyOffsetMs = 0,
+}: {
+  onsetResult: AudioOnsetDetectionResult | null | undefined;
+  config: MetronomeConfig;
+  pattern?: RhythmTargetPattern;
+  barCount?: number;
+  alignmentMode?: AudioOnsetRhythmAlignmentMode;
+  latencyOffsetMs?: number;
+}): AudioOnsetRhythmFeedbackResult => {
+  const targets = createRhythmTargetPattern({
+    config,
+    practiceStartTimeMs: 0,
+    barCount,
+    pattern,
+  });
+  const taps = convertAudioOnsetsToRhythmTapEvents(onsetResult);
+  const onsetByTapId = new Map(
+    (onsetResult?.candidates ?? []).map((candidate, index) => [
+      index + 1,
+      candidate,
+    ]),
+  );
+  const lastTargetTimeMs = targets[targets.length - 1]?.targetTimeMs ?? 0;
+  const nowMs = Math.max(
+    onsetResult?.durationMs ?? 0,
+    lastTargetTimeMs + 181,
+  );
+  const tapFeedback = getRhythmTapFeedback({
+    targets,
+    taps,
+    phase: "practice",
+    nowMs,
+    latencyOffsetMs,
+  });
+  const feedbackItems = tapFeedback.feedback.map((item) => {
+    const onset = item.tapId === null ? null : onsetByTapId.get(item.tapId) ?? null;
+    const category = item.category as AudioOnsetRhythmFeedbackItem["category"];
+    return {
+      category,
+      targetTimeMs: item.targetTimeMs,
+      onsetTimeMs: item.tapTimeMs,
+      offsetMs: item.offsetMs,
+      onsetStrength: onset?.strength ?? null,
+      targetIndex: item.targetIndex,
+      pattern,
+      diagnosticNote: getItemNote(category),
+    };
+  });
+  const missedCount = feedbackItems.filter((item) => item.category === "missed").length;
+  const extraCount = feedbackItems.filter((item) => item.category === "extra").length;
+  const matchedCount = feedbackItems.filter((item) =>
+    item.category === "close" || item.category === "early" || item.category === "late",
+  ).length;
+  const warnings = [
+    ...(onsetResult?.warnings ?? []),
+    "This assumes recording timing aligns with the target timeline.",
+    "This is diagnostic practice feedback, not a score.",
+    "No pass/fail, grade, or accuracy percentage.",
+    "No upload / cloud / AI.",
+    "Voice and sustained instruments may need future tuning.",
+  ];
+
+  if (!onsetResult || (onsetResult.candidates ?? []).length === 0) {
+    warnings.unshift("No onset candidates available for rhythm feedback yet.");
+  }
+
+  return {
+    alignmentMode,
+    targetPattern: pattern,
+    targetPatternLabel: rhythmTargetPatternLabels[pattern],
+    onsetCount: onsetResult?.onsetCount ?? 0,
+    matchedCount,
+    missedCount,
+    extraCount,
+    feedbackItems,
+    diagnosticSummary:
+      taps.length === 0
+        ? "Waiting for detected audio onsets before onset-based rhythm feedback."
+        : `Aligned ${taps.length} detected onset candidate${taps.length === 1 ? "" : "s"} to ${targets.length} ${rhythmTargetPatternLabels[pattern]} target event${targets.length === 1 ? "" : "s"} using recording-start alignment; diagnostic only, not rhythm scoring.`,
+    warnings,
+    latencyOffsetAppliedMs: latencyOffsetMs,
+    nonScoringBoundary: audioOnsetRhythmFeedbackBoundary,
+  };
+};
+
+export const hasAudioOnsetRhythmFeedbackScoringFields = (value: object) =>
+  [
+    "score",
+    "grade",
+    "pass",
+    "fail",
+    "accuracyPercentage",
+    "finalResult",
+    "assessment",
+  ].some((fieldName) => fieldName in value);
