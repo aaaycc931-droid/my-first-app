@@ -1,0 +1,136 @@
+export type LocalMelodyGuideAudioDecodeStatus =
+  | "idle"
+  | "selected"
+  | "decoding"
+  | "decoded"
+  | "error";
+
+export type LocalMelodyGuideFileLike = {
+  name?: string;
+  type?: string;
+  size?: number;
+};
+
+export type LocalMelodyGuideDecodedMetadata = {
+  decodedDurationSeconds: number;
+  sampleRate: number;
+  channelCount: number;
+};
+
+export type LocalMelodyGuideAudioSource = {
+  fileName: string;
+  fileType: string;
+  fileSizeBytes: number;
+  fileSizeLabel: string;
+  decodedDurationSeconds: number | null;
+  sampleRate: number | null;
+  channelCount: number | null;
+  status: LocalMelodyGuideAudioDecodeStatus;
+  warnings: string[];
+};
+
+export const localMelodyGuideBrowserDecodeSupportCopy =
+  "WAV / MP3 / M4A support depends on browser decoding support.";
+
+export const localMelodyGuideBestSourceCopy =
+  "Best for clean vocal guide, humming, single melody instrument, or teacher-recorded melody guide.";
+
+export const localMelodyGuideFullMixedSongDeferredWarning =
+  "Full mixed songs may be unreliable until future private cloud song analysis.";
+
+export const localMelodyGuideLocalOnlyCopy = [
+  "Browser-local only.",
+  "No upload.",
+  "No cloud processing.",
+  "No account/database.",
+  "This is a melody guide source, not a scored result.",
+] as const;
+
+const unknownFileTypeLabel = "Unknown / browser-inferred type";
+
+export const formatLocalMelodyGuideFileSize = (sizeBytes: number) => {
+  if (!Number.isFinite(sizeBytes) || sizeBytes < 0) {
+    return "Unknown size";
+  }
+
+  if (sizeBytes < 1024) {
+    return `${sizeBytes} B`;
+  }
+
+  const sizeKilobytes = sizeBytes / 1024;
+  if (sizeKilobytes < 1024) {
+    return `${sizeKilobytes.toFixed(1)} KB`;
+  }
+
+  return `${(sizeKilobytes / 1024).toFixed(1)} MB`;
+};
+
+export const createLocalMelodyGuideFileSummary = (
+  file: LocalMelodyGuideFileLike,
+): LocalMelodyGuideAudioSource => {
+  const fileName = file.name?.trim() || "Unnamed local audio file";
+  const fileType = file.type?.trim() || unknownFileTypeLabel;
+  const fileSizeBytes = Number.isFinite(file.size) ? Number(file.size) : 0;
+  const warnings = [localMelodyGuideFullMixedSongDeferredWarning];
+
+  if (!file.name?.trim()) {
+    warnings.push("Selected file has no reliable file name metadata.");
+  }
+
+  if (!file.type?.trim()) {
+    warnings.push(
+      "Selected file has no reliable MIME type; browser decoding may still work by content.",
+    );
+  }
+
+  if (fileSizeBytes <= 0) {
+    warnings.push("Selected file appears to be empty or has invalid size metadata.");
+  }
+
+  return {
+    fileName,
+    fileType,
+    fileSizeBytes,
+    fileSizeLabel: formatLocalMelodyGuideFileSize(fileSizeBytes),
+    decodedDurationSeconds: null,
+    sampleRate: null,
+    channelCount: null,
+    status: "selected",
+    warnings,
+  };
+};
+
+export const applyLocalMelodyGuideDecodedMetadata = (
+  source: LocalMelodyGuideAudioSource,
+  decodedMetadata: LocalMelodyGuideDecodedMetadata,
+): LocalMelodyGuideAudioSource => {
+  const warnings = [...source.warnings];
+
+  if (decodedMetadata.decodedDurationSeconds <= 0) {
+    warnings.push("Decoded audio duration is empty or invalid.");
+  }
+
+  if (decodedMetadata.channelCount <= 0) {
+    warnings.push("Decoded audio did not expose a usable channel count.");
+  }
+
+  return {
+    ...source,
+    decodedDurationSeconds: decodedMetadata.decodedDurationSeconds,
+    sampleRate: decodedMetadata.sampleRate,
+    channelCount: decodedMetadata.channelCount,
+    status: "decoded",
+    warnings,
+  };
+};
+
+export const markLocalMelodyGuideDecodeError = (
+  source: LocalMelodyGuideAudioSource,
+): LocalMelodyGuideAudioSource => ({
+  ...source,
+  status: "error",
+  warnings: [
+    ...source.warnings,
+    "This browser could not decode the selected local audio file.",
+  ],
+});
