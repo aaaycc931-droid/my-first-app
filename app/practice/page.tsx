@@ -33,7 +33,10 @@ import {
   detectAudioOnsets,
   type AudioOnsetDetectionResult,
 } from "../../lib/rhythm/audioOnsetDetection";
-import { getAudioOnsetRhythmFeedback } from "../../lib/rhythm/audioOnsetRhythmFeedback";
+import {
+  getAudioOnsetRhythmFeedback,
+  type AudioOnsetRhythmAlignmentMode,
+} from "../../lib/rhythm/audioOnsetRhythmFeedback";
 import {
   getBeatsPerBar,
   type MetronomeBeatMetadata,
@@ -351,6 +354,8 @@ export default function PracticePage() {
     useState<AudioOnsetDetectionResult | null>(null);
   const [audioOnsetError, setAudioOnsetError] = useState("");
   const [isDetectingAudioOnsets, setIsDetectingAudioOnsets] = useState(false);
+  const [audioOnsetAlignmentMode, setAudioOnsetAlignmentMode] =
+    useState<AudioOnsetRhythmAlignmentMode>("recording-start");
   const [currentMelodyStepIndex, setCurrentMelodyStepIndex] = useState(0);
   const [isSelectedTargetNotePlaying, setIsSelectedTargetNotePlaying] =
     useState(false);
@@ -514,7 +519,7 @@ export default function PracticePage() {
         },
         pattern: rhythmTargetPattern,
         barCount: rhythmPracticeBarCount,
-        alignmentMode: "recording-start",
+        alignmentMode: audioOnsetAlignmentMode,
         latencyOffsetMs: activeLatencyOffsetMs,
       }),
     [
@@ -524,6 +529,7 @@ export default function PracticePage() {
       metronomeSubdivision,
       rhythmTargetPattern,
       activeLatencyOffsetMs,
+      audioOnsetAlignmentMode,
     ],
   );
 
@@ -2184,6 +2190,38 @@ export default function PracticePage() {
                 <p className="mt-2 text-sm leading-6 text-orange-900">
                   Current target pattern: {audioOnsetRhythmFeedback.targetPatternLabel}. Alignment mode: {audioOnsetRhythmFeedback.alignmentMode}.
                 </p>
+                <div className="mt-3 grid gap-2 text-sm sm:grid-cols-2">
+                  <label className="rounded-2xl border border-orange-200 bg-orange-50 p-3 text-orange-950">
+                    <span className="flex items-center gap-2 font-semibold">
+                      <input
+                        type="radio"
+                        name="audio-onset-alignment-mode"
+                        value="recording-start"
+                        checked={audioOnsetAlignmentMode === "recording-start"}
+                        onChange={() => setAudioOnsetAlignmentMode("recording-start")}
+                      />
+                      Recording start
+                    </span>
+                    <span className="mt-1 block text-orange-800">
+                      Assumes recording starts on the target timeline.
+                    </span>
+                  </label>
+                  <label className="rounded-2xl border border-orange-200 bg-orange-50 p-3 text-orange-950">
+                    <span className="flex items-center gap-2 font-semibold">
+                      <input
+                        type="radio"
+                        name="audio-onset-alignment-mode"
+                        value="first-onset"
+                        checked={audioOnsetAlignmentMode === "first-onset"}
+                        onChange={() => setAudioOnsetAlignmentMode("first-onset")}
+                      />
+                      First detected onset
+                    </span>
+                    <span className="mt-1 block text-orange-800">
+                      Aligns the first detected onset to the first target event. This can hide late-start recording offset and changes timing interpretation.
+                    </span>
+                  </label>
+                </div>
               </div>
               <div className="rounded-2xl bg-orange-50 p-3 text-sm text-orange-950 ring-1 ring-orange-100">
                 <p className="font-semibold">Summary</p>
@@ -2191,7 +2229,7 @@ export default function PracticePage() {
                   onsets {audioOnsetRhythmFeedback.onsetCount} · matched {audioOnsetRhythmFeedback.matchedCount} · missed {audioOnsetRhythmFeedback.missedCount} · extra {audioOnsetRhythmFeedback.extraCount}
                 </p>
                 <p className="mt-1">
-                  latency estimate applied {Math.round(audioOnsetRhythmFeedback.latencyOffsetAppliedMs)}ms
+                  alignment offset {Math.round(audioOnsetRhythmFeedback.alignmentOffsetMs)}ms · latency estimate applied {Math.round(audioOnsetRhythmFeedback.latencyOffsetAppliedMs)}ms
                 </p>
               </div>
             </div>
@@ -2213,7 +2251,10 @@ export default function PracticePage() {
                       <span className="ml-2">target {Math.round(item.targetTimeMs)}ms</span>
                     ) : null}
                     {item.onsetTimeMs !== null ? (
-                      <span className="ml-2">onset {Math.round(item.onsetTimeMs)}ms</span>
+                      <span className="ml-2">raw onset {Math.round(item.onsetTimeMs)}ms</span>
+                    ) : null}
+                    {item.adjustedOnsetTimeMs !== null ? (
+                      <span className="ml-2">aligned onset {Math.round(item.adjustedOnsetTimeMs)}ms</span>
                     ) : null}
                     {item.offsetMs !== null ? (
                       <span className="ml-2">offset {Math.round(item.offsetMs)}ms</span>
@@ -2238,7 +2279,7 @@ export default function PracticePage() {
           <p className="mt-4 text-sm leading-6 text-orange-900">
             当前限制：人声、长笛、小提琴、连音、弱起音、强噪声环境可能更难检测；本阶段不做
             instrument-specific tuning、noise reduction、formal rhythm
-            assessment。P27 仅把 onset candidates 接入 non-scoring rhythm feedback matching。
+            assessment。P28 adds recording-start and first-onset alignment modes for non-scoring rhythm feedback matching。
           </p>
         </section>
 

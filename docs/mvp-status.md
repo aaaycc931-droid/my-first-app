@@ -1,5 +1,19 @@
 # MVP status
 
+## P28 — Audio Onset Alignment Modes for Non-scoring Rhythm Feedback (2026-07-03)
+
+P28 adds Audio Onset Alignment Modes to the P27 audio onset rhythm feedback bridge. The helper now supports both `recording-start` alignment and a new `first-onset` research / practice alignment option. `recording-start` keeps the P27 behavior: detected onset times are interpreted relative to the latest local recording start and target rhythm events begin at 0ms. `first-onset` maps the first detected onset to the first target event, then applies the optional session latency offset through the existing rhythm tap feedback helper, so recordings with leading silence or a late user start can be inspected with less whole-take offset. The helper returns diagnostic alignment metadata including alignment mode, alignment offset, first onset time, first target time, adjusted onset time, warnings, and a diagnostic summary.
+
+`/practice` now exposes a lightweight alignment selector for onset-based rhythm feedback: Recording start and First detected onset. The copy explains that Recording start assumes the recording starts on the target timeline, First detected onset aligns the first detected onset to the first target event, and first-onset can hide late-start recording offset because it changes timing interpretation. This remains diagnostic practice feedback for future voice / instrument rhythm training, not a formal result. State is session-only UI state.
+
+Strict P28 boundaries:
+
+- P28 is diagnostic / practice feedback only, not rhythm scoring, not formal rhythm assessment, not complete voice / instrument rhythm evaluation, and not sight-singing comprehensive scoring.
+- P28 does not produce pass/fail, grade, accuracy percentage, formal score, final result, or assessment.
+- P28 does not add upload, cloud processing, AI API, account, database, server storage, or persistent rhythm history.
+- P28 does not modify `/api/recognize`, parser/converter behavior, production Audiveris behavior, audio fixtures, `metadata.local.json`, piano runtime, or `/piano`.
+- Instrument-specific tuning, noise handling, microphone-specific formal assessment, formal scoring, and comprehensive sight-singing scoring remain deferred.
+
 
 ## P26 — Browser-local Audio Onset Detection Foundation (2026-07-03)
 
