@@ -12,7 +12,16 @@ import {
   type MetronomeSubdivision,
 } from "../../lib/metronome/metronomeConfig";
 import { BrowserMetronomeScheduler } from "../../lib/metronome/metronomeScheduler";
-import type { MetronomeBeatMetadata } from "../../lib/metronome/metronomeGrid";
+import {
+  createQuarterPulseTargetPattern,
+  getRhythmTapFeedback,
+  rhythmCloseToleranceMs,
+  rhythmMatchWindowMs,
+  type RhythmPracticePhase,
+  type RhythmTapEvent,
+  type RhythmTargetEvent,
+} from "../../lib/rhythm/rhythmTapFeedback";
+import { getBeatsPerBar, type MetronomeBeatMetadata } from "../../lib/metronome/metronomeGrid";
 
 import { getNonScoringImportedTargetPitchFeedback } from "../../lib/practice/nonScoringImportedTargetPitchFeedback";
 import { mockMelodyTargetCurveExample } from "../../lib/practice/mock-melody-target-segments.example";
@@ -104,6 +113,7 @@ const noteFrequencies: Record<string, number> = {
 };
 
 const maxPracticeAttemptHistory = 5;
+const rhythmPracticeBarCount = 2;
 const practiceResearchTargetCurveDiagnosticPreviewKey =
   "practiceResearchTargetCurveDiagnosticPreview";
 
@@ -280,6 +290,12 @@ export default function PracticePage() {
   const [metronomeBeat, setMetronomeBeat] =
     useState<MetronomeBeatMetadata | null>(null);
   const [metronomeError, setMetronomeError] = useState("");
+  const [rhythmPhase, setRhythmPhase] =
+    useState<RhythmPracticePhase>("idle");
+  const [rhythmTargets, setRhythmTargets] = useState<RhythmTargetEvent[]>([]);
+  const [rhythmTaps, setRhythmTaps] = useState<RhythmTapEvent[]>([]);
+  const [rhythmNowMs, setRhythmNowMs] = useState(0);
+  const [rhythmError, setRhythmError] = useState("");
   const [playError, setPlayError] = useState("");
   const [activeNoteIndex, setActiveNoteIndex] = useState<number | null>(null);
   const [hasMockFeedback, setHasMockFeedback] = useState(false);
@@ -319,6 +335,7 @@ export default function PracticePage() {
   const [selectedImportedSegmentIndex, setSelectedImportedSegmentIndex] =
     useState<number | null>(null);
   const metronomeSchedulerRef = useRef<BrowserMetronomeScheduler | null>(null);
+  const rhythmSchedulerRef = useRef<BrowserMetronomeScheduler | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const mediaStreamRef = useRef<MediaStream | null>(null);
   const recordingChunksRef = useRef<Blob[]>([]);
@@ -335,6 +352,9 @@ export default function PracticePage() {
   const recordingAttemptKeyCounterRef = useRef(0);
   const currentRecordingAttemptKeyRef = useRef<number | null>(null);
   const recordedPracticeAttemptKeyRef = useRef<number | null>(null);
+  const rhythmTapIdRef = useRef(0);
+  const rhythmTimeoutIdsRef = useRef<number[]>([]);
+  const rhythmTimerIdRef = useRef<number | null>(null);
 
   const currentMelodyStep =
     melodySteps[currentMelodyStepIndex] ?? melodySteps[0];
@@ -396,6 +416,17 @@ export default function PracticePage() {
     };
   }, [pitchEstimateResult, selectedTargetNote]);
 
+  const rhythmFeedbackSummary = useMemo(
+    () =>
+      getRhythmTapFeedback({
+        targets: rhythmTargets,
+        taps: rhythmTaps,
+        phase: rhythmPhase,
+        nowMs: rhythmNowMs,
+      }),
+    [rhythmTargets, rhythmTaps, rhythmPhase, rhythmNowMs],
+  );
+
   const importedTargetPitchFeedback = useMemo(
     () =>
       getNonScoringImportedTargetPitchFeedback({
@@ -417,6 +448,19 @@ export default function PracticePage() {
     if (recordingTimerIdRef.current !== null) {
       window.clearInterval(recordingTimerIdRef.current);
       recordingTimerIdRef.current = null;
+    }
+  };
+
+  const stopRhythmPracticeRuntime = () => {
+    rhythmSchedulerRef.current?.stop();
+    rhythmSchedulerRef.current = null;
+    rhythmTimeoutIdsRef.current.forEach((timeoutId) => {
+      window.clearTimeout(timeoutId);
+    });
+    rhythmTimeoutIdsRef.current = [];
+    if (rhythmTimerIdRef.current !== null) {
+      window.clearInterval(rhythmTimerIdRef.current);
+      rhythmTimerIdRef.current = null;
     }
   };
 
@@ -503,6 +547,7 @@ export default function PracticePage() {
       void playbackAudioContextRef.current?.close();
       playbackAudioContextRef.current = null;
       stopMetronome();
+      stopRhythmPracticeRuntime();
       stopRecordingTimer();
       if (mediaRecorderRef.current?.state === "recording") {
         mediaRecorderRef.current.stop();
@@ -513,6 +558,107 @@ export default function PracticePage() {
     },
     [],
   );
+
+  const handleResetRhythmPractice = () => {
+    stopRhythmPracticeRuntime();
+    setRhythmPhase("idle");
+    setRhythmTargets([]);
+    setRhythmTaps([]);
+    setRhythmNowMs(0);
+    setRhythmError("");
+  };
+
+  const handleStopRhythmPractice = () => {
+    stopRhythmPracticeRuntime();
+    setRhythmPhase("stopped");
+    setRhythmNowMs(performance.now());
+  };
+
+  const handleStartRhythmPractice = async () => {
+    handleResetRhythmPractice();
+
+    const beatsPerBar = getBeatsPerBar(metronomeMeter);
+    const beatDurationMs = (60 / metronomeBpm) * 1000;
+    const countInBeatCount = metronomeCountInBars * beatsPerBar;
+    const startDelayMs = 80;
+    const nowMs = performance.now();
+    const practiceStartTimeMs = nowMs + startDelayMs + countInBeatCount * beatDurationMs;
+    const targets = createQuarterPulseTargetPattern({
+      config: {
+        bpm: metronomeBpm,
+        meter: metronomeMeter,
+        countIn: {
+          enabled: metronomeCountInBars > 0,
+          bars: metronomeCountInBars,
+        },
+        subdivision: metronomeSubdivision,
+      },
+      practiceStartTimeMs,
+      barCount: rhythmPracticeBarCount,
+    });
+    const practiceDurationMs = targets.length * beatDurationMs + rhythmMatchWindowMs + 120;
+
+    setRhythmTargets(targets);
+    setRhythmTaps([]);
+    setRhythmNowMs(nowMs);
+    setRhythmPhase(countInBeatCount > 0 ? "count-in" : "practice");
+    setRhythmError("");
+
+    rhythmTimerIdRef.current = window.setInterval(() => {
+      setRhythmNowMs(performance.now());
+    }, 60);
+
+    if (countInBeatCount > 0) {
+      rhythmTimeoutIdsRef.current.push(
+        window.setTimeout(() => {
+          setRhythmPhase("practice");
+        }, Math.max(0, practiceStartTimeMs - performance.now())),
+      );
+    }
+
+    rhythmTimeoutIdsRef.current.push(
+      window.setTimeout(() => {
+        stopRhythmPracticeRuntime();
+        setRhythmPhase("stopped");
+        setRhythmNowMs(performance.now());
+      }, Math.max(0, practiceStartTimeMs - nowMs + practiceDurationMs)),
+    );
+
+    const scheduler = new BrowserMetronomeScheduler({
+      config: {
+        bpm: metronomeBpm,
+        meter: metronomeMeter,
+        countIn: {
+          enabled: metronomeCountInBars > 0,
+          bars: metronomeCountInBars,
+        },
+        subdivision: metronomeSubdivision,
+      },
+    });
+    rhythmSchedulerRef.current = scheduler;
+
+    try {
+      await scheduler.start();
+    } catch {
+      stopRhythmPracticeRuntime();
+      setRhythmPhase("idle");
+      setRhythmError("此浏览器无法启动节奏练习节拍器；请确认在用户手势中点击开始。");
+    }
+  };
+
+  const handleRhythmTap = () => {
+    const timestampMs = performance.now();
+    if (rhythmPhase !== "practice") {
+      return;
+    }
+    const nextTapId = rhythmTapIdRef.current + 1;
+    rhythmTapIdRef.current = nextTapId;
+    setRhythmTaps((currentTaps) => [
+      ...currentTaps,
+      { id: nextTapId, timestampMs, phase: "practice" },
+    ]);
+    setRhythmNowMs(timestampMs);
+  };
 
   const handleStartMetronome = async () => {
     stopMetronome();
@@ -1095,6 +1241,23 @@ export default function PracticePage() {
     setFlowState("idle");
   };
 
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.code !== "Space" || event.repeat) {
+        return;
+      }
+      const target = event.target as HTMLElement | null;
+      if (target?.tagName === "INPUT" || target?.tagName === "SELECT" || target?.tagName === "TEXTAREA") {
+        return;
+      }
+      event.preventDefault();
+      handleRhythmTap();
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [rhythmPhase]);
+
   const isListening = flowState === "listening";
   const isAnyTargetPlaybackActive = isListening || isSelectedTargetNotePlaying;
 
@@ -1310,6 +1473,114 @@ export default function PracticePage() {
               {metronomeError}
             </p>
           ) : null}
+        </section>
+
+        <section className="mt-6 rounded-3xl border border-violet-200 bg-violet-50 p-5 shadow-sm sm:p-6">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+            <div>
+              <p className="text-sm font-semibold uppercase tracking-wide text-violet-700">
+                Rhythm Practice Alpha
+              </p>
+              <h2 className="mt-1 text-2xl font-bold text-violet-950">
+                Tap-based 节奏练习 Alpha
+              </h2>
+              <p className="mt-2 max-w-3xl text-sm leading-6 text-violet-900">
+                当前 Alpha 使用 simple quarter-note pulse target：每拍 tap 一次。它复用当前 BPM、拍号、Count-in 与 subdivision 设置，但本轮只把 subdivision
+                作为未来节奏训练 metadata 说明，不生成正式节奏分数。
+              </p>
+              <p className="mt-3 rounded-2xl border border-amber-200 bg-amber-50 p-3 text-sm font-semibold text-amber-800">
+                Practice feedback only：只显示 close / early / late / missed / extra，不提供 score、accuracy percentage、grade、通过 / 失败或最终评测。
+              </p>
+            </div>
+            <div className="rounded-2xl border border-violet-200 bg-white p-4 text-sm text-violet-950 shadow-sm lg:min-w-64">
+              <p className="font-semibold">当前 phase</p>
+              <p className="mt-2 text-3xl font-bold">{rhythmPhase}</p>
+              <p className="mt-1 font-medium">
+                {rhythmPhase === "count-in"
+                  ? "先听预备拍，practice phase 后再 tap"
+                  : rhythmPhase === "practice"
+                    ? "请按空格键或点击 Tap"
+                    : "等待开始"}
+              </p>
+            </div>
+          </div>
+
+          <div className="mt-5 grid gap-3 text-sm md:grid-cols-4">
+            <div className="rounded-2xl bg-white p-4 ring-1 ring-violet-200">
+              <p className="font-semibold text-violet-950">Target pattern</p>
+              <p className="mt-2 text-violet-800">Quarter-note pulse · {rhythmPracticeBarCount} bars</p>
+            </div>
+            <div className="rounded-2xl bg-white p-4 ring-1 ring-violet-200">
+              <p className="font-semibold text-violet-950">Tap count</p>
+              <p className="mt-2 text-violet-800">{rhythmFeedbackSummary.tapCount} practice taps</p>
+            </div>
+            <div className="rounded-2xl bg-white p-4 ring-1 ring-violet-200">
+              <p className="font-semibold text-violet-950">Tolerance</p>
+              <p className="mt-2 text-violet-800">close ±{rhythmCloseToleranceMs}ms · match window ±{rhythmMatchWindowMs}ms</p>
+            </div>
+            <div className="rounded-2xl bg-white p-4 ring-1 ring-violet-200">
+              <p className="font-semibold text-violet-950">Recent feedback</p>
+              <p className="mt-2 text-violet-800">{rhythmFeedbackSummary.status}</p>
+            </div>
+          </div>
+
+          <div className="mt-5 flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={handleStartRhythmPractice}
+              disabled={rhythmPhase === "count-in" || rhythmPhase === "practice"}
+              className="rounded-full bg-violet-700 px-4 py-2 text-sm font-semibold text-white disabled:bg-violet-300"
+            >
+              Start rhythm practice
+            </button>
+            <button
+              type="button"
+              onClick={handleStopRhythmPractice}
+              disabled={rhythmPhase !== "count-in" && rhythmPhase !== "practice"}
+              className="rounded-full border border-violet-300 bg-white px-4 py-2 text-sm font-semibold text-violet-800 disabled:text-slate-400"
+            >
+              Stop
+            </button>
+            <button
+              type="button"
+              onClick={handleResetRhythmPractice}
+              className="rounded-full border border-violet-300 bg-white px-4 py-2 text-sm font-semibold text-violet-800"
+            >
+              Reset
+            </button>
+            <button
+              type="button"
+              onClick={handleRhythmTap}
+              disabled={rhythmPhase !== "practice"}
+              className="rounded-full bg-white px-5 py-2 text-sm font-bold text-violet-900 ring-1 ring-violet-300 disabled:text-slate-400"
+            >
+              Tap / Spacebar
+            </button>
+          </div>
+          {rhythmError ? <p className="mt-3 text-sm font-semibold text-red-700">{rhythmError}</p> : null}
+
+          <div className="mt-5 rounded-2xl border border-violet-200 bg-white p-4">
+            <h3 className="font-bold text-violet-950">Practice feedback log（本轮 session-only）</h3>
+            {rhythmFeedbackSummary.feedback.length > 0 ? (
+              <ul className="mt-3 grid gap-2 text-sm sm:grid-cols-2">
+                {rhythmFeedbackSummary.feedback.slice(-12).map((item, index) => (
+                  <li key={`${item.category}-${item.tapId ?? item.targetIndex}-${index}`} className="rounded-xl bg-violet-50 p-3 text-violet-900">
+                    <span className="font-bold">{item.category}</span>
+                    <span className="ml-2">{item.message}</span>
+                    {item.offsetMs !== null ? <span className="ml-2 text-violet-700">offset {Math.round(item.offsetMs)}ms</span> : null}
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="mt-3 text-sm text-violet-800">
+                {rhythmPhase === "practice" ? "等待 tap。" : "开始后先听 count-in；practice phase 的 tap 才会进入反馈。"}
+              </p>
+            )}
+          </div>
+
+          <p className="mt-4 text-sm leading-6 text-violet-900">
+            时间戳来自浏览器本地输入事件，可能受键盘、浏览器与设备 latency 影响；P24 不做 latency calibration，不做 microphone onset detection，不上传音频，也不写入 persistent rhythm history。
+          </p>
         </section>
 
         <section className="mt-6 rounded-2xl border border-blue-200 bg-blue-50 p-5">
