@@ -1,5 +1,18 @@
 # MVP status
 
+## P25 — Tap Latency Calibration Foundation (2026-07-03)
+
+P25 adds a lightweight Tap Latency Calibration Foundation for `/practice`. It serves future rhythm feedback reliability by estimating a browser-session tap offset against quarter-note metronome targets after count-in. The calibration is session-only React state, is not saved to account, database, localStorage, IndexedDB, cookies, or persistent history, and can optionally adjust Rhythm Practice Alpha tap feedback offsets for the current session.
+
+Strict P25 boundaries:
+
+- This is not rhythm scoring, not formal assessment, and not sight-singing comprehensive scoring.
+- It does not produce pass/fail, grade, accuracy percentage, formal score, or final assessment.
+- It uses browser-local input timestamps and Web Audio click targets only.
+- It does not add microphone onset detection, instrument onset detection, audio hardware round-trip measurement, audio upload, cloud, AI, account, database, or saved calibration profiles.
+- It does not modify `/api/recognize`, parser/converter behavior, production Audiveris behavior, audio fixtures, `metadata.local.json`, piano runtime, or `/piano`.
+- Microphone/instrument onset calibration is deferred to a separate future stage.
+
 ## 1. Product identity
 
 This project is a sheet music recognition MVP. Its purpose is to validate a minimal product flow for recognizing sheet music and previewing the resulting notes. It is not a portfolio page.

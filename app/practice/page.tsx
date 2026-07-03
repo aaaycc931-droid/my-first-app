@@ -24,6 +24,11 @@ import {
   type RhythmTapEvent,
   type RhythmTargetEvent,
 } from "../../lib/rhythm/rhythmTapFeedback";
+import {
+  createRhythmLatencyCalibrationTargets,
+  getRhythmLatencyCalibration,
+  type RhythmLatencyCalibrationTap,
+} from "../../lib/rhythm/rhythmLatencyCalibration";
 import { getBeatsPerBar, type MetronomeBeatMetadata } from "../../lib/metronome/metronomeGrid";
 
 import { getNonScoringImportedTargetPitchFeedback } from "../../lib/practice/nonScoringImportedTargetPitchFeedback";
@@ -117,6 +122,7 @@ const noteFrequencies: Record<string, number> = {
 
 const maxPracticeAttemptHistory = 5;
 const rhythmPracticeBarCount = 2;
+const rhythmLatencyCalibrationBarCount = 2;
 const rhythmTargetPatternOptions: RhythmTargetPattern[] = [
   "quarter-note-pulse",
   "eighth-note-pulse",
@@ -305,6 +311,14 @@ export default function PracticePage() {
   const [rhythmTaps, setRhythmTaps] = useState<RhythmTapEvent[]>([]);
   const [rhythmNowMs, setRhythmNowMs] = useState(0);
   const [rhythmError, setRhythmError] = useState("");
+  const [latencyCalibrationPhase, setLatencyCalibrationPhase] =
+    useState<RhythmPracticePhase>("idle");
+  const [latencyCalibrationTargets, setLatencyCalibrationTargets] = useState<RhythmTargetEvent[]>([]);
+  const [latencyCalibrationTaps, setLatencyCalibrationTaps] =
+    useState<RhythmLatencyCalibrationTap[]>([]);
+  const [latencyCalibrationNowMs, setLatencyCalibrationNowMs] = useState(0);
+  const [latencyCalibrationError, setLatencyCalibrationError] = useState("");
+  const [applyLatencyCalibration, setApplyLatencyCalibration] = useState(false);
   const [playError, setPlayError] = useState("");
   const [activeNoteIndex, setActiveNoteIndex] = useState<number | null>(null);
   const [hasMockFeedback, setHasMockFeedback] = useState(false);
@@ -364,6 +378,10 @@ export default function PracticePage() {
   const rhythmTapIdRef = useRef(0);
   const rhythmTimeoutIdsRef = useRef<number[]>([]);
   const rhythmTimerIdRef = useRef<number | null>(null);
+  const latencyCalibrationSchedulerRef = useRef<BrowserMetronomeScheduler | null>(null);
+  const latencyCalibrationTimeoutIdsRef = useRef<number[]>([]);
+  const latencyCalibrationTimerIdRef = useRef<number | null>(null);
+  const latencyCalibrationTapIdRef = useRef(0);
 
   const currentMelodyStep =
     melodySteps[currentMelodyStepIndex] ?? melodySteps[0];
@@ -425,6 +443,21 @@ export default function PracticePage() {
     };
   }, [pitchEstimateResult, selectedTargetNote]);
 
+  const latencyCalibrationResult = useMemo(
+    () =>
+      getRhythmLatencyCalibration({
+        targets: latencyCalibrationTargets,
+        taps: latencyCalibrationTaps,
+        status: latencyCalibrationPhase === "idle" ? "not-started" : "collecting",
+      }),
+    [latencyCalibrationTargets, latencyCalibrationTaps, latencyCalibrationPhase, latencyCalibrationNowMs],
+  );
+
+  const activeLatencyOffsetMs =
+    applyLatencyCalibration && latencyCalibrationResult.offsetMs !== null
+      ? latencyCalibrationResult.offsetMs
+      : 0;
+
   const rhythmFeedbackSummary = useMemo(
     () =>
       getRhythmTapFeedback({
@@ -432,8 +465,9 @@ export default function PracticePage() {
         taps: rhythmTaps,
         phase: rhythmPhase,
         nowMs: rhythmNowMs,
+        latencyOffsetMs: activeLatencyOffsetMs,
       }),
-    [rhythmTargets, rhythmTaps, rhythmPhase, rhythmNowMs],
+    [rhythmTargets, rhythmTaps, rhythmPhase, rhythmNowMs, activeLatencyOffsetMs],
   );
 
   const importedTargetPitchFeedback = useMemo(
@@ -470,6 +504,19 @@ export default function PracticePage() {
     if (rhythmTimerIdRef.current !== null) {
       window.clearInterval(rhythmTimerIdRef.current);
       rhythmTimerIdRef.current = null;
+    }
+  };
+
+  const stopLatencyCalibrationRuntime = () => {
+    latencyCalibrationSchedulerRef.current?.stop();
+    latencyCalibrationSchedulerRef.current = null;
+    latencyCalibrationTimeoutIdsRef.current.forEach((timeoutId) => {
+      window.clearTimeout(timeoutId);
+    });
+    latencyCalibrationTimeoutIdsRef.current = [];
+    if (latencyCalibrationTimerIdRef.current !== null) {
+      window.clearInterval(latencyCalibrationTimerIdRef.current);
+      latencyCalibrationTimerIdRef.current = null;
     }
   };
 
@@ -669,6 +716,99 @@ export default function PracticePage() {
       { id: nextTapId, timestampMs, phase: "practice" },
     ]);
     setRhythmNowMs(timestampMs);
+  };
+
+  const handleResetLatencyCalibration = () => {
+    stopLatencyCalibrationRuntime();
+    setLatencyCalibrationPhase("idle");
+    setLatencyCalibrationTargets([]);
+    setLatencyCalibrationTaps([]);
+    setLatencyCalibrationNowMs(0);
+    setLatencyCalibrationError("");
+    setApplyLatencyCalibration(false);
+  };
+
+  const handleStopLatencyCalibration = () => {
+    stopLatencyCalibrationRuntime();
+    setLatencyCalibrationPhase("stopped");
+    setLatencyCalibrationNowMs(performance.now());
+  };
+
+  const handleStartLatencyCalibration = async () => {
+    handleResetLatencyCalibration();
+
+    const beatsPerBar = getBeatsPerBar(metronomeMeter);
+    const beatDurationMs = (60 / metronomeBpm) * 1000;
+    const countInBeatCount = metronomeCountInBars * beatsPerBar;
+    const startDelayMs = 80;
+    const nowMs = performance.now();
+    const calibrationStartTimeMs = nowMs + startDelayMs + countInBeatCount * beatDurationMs;
+    const targets = createRhythmLatencyCalibrationTargets({
+      config: {
+        bpm: metronomeBpm,
+        meter: metronomeMeter,
+        countIn: { enabled: metronomeCountInBars > 0, bars: metronomeCountInBars },
+        subdivision: metronomeSubdivision,
+      },
+      calibrationStartTimeMs,
+      barCount: rhythmLatencyCalibrationBarCount,
+    });
+    const calibrationDurationMs =
+      rhythmLatencyCalibrationBarCount * beatsPerBar * beatDurationMs + rhythmMatchWindowMs + 120;
+
+    setLatencyCalibrationTargets(targets);
+    setLatencyCalibrationTaps([]);
+    setLatencyCalibrationNowMs(nowMs);
+    setLatencyCalibrationPhase(countInBeatCount > 0 ? "count-in" : "practice");
+    setLatencyCalibrationError("");
+
+    latencyCalibrationTimerIdRef.current = window.setInterval(() => {
+      setLatencyCalibrationNowMs(performance.now());
+    }, 60);
+
+    if (countInBeatCount > 0) {
+      latencyCalibrationTimeoutIdsRef.current.push(
+        window.setTimeout(() => setLatencyCalibrationPhase("practice"), Math.max(0, calibrationStartTimeMs - performance.now())),
+      );
+    }
+
+    latencyCalibrationTimeoutIdsRef.current.push(
+      window.setTimeout(() => {
+        stopLatencyCalibrationRuntime();
+        setLatencyCalibrationPhase("stopped");
+        setLatencyCalibrationNowMs(performance.now());
+      }, Math.max(0, calibrationStartTimeMs - nowMs + calibrationDurationMs)),
+    );
+
+    const scheduler = new BrowserMetronomeScheduler({
+      config: {
+        bpm: metronomeBpm,
+        meter: metronomeMeter,
+        countIn: { enabled: metronomeCountInBars > 0, bars: metronomeCountInBars },
+        subdivision: metronomeSubdivision,
+      },
+    });
+    latencyCalibrationSchedulerRef.current = scheduler;
+
+    try {
+      await scheduler.start();
+    } catch {
+      stopLatencyCalibrationRuntime();
+      setLatencyCalibrationPhase("idle");
+      setLatencyCalibrationError("此浏览器无法启动 calibration click；请确认在用户手势中点击开始。");
+    }
+  };
+
+  const handleLatencyCalibrationTap = () => {
+    const timestampMs = performance.now();
+    if (latencyCalibrationPhase !== "practice") return;
+    const nextTapId = latencyCalibrationTapIdRef.current + 1;
+    latencyCalibrationTapIdRef.current = nextTapId;
+    setLatencyCalibrationTaps((currentTaps) => [
+      ...currentTaps,
+      { id: nextTapId, timestampMs },
+    ]);
+    setLatencyCalibrationNowMs(timestampMs);
   };
 
   const handleStartMetronome = async () => {
@@ -1262,12 +1402,16 @@ export default function PracticePage() {
         return;
       }
       event.preventDefault();
+      if (latencyCalibrationPhase === "practice") {
+        handleLatencyCalibrationTap();
+        return;
+      }
       handleRhythmTap();
     };
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [rhythmPhase]);
+  }, [rhythmPhase, latencyCalibrationPhase]);
 
   const isListening = flowState === "listening";
   const isAnyTargetPlaybackActive = isListening || isSelectedTargetNotePlaying;
@@ -1585,6 +1729,98 @@ export default function PracticePage() {
           </div>
           {rhythmError ? <p className="mt-3 text-sm font-semibold text-red-700">{rhythmError}</p> : null}
 
+          <div className="mt-5 rounded-2xl border border-indigo-200 bg-white p-4">
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+              <div>
+                <p className="text-sm font-semibold uppercase tracking-wide text-indigo-700">
+                  Tap latency calibration
+                </p>
+                <h3 className="mt-1 text-xl font-bold text-indigo-950">
+                  Session-only calibration estimate
+                </h3>
+                <p className="mt-2 text-sm leading-6 text-indigo-900">
+                  This helps adjust browser/keyboard tap timing. This is not a rhythm score. No microphone onset detection yet. Not saved to account or database.
+                </p>
+              </div>
+              <label className="rounded-2xl border border-indigo-200 bg-indigo-50 p-3 text-sm font-semibold text-indigo-950">
+                <input
+                  type="checkbox"
+                  checked={applyLatencyCalibration}
+                  onChange={(event) => setApplyLatencyCalibration(event.target.checked)}
+                  disabled={latencyCalibrationResult.offsetMs === null}
+                  className="mr-2"
+                />
+                Apply session latency calibration
+                <span className="mt-1 block font-normal text-indigo-800">
+                  {activeLatencyOffsetMs !== 0
+                    ? `Feedback adjusted by ${Math.round(activeLatencyOffsetMs)}ms estimate.`
+                    : "Off or waiting for an estimate."}
+                </span>
+              </label>
+            </div>
+
+            <div className="mt-4 grid gap-3 text-sm md:grid-cols-4">
+              <div className="rounded-2xl bg-indigo-50 p-3 ring-1 ring-indigo-100">
+                <p className="font-semibold text-indigo-950">Status</p>
+                <p className="mt-1 text-indigo-800">{latencyCalibrationResult.status}</p>
+              </div>
+              <div className="rounded-2xl bg-indigo-50 p-3 ring-1 ring-indigo-100">
+                <p className="font-semibold text-indigo-950">Samples</p>
+                <p className="mt-1 text-indigo-800">
+                  {latencyCalibrationResult.acceptedSampleCount} accepted / {latencyCalibrationResult.sampleCount} taps
+                </p>
+              </div>
+              <div className="rounded-2xl bg-indigo-50 p-3 ring-1 ring-indigo-100">
+                <p className="font-semibold text-indigo-950">Estimated offset</p>
+                <p className="mt-1 text-indigo-800">
+                  {latencyCalibrationResult.offsetMs === null ? "—" : `${Math.round(latencyCalibrationResult.offsetMs)}ms`}
+                </p>
+              </div>
+              <div className="rounded-2xl bg-indigo-50 p-3 ring-1 ring-indigo-100">
+                <p className="font-semibold text-indigo-950">Stability hint</p>
+                <p className="mt-1 text-indigo-800">{latencyCalibrationResult.stabilityHint}</p>
+              </div>
+            </div>
+
+            <div className="mt-4 flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={handleStartLatencyCalibration}
+                disabled={latencyCalibrationPhase === "count-in" || latencyCalibrationPhase === "practice"}
+                className="rounded-full bg-indigo-700 px-4 py-2 text-sm font-semibold text-white disabled:bg-indigo-300"
+              >
+                Start calibration
+              </button>
+              <button
+                type="button"
+                onClick={handleStopLatencyCalibration}
+                disabled={latencyCalibrationPhase !== "count-in" && latencyCalibrationPhase !== "practice"}
+                className="rounded-full border border-indigo-300 bg-white px-4 py-2 text-sm font-semibold text-indigo-800 disabled:text-slate-400"
+              >
+                Stop calibration
+              </button>
+              <button
+                type="button"
+                onClick={handleResetLatencyCalibration}
+                className="rounded-full border border-indigo-300 bg-white px-4 py-2 text-sm font-semibold text-indigo-800"
+              >
+                Reset calibration
+              </button>
+              <button
+                type="button"
+                onClick={handleLatencyCalibrationTap}
+                disabled={latencyCalibrationPhase !== "practice"}
+                className="rounded-full bg-white px-5 py-2 text-sm font-bold text-indigo-900 ring-1 ring-indigo-300 disabled:text-slate-400"
+              >
+                Calibration tap / Spacebar
+              </button>
+            </div>
+            {latencyCalibrationError ? <p className="mt-3 text-sm font-semibold text-red-700">{latencyCalibrationError}</p> : null}
+            <p className="mt-3 text-sm leading-6 text-indigo-900">
+              Calibration uses browser-local input timestamps against quarter-note click targets after count-in. It only estimates a session-level tap offset; it does not measure audio hardware round-trip latency, formal assessment accuracy, microphone or instrument onset timing.
+            </p>
+          </div>
+
           <div className="mt-5 rounded-2xl border border-violet-200 bg-white p-4">
             <h3 className="font-bold text-violet-950">Practice feedback log（本轮 session-only）</h3>
             <p className="mt-2 text-sm font-semibold text-violet-800">
@@ -1608,7 +1844,7 @@ export default function PracticePage() {
           </div>
 
           <p className="mt-4 text-sm leading-6 text-violet-900">
-            时间戳来自浏览器本地输入事件，可能受键盘、浏览器与设备 latency 影响；P24b 不做 latency calibration，不做 microphone onset detection，不上传音频，也不写入 persistent rhythm history。
+            时间戳来自浏览器本地输入事件，可能受键盘、浏览器与设备 latency 影响；P25 只做 session-only tap latency calibration estimate，不做 microphone onset detection、audio hardware round-trip measurement，不上传音频，也不写入 persistent rhythm history。
           </p>
         </section>
 
