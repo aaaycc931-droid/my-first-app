@@ -27,6 +27,8 @@ assert.equal(summary.fileType, "audio/mp4");
 assert.equal(summary.fileSizeBytes, 2_097_152);
 assert.equal(summary.fileSizeLabel, "2.0 MB");
 assert.equal(summary.status, "selected");
+assert.equal(summary.localOnly, true);
+assert.equal(summary.analysisReady, false);
 assert.equal(summary.decodedDurationSeconds, null);
 assert.equal(localMelodyGuideBrowserDecodeSupportCopy.includes("WAV / MP3 / M4A"), true);
 assert.equal(localMelodyGuideBestSourceCopy.includes("clean vocal"), true);
@@ -40,6 +42,8 @@ const decoded = applyLocalMelodyGuideDecodedMetadata(summary, {
   channelCount: 2,
 });
 assert.equal(decoded.status, "decoded");
+assert.equal(decoded.localOnly, true);
+assert.equal(decoded.analysisReady, true);
 assert.equal(decoded.decodedDurationSeconds, 12.5);
 assert.equal(decoded.sampleRate, 44100);
 assert.equal(decoded.channelCount, 2);
