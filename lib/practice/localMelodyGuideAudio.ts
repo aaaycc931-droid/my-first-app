@@ -17,6 +17,16 @@ export type LocalMelodyGuideDecodedMetadata = {
   channelCount: number;
 };
 
+/**
+ * P36/P36b browser-local source contract for a selected melody guide audio file.
+ *
+ * This serializable source summary intentionally stores metadata, warnings,
+ * decode status, local-only boundary intent, and whether the session has decoded
+ * audio available for future analysis. It does not store AudioBuffer / PCM data.
+ * P37 may add separate session-only PCM/channel state if target pitch curve
+ * drafting needs it, while remaining browser-local, non-uploading, and
+ * non-scoring.
+ */
 export type LocalMelodyGuideAudioSource = {
   fileName: string;
   fileType: string;
@@ -27,6 +37,8 @@ export type LocalMelodyGuideAudioSource = {
   channelCount: number | null;
   status: LocalMelodyGuideAudioDecodeStatus;
   warnings: string[];
+  localOnly: true;
+  analysisReady: boolean;
 };
 
 export const localMelodyGuideBrowserDecodeSupportCopy =
@@ -97,6 +109,8 @@ export const createLocalMelodyGuideFileSummary = (
     channelCount: null,
     status: "selected",
     warnings,
+    localOnly: true,
+    analysisReady: false,
   };
 };
 
@@ -121,6 +135,8 @@ export const applyLocalMelodyGuideDecodedMetadata = (
     channelCount: decodedMetadata.channelCount,
     status: "decoded",
     warnings,
+    localOnly: true,
+    analysisReady: true,
   };
 };
 
@@ -129,6 +145,7 @@ export const markLocalMelodyGuideDecodeError = (
 ): LocalMelodyGuideAudioSource => ({
   ...source,
   status: "error",
+  analysisReady: false,
   warnings: [
     ...source.warnings,
     "This browser could not decode the selected local audio file.",
