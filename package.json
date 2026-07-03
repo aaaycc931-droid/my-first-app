@@ -28,7 +28,8 @@
     "test:local-melody-guide-validator": "node scripts/test-local-melody-guide-validator-negative.mjs",
     "validate:local-melody-guide-wav-headers": "node scripts/inspect-local-melody-guide-wav-headers.mjs",
     "test:local-melody-guide-wav-header-inspector": "node scripts/test-local-melody-guide-wav-header-inspector.mjs",
-    "test:metronome-foundation": "rm -rf .next/metronome-foundation && tsc --module NodeNext --moduleResolution NodeNext --target ES2020 --outDir .next/metronome-foundation --noEmit false --declaration false --sourceMap false --incremental false scripts/test-metronome-foundation.ts lib/metronome/metronomeConfig.ts lib/metronome/metronomeGrid.ts lib/metronome/metronomeScheduler.ts lib/practice/nonScoringImportedTargetPitchFeedback.ts && node .next/metronome-foundation/scripts/test-metronome-foundation.js"
+    "test:metronome-foundation": "rm -rf .next/metronome-foundation && tsc --module NodeNext --moduleResolution NodeNext --target ES2020 --outDir .next/metronome-foundation --noEmit false --declaration false --sourceMap false --incremental false scripts/test-metronome-foundation.ts lib/metronome/metronomeConfig.ts lib/metronome/metronomeGrid.ts lib/metronome/metronomeScheduler.ts lib/practice/nonScoringImportedTargetPitchFeedback.ts && node .next/metronome-foundation/scripts/test-metronome-foundation.js",
+    "test:rhythm-tap-feedback": "rm -rf .next/rhythm-tap-feedback && tsc --module NodeNext --moduleResolution NodeNext --target ES2020 --outDir .next/rhythm-tap-feedback --noEmit false --declaration false --sourceMap false --incremental false scripts/test-rhythm-tap-feedback.ts lib/rhythm/rhythmTapFeedback.ts lib/metronome/metronomeConfig.ts lib/metronome/metronomeGrid.ts lib/practice/nonScoringImportedTargetPitchFeedback.ts && node .next/rhythm-tap-feedback/scripts/test-rhythm-tap-feedback.js"
   },
   "dependencies": {
     "fflate": "^0.8.2",
