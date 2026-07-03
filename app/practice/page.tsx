@@ -59,6 +59,14 @@ import {
   estimateLocalPitch,
   type PitchEstimateResult,
 } from "../../lib/practice/pitchEstimate";
+import {
+  applyLocalMelodyGuideDecodedMetadata,
+  createLocalMelodyGuideFileSummary,
+  localMelodyGuideBestSourceCopy,
+  localMelodyGuideBrowserDecodeSupportCopy,
+  localMelodyGuideLocalOnlyCopy,
+  type LocalMelodyGuideAudioSource,
+} from "../../lib/practice/localMelodyGuideAudio";
 
 type PracticeFlowState = "idle" | "listening" | "attempting" | "feedback";
 
@@ -390,6 +398,10 @@ export default function PracticePage() {
     useState(false);
   const [selectedImportedSegmentIndex, setSelectedImportedSegmentIndex] =
     useState<number | null>(null);
+  const [localMelodyGuideSource, setLocalMelodyGuideSource] =
+    useState<LocalMelodyGuideAudioSource | null>(null);
+  const [localMelodyGuideDecodeError, setLocalMelodyGuideDecodeError] =
+    useState("");
   const metronomeSchedulerRef = useRef<BrowserMetronomeScheduler | null>(null);
   const rhythmSchedulerRef = useRef<BrowserMetronomeScheduler | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -417,6 +429,8 @@ export default function PracticePage() {
   const latencyCalibrationTimeoutIdsRef = useRef<number[]>([]);
   const latencyCalibrationTimerIdRef = useRef<number | null>(null);
   const latencyCalibrationTapIdRef = useRef(0);
+  const localMelodyGuideInputRef = useRef<HTMLInputElement | null>(null);
+  const localMelodyGuideRunIdRef = useRef(0);
 
   const currentMelodyStep =
     melodySteps[currentMelodyStepIndex] ?? melodySteps[0];
@@ -698,6 +712,7 @@ export default function PracticePage() {
       audioAnalysisRunIdRef.current += 1;
       pitchEstimateRunIdRef.current += 1;
       audioOnsetRunIdRef.current += 1;
+      localMelodyGuideRunIdRef.current += 1;
       playbackTimeoutIdsRef.current.forEach((timeoutId) => {
         window.clearTimeout(timeoutId);
       });
@@ -717,6 +732,68 @@ export default function PracticePage() {
     },
     [],
   );
+
+
+  const handleLocalMelodyGuideFileChange = async (
+    event: React.ChangeEvent<HTMLInputElement>,
+  ) => {
+    const file = event.target.files?.[0];
+    const runId = localMelodyGuideRunIdRef.current + 1;
+    localMelodyGuideRunIdRef.current = runId;
+    setLocalMelodyGuideDecodeError("");
+
+    if (!file) {
+      setLocalMelodyGuideSource(null);
+      return;
+    }
+
+    const selectedSummary = createLocalMelodyGuideFileSummary(file);
+    setLocalMelodyGuideSource({ ...selectedSummary, status: "decoding" });
+
+    let audioContext: AudioContext | null = null;
+
+    try {
+      audioContext = new AudioContext();
+      const audioData = await file.arrayBuffer();
+      const audioBuffer = await audioContext.decodeAudioData(audioData);
+
+      if (
+        isMountedRef.current &&
+        runId === localMelodyGuideRunIdRef.current
+      ) {
+        setLocalMelodyGuideSource(
+          applyLocalMelodyGuideDecodedMetadata(selectedSummary, {
+            decodedDurationSeconds: audioBuffer.duration,
+            sampleRate: audioBuffer.sampleRate,
+            channelCount: audioBuffer.numberOfChannels,
+          }),
+        );
+      }
+    } catch {
+      if (
+        isMountedRef.current &&
+        runId === localMelodyGuideRunIdRef.current
+      ) {
+        setLocalMelodyGuideSource({ ...selectedSummary, status: "error" });
+        setLocalMelodyGuideDecodeError(
+          "This browser could not decode the selected local melody guide audio. Try another WAV, MP3, or M4A file supported by this browser.",
+        );
+      }
+    } finally {
+      if (audioContext) {
+        await audioContext.close().catch(() => undefined);
+      }
+    }
+  };
+
+  const handleClearLocalMelodyGuide = () => {
+    localMelodyGuideRunIdRef.current += 1;
+    setLocalMelodyGuideSource(null);
+    setLocalMelodyGuideDecodeError("");
+    if (localMelodyGuideInputRef.current) {
+      localMelodyGuideInputRef.current.value = "";
+    }
+  };
 
   const handleResetRhythmPractice = () => {
     stopRhythmPracticeRuntime();
@@ -1674,6 +1751,125 @@ export default function PracticePage() {
             </ol>
           </section>
         </div>
+
+
+        <section className="mt-6 rounded-3xl border border-cyan-200 bg-cyan-50 p-5 shadow-sm sm:p-6">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+            <div>
+              <p className="text-sm font-semibold uppercase tracking-wide text-cyan-700">
+                P36 browser-local foundation
+              </p>
+              <h2 className="mt-1 text-2xl font-bold text-cyan-950">
+                Local Melody Guide Audio Import
+              </h2>
+              <p className="mt-2 max-w-3xl text-sm leading-6 text-cyan-900">
+                Select a local audio file to use as the melody guide source for
+                future target pitch curve drafting. {localMelodyGuideBrowserDecodeSupportCopy}
+              </p>
+              <p className="mt-3 text-sm font-semibold text-cyan-900">
+                {localMelodyGuideBestSourceCopy}
+              </p>
+            </div>
+            <div className="rounded-2xl border border-cyan-200 bg-white p-4 text-sm text-cyan-950 shadow-sm lg:min-w-64">
+              <p className="font-semibold">Browser decode status</p>
+              <p className="mt-2 text-3xl font-bold">
+                {localMelodyGuideSource?.status ?? "idle"}
+              </p>
+              <p className="mt-1 font-medium">
+                {localMelodyGuideSource
+                  ? "Session-only melody guide source"
+                  : "No local guide selected"}
+              </p>
+            </div>
+          </div>
+
+          <div className="mt-5 rounded-2xl border border-cyan-200 bg-white p-4">
+            <label className="block text-sm font-bold text-cyan-950">
+              Choose local melody guide audio
+              <input
+                ref={localMelodyGuideInputRef}
+                type="file"
+                accept="audio/*,.wav,.mp3,.m4a"
+                onChange={handleLocalMelodyGuideFileChange}
+                className="mt-3 block w-full rounded-xl border border-cyan-200 bg-cyan-50 px-3 py-2 text-sm text-slate-900"
+              />
+            </label>
+            <div className="mt-4 flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={handleClearLocalMelodyGuide}
+                disabled={!localMelodyGuideSource}
+                className="rounded-full border border-cyan-300 bg-white px-4 py-2 text-sm font-semibold text-cyan-800 disabled:text-slate-400"
+              >
+                Clear / reset local guide
+              </button>
+              <span className="rounded-full border border-amber-200 bg-amber-50 px-4 py-2 text-sm font-semibold text-amber-800">
+                Melody guide source only · not formal scoring
+              </span>
+            </div>
+          </div>
+
+          {localMelodyGuideSource ? (
+            <div className="mt-5 grid gap-3 text-sm md:grid-cols-3">
+              <div className="rounded-2xl bg-white p-4 ring-1 ring-cyan-200">
+                <p className="font-semibold text-cyan-950">Selected file</p>
+                <p className="mt-2 break-words text-cyan-800">
+                  {localMelodyGuideSource.fileName}
+                </p>
+              </div>
+              <div className="rounded-2xl bg-white p-4 ring-1 ring-cyan-200">
+                <p className="font-semibold text-cyan-950">File metadata</p>
+                <p className="mt-2 text-cyan-800">
+                  {localMelodyGuideSource.fileType} · {localMelodyGuideSource.fileSizeLabel}
+                </p>
+              </div>
+              <div className="rounded-2xl bg-white p-4 ring-1 ring-cyan-200">
+                <p className="font-semibold text-cyan-950">Decoded metadata</p>
+                <p className="mt-2 text-cyan-800">
+                  Duration {localMelodyGuideSource.decodedDurationSeconds === null ? "—" : `${localMelodyGuideSource.decodedDurationSeconds.toFixed(2)}s`} · Sample rate {localMelodyGuideSource.sampleRate ?? "—"} Hz · Channels {localMelodyGuideSource.channelCount ?? "—"}
+                </p>
+              </div>
+            </div>
+          ) : null}
+
+          {localMelodyGuideDecodeError ? (
+            <p className="mt-3 text-sm font-semibold text-red-700">
+              {localMelodyGuideDecodeError}
+            </p>
+          ) : null}
+
+          <div className="mt-5 grid gap-3 text-sm lg:grid-cols-2">
+            <div className="rounded-2xl border border-cyan-200 bg-white p-4">
+              <p className="font-bold text-cyan-950">MVP boundaries</p>
+              <ul className="mt-2 list-disc space-y-1 pl-5 text-cyan-900">
+                {localMelodyGuideLocalOnlyCopy.map((item) => (
+                  <li key={item}>{item}</li>
+                ))}
+                <li>No private cloud song analysis in P36.</li>
+                <li>No target pitch curve generation until P37.</li>
+              </ul>
+            </div>
+            <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
+              <p className="font-bold text-amber-900">Source guidance</p>
+              <ul className="mt-2 list-disc space-y-1 pl-5 text-amber-800">
+                <li>{localMelodyGuideBestSourceCopy}</li>
+                <li>Full mixed songs should wait for future private cloud song analysis.</li>
+                <li>Audio stays in browser for this MVP.</li>
+              </ul>
+            </div>
+          </div>
+
+          {localMelodyGuideSource?.warnings.length ? (
+            <div className="mt-5 rounded-2xl border border-amber-200 bg-white p-4 text-sm">
+              <p className="font-bold text-amber-900">Warnings</p>
+              <ul className="mt-2 list-disc space-y-1 pl-5 text-amber-800">
+                {localMelodyGuideSource.warnings.map((warning) => (
+                  <li key={warning}>{warning}</li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+        </section>
 
         <section className="mt-6 rounded-3xl border border-teal-200 bg-teal-50 p-5 shadow-sm sm:p-6">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
