@@ -5,6 +5,7 @@ import {
 } from "./metronomeConfig";
 import {
   createMetronomeBeatMetadata,
+  getBeatsPerBar,
   type MetronomeBeatMetadata,
 } from "./metronomeGrid";
 
@@ -26,6 +27,7 @@ export class BrowserMetronomeScheduler {
   private timerId: number | null = null;
   private nextBeatTimeSeconds = 0;
   private nextBeatIndex = 0;
+  private countInBeatCount = 0;
   private config: MetronomeConfig;
   private readonly onBeat?: BeatCallback;
   private readonly lookaheadMs: number;
@@ -68,6 +70,7 @@ export class BrowserMetronomeScheduler {
     }
 
     this.nextBeatIndex = 0;
+    this.countInBeatCount = this.getCountInBeatCount();
     this.nextBeatTimeSeconds = audioContext.currentTime + 0.06;
     this.tick();
     this.timerId = window.setInterval(() => this.tick(), this.lookaheadMs);
@@ -82,6 +85,7 @@ export class BrowserMetronomeScheduler {
     const audioContext = this.audioContext;
     this.audioContext = null;
     this.nextBeatIndex = 0;
+    this.countInBeatCount = 0;
     this.nextBeatTimeSeconds = 0;
 
     if (audioContext) {
@@ -100,16 +104,34 @@ export class BrowserMetronomeScheduler {
       this.nextBeatTimeSeconds <
       audioContext.currentTime + this.scheduleAheadSeconds
     ) {
+      const phase =
+        this.nextBeatIndex < this.countInBeatCount ? "count-in" : "practice";
+      const phaseBeatIndex =
+        phase === "count-in"
+          ? this.nextBeatIndex
+          : this.nextBeatIndex - this.countInBeatCount;
       const beat = createMetronomeBeatMetadata(
         this.config,
-        this.nextBeatIndex,
+        phaseBeatIndex,
         this.nextBeatTimeSeconds,
+        phase,
       );
       this.scheduleClick(audioContext, beat);
       this.onBeat?.(beat);
       this.nextBeatIndex += 1;
       this.nextBeatTimeSeconds += getBeatDurationSeconds(this.config.bpm);
     }
+  }
+
+  private getCountInBeatCount() {
+    const safeConfig = sanitizeMetronomeConfig(this.config);
+    const countIn = safeConfig.countIn;
+
+    if (!countIn?.enabled || !countIn.bars || countIn.bars <= 0) {
+      return 0;
+    }
+
+    return countIn.bars * getBeatsPerBar(safeConfig.meter);
   }
 
   private scheduleClick(
