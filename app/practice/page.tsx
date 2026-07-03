@@ -13,11 +13,14 @@ import {
 } from "../../lib/metronome/metronomeConfig";
 import { BrowserMetronomeScheduler } from "../../lib/metronome/metronomeScheduler";
 import {
-  createQuarterPulseTargetPattern,
+  createRhythmTargetPattern,
   getRhythmTapFeedback,
   rhythmCloseToleranceMs,
   rhythmMatchWindowMs,
+  rhythmTargetPatternLabels,
+  rhythmTargetPatternTapGuidance,
   type RhythmPracticePhase,
+  type RhythmTargetPattern,
   type RhythmTapEvent,
   type RhythmTargetEvent,
 } from "../../lib/rhythm/rhythmTapFeedback";
@@ -114,6 +117,10 @@ const noteFrequencies: Record<string, number> = {
 
 const maxPracticeAttemptHistory = 5;
 const rhythmPracticeBarCount = 2;
+const rhythmTargetPatternOptions: RhythmTargetPattern[] = [
+  "quarter-note-pulse",
+  "eighth-note-pulse",
+];
 const practiceResearchTargetCurveDiagnosticPreviewKey =
   "practiceResearchTargetCurveDiagnosticPreview";
 
@@ -292,6 +299,8 @@ export default function PracticePage() {
   const [metronomeError, setMetronomeError] = useState("");
   const [rhythmPhase, setRhythmPhase] =
     useState<RhythmPracticePhase>("idle");
+  const [rhythmTargetPattern, setRhythmTargetPattern] =
+    useState<RhythmTargetPattern>("quarter-note-pulse");
   const [rhythmTargets, setRhythmTargets] = useState<RhythmTargetEvent[]>([]);
   const [rhythmTaps, setRhythmTaps] = useState<RhythmTapEvent[]>([]);
   const [rhythmNowMs, setRhythmNowMs] = useState(0);
@@ -583,7 +592,7 @@ export default function PracticePage() {
     const startDelayMs = 80;
     const nowMs = performance.now();
     const practiceStartTimeMs = nowMs + startDelayMs + countInBeatCount * beatDurationMs;
-    const targets = createQuarterPulseTargetPattern({
+    const targets = createRhythmTargetPattern({
       config: {
         bpm: metronomeBpm,
         meter: metronomeMeter,
@@ -595,8 +604,10 @@ export default function PracticePage() {
       },
       practiceStartTimeMs,
       barCount: rhythmPracticeBarCount,
+      pattern: rhythmTargetPattern,
     });
-    const practiceDurationMs = targets.length * beatDurationMs + rhythmMatchWindowMs + 120;
+    const practiceDurationMs =
+      rhythmPracticeBarCount * beatsPerBar * beatDurationMs + rhythmMatchWindowMs + 120;
 
     setRhythmTargets(targets);
     setRhythmTaps([]);
@@ -1485,11 +1496,10 @@ export default function PracticePage() {
                 Tap-based 节奏练习 Alpha
               </h2>
               <p className="mt-2 max-w-3xl text-sm leading-6 text-violet-900">
-                当前 Alpha 使用 simple quarter-note pulse target：每拍 tap 一次。它复用当前 BPM、拍号、Count-in 与 subdivision 设置，但本轮只把 subdivision
-                作为未来节奏训练 metadata 说明，不生成正式节奏分数。
+                当前 Alpha 可选择 Quarter-note pulse（每拍 tap 一次）或 Eighth-note pulse（每拍 tap 两次）。它复用当前 BPM、拍号与 Count-in；target pattern 独立于 subdivision click，当前仍只播放 beat-level click。
               </p>
               <p className="mt-3 rounded-2xl border border-amber-200 bg-amber-50 p-3 text-sm font-semibold text-amber-800">
-                Practice feedback only：只显示 close / early / late / missed / extra，不提供 score、accuracy percentage、grade、通过 / 失败或最终评测。
+                Non-scoring practice feedback only：只显示 close / early / late / missed / extra，不提供正式分数、准确率百分比、等级、通过 / 失败或最终评测；还没有 microphone onset detection。
               </p>
             </div>
             <div className="rounded-2xl border border-violet-200 bg-white p-4 text-sm text-violet-950 shadow-sm lg:min-w-64">
@@ -1506,10 +1516,26 @@ export default function PracticePage() {
           </div>
 
           <div className="mt-5 grid gap-3 text-sm md:grid-cols-4">
-            <div className="rounded-2xl bg-white p-4 ring-1 ring-violet-200">
-              <p className="font-semibold text-violet-950">Target pattern</p>
-              <p className="mt-2 text-violet-800">Quarter-note pulse · {rhythmPracticeBarCount} bars</p>
-            </div>
+            <label className="rounded-2xl bg-white p-4 font-semibold text-violet-950 ring-1 ring-violet-200">
+              Target pattern
+              <select
+                value={rhythmTargetPattern}
+                onChange={(event) =>
+                  setRhythmTargetPattern(event.target.value as RhythmTargetPattern)
+                }
+                disabled={rhythmPhase === "count-in" || rhythmPhase === "practice"}
+                className="mt-2 w-full rounded-xl border border-violet-200 px-3 py-2 text-slate-900 disabled:bg-slate-100"
+              >
+                {rhythmTargetPatternOptions.map((pattern) => (
+                  <option key={pattern} value={pattern}>
+                    {rhythmTargetPatternLabels[pattern]}
+                  </option>
+                ))}
+              </select>
+              <span className="mt-2 block text-violet-800">
+                {rhythmTargetPatternTapGuidance[rhythmTargetPattern]} · {rhythmPracticeBarCount} bars
+              </span>
+            </label>
             <div className="rounded-2xl bg-white p-4 ring-1 ring-violet-200">
               <p className="font-semibold text-violet-950">Tap count</p>
               <p className="mt-2 text-violet-800">{rhythmFeedbackSummary.tapCount} practice taps</p>
@@ -1561,6 +1587,9 @@ export default function PracticePage() {
 
           <div className="mt-5 rounded-2xl border border-violet-200 bg-white p-4">
             <h3 className="font-bold text-violet-950">Practice feedback log（本轮 session-only）</h3>
+            <p className="mt-2 text-sm font-semibold text-violet-800">
+              Pattern: {rhythmTargetPatternLabels[rhythmTargetPattern]} · {rhythmTargetPatternTapGuidance[rhythmTargetPattern]}
+            </p>
             {rhythmFeedbackSummary.feedback.length > 0 ? (
               <ul className="mt-3 grid gap-2 text-sm sm:grid-cols-2">
                 {rhythmFeedbackSummary.feedback.slice(-12).map((item, index) => (
@@ -1579,7 +1608,7 @@ export default function PracticePage() {
           </div>
 
           <p className="mt-4 text-sm leading-6 text-violet-900">
-            时间戳来自浏览器本地输入事件，可能受键盘、浏览器与设备 latency 影响；P24 不做 latency calibration，不做 microphone onset detection，不上传音频，也不写入 persistent rhythm history。
+            时间戳来自浏览器本地输入事件，可能受键盘、浏览器与设备 latency 影响；P24b 不做 latency calibration，不做 microphone onset detection，不上传音频，也不写入 persistent rhythm history。
           </p>
         </section>
 

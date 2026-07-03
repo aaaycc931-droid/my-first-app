@@ -10,6 +10,18 @@ import {
 } from "../metronome/metronomeGrid";
 
 export type RhythmPracticePhase = "idle" | "count-in" | "practice" | "stopped";
+export type RhythmTargetPattern = "quarter-note-pulse" | "eighth-note-pulse";
+
+export const rhythmTargetPatternLabels: Record<RhythmTargetPattern, string> = {
+  "quarter-note-pulse": "Quarter-note pulse",
+  "eighth-note-pulse": "Eighth-note pulse",
+};
+
+export const rhythmTargetPatternTapGuidance: Record<RhythmTargetPattern, string> = {
+  "quarter-note-pulse": "Tap once per beat",
+  "eighth-note-pulse": "Tap twice per beat",
+};
+
 export type RhythmTapFeedbackCategory =
   | "close"
   | "early"
@@ -22,7 +34,9 @@ export type RhythmTapFeedbackCategory =
 export type RhythmTargetEvent = PracticeBeatMetadata & {
   targetTimeMs: number;
   targetIndex: number;
-  pattern: "quarter-pulse";
+  pattern: RhythmTargetPattern;
+  subdivisionIndex: number;
+  subdivisionCountPerBeat: number;
 };
 
 export type RhythmTapEvent = {
@@ -54,32 +68,57 @@ export type RhythmTapFeedbackSummary = {
 export const rhythmCloseToleranceMs = 80;
 export const rhythmMatchWindowMs = 180;
 
-export const createQuarterPulseTargetPattern = ({
+const rhythmPatternSubdivisionCounts: Record<RhythmTargetPattern, number> = {
+  "quarter-note-pulse": 1,
+  "eighth-note-pulse": 2,
+};
+
+export const createRhythmTargetPattern = ({
   config,
   practiceStartTimeMs,
   barCount = 2,
+  pattern = "quarter-note-pulse",
 }: {
   config: MetronomeConfig;
   practiceStartTimeMs: number;
   barCount?: number;
+  pattern?: RhythmTargetPattern;
 }): RhythmTargetEvent[] => {
   const safeConfig = sanitizeMetronomeConfig(config);
   const beatsPerBar = getBeatsPerBar(safeConfig.meter);
   const beatCount = Math.max(0, Math.floor(barCount) * beatsPerBar);
+  const beatDurationMs = getBeatDurationSeconds(safeConfig.bpm) * 1000;
+  const subdivisionCountPerBeat = rhythmPatternSubdivisionCounts[pattern];
+  const targetIntervalMs = beatDurationMs / subdivisionCountPerBeat;
 
   return createMetronomeBeatGrid({
     config: safeConfig,
     startTimeSeconds: practiceStartTimeMs / 1000,
     beatCount,
-  }).map((beat, targetIndex) => ({
-    ...beat,
-    targetIndex,
-    targetTimeMs:
-      practiceStartTimeMs +
-      targetIndex * getBeatDurationSeconds(safeConfig.bpm) * 1000,
-    pattern: "quarter-pulse",
-  }));
+  }).flatMap((beat) =>
+    Array.from({ length: subdivisionCountPerBeat }, (_, subdivisionIndex) => {
+      const targetIndex = beat.beatIndex * subdivisionCountPerBeat + subdivisionIndex;
+      const targetTimeMs = practiceStartTimeMs + targetIndex * targetIntervalMs;
+
+      return {
+        ...beat,
+        targetIndex,
+        targetTimeMs,
+        scheduledTimeSeconds: targetTimeMs / 1000,
+        pattern,
+        subdivisionIndex,
+        subdivisionCountPerBeat,
+      };
+    }),
+  );
 };
+
+export const createQuarterPulseTargetPattern = (options: {
+  config: MetronomeConfig;
+  practiceStartTimeMs: number;
+  barCount?: number;
+}): RhythmTargetEvent[] =>
+  createRhythmTargetPattern({ ...options, pattern: "quarter-note-pulse" });
 
 const formatOffset = (offsetMs: number) =>
   `${Math.round(Math.abs(offsetMs))}ms`;
