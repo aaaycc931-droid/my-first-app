@@ -365,6 +365,8 @@ export default function PracticePage() {
   const [isDetectingAudioOnsets, setIsDetectingAudioOnsets] = useState(false);
   const [audioOnsetAlignmentMode, setAudioOnsetAlignmentMode] =
     useState<AudioOnsetRhythmAlignmentMode>("recording-start");
+  const [focusedAudioOnsetCandidateIndex, setFocusedAudioOnsetCandidateIndex] =
+    useState<number | null>(null);
   const [currentMelodyStepIndex, setCurrentMelodyStepIndex] = useState(0);
   const [isSelectedTargetNotePlaying, setIsSelectedTargetNotePlaying] =
     useState(false);
@@ -540,6 +542,13 @@ export default function PracticePage() {
       activeLatencyOffsetMs,
       audioOnsetAlignmentMode,
     ],
+  );
+
+  const audioOnsetTimelineDurationMs = Math.max(
+    audioOnsetResult?.durationMs ?? 0,
+    ...audioOnsetRhythmFeedback.targetMarkers.map((marker) => marker.targetTimeMs),
+    ...audioOnsetRhythmFeedback.timelineMarkers.map((marker) => marker.displayTimeMs),
+    1,
   );
 
   const importedTargetPitchFeedback = useMemo(
@@ -2208,8 +2217,7 @@ export default function PracticePage() {
                     </p>
                     <p className="mt-1 text-orange-800">
                       Diagnostic preview only, not a score. Bars show local
-                      onset strength, the dashed reference shows threshold, and
-                      markers show detected onset candidates.
+                      onset strength, the dashed reference shows threshold, markers show detected onset candidates, target markers show the current rhythm pattern, and feedback labels explain close / early / late / missed / extra relationships.
                     </p>
                   </div>
                   <p className="rounded-full bg-orange-50 px-3 py-1 font-semibold text-orange-800">
@@ -2236,13 +2244,26 @@ export default function PracticePage() {
                           <div
                             key={`${point.frameIndex}-${point.timeMs}`}
                             className={`relative flex-1 rounded-t-sm ${
-                              point.isCandidate ? "bg-orange-700" : "bg-orange-300"
+                              point.isCandidate && point.candidateIndex === focusedAudioOnsetCandidateIndex
+                                ? "bg-purple-700 ring-2 ring-purple-300"
+                                : point.isCandidate
+                                  ? "bg-orange-700"
+                                  : "bg-orange-300"
                             }`}
                             style={{ height: `${barHeightPercent}%` }}
                             title={`time ${point.timeMs.toFixed(0)}ms · strength ${point.onsetStrength.toFixed(4)} · threshold ${point.threshold.toFixed(4)}${point.isCandidate ? " · detected onset candidate" : ""}`}
                           >
                             {point.isCandidate ? (
-                              <span className="absolute -top-3 left-1/2 h-3 w-0.5 -translate-x-1/2 rounded-full bg-orange-950" />
+                              <button
+                                type="button"
+                                aria-label={`Focus onset candidate ${point.candidateIndex ?? 0}`}
+                                onClick={() => setFocusedAudioOnsetCandidateIndex(point.candidateIndex ?? null)}
+                                className={`absolute -top-4 left-1/2 h-4 w-1 -translate-x-1/2 rounded-full ${
+                                  point.candidateIndex === focusedAudioOnsetCandidateIndex
+                                    ? "bg-purple-800"
+                                    : "bg-orange-950"
+                                }`}
+                              />
                             ) : null}
                           </div>
                         );
@@ -2253,6 +2274,35 @@ export default function PracticePage() {
                           bottom: `${Math.min(95, Math.max(8, (audioOnsetResult.threshold / Math.max(audioOnsetResult.maxStrength, audioOnsetResult.threshold, 0.0001)) * 100))}%`,
                         }}
                       />
+                      {audioOnsetRhythmFeedback.targetMarkers.map((marker) => (
+                        <span
+                          key={marker.markerId}
+                          className="pointer-events-none absolute top-2 h-[calc(100%-1rem)] w-0.5 bg-sky-600"
+                          style={{ left: `${Math.min(98, Math.max(2, (marker.targetTimeMs / audioOnsetTimelineDurationMs) * 100))}%` }}
+                          title={marker.diagnosticLabel}
+                        >
+                          <span className="absolute -top-1 left-1/2 -translate-x-1/2 rounded-full bg-sky-700 px-1 text-[10px] font-bold text-white">T{marker.targetIndex + 1}</span>
+                        </span>
+                      ))}
+                      {audioOnsetRhythmFeedback.timelineMarkers.map((marker) => (
+                        <span
+                          key={marker.markerId}
+                          className={`pointer-events-none absolute bottom-1 rounded-full px-1.5 py-0.5 text-[10px] font-bold shadow-sm ${
+                            marker.category === "missed"
+                              ? "bg-red-100 text-red-800"
+                              : marker.category === "extra"
+                                ? "bg-purple-100 text-purple-800"
+                                : "bg-white text-orange-900"
+                          }`}
+                          style={{ left: `${Math.min(94, Math.max(2, (marker.displayTimeMs / audioOnsetTimelineDurationMs) * 100))}%` }}
+                          title={marker.diagnosticLabel}
+                        >
+                          {marker.category}{marker.onsetCandidateIndex !== null ? ` #${marker.onsetCandidateIndex + 1}` : ""}
+                        </span>
+                      ))}
+                      {audioOnsetRhythmFeedback.alignmentDiagnostics.originMarkerId ? (
+                        <span className="pointer-events-none absolute top-8 rounded-full bg-purple-700 px-2 py-1 text-[10px] font-bold text-white" style={{ left: `${Math.min(94, Math.max(2, ((audioOnsetRhythmFeedback.firstOnsetTimeMs ?? 0) / audioOnsetTimelineDurationMs) * 100))}%` }}>first onset origin</span>
+                      ) : null}
                       <span className="pointer-events-none absolute right-3 rounded-full bg-white/90 px-2 py-1 text-xs font-bold text-red-700 shadow-sm"
                         style={{
                           bottom: `${Math.min(95, Math.max(8, (audioOnsetResult.threshold / Math.max(audioOnsetResult.maxStrength, audioOnsetResult.threshold, 0.0001)) * 100))}%`,
@@ -2261,6 +2311,9 @@ export default function PracticePage() {
                         threshold {audioOnsetResult.threshold.toFixed(4)}
                       </span>
                     </div>
+                    <p className="mt-2 text-orange-800">
+                      Click a candidate marker or list item to highlight its session-only marker ID. Blue T markers are current rhythm targets for {audioOnsetRhythmFeedback.targetPatternLabel}; feedback chips are diagnostic labels, not scoring.
+                    </p>
                     <p className="mt-2 text-orange-800">
                       {audioOnsetResult.isTimelineDownsampled
                         ? `Timeline preview is downsampled to ${audioOnsetResult.timelinePointCount}/${audioOnsetResult.timelineSourcePointCount} frame points for safe rendering.`
@@ -2284,16 +2337,21 @@ export default function PracticePage() {
                   <ul className="mt-2 grid gap-2 sm:grid-cols-2">
                     {audioOnsetResult.candidates
                       .slice(0, 12)
-                      .map((candidate) => (
+                      .map((candidate, candidateIndex) => (
                         <li
                           key={`${candidate.frameIndex}-${candidate.onsetTimeMs}`}
-                          className="rounded-xl bg-orange-50 p-3 text-orange-900"
+                          className={`rounded-xl p-3 text-orange-900 ${candidateIndex === focusedAudioOnsetCandidateIndex ? "bg-purple-50 ring-2 ring-purple-300" : "bg-orange-50"}`}
                         >
-                          <span className="font-bold">
-                            {candidate.onsetTimeMs.toFixed(0)}ms
-                          </span>
+                          <button
+                            type="button"
+                            onClick={() => setFocusedAudioOnsetCandidateIndex(candidateIndex)}
+                            onFocus={() => setFocusedAudioOnsetCandidateIndex(candidateIndex)}
+                            className="text-left font-bold text-orange-950 underline decoration-orange-300 underline-offset-2"
+                          >
+                            Marker #{candidateIndex + 1} · {candidate.onsetTimeMs.toFixed(0)}ms
+                          </button>
                           <span className="ml-2">
-                            {candidate.confidence} diagnostic confidence · strength {candidate.strength.toFixed(4)} · threshold {candidate.threshold.toFixed(4)}
+                            {candidate.confidence} diagnostic confidence · candidateIndex {candidateIndex} · strength {candidate.strength.toFixed(4)} · threshold {candidate.threshold.toFixed(4)}
                           </span>
                         </li>
                       ))}
@@ -2370,6 +2428,7 @@ export default function PracticePage() {
                 <span>first onset {audioOnsetRhythmFeedback.alignmentDiagnostics.firstOnsetTimeMs === null ? "—" : `${Math.round(audioOnsetRhythmFeedback.alignmentDiagnostics.firstOnsetTimeMs)}ms`}</span>
                 <span>first target {audioOnsetRhythmFeedback.alignmentDiagnostics.firstTargetTimeMs === null ? "—" : `${Math.round(audioOnsetRhythmFeedback.alignmentDiagnostics.firstTargetTimeMs)}ms`}</span>
                 <span>latency offset applied {Math.round(audioOnsetRhythmFeedback.alignmentDiagnostics.latencyOffsetAppliedMs)}ms</span>
+                <span>origin marker {audioOnsetRhythmFeedback.alignmentDiagnostics.originMarkerId ?? "—"}</span>
               </div>
               <p className="mt-2 text-orange-800">
                 {audioOnsetRhythmFeedback.alignmentDiagnostics.diagnosticNote}
@@ -2391,6 +2450,9 @@ export default function PracticePage() {
                     <span className="font-bold">{item.category}</span>
                     {item.targetTimeMs !== null ? (
                       <span className="ml-2">target {Math.round(item.targetTimeMs)}ms</span>
+                    ) : null}
+                    {item.onsetCandidateIndex !== null ? (
+                      <button type="button" onClick={() => setFocusedAudioOnsetCandidateIndex(item.onsetCandidateIndex)} className="ml-2 font-semibold underline decoration-orange-300">candidate #{item.onsetCandidateIndex + 1}</button>
                     ) : null}
                     {item.onsetTimeMs !== null ? (
                       <span className="ml-2">raw onset {Math.round(item.onsetTimeMs)}ms</span>

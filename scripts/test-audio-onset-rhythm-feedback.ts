@@ -62,6 +62,8 @@ const recordingStartClose = getAudioOnsetRhythmFeedback({
 assert.equal(recordingStartClose.feedbackItems[0]?.category, "close");
 assert.equal(recordingStartClose.alignmentMode, "recording-start");
 assert.equal(recordingStartClose.alignmentOffsetMs, 0);
+assert.equal(recordingStartClose.feedbackItems[0]?.onsetCandidateIndex, 0);
+assert.match(recordingStartClose.feedbackItems[0]?.markerId ?? "", /feedback-0-close/);
 assert.equal(
   getAudioOnsetRhythmFeedback({ onsetResult: onsetResult([380]), config, barCount: 1 })
     .feedbackItems.some((item) => item.category === "early"),
@@ -91,6 +93,9 @@ const quarter = getAudioOnsetRhythmFeedback({
 });
 assert.equal(quarter.targetPattern, "quarter-note-pulse");
 assert.equal(quarter.matchedCount, 4);
+assert.equal(quarter.targetMarkers.length, 4);
+assert.deepEqual(quarter.targetMarkers.map((marker) => marker.targetIndex), [0, 1, 2, 3]);
+assert.equal(quarter.targetMarkers[1]?.targetTimeMs, 500);
 
 const eighth = getAudioOnsetRhythmFeedback({
   onsetResult: onsetResult([0, 250, 500, 750, 1000, 1250, 1500, 1750]),
@@ -100,6 +105,8 @@ const eighth = getAudioOnsetRhythmFeedback({
 });
 assert.equal(eighth.targetPattern, "eighth-note-pulse");
 assert.equal(eighth.matchedCount, 8);
+assert.equal(eighth.targetMarkers.length, 8);
+assert.equal(eighth.targetMarkers[1]?.targetTimeMs, 250);
 
 const firstOnsetClose = getAudioOnsetRhythmFeedback({
   onsetResult: onsetResult([700, 1200, 1700, 2200]),
@@ -115,6 +122,8 @@ assert.equal(firstOnsetClose.alignmentDiagnostics.mode, "first-onset");
 assert.equal(firstOnsetClose.alignmentDiagnostics.alignmentOffsetMs, 700);
 assert.equal(firstOnsetClose.alignmentDiagnostics.firstOnsetTimeMs, 700);
 assert.equal(firstOnsetClose.alignmentDiagnostics.firstTargetTimeMs, 0);
+assert.equal(firstOnsetClose.alignmentDiagnostics.firstOnsetCandidateIndex, 0);
+assert.equal(firstOnsetClose.alignmentDiagnostics.originMarkerId, "candidate-0");
 assert.equal(firstOnsetClose.matchedCount, 4);
 assert.equal(firstOnsetClose.feedbackItems[0]?.category, "close");
 assert.equal(firstOnsetClose.feedbackItems[0]?.onsetTimeMs, 700);
@@ -136,6 +145,8 @@ const firstOnsetMissed = getAudioOnsetRhythmFeedback({
   alignmentMode: "first-onset",
 });
 assert.equal(firstOnsetMissed.missedCount, 1);
+assert.equal(firstOnsetMissed.feedbackItems.find((item) => item.category === "missed")?.onsetCandidateIndex, null);
+assert.equal(firstOnsetMissed.timelineMarkers.find((marker) => marker.category === "missed")?.onsetCandidateIndex, null);
 
 const firstOnsetExtra = getAudioOnsetRhythmFeedback({
   onsetResult: onsetResult([700, 1200, 1700, 2200, 2900]),
@@ -144,6 +155,8 @@ const firstOnsetExtra = getAudioOnsetRhythmFeedback({
   alignmentMode: "first-onset",
 });
 assert.equal(firstOnsetExtra.extraCount, 1);
+assert.equal(firstOnsetExtra.feedbackItems.find((item) => item.category === "extra")?.targetIndex, null);
+assert.equal(firstOnsetExtra.timelineMarkers.find((marker) => marker.category === "extra")?.targetIndex, null);
 
 const empty = getAudioOnsetRhythmFeedback({
   onsetResult: onsetResult([]),
@@ -189,6 +202,12 @@ assert.match(audioOnsetRhythmFeedbackBoundary, /not a score/);
   result.feedbackItems.forEach((item) =>
     assert.equal(hasAudioOnsetRhythmFeedbackScoringFields(item), false),
   );
+  result.targetMarkers.forEach((marker) =>
+    assert.equal(hasAudioOnsetRhythmFeedbackScoringFields(marker), false),
+  );
+  result.timelineMarkers.forEach((marker) =>
+    assert.equal(hasAudioOnsetRhythmFeedbackScoringFields(marker), false),
+  );
 });
 
 const impulseSamples = new Float32Array(1200);
@@ -220,6 +239,10 @@ assert.match(practicePage, /recording-start/);
 assert.match(practicePage, /first-onset/);
 assert.match(practicePage, /First detected onset/);
 assert.match(practicePage, /Alignment diagnostics/);
+assert.match(practicePage, /Marker #/);
+assert.match(practicePage, /candidateIndex/);
+assert.match(practicePage, /targetMarkers/);
+assert.match(practicePage, /first onset origin/);
 assert.match(practicePage, /latency offset applied/);
 assert.match(practicePage, /not a score/);
 assert.equal(quarter.warnings.includes("This assumes recording timing aligns with the target timeline."), true);
