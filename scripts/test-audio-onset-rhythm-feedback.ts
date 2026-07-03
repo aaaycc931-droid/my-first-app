@@ -31,6 +31,16 @@ const onsetResult = (times: number[]): AudioOnsetDetectionResult => ({
   })),
   diagnosticSummary: "fixture onsets; diagnostic only",
   warnings: [],
+  sensitivityPreset: "balanced",
+  sensitivityDescription: "fixture sensitivity",
+  thresholdMultiplier: 2.8,
+  minimumEnergy: 0.015,
+  minimumStrength: 0.012,
+  minOnsetGapMs: 90,
+  threshold: 0.2,
+  averageStrength: 0.1,
+  strengthDeviation: 0.02,
+  maxStrength: 0.8,
 });
 
 assert.deepEqual(
@@ -96,6 +106,10 @@ assert.equal(firstOnsetClose.alignmentMode, "first-onset");
 assert.equal(firstOnsetClose.alignmentOffsetMs, 700);
 assert.equal(firstOnsetClose.firstOnsetTimeMs, 700);
 assert.equal(firstOnsetClose.firstTargetTimeMs, 0);
+assert.equal(firstOnsetClose.alignmentDiagnostics.mode, "first-onset");
+assert.equal(firstOnsetClose.alignmentDiagnostics.alignmentOffsetMs, 700);
+assert.equal(firstOnsetClose.alignmentDiagnostics.firstOnsetTimeMs, 700);
+assert.equal(firstOnsetClose.alignmentDiagnostics.firstTargetTimeMs, 0);
 assert.equal(firstOnsetClose.matchedCount, 4);
 assert.equal(firstOnsetClose.feedbackItems[0]?.category, "close");
 assert.equal(firstOnsetClose.feedbackItems[0]?.onsetTimeMs, 700);
@@ -149,6 +163,7 @@ const latencyAdjusted = getAudioOnsetRhythmFeedback({
 assert.equal(latencyAdjusted.feedbackItems[0]?.category, "close");
 assert.equal(latencyAdjusted.feedbackItems[0]?.offsetMs, 20);
 assert.equal(latencyAdjusted.latencyOffsetAppliedMs, 100);
+assert.equal(latencyAdjusted.alignmentDiagnostics.latencyOffsetAppliedMs, 100);
 
 const firstOnsetWithLatency = getAudioOnsetRhythmFeedback({
   onsetResult: onsetResult([700, 1300]),
@@ -199,6 +214,8 @@ assert.match(practicePage, /Use detected onsets for rhythm feedback/);
 assert.match(practicePage, /recording-start/);
 assert.match(practicePage, /first-onset/);
 assert.match(practicePage, /First detected onset/);
+assert.match(practicePage, /Alignment diagnostics/);
+assert.match(practicePage, /latency offset applied/);
 assert.match(practicePage, /not a score/);
 assert.equal(quarter.warnings.includes("This assumes recording timing aligns with the target timeline."), true);
 assert.doesNotMatch(practicePage, /accuracyPercentage/);

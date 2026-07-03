@@ -23,6 +23,15 @@ export type AudioOnsetRhythmFeedbackItem = {
   diagnosticNote: string;
 };
 
+export type AudioOnsetRhythmAlignmentDiagnostics = {
+  mode: AudioOnsetRhythmAlignmentMode;
+  alignmentOffsetMs: number;
+  firstOnsetTimeMs: number | null;
+  firstTargetTimeMs: number | null;
+  latencyOffsetAppliedMs: number;
+  diagnosticNote: string;
+};
+
 export type AudioOnsetRhythmFeedbackResult = {
   alignmentMode: AudioOnsetRhythmAlignmentMode;
   targetPattern: RhythmTargetPattern;
@@ -38,6 +47,7 @@ export type AudioOnsetRhythmFeedbackResult = {
   alignmentOffsetMs: number;
   firstOnsetTimeMs: number | null;
   firstTargetTimeMs: number | null;
+  alignmentDiagnostics: AudioOnsetRhythmAlignmentDiagnostics;
   nonScoringBoundary: string;
 };
 
@@ -133,6 +143,18 @@ export const getAudioOnsetRhythmFeedback = ({
   const matchedCount = feedbackItems.filter((item) =>
     item.category === "close" || item.category === "early" || item.category === "late",
   ).length;
+  const alignmentDiagnostics: AudioOnsetRhythmAlignmentDiagnostics = {
+    mode: alignmentMode,
+    alignmentOffsetMs,
+    firstOnsetTimeMs,
+    firstTargetTimeMs,
+    latencyOffsetAppliedMs: latencyOffsetMs,
+    diagnosticNote:
+      alignmentMode === "first-onset"
+        ? "First-onset alignment maps the first detected onset to the first target and can hide late-start behavior."
+        : "Recording-start alignment keeps detected onsets relative to the start of the local recording.",
+  };
+
   const warnings = [
     ...(onsetResult?.warnings ?? []),
     alignmentMode === "first-onset"
@@ -176,6 +198,7 @@ export const getAudioOnsetRhythmFeedback = ({
     alignmentOffsetMs,
     firstOnsetTimeMs,
     firstTargetTimeMs,
+    alignmentDiagnostics,
     nonScoringBoundary: audioOnsetRhythmFeedbackBoundary,
   };
 };

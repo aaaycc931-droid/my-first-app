@@ -6,6 +6,7 @@ import { getRhythmLatencyCalibration } from "../lib/rhythm/rhythmLatencyCalibrat
 import { getRhythmTapFeedback } from "../lib/rhythm/rhythmTapFeedback";
 import {
   detectAudioOnsets,
+  getAudioOnsetSensitivityConfig,
   hasAudioOnsetScoringFields,
 } from "../lib/rhythm/audioOnsetDetection";
 
@@ -20,7 +21,27 @@ const withImpulse = (positions: number[], amplitude = 1) => {
   return samples;
 };
 
-assert.equal(detectAudioOnsets(makeSamples(), sampleRate).onsetCount, 0);
+const silentBalanced = detectAudioOnsets(makeSamples(), sampleRate);
+assert.equal(silentBalanced.onsetCount, 0);
+assert.equal(silentBalanced.sensitivityPreset, "balanced");
+assert.ok(silentBalanced.diagnosticSummary.includes("diagnostic"));
+assert.equal(silentBalanced.thresholdMultiplier, getAudioOnsetSensitivityConfig("balanced").thresholdMultiplier);
+
+const defaultSingle = detectAudioOnsets(withImpulse([500]), sampleRate, {
+  frameSize: 20,
+  hopSize: 10,
+  minimumEnergy: 0.02,
+  minimumStrength: 0.02,
+});
+const balancedSingle = detectAudioOnsets(withImpulse([500]), sampleRate, {
+  sensitivityPreset: "balanced",
+  frameSize: 20,
+  hopSize: 10,
+  minimumEnergy: 0.02,
+  minimumStrength: 0.02,
+});
+assert.equal(balancedSingle.onsetCount, defaultSingle.onsetCount);
+assert.equal(balancedSingle.thresholdMultiplier, defaultSingle.thresholdMultiplier);
 
 const single = detectAudioOnsets(withImpulse([500]), sampleRate, {
   frameSize: 20,
@@ -60,6 +81,43 @@ const weak = detectAudioOnsets(withImpulse([500], 0.01), sampleRate, {
   minimumStrength: 0.02,
 });
 assert.equal(weak.onsetCount, 0);
+
+const weakForPreset = withImpulse([500], 0.035);
+const sensitiveWeak = detectAudioOnsets(weakForPreset, sampleRate, {
+  sensitivityPreset: "sensitive",
+  frameSize: 20,
+  hopSize: 10,
+});
+const balancedWeak = detectAudioOnsets(weakForPreset, sampleRate, {
+  sensitivityPreset: "balanced",
+  frameSize: 20,
+  hopSize: 10,
+});
+const conservativeWeak = detectAudioOnsets(weakForPreset, sampleRate, {
+  sensitivityPreset: "conservative",
+  frameSize: 20,
+  hopSize: 10,
+});
+assert.equal(sensitiveWeak.onsetCount, 1);
+assert.equal(balancedWeak.onsetCount, 0);
+assert.equal(conservativeWeak.onsetCount, 0);
+assert.ok(sensitiveWeak.threshold < conservativeWeak.threshold);
+assert.equal(
+  detectAudioOnsets(weakForPreset, sampleRate, {
+    sensitivityPreset: "unknown",
+    frameSize: 20,
+    hopSize: 10,
+  }).sensitivityPreset,
+  "balanced",
+);
+assert.equal(
+  detectAudioOnsets(weakForPreset, sampleRate, {
+    sensitivityPreset: "unknown",
+    frameSize: 20,
+    hopSize: 10,
+  }).warnings.some((warning) => warning.includes("Unknown sensitivity preset")),
+  true,
+);
 
 const sustained = makeSamples();
 for (let index = 200; index < 900; index += 1) sustained[index] = 0.3;
@@ -116,3 +174,8 @@ const practicePage = readFileSync("app/practice/page.tsx", "utf8");
 assert.match(practicePage, /Audio Onset Detection Foundation/);
 assert.match(practicePage, /No upload \/ cloud \/ AI/);
 assert.match(practicePage, /This is not rhythm scoring/);
+assert.match(practicePage, /Onset sensitivity preset/);
+assert.match(practicePage, /Sensitive may detect weaker onsets/);
+assert.match(practicePage, /Conservative may reduce extra candidates/);
+assert.match(practicePage, /threshold/);
+assert.doesNotMatch(practicePage, /accuracyPercentage/);
