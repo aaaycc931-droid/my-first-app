@@ -282,19 +282,20 @@ assert.equal(
 
 const practicePage = readFileSync("app/practice/page.tsx", "utf8");
 const audioOnsetTimelinePreview = readFileSync("components/practice/AudioOnsetTimelinePreview.tsx", "utf8");
-const practiceRhythmDiagnosticSource = `${practicePage}\n${audioOnsetTimelinePreview}`;
-assert.match(practicePage, /Use detected onsets for rhythm feedback/);
-assert.match(practicePage, /recording-start/);
-assert.match(practicePage, /first-onset/);
-assert.match(practicePage, /First detected onset/);
-assert.match(practicePage, /Alignment diagnostics/);
+const audioOnsetRhythmFeedbackPanel = readFileSync("components/practice/AudioOnsetRhythmFeedbackPanel.tsx", "utf8");
+const practiceRhythmDiagnosticSource = `${practicePage}\n${audioOnsetTimelinePreview}\n${audioOnsetRhythmFeedbackPanel}`;
+assert.match(practiceRhythmDiagnosticSource, /Use detected onsets for rhythm feedback/);
+assert.match(practiceRhythmDiagnosticSource, /recording-start/);
+assert.match(practiceRhythmDiagnosticSource, /first-onset/);
+assert.match(practiceRhythmDiagnosticSource, /First detected onset/);
+assert.match(practiceRhythmDiagnosticSource, /Alignment diagnostics/);
 assert.match(practiceRhythmDiagnosticSource, /Marker #/);
 assert.match(practiceRhythmDiagnosticSource, /candidateIndex/);
 assert.match(practiceRhythmDiagnosticSource, /targetMarkers/);
 assert.match(practiceRhythmDiagnosticSource, /firstOnsetOrigin|First-onset origin/);
 assert.match(practiceRhythmDiagnosticSource, /Compact marker legend/);
 assert.match(practiceRhythmDiagnosticSource, /audioOnsetMarkerDensitySummary/);
-assert.match(practicePage, /latency offset applied/);
+assert.match(practiceRhythmDiagnosticSource, /latency offset applied/);
 assert.match(practiceRhythmDiagnosticSource, /not a score/);
 assert.equal(quarter.warnings.includes("This assumes recording timing aligns with the target timeline."), true);
 assert.doesNotMatch(practiceRhythmDiagnosticSource, /accuracyPercentage/);
