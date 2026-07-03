@@ -4,8 +4,11 @@ import { createMetronomeBeatGrid } from "../lib/metronome/metronomeGrid";
 import { getNonScoringImportedTargetPitchFeedback } from "../lib/practice/nonScoringImportedTargetPitchFeedback";
 import { detectAudioOnsets, type AudioOnsetDetectionResult } from "../lib/rhythm/audioOnsetDetection";
 import {
+  audioOnsetRhythmCompactMarkerLabels,
   audioOnsetRhythmFeedbackBoundary,
+  audioOnsetRhythmMarkerLegendItems,
   convertAudioOnsetsToRhythmTapEvents,
+  getAudioOnsetRhythmMarkerDensitySummary,
   getAudioOnsetRhythmFeedback,
   hasAudioOnsetRhythmFeedbackScoringFields,
 } from "../lib/rhythm/audioOnsetRhythmFeedback";
@@ -52,6 +55,46 @@ assert.deepEqual(
   convertAudioOnsetsToRhythmTapEvents(onsetResult([0, 500])).map((tap) => tap.timestampMs),
   [0, 500],
 );
+
+const legendText = audioOnsetRhythmMarkerLegendItems
+  .map((item) => `${item.label} ${item.description}`)
+  .join(" ");
+for (const expected of [
+  "Candidate marker",
+  "Rhythm target marker",
+  "Close",
+  "Early",
+  "Late",
+  "Missed",
+  "Extra",
+  "First-onset origin",
+  "Threshold reference",
+]) {
+  assert.match(legendText, new RegExp(expected));
+}
+const compactLabelText = Object.values(audioOnsetRhythmCompactMarkerLabels).join(" ");
+assert.doesNotMatch(compactLabelText, /score|grade|pass|fail|accuracyPercentage|assessment/i);
+assert.deepEqual(
+  [
+    audioOnsetRhythmCompactMarkerLabels.close,
+    audioOnsetRhythmCompactMarkerLabels.early,
+    audioOnsetRhythmCompactMarkerLabels.late,
+    audioOnsetRhythmCompactMarkerLabels.missed,
+    audioOnsetRhythmCompactMarkerLabels.extra,
+  ],
+  ["C", "E", "L", "M", "X"],
+);
+const denseSummary = getAudioOnsetRhythmMarkerDensitySummary({
+  candidateCount: 8,
+  targetCount: 8,
+  feedbackMarkerCount: 8,
+  missedCount: 1,
+  extraCount: 2,
+});
+assert.equal(denseSummary.totalMarkerCount, 24);
+assert.equal(denseSummary.isDense, true);
+assert.match(denseSummary.compactModeNote, /compact labels/);
+assert.doesNotMatch(JSON.stringify(denseSummary), /score|grade|pass|fail|accuracyPercentage|assessment/i);
 
 const recordingStartClose = getAudioOnsetRhythmFeedback({
   onsetResult: onsetResult([40]),
@@ -147,6 +190,8 @@ const firstOnsetMissed = getAudioOnsetRhythmFeedback({
 assert.equal(firstOnsetMissed.missedCount, 1);
 assert.equal(firstOnsetMissed.feedbackItems.find((item) => item.category === "missed")?.onsetCandidateIndex, null);
 assert.equal(firstOnsetMissed.timelineMarkers.find((marker) => marker.category === "missed")?.onsetCandidateIndex, null);
+assert.equal(firstOnsetMissed.timelineMarkers.find((marker) => marker.category === "missed")?.targetIndex, 2);
+assert.equal(firstOnsetMissed.feedbackItems.find((item) => item.category === "missed")?.targetTimeMs, 1000);
 
 const firstOnsetExtra = getAudioOnsetRhythmFeedback({
   onsetResult: onsetResult([700, 1200, 1700, 2200, 2900]),
@@ -157,6 +202,8 @@ const firstOnsetExtra = getAudioOnsetRhythmFeedback({
 assert.equal(firstOnsetExtra.extraCount, 1);
 assert.equal(firstOnsetExtra.feedbackItems.find((item) => item.category === "extra")?.targetIndex, null);
 assert.equal(firstOnsetExtra.timelineMarkers.find((marker) => marker.category === "extra")?.targetIndex, null);
+assert.equal(firstOnsetExtra.timelineMarkers.find((marker) => marker.category === "extra")?.onsetCandidateIndex, 4);
+assert.equal(firstOnsetExtra.feedbackItems.find((item) => item.category === "extra")?.onsetTimeMs, 2900);
 
 const empty = getAudioOnsetRhythmFeedback({
   onsetResult: onsetResult([]),
@@ -242,7 +289,9 @@ assert.match(practicePage, /Alignment diagnostics/);
 assert.match(practicePage, /Marker #/);
 assert.match(practicePage, /candidateIndex/);
 assert.match(practicePage, /targetMarkers/);
-assert.match(practicePage, /first onset origin/);
+assert.match(practicePage, /firstOnsetOrigin|First-onset origin/);
+assert.match(practicePage, /Compact marker legend/);
+assert.match(practicePage, /audioOnsetMarkerDensitySummary/);
 assert.match(practicePage, /latency offset applied/);
 assert.match(practicePage, /not a score/);
 assert.equal(quarter.warnings.includes("This assumes recording timing aligns with the target timeline."), true);
