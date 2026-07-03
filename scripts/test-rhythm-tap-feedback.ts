@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import {
   createCountInBeatGrid,
   createMetronomeSubdivisionGrid,
@@ -6,6 +7,7 @@ import {
 import { getNonScoringImportedTargetPitchFeedback } from "../lib/practice/nonScoringImportedTargetPitchFeedback";
 import {
   createQuarterPulseTargetPattern,
+  createRhythmTargetPattern,
   getRhythmTapFeedback,
   hasRhythmScoringFields,
   type RhythmTapEvent,
@@ -29,8 +31,45 @@ assert.deepEqual(
 );
 assert.deepEqual(
   targets.map((target) => target.pattern),
-  ["quarter-pulse", "quarter-pulse", "quarter-pulse", "quarter-pulse"],
+  [
+    "quarter-note-pulse",
+    "quarter-note-pulse",
+    "quarter-note-pulse",
+    "quarter-note-pulse",
+  ],
 );
+assert.deepEqual(
+  targets.map((target) => target.subdivisionIndex),
+  [0, 0, 0, 0],
+);
+
+const eighthTargets = createRhythmTargetPattern({
+  config,
+  practiceStartTimeMs: 1000,
+  barCount: 1,
+  pattern: "eighth-note-pulse",
+});
+assert.equal(eighthTargets.length, 8);
+assert.deepEqual(
+  eighthTargets.map((target) => target.targetTimeMs),
+  [1000, 1250, 1500, 1750, 2000, 2250, 2500, 2750],
+);
+assert.deepEqual(
+  eighthTargets.map((target) => target.scheduledTimeSeconds),
+  [1, 1.25, 1.5, 1.75, 2, 2.25, 2.5, 2.75],
+);
+assert.deepEqual(
+  eighthTargets.map((target) => target.beatNumber),
+  [1, 1, 2, 2, 3, 3, 4, 4],
+);
+assert.deepEqual(
+  eighthTargets.map((target) => target.subdivisionIndex),
+  [0, 1, 0, 1, 0, 1, 0, 1],
+);
+assert.equal(eighthTargets[1]?.pattern, "eighth-note-pulse");
+assert.equal(eighthTargets[1]?.subdivisionCountPerBeat, 2);
+assert.equal(eighthTargets[1]?.phase, "practice");
+assert.equal(eighthTargets[1]?.targetIndex, 1);
 
 const close = getRhythmTapFeedback({
   targets: [targets[0]],
@@ -53,6 +92,53 @@ const late = getRhythmTapFeedback({
   nowMs: 1200,
 });
 assert.equal(late.feedback[0]?.category, "late");
+
+assert.equal(
+  getRhythmTapFeedback({
+    targets: [eighthTargets[1]],
+    taps: [{ id: 6, timestampMs: 1280, phase: "practice" }],
+    phase: "practice",
+    nowMs: 1320,
+  }).feedback[0]?.category,
+  "close",
+);
+assert.equal(
+  getRhythmTapFeedback({
+    targets: [eighthTargets[1]],
+    taps: [{ id: 7, timestampMs: 1130, phase: "practice" }],
+    phase: "practice",
+    nowMs: 1450,
+  }).feedback[0]?.category,
+  "early",
+);
+assert.equal(
+  getRhythmTapFeedback({
+    targets: [eighthTargets[1]],
+    taps: [{ id: 8, timestampMs: 1390, phase: "practice" }],
+    phase: "practice",
+    nowMs: 1450,
+  }).feedback[0]?.category,
+  "late",
+);
+assert.equal(
+  getRhythmTapFeedback({
+    targets: [eighthTargets[1]],
+    taps: [{ id: 9, timestampMs: 1700, phase: "practice" }],
+    phase: "practice",
+    nowMs: 1500,
+  }).feedback.some((item) => item.category === "missed"),
+  true,
+);
+assert.equal(
+  getRhythmTapFeedback({
+    targets: [eighthTargets[1]],
+    taps: [{ id: 10, timestampMs: 1700, phase: "practice" }],
+    phase: "practice",
+    nowMs: 1500,
+  }).feedback.some((item) => item.category === "extra"),
+  true,
+);
+
 const waiting = getRhythmTapFeedback({
   targets,
   taps: [],
@@ -88,6 +174,15 @@ const countInIgnored = getRhythmTapFeedback({
 });
 assert.equal(countInIgnored.tapCount, 0);
 assert.equal(countInIgnored.status, "waiting-for-taps");
+assert.equal(
+  getRhythmTapFeedback({
+    targets: [targets[0]],
+    taps: [{ id: 11, timestampMs: 1000, phase: "count-in" }],
+    phase: "count-in",
+    nowMs: 1000,
+  }).feedback.length,
+  0,
+);
 
 for (const item of [close, early, late, missedWithTapElsewhere, waiting]) {
   assert.equal(hasRhythmScoringFields(item), false);
@@ -95,6 +190,14 @@ for (const item of [close, early, late, missedWithTapElsewhere, waiting]) {
     assert.equal(hasRhythmScoringFields(feedback), false),
   );
 }
+assert.equal(hasRhythmScoringFields(eighthTargets[0] ?? {}), false);
+
+const practicePage = readFileSync("app/practice/page.tsx", "utf8");
+assert.match(practicePage, /Quarter-note pulse/);
+assert.match(practicePage, /Eighth-note pulse/);
+assert.match(practicePage, /Non-scoring practice feedback only/);
+assert.match(practicePage, /Pattern:/);
+assert.doesNotMatch(practicePage, /accuracyPercentage/);
 
 assert.equal(createCountInBeatGrid({ config, startTimeSeconds: 0 }).length, 4);
 assert.equal(
