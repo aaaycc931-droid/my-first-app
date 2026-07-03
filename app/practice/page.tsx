@@ -1891,6 +1891,12 @@ export default function PracticePage() {
                 <p className="mt-2 text-sm leading-6 text-teal-900">
                   {importedTargetPitchFeedback.message}
                 </p>
+                <p className="mt-2 rounded-xl bg-white p-3 text-sm font-semibold leading-6 text-teal-900 ring-1 ring-teal-200">
+                  This feedback uses your latest local pitch estimate and the
+                  currently selected imported segment. Record again after
+                  switching segments for the clearest result. This is practice
+                  feedback, not a score.
+                </p>
                 <dl className="mt-3 grid gap-3 text-sm sm:grid-cols-3">
                   <div className="rounded-xl bg-white p-3 ring-1 ring-teal-200">
                     <dt className="font-semibold text-teal-700">目标音高</dt>
@@ -1922,7 +1928,7 @@ export default function PracticePage() {
                 ) : null}
                 <p className="mt-3 text-xs font-semibold text-teal-800">
                   This is non-scoring feedback. It does not create a saved
-                  evaluation, and it does not write to local attempt history.
+                  result, and it does not write to local attempt history.
                 </p>
               </div>
             </section>

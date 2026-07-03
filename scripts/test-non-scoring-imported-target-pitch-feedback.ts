@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 
 import { getNonScoringImportedTargetPitchFeedback } from "../lib/practice/nonScoringImportedTargetPitchFeedback";
 
@@ -49,5 +50,19 @@ assert.equal(
   }).category,
   "no-target-data",
 );
+
+const practicePageSource = readFileSync("app/practice/page.tsx", "utf8");
+
+assert.match(
+  practicePageSource,
+  /This feedback uses your latest local pitch estimate and the\s+currently selected imported segment\./,
+);
+
+assert.match(
+  practicePageSource,
+  /Record again after\s+switching segments for the clearest result\./,
+);
+
+assert.match(practicePageSource, /This is practice\s+feedback, not a score\./);
 
 console.log("non-scoring imported target pitch feedback helper tests passed");
