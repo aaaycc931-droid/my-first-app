@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 
+import { getNonScoringImportedTargetPitchFeedback } from "../../lib/practice/nonScoringImportedTargetPitchFeedback";
 import { mockMelodyTargetCurveExample } from "../../lib/practice/mock-melody-target-segments.example";
 import { researchTargetCurvePreviewExample } from "../../lib/practice/research-target-curve-preview.example";
 import {
@@ -343,6 +344,17 @@ export default function PracticePage() {
       comparisonHint: getComparisonHint(centsFromTarget),
     };
   }, [pitchEstimateResult, selectedTargetNote]);
+
+  const importedTargetPitchFeedback = useMemo(
+    () =>
+      getNonScoringImportedTargetPitchFeedback({
+        targetFrequencyHz: selectedImportedSegment?.targetFrequencyHz,
+        estimatedFrequencyHz: pitchEstimateResult?.estimatedFrequencyHz,
+        confidence: pitchEstimateResult?.confidence,
+        validPitchFrames: pitchEstimateResult?.validPitchFrames,
+      }),
+    [selectedImportedSegment, pitchEstimateResult],
+  );
 
   const revokeRecordedAudioUrl = (url: string | null) => {
     if (url) {
@@ -1868,6 +1880,61 @@ export default function PracticePage() {
                   </dl>
                 </div>
               </div>
+
+              <div className="mt-4 rounded-2xl border border-teal-200 bg-teal-50 p-4">
+                <p className="text-sm font-semibold uppercase tracking-wide text-teal-700">
+                  Pitch feedback
+                </p>
+                <h4 className="mt-1 font-bold text-teal-950">
+                  Non-scoring feedback
+                </h4>
+                <p className="mt-2 text-sm leading-6 text-teal-900">
+                  {importedTargetPitchFeedback.message}
+                </p>
+                <dl className="mt-3 grid gap-3 text-sm sm:grid-cols-3">
+                  <div className="rounded-xl bg-white p-3 ring-1 ring-teal-200">
+                    <dt className="font-semibold text-teal-700">目标音高</dt>
+                    <dd className="mt-1 font-bold">
+                      {selectedImportedSegment.targetFrequencyHz.toFixed(2)} Hz
+                    </dd>
+                  </div>
+                  <div className="rounded-xl bg-white p-3 ring-1 ring-teal-200">
+                    <dt className="font-semibold text-teal-700">估计音高</dt>
+                    <dd className="mt-1 font-bold">
+                      {pitchEstimateResult
+                        ? `${pitchEstimateResult.estimatedFrequencyHz.toFixed(2)} Hz`
+                        : "No reliable pitch was detected."}
+                    </dd>
+                  </div>
+                  <div className="rounded-xl bg-white p-3 ring-1 ring-teal-200">
+                    <dt className="font-semibold text-teal-700">方向提示</dt>
+                    <dd className="mt-1 font-bold">
+                      {importedTargetPitchFeedback.centsDifference === null
+                        ? importedTargetPitchFeedback.title
+                        : `${importedTargetPitchFeedback.centsDifference.toFixed(1)} cents`}
+                    </dd>
+                  </div>
+                </dl>
+                {selectedImportedSegment.diagnosticConfidence === "low" ? (
+                  <p className="mt-3 rounded-xl bg-amber-50 p-3 text-sm font-semibold text-amber-800 ring-1 ring-amber-200">
+                    当前片段诊断置信度较低，反馈仅供练习参考。
+                  </p>
+                ) : null}
+                <p className="mt-3 text-xs font-semibold text-teal-800">
+                  This is non-scoring feedback. It does not create a saved
+                  evaluation, and it does not write to local attempt history.
+                </p>
+              </div>
+            </section>
+          ) : importedPracticeLiteActive ? (
+            <section className="mt-5 rounded-3xl border border-teal-200 bg-white p-5 text-teal-950 shadow-sm">
+              <p className="text-sm font-semibold uppercase tracking-wide text-teal-700">
+                Pitch feedback
+              </p>
+              <h3 className="mt-1 text-xl font-bold">Non-scoring feedback</h3>
+              <p className="mt-2 text-sm leading-6 text-teal-900">
+                {importedTargetPitchFeedback.message}
+              </p>
             </section>
           ) : null}
         </section>
