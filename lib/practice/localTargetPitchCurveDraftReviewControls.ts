@@ -32,7 +32,7 @@ const boundaryWarnings = [
   "This is a review preview only; review is required before practice integration.",
   "Not a final target, not an official transcription, and not scoring.",
   "Confidence and coverage are diagnostic only.",
-  "Browser-local and session-only; no upload and no cloud.",
+  "Browser-local and session-only; no upload, no cloud, no account, and no database.",
 ] as const;
 
 export const createDefaultLocalTargetPitchCurveDraftReviewSelection = (): LocalTargetPitchCurveDraftReviewSelection => ({
@@ -88,6 +88,14 @@ export const getLocalTargetPitchCurveDraftSelectedDiagnostics = (
       selectedDurationMs: 0,
       warnings,
     };
+  }
+
+  if (!draft.draftOnly) {
+    warnings.push("Draft-only boundary flag is not set; keep this selection out of practice integration.");
+  }
+
+  if (!draft.needsReview) {
+    warnings.push("Needs-review boundary flag is not set; keep this selection in review preview only.");
   }
 
   const voicedFrames = draft.frames.filter((frame) => frame.voiced && frame.frequencyHz !== null && Number.isFinite(frame.frequencyHz));

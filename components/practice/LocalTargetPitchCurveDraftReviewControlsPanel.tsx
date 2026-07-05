@@ -45,7 +45,7 @@ export function LocalTargetPitchCurveDraftReviewControlsPanel({
           <p className="text-sm font-semibold uppercase tracking-wide text-violet-700">P39 minimal review controls</p>
           <h2 className="mt-1 text-2xl font-bold text-violet-950">Local Target Pitch Curve Draft Review Controls</h2>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-violet-900">
-            This is a review preview only. Review is required before practice integration. It is not a final target, not an official transcription, and not a score. Confidence and coverage are diagnostic only. Browser-local and session-only: no upload and no cloud.
+            This is a review preview only. Review is required before practice integration. It is not a final target, not an official transcription, and not a score. Confidence and coverage are diagnostic only. Browser-local and session-only: no upload, no cloud, no account, and no database.
           </p>
         </div>
         <div className="flex flex-wrap gap-2 text-xs font-bold uppercase tracking-wide">
@@ -72,6 +72,9 @@ export function LocalTargetPitchCurveDraftReviewControlsPanel({
             <input type="number" value={selection.manualEndFrame} onChange={(event) => onManualEndFrameChange(Number(event.target.value))} disabled={!hasDraft} className="mt-1 w-full rounded-xl border border-violet-200 px-3 py-2 text-violet-950 disabled:bg-slate-100" />
           </label>
         </div>
+        <p className="mt-3 text-xs leading-5 text-violet-700">
+          Requested manual boundary: frame {selection.manualStartFrame} → {selection.manualEndFrame}. Applied boundary after helper validation: frame {formatFrame(diagnostics.selectedStartFrame)} → {formatFrame(diagnostics.selectedEndFrame)}.
+        </p>
       </div>
 
       <div className="mt-5 grid gap-3 text-sm md:grid-cols-2 lg:grid-cols-4">
