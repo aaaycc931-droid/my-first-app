@@ -50,11 +50,17 @@ import {
 import { LocalMelodyGuideAudioImportPanel } from "../../components/practice/LocalMelodyGuideAudioImportPanel";
 import { LocalTargetPitchCurveDraftPanel } from "../../components/practice/LocalTargetPitchCurveDraftPanel";
 import { LocalTargetPitchCurveReviewPreviewPanel } from "../../components/practice/LocalTargetPitchCurveReviewPreviewPanel";
+import { LocalTargetPitchCurveDraftReviewControlsPanel } from "../../components/practice/LocalTargetPitchCurveDraftReviewControlsPanel";
 import { getNonScoringImportedTargetPitchFeedback } from "../../lib/practice/nonScoringImportedTargetPitchFeedback";
 import {
   createLocalTargetPitchCurveDraft,
   type LocalTargetPitchCurveDraft,
 } from "../../lib/practice/localTargetPitchCurveDraft";
+import {
+  createDefaultLocalTargetPitchCurveDraftReviewSelection,
+  getLocalTargetPitchCurveDraftSelectedDiagnostics,
+  type LocalTargetPitchCurveDraftReviewSelection,
+} from "../../lib/practice/localTargetPitchCurveDraftReviewControls";
 import { mockMelodyTargetCurveExample } from "../../lib/practice/mock-melody-target-segments.example";
 import { researchTargetCurvePreviewExample } from "../../lib/practice/research-target-curve-preview.example";
 import {
@@ -418,6 +424,10 @@ export default function PracticePage() {
     useState<LocalMelodyGuideDecodedAudio | null>(null);
   const [localTargetPitchCurveDraft, setLocalTargetPitchCurveDraft] =
     useState<LocalTargetPitchCurveDraft | null>(null);
+  const [localTargetPitchCurveDraftReviewSelection, setLocalTargetPitchCurveDraftReviewSelection] =
+    useState<LocalTargetPitchCurveDraftReviewSelection>(() =>
+      createDefaultLocalTargetPitchCurveDraftReviewSelection(),
+    );
   const metronomeSchedulerRef = useRef<BrowserMetronomeScheduler | null>(null);
   const rhythmSchedulerRef = useRef<BrowserMetronomeScheduler | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -447,6 +457,20 @@ export default function PracticePage() {
   const latencyCalibrationTapIdRef = useRef(0);
   const localMelodyGuideInputRef = useRef<HTMLInputElement | null>(null);
   const localMelodyGuideRunIdRef = useRef(0);
+
+  const localTargetPitchCurveDraftSelectedDiagnostics = useMemo(
+    () => getLocalTargetPitchCurveDraftSelectedDiagnostics(
+      localTargetPitchCurveDraft,
+      localTargetPitchCurveDraftReviewSelection,
+    ),
+    [localTargetPitchCurveDraft, localTargetPitchCurveDraftReviewSelection],
+  );
+
+  const resetLocalTargetPitchCurveDraftReviewSelection = () => {
+    setLocalTargetPitchCurveDraftReviewSelection(
+      createDefaultLocalTargetPitchCurveDraftReviewSelection(),
+    );
+  };
 
   const currentMelodyStep =
     melodySteps[currentMelodyStepIndex] ?? melodySteps[0];
@@ -759,6 +783,7 @@ export default function PracticePage() {
     setLocalMelodyGuideDecodeError("");
     setLocalMelodyGuideDecodedAudio(null);
     setLocalTargetPitchCurveDraft(null);
+    resetLocalTargetPitchCurveDraftReviewSelection();
 
     if (!file) {
       setLocalMelodyGuideSource(null);
@@ -817,6 +842,7 @@ export default function PracticePage() {
     setLocalMelodyGuideDecodeError("");
     setLocalMelodyGuideDecodedAudio(null);
     setLocalTargetPitchCurveDraft(null);
+    resetLocalTargetPitchCurveDraftReviewSelection();
     if (localMelodyGuideInputRef.current) {
       localMelodyGuideInputRef.current.value = "";
     }
@@ -826,9 +852,11 @@ export default function PracticePage() {
   const handleGenerateLocalTargetPitchCurveDraft = () => {
     if (!localMelodyGuideDecodedAudio?.analysisReady) {
       setLocalTargetPitchCurveDraft(null);
+      resetLocalTargetPitchCurveDraftReviewSelection();
       return;
     }
 
+    resetLocalTargetPitchCurveDraftReviewSelection();
     setLocalTargetPitchCurveDraft(
       createLocalTargetPitchCurveDraft(
         localMelodyGuideDecodedAudio.channelData,
@@ -1811,6 +1839,45 @@ export default function PracticePage() {
 
         <LocalTargetPitchCurveReviewPreviewPanel
           draft={localTargetPitchCurveDraft}
+        />
+
+        <LocalTargetPitchCurveDraftReviewControlsPanel
+          selection={localTargetPitchCurveDraftReviewSelection}
+          diagnostics={localTargetPitchCurveDraftSelectedDiagnostics}
+          hasDraft={Boolean(localTargetPitchCurveDraft)}
+          onUseFullDraft={() =>
+            setLocalTargetPitchCurveDraftReviewSelection((currentSelection) => ({
+              ...currentSelection,
+              mode: "full-draft",
+            }))
+          }
+          onUseVoicedSpan={() =>
+            setLocalTargetPitchCurveDraftReviewSelection((currentSelection) => ({
+              ...currentSelection,
+              mode: "voiced-span",
+            }))
+          }
+          onUseManualFrameRange={() =>
+            setLocalTargetPitchCurveDraftReviewSelection((currentSelection) => ({
+              ...currentSelection,
+              mode: "manual-frame-range",
+            }))
+          }
+          onManualStartFrameChange={(frameIndex) =>
+            setLocalTargetPitchCurveDraftReviewSelection((currentSelection) => ({
+              ...currentSelection,
+              mode: "manual-frame-range",
+              manualStartFrame: frameIndex,
+            }))
+          }
+          onManualEndFrameChange={(frameIndex) =>
+            setLocalTargetPitchCurveDraftReviewSelection((currentSelection) => ({
+              ...currentSelection,
+              mode: "manual-frame-range",
+              manualEndFrame: frameIndex,
+            }))
+          }
+          onReset={resetLocalTargetPitchCurveDraftReviewSelection}
         />
 
         <section className="mt-6 rounded-3xl border border-teal-200 bg-teal-50 p-5 shadow-sm sm:p-6">
