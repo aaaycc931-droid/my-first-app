@@ -1946,16 +1946,13 @@ export default function PracticePage() {
 
         <section className="mt-6 rounded-3xl border border-fuchsia-200 bg-white p-5 shadow-sm sm:p-6">
           <p className="text-sm font-semibold uppercase tracking-wide text-fuchsia-700">
-            P40 safe practice integration alpha
+            P40 安全练习接入 Alpha
           </p>
           <h2 className="mt-1 text-xl font-bold text-fuchsia-950">
-            Use reviewed selection as a temporary diagnostic target
+            将已检查选区用作临时诊断练习目标
           </h2>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-700">
-            This action is explicit and creates only a browser-local,
-            session-only, reviewed-selection-only, non-scoring, clearable
-            temporary practice target. It does not start playback, recording,
-            pitch estimation, or scoring.
+            此操作需要明确点击，只会创建一个浏览器本地、仅当前会话、仅来自已检查选区、不评分且可清除的临时练习目标。它不会启动播放、录音、音高估计或评分。
           </p>
           <button
             type="button"
@@ -1963,13 +1960,11 @@ export default function PracticePage() {
             disabled={!canUseReviewedDraftAsTemporaryPracticeTarget}
             className="mt-4 rounded-full bg-fuchsia-700 px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:bg-slate-300"
           >
-            Use selected review range as temporary practice target
+            使用当前检查选区作为临时练习目标
           </button>
           {!canUseReviewedDraftAsTemporaryPracticeTarget ? (
             <p className="mt-3 text-xs leading-5 text-slate-600">
-              Enable after a local draft exists, the selected review range is
-              valid, and the selected range has voiced median frequency
-              diagnostics.
+              本地草稿存在、已选检查范围有效，并且该范围有有声中位频率诊断后才可启用。
             </p>
           ) : null}
         </section>
@@ -1987,30 +1982,27 @@ export default function PracticePage() {
           <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
             <div>
               <p className="text-sm font-semibold uppercase tracking-wide text-teal-700">
-                Metronome foundation
+                节拍器基础
               </p>
               <h2 className="mt-1 text-2xl font-bold text-teal-950">
                 未来节奏训练基础节拍器
               </h2>
               <p className="mt-2 max-w-3xl text-sm leading-6 text-teal-900">
-                这是 browser-local Web Audio 节拍器基础模块，用于未来
-                count-in、subdivision metadata、tap-based rhythm practice
-                和节奏训练复用。当前只提供稳定节拍、预备拍与 metadata，不做
-                rhythm scoring、正式评测、通过 / 失败或等级。
+                这是浏览器本地 Web Audio 节拍器基础模块，用于未来预备拍、细分拍元数据、点击式节奏练习和节奏训练复用。当前只提供稳定节拍、预备拍与元数据，不做节奏评分、正式评测、通过 / 失败或等级。
               </p>
             </div>
             <div className="rounded-2xl border border-teal-200 bg-white p-4 text-sm text-teal-950 shadow-sm lg:min-w-64">
               <p className="font-semibold">当前 beat</p>
               <p className="mt-2 text-3xl font-bold">
                 {metronomeBeat
-                  ? `${metronomeBeat.phase === "count-in" ? "Count-in " : "Practice "}${metronomeBeat.barNumber}.${metronomeBeat.beatNumber}`
+                  ? `${metronomeBeat.phase === "count-in" ? "预备拍 " : "练习 "}${metronomeBeat.barNumber}.${metronomeBeat.beatNumber}`
                   : "—"}
               </p>
               <p className="mt-1 font-medium">
                 {metronomeBeat
                   ? metronomeBeat.isStrongBeat
-                    ? "Strong beat / 小节重拍"
-                    : "Weak beat / 弱拍"
+                    ? "小节重拍"
+                    : "弱拍"
                   : "等待开始"}
               </p>
             </div>
@@ -2049,7 +2041,7 @@ export default function PracticePage() {
               </select>
             </label>
             <label className="rounded-2xl bg-white p-4 font-semibold text-teal-950 ring-1 ring-teal-200">
-              Count-in
+              预备拍
               <select
                 value={metronomeCountInBars}
                 onChange={(event) =>
@@ -2062,13 +2054,13 @@ export default function PracticePage() {
               >
                 {supportedCountInBars.map((bars) => (
                   <option key={bars} value={bars}>
-                    {bars === 0 ? "Off" : `${bars} bar${bars > 1 ? "s" : ""}`}
+                    {bars === 0 ? "关闭" : `${bars} 小节`}
                   </option>
                 ))}
               </select>
             </label>
             <label className="rounded-2xl bg-white p-4 font-semibold text-teal-950 ring-1 ring-teal-200">
-              Subdivision
+              细分拍
               <select
                 value={metronomeSubdivision}
                 onChange={(event) =>
@@ -2082,25 +2074,24 @@ export default function PracticePage() {
                 {supportedMetronomeSubdivisions.map((subdivision) => (
                   <option key={subdivision} value={subdivision}>
                     {subdivision === "quarter"
-                      ? "Quarter"
+                      ? "四分音符"
                       : subdivision === "eighth"
-                        ? "Eighth"
-                        : "Sixteenth"}
+                        ? "八分音符"
+                        : "十六分音符"}
                   </option>
                 ))}
               </select>
             </label>
             <div className="rounded-2xl bg-white p-4 ring-1 ring-teal-200">
-              <p className="font-semibold text-teal-950">Strong / weak</p>
+              <p className="font-semibold text-teal-950">强拍 / 弱拍</p>
               <p className="mt-2 text-teal-800">
-                每小节第 1 拍为 strong beat；count-in 与 practice phase 分开。
+                每小节第 1 拍为强拍；预备拍与练习阶段分开。
               </p>
             </div>
             <div className="rounded-2xl bg-white p-4 ring-1 ring-teal-200">
               <p className="font-semibold text-teal-950">本地边界</p>
               <p className="mt-2 text-teal-800">
-                subdivision 当前是 future rhythm practice metadata；音频只播放
-                beat-level click。
+                细分拍当前只是未来节奏练习的元数据；音频只播放拍级点击声。
               </p>
             </div>
           </div>
@@ -2123,7 +2114,7 @@ export default function PracticePage() {
               停止节拍器
             </button>
             <span className="rounded-full border border-amber-200 bg-amber-50 px-4 py-2 text-sm font-semibold text-amber-800">
-              Foundation only：没有 rhythm score / pass / fail / grade
+              仅基础模块：没有节奏分数 / 通过 / 失败 / 等级
             </span>
           </div>
           {metronomeError ? (
@@ -2137,31 +2128,31 @@ export default function PracticePage() {
           <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
             <div>
               <p className="text-sm font-semibold uppercase tracking-wide text-violet-700">
-                Rhythm Practice Alpha
+                节奏练习 Alpha
               </p>
               <h2 className="mt-1 text-2xl font-bold text-violet-950">
-                Tap-based 节奏练习 Alpha
+                点击式节奏练习 Alpha
               </h2>
               <p className="mt-2 max-w-3xl text-sm leading-6 text-violet-900">
-                当前 Alpha 可选择 Quarter-note pulse（每拍 tap 一次）或
-                Eighth-note pulse（每拍 tap 两次）。它复用当前 BPM、拍号与
-                Count-in；target pattern 独立于 subdivision click，当前仍只播放
-                beat-level click。
+                当前 Alpha 可选择四分音符脉冲（每拍点击一次）或
+                八分音符脉冲（每拍点击两次）。它复用当前 BPM、拍号与
+                预备拍；目标模式独立于细分拍点击声，当前仍只播放
+                拍级点击声。
               </p>
               <p className="mt-3 rounded-2xl border border-amber-200 bg-amber-50 p-3 text-sm font-semibold text-amber-800">
-                Non-scoring practice feedback only：只显示 close / early / late
-                / missed / extra，不提供正式分数、准确率百分比、等级、通过 /
-                失败或最终评测；还没有 microphone onset detection。
+                仅提供不评分的练习反馈：只显示接近 / 偏早 / 偏晚 /
+                漏掉 / 额外，不提供正式分数、准确率百分比、等级、通过 /
+                失败或最终评测；还没有麦克风起音检测。
               </p>
             </div>
             <div className="rounded-2xl border border-violet-200 bg-white p-4 text-sm text-violet-950 shadow-sm lg:min-w-64">
-              <p className="font-semibold">当前 phase</p>
+              <p className="font-semibold">当前阶段</p>
               <p className="mt-2 text-3xl font-bold">{rhythmPhase}</p>
               <p className="mt-1 font-medium">
                 {rhythmPhase === "count-in"
-                  ? "先听预备拍，practice phase 后再 tap"
+                  ? "先听预备拍，进入练习阶段后再点击"
                   : rhythmPhase === "practice"
-                    ? "请按空格键或点击 Tap"
+                    ? "请按空格键或点击“点击”"
                     : "等待开始"}
               </p>
             </div>
@@ -2169,7 +2160,7 @@ export default function PracticePage() {
 
           <div className="mt-5 grid gap-3 text-sm md:grid-cols-4">
             <label className="rounded-2xl bg-white p-4 font-semibold text-violet-950 ring-1 ring-violet-200">
-              Target pattern
+              目标模式
               <select
                 value={rhythmTargetPattern}
                 onChange={(event) =>
@@ -2190,24 +2181,24 @@ export default function PracticePage() {
               </select>
               <span className="mt-2 block text-violet-800">
                 {rhythmTargetPatternTapGuidance[rhythmTargetPattern]} ·{" "}
-                {rhythmPracticeBarCount} bars
+                {rhythmPracticeBarCount} 小节
               </span>
             </label>
             <div className="rounded-2xl bg-white p-4 ring-1 ring-violet-200">
-              <p className="font-semibold text-violet-950">Tap count</p>
+              <p className="font-semibold text-violet-950">点击次数</p>
               <p className="mt-2 text-violet-800">
-                {rhythmFeedbackSummary.tapCount} practice taps
+                {rhythmFeedbackSummary.tapCount} 次练习点击
               </p>
             </div>
             <div className="rounded-2xl bg-white p-4 ring-1 ring-violet-200">
-              <p className="font-semibold text-violet-950">Tolerance</p>
+              <p className="font-semibold text-violet-950">容差</p>
               <p className="mt-2 text-violet-800">
-                close ±{rhythmCloseToleranceMs}ms · match window ±
+                接近 ±{rhythmCloseToleranceMs}ms · 匹配窗口 ±
                 {rhythmMatchWindowMs}ms
               </p>
             </div>
             <div className="rounded-2xl bg-white p-4 ring-1 ring-violet-200">
-              <p className="font-semibold text-violet-950">Recent feedback</p>
+              <p className="font-semibold text-violet-950">最近反馈</p>
               <p className="mt-2 text-violet-800">
                 {rhythmFeedbackSummary.status}
               </p>
@@ -2223,7 +2214,7 @@ export default function PracticePage() {
               }
               className="rounded-full bg-violet-700 px-4 py-2 text-sm font-semibold text-white disabled:bg-violet-300"
             >
-              Start rhythm practice
+              开始节奏练习
             </button>
             <button
               type="button"
@@ -2233,14 +2224,14 @@ export default function PracticePage() {
               }
               className="rounded-full border border-violet-300 bg-white px-4 py-2 text-sm font-semibold text-violet-800 disabled:text-slate-400"
             >
-              Stop
+              停止
             </button>
             <button
               type="button"
               onClick={handleResetRhythmPractice}
               className="rounded-full border border-violet-300 bg-white px-4 py-2 text-sm font-semibold text-violet-800"
             >
-              Reset
+              重置
             </button>
             <button
               type="button"
@@ -2248,7 +2239,7 @@ export default function PracticePage() {
               disabled={rhythmPhase !== "practice"}
               className="rounded-full bg-white px-5 py-2 text-sm font-bold text-violet-900 ring-1 ring-violet-300 disabled:text-slate-400"
             >
-              Tap / Spacebar
+              点击 / 空格键
             </button>
           </div>
           {rhythmError ? (
@@ -2261,15 +2252,13 @@ export default function PracticePage() {
             <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
               <div>
                 <p className="text-sm font-semibold uppercase tracking-wide text-indigo-700">
-                  Tap latency calibration
+                  点击延迟校准
                 </p>
                 <h3 className="mt-1 text-xl font-bold text-indigo-950">
-                  Session-only calibration estimate
+                  仅当前会话的校准估计
                 </h3>
                 <p className="mt-2 text-sm leading-6 text-indigo-900">
-                  This helps adjust browser/keyboard tap timing. This is not a
-                  rhythm score. No microphone onset detection yet. Not saved to
-                  account or database.
+                  这有助于调整浏览器 / 键盘点击时序。它不是节奏分数。尚无麦克风起音检测。不会保存到账号或数据库。
                 </p>
               </div>
               <label className="rounded-2xl border border-indigo-200 bg-indigo-50 p-3 text-sm font-semibold text-indigo-950">
@@ -2282,32 +2271,32 @@ export default function PracticePage() {
                   disabled={latencyCalibrationResult.offsetMs === null}
                   className="mr-2"
                 />
-                Apply session latency calibration
+                应用当前会话延迟校准
                 <span className="mt-1 block font-normal text-indigo-800">
                   {activeLatencyOffsetMs !== 0
-                    ? `Feedback adjusted by ${Math.round(activeLatencyOffsetMs)}ms estimate.`
-                    : "Off or waiting for an estimate."}
+                    ? `反馈已按 ${Math.round(activeLatencyOffsetMs)}ms 估计值调整。`
+                    : "已关闭或正在等待估计值。"}
                 </span>
               </label>
             </div>
 
             <div className="mt-4 grid gap-3 text-sm md:grid-cols-4">
               <div className="rounded-2xl bg-indigo-50 p-3 ring-1 ring-indigo-100">
-                <p className="font-semibold text-indigo-950">Status</p>
+                <p className="font-semibold text-indigo-950">状态</p>
                 <p className="mt-1 text-indigo-800">
                   {latencyCalibrationResult.status}
                 </p>
               </div>
               <div className="rounded-2xl bg-indigo-50 p-3 ring-1 ring-indigo-100">
-                <p className="font-semibold text-indigo-950">Samples</p>
+                <p className="font-semibold text-indigo-950">样本</p>
                 <p className="mt-1 text-indigo-800">
-                  {latencyCalibrationResult.acceptedSampleCount} accepted /{" "}
-                  {latencyCalibrationResult.sampleCount} taps
+                  {latencyCalibrationResult.acceptedSampleCount} 个已接受 /{" "}
+                  {latencyCalibrationResult.sampleCount} 次点击
                 </p>
               </div>
               <div className="rounded-2xl bg-indigo-50 p-3 ring-1 ring-indigo-100">
                 <p className="font-semibold text-indigo-950">
-                  Estimated offset
+                  估计偏移
                 </p>
                 <p className="mt-1 text-indigo-800">
                   {latencyCalibrationResult.offsetMs === null
@@ -2316,7 +2305,7 @@ export default function PracticePage() {
                 </p>
               </div>
               <div className="rounded-2xl bg-indigo-50 p-3 ring-1 ring-indigo-100">
-                <p className="font-semibold text-indigo-950">Stability hint</p>
+                <p className="font-semibold text-indigo-950">稳定性提示</p>
                 <p className="mt-1 text-indigo-800">
                   {latencyCalibrationResult.stabilityHint}
                 </p>
@@ -2333,7 +2322,7 @@ export default function PracticePage() {
                 }
                 className="rounded-full bg-indigo-700 px-4 py-2 text-sm font-semibold text-white disabled:bg-indigo-300"
               >
-                Start calibration
+                开始校准
               </button>
               <button
                 type="button"
@@ -2344,14 +2333,14 @@ export default function PracticePage() {
                 }
                 className="rounded-full border border-indigo-300 bg-white px-4 py-2 text-sm font-semibold text-indigo-800 disabled:text-slate-400"
               >
-                Stop calibration
+                停止校准
               </button>
               <button
                 type="button"
                 onClick={handleResetLatencyCalibration}
                 className="rounded-full border border-indigo-300 bg-white px-4 py-2 text-sm font-semibold text-indigo-800"
               >
-                Reset calibration
+                重置校准
               </button>
               <button
                 type="button"
@@ -2359,7 +2348,7 @@ export default function PracticePage() {
                 disabled={latencyCalibrationPhase !== "practice"}
                 className="rounded-full bg-white px-5 py-2 text-sm font-bold text-indigo-900 ring-1 ring-indigo-300 disabled:text-slate-400"
               >
-                Calibration tap / Spacebar
+                校准点击 / 空格键
               </button>
             </div>
             {latencyCalibrationError ? (
@@ -2368,20 +2357,16 @@ export default function PracticePage() {
               </p>
             ) : null}
             <p className="mt-3 text-sm leading-6 text-indigo-900">
-              Calibration uses browser-local input timestamps against
-              quarter-note click targets after count-in. It only estimates a
-              session-level tap offset; it does not measure audio hardware
-              round-trip latency, formal assessment accuracy, microphone or
-              instrument onset timing.
+              校准使用浏览器本地输入时间戳，与预备拍后的四分音符点击目标对齐。它只估计当前会话级点击偏移；不测量音频硬件往返延迟、正式评测准确度、麦克风或乐器起音时序。
             </p>
           </div>
 
           <div className="mt-5 rounded-2xl border border-violet-200 bg-white p-4">
             <h3 className="font-bold text-violet-950">
-              Practice feedback log（本轮 session-only）
+              练习反馈日志（本轮仅当前会话）
             </h3>
             <p className="mt-2 text-sm font-semibold text-violet-800">
-              Pattern: {rhythmTargetPatternLabels[rhythmTargetPattern]} ·{" "}
+              模式：{rhythmTargetPatternLabels[rhythmTargetPattern]} ·{" "}
               {rhythmTargetPatternTapGuidance[rhythmTargetPattern]}
             </p>
             {rhythmFeedbackSummary.feedback.length > 0 ? (
@@ -2397,7 +2382,7 @@ export default function PracticePage() {
                       <span className="ml-2">{item.message}</span>
                       {item.offsetMs !== null ? (
                         <span className="ml-2 text-violet-700">
-                          offset {Math.round(item.offsetMs)}ms
+                          偏移 {Math.round(item.offsetMs)}ms
                         </span>
                       ) : null}
                     </li>
@@ -2407,16 +2392,13 @@ export default function PracticePage() {
               <p className="mt-3 text-sm text-violet-800">
                 {rhythmPhase === "practice"
                   ? "等待 tap。"
-                  : "开始后先听 count-in；practice phase 的 tap 才会进入反馈。"}
+                  : "开始后先听预备拍；练习阶段的点击才会进入反馈。"}
               </p>
             )}
           </div>
 
           <p className="mt-4 text-sm leading-6 text-violet-900">
-            时间戳来自浏览器本地输入事件，可能受键盘、浏览器与设备 latency
-            影响；P25 只做 session-only tap latency calibration estimate，不做
-            microphone onset detection、audio hardware round-trip
-            measurement，不上传音频，也不写入 persistent rhythm history。
+            时间戳来自浏览器本地输入事件，可能受键盘、浏览器与设备延迟影响；P25 只做仅当前会话的点击延迟校准估计，不做麦克风起音检测、音频硬件往返测量，不上传音频，也不写入持久节奏历史。
           </p>
         </section>
 
@@ -2424,39 +2406,34 @@ export default function PracticePage() {
           <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
             <div>
               <p className="text-sm font-semibold uppercase tracking-wide text-orange-700">
-                Audio Onset Detection Foundation
+                音频起音检测基础
               </p>
               <h2 className="mt-1 text-2xl font-bold text-orange-950">
-                Browser-local audio onset research panel
+                浏览器本地音频起音研究面板
               </h2>
               <p className="mt-2 max-w-3xl text-sm leading-6 text-orange-900">
-                Detect onsets from the latest local recording as research /
-                practice foundation for future human voice rhythm training,
-                piano, guitar / plucked instruments, percussion, and other
-                short-attack instruments.
+                从最新本地录音中检测起音，作为未来人声节奏训练、钢琴、吉他 / 拨弦乐器、打击乐和其他短起音乐器的研究 / 练习基础。
               </p>
               <p className="mt-3 rounded-2xl border border-amber-200 bg-amber-50 p-3 text-sm font-semibold text-amber-800">
-                This is not a rhythm score. This is not rhythm scoring. No
-                pass/fail, grade, or accuracy percentage. No upload / cloud /
-                AI, account, database, or persistent rhythm history.
+                这不是节奏分数，也不是节奏评分。没有通过/失败、等级或准确率百分比。不上传、不使用云端 / AI、无账号、无数据库，也无持久节奏历史。
               </p>
             </div>
             <div className="rounded-2xl border border-orange-200 bg-white p-4 text-sm text-orange-950 shadow-sm lg:min-w-64">
-              <p className="font-semibold">Detected onset candidates</p>
+              <p className="font-semibold">检测到的起音候选</p>
               <p className="mt-2 text-3xl font-bold">
                 {audioOnsetResult ? audioOnsetResult.onsetCount : "—"}
               </p>
               <p className="mt-1 font-medium">
                 {recordedAudioBlob
-                  ? "Latest local recording available"
-                  : "Record locally first"}
+                  ? "已有最新本地录音"
+                  : "请先本地录音"}
               </p>
             </div>
           </div>
 
           <div className="mt-5 rounded-2xl border border-orange-200 bg-white p-4">
             <p className="text-sm font-bold text-orange-950">
-              Onset sensitivity preset
+              起音灵敏度预设
             </p>
             <div className="mt-3 grid gap-2 text-sm md:grid-cols-3">
               {audioOnsetSensitivityOptions.map((preset) => (
@@ -2481,12 +2458,7 @@ export default function PracticePage() {
               ))}
             </div>
             <p className="mt-3 text-sm leading-6 text-orange-900">
-              Sensitive may detect weaker onsets but can add extra candidates.
-              Conservative may reduce extra candidates but can miss weak onsets.
-              This is diagnostic, not scoring. Voice and sustained instruments
-              may still need future tuning. Change the preset, then click Detect
-              onsets again to re-run browser-local detection on the latest local
-              recording.
+              灵敏模式可能检测到更弱的起音，但也可能增加额外候选。保守模式可能减少额外候选，但也可能漏掉较弱起音。本功能仅用于诊断，不用于评分。人声和延音乐器未来可能仍需调校。修改预设后，请再次点击检测按钮，在最新本地录音上重新运行浏览器本地检测。
             </p>
           </div>
 
@@ -2498,11 +2470,11 @@ export default function PracticePage() {
               className="rounded-full bg-orange-700 px-4 py-2 text-sm font-semibold text-white disabled:bg-orange-300"
             >
               {isDetectingAudioOnsets
-                ? "Detecting onsets locally…"
-                : "Detect onsets from latest local recording"}
+                ? "正在本地检测起音…"
+                : "从最新本地录音检测起音"}
             </button>
             <span className="rounded-full border border-orange-200 bg-white px-4 py-2 text-sm font-semibold text-orange-800">
-              Candidate detection only · diagnostic confidence only
+              仅候选检测 · 仅诊断置信度
             </span>
           </div>
 
@@ -2513,31 +2485,29 @@ export default function PracticePage() {
           ) : null}
           {!audioOnsetResult ? (
             <div className="mt-5 rounded-2xl border border-dashed border-orange-300 bg-white p-4 text-sm text-orange-900">
-              <p className="font-bold text-orange-950">No onset timeline yet</p>
+              <p className="font-bold text-orange-950">还没有起音时间线</p>
               <p className="mt-2">
-                Detect onsets from latest local recording to preview onset
-                strength. This is a browser-local diagnostic preview, not
-                scoring.
+                从最新本地录音检测起音，以预览起音强度。这是浏览器本地诊断预览，不用于评分。
               </p>
             </div>
           ) : null}
           {audioOnsetResult ? (
             <div className="mt-5 grid gap-3 text-sm lg:grid-cols-[0.8fr_1.2fr]">
               <div className="rounded-2xl bg-white p-4 ring-1 ring-orange-200">
-                <p className="font-bold text-orange-950">Diagnostic summary</p>
+                <p className="font-bold text-orange-950">诊断摘要</p>
                 <p className="mt-2 text-orange-900">
                   {audioOnsetResult.diagnosticSummary}
                 </p>
                 <p className="mt-2 text-orange-800">
-                  preset {audioOnsetResult.sensitivityPreset} · threshold{" "}
-                  {audioOnsetResult.threshold.toFixed(4)} · max strength{" "}
-                  {audioOnsetResult.maxStrength.toFixed(4)} · min gap{" "}
+                  预设 {audioOnsetResult.sensitivityPreset} · 阈值{" "}
+                  {audioOnsetResult.threshold.toFixed(4)} · 最大强度{" "}
+                  {audioOnsetResult.maxStrength.toFixed(4)} · 最小间隔{" "}
                   {audioOnsetResult.minOnsetGapMs}ms
                 </p>
                 <p className="mt-2 text-orange-800">
-                  sampleRate {audioOnsetResult.sampleRate} Hz · duration{" "}
-                  {audioOnsetResult.durationMs.toFixed(0)}ms · frame{" "}
-                  {audioOnsetResult.frameSize} · hop {audioOnsetResult.hopSize}
+                  采样率 {audioOnsetResult.sampleRate} Hz · 时长{" "}
+                  {audioOnsetResult.durationMs.toFixed(0)}ms · 帧{" "}
+                  {audioOnsetResult.frameSize} · 步长 {audioOnsetResult.hopSize}
                 </p>
                 {audioOnsetResult.warnings.length > 0 ? (
                   <ul className="mt-2 list-disc space-y-1 pl-5 text-orange-800">
@@ -2557,7 +2527,7 @@ export default function PracticePage() {
               />
               <div className="rounded-2xl bg-white p-4 ring-1 ring-orange-200">
                 <p className="font-bold text-orange-950">
-                  Detected onset times
+                  检测到的起音时间
                 </p>
                 {audioOnsetResult.candidates.length > 0 ? (
                   <ul className="mt-2 grid gap-2 sm:grid-cols-2">
@@ -2578,13 +2548,13 @@ export default function PracticePage() {
                             }
                             className="text-left font-bold text-orange-950 underline decoration-orange-300 underline-offset-2"
                           >
-                            Marker #{candidateIndex + 1} ·{" "}
+                            标记 #{candidateIndex + 1} ·{" "}
                             {candidate.onsetTimeMs.toFixed(0)}ms
                           </button>
                           <span className="ml-2">
-                            {candidate.confidence} diagnostic confidence ·
-                            candidateIndex {candidateIndex} · strength{" "}
-                            {candidate.strength.toFixed(4)} · threshold{" "}
+                            {candidate.confidence} 诊断置信度 ·
+                            候选索引 {candidateIndex} · 强度{" "}
+                            {candidate.strength.toFixed(4)} · 阈值{" "}
                             {candidate.threshold.toFixed(4)}
                           </span>
                         </li>
@@ -2592,7 +2562,7 @@ export default function PracticePage() {
                   </ul>
                 ) : (
                   <p className="mt-2 text-orange-800">
-                    No onset candidates above diagnostic threshold.
+                    没有超过诊断阈值的起音候选。
                   </p>
                 )}
               </div>
@@ -2609,9 +2579,7 @@ export default function PracticePage() {
 
           <p className="mt-4 text-sm leading-6 text-orange-900">
             当前限制：人声、长笛、小提琴、连音、弱起音、强噪声环境可能更难检测；本阶段不做
-            instrument-specific tuning、noise reduction、formal rhythm
-            assessment。P28 adds recording-start and first-onset alignment modes
-            for non-scoring rhythm feedback matching。
+            特定乐器调校、降噪、正式节奏评测。P28 加入录音开始与首个起音两种对齐模式，用于不评分的节奏反馈匹配。
           </p>
         </section>
 
