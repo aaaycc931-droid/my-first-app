@@ -193,10 +193,10 @@ for (const item of [close, early, late, missedWithTapElsewhere, waiting]) {
 assert.equal(hasRhythmScoringFields(eighthTargets[0] ?? {}), false);
 
 const practicePage = readFileSync("app/practice/page.tsx", "utf8");
-assert.match(practicePage, /Quarter-note pulse/);
-assert.match(practicePage, /Eighth-note pulse/);
-assert.match(practicePage, /Non-scoring practice feedback only/);
-assert.match(practicePage, /Pattern:/);
+assert.match(practicePage, /四分音符脉冲/);
+assert.match(practicePage, /八分音符脉冲/);
+assert.match(practicePage, /仅提供不评分的练习反馈/);
+assert.match(practicePage, /模式：/);
 assert.doesNotMatch(practicePage, /accuracyPercentage/);
 
 assert.equal(createCountInBeatGrid({ config, startTimeSeconds: 0 }).length, 4);

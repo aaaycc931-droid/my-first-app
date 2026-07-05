@@ -214,17 +214,17 @@ assert.equal(
 
 const practicePage = readFileSync("app/practice/page.tsx", "utf8");
 const audioOnsetTimelinePreview = readFileSync("components/practice/AudioOnsetTimelinePreview.tsx", "utf8");
-assert.match(practicePage, /Audio Onset Detection Foundation/);
-assert.match(practicePage, /No upload \/ cloud \/ AI/);
-assert.match(practicePage, /This is not rhythm scoring/);
-assert.match(practicePage, /Onset sensitivity preset/);
-assert.match(practicePage, /Sensitive may detect weaker onsets/);
-assert.match(practicePage, /Conservative may reduce extra candidates/);
+assert.match(practicePage, /音频起音检测基础/);
+assert.match(practicePage, /不上传/);
+assert.match(practicePage, /不是节奏评分/);
+assert.match(practicePage, /起音灵敏度预设/);
+assert.match(practicePage, /灵敏模式可能检测到更弱的起音/);
+assert.match(practicePage, /保守模式可能减少额外候选/);
 assert.match(`${practicePage}
 ${audioOnsetTimelinePreview}`, /threshold/);
 assert.match(`${practicePage}
-${audioOnsetTimelinePreview}`, /Onset strength timeline preview/);
-assert.match(practicePage, /No onset timeline yet/);
+${audioOnsetTimelinePreview}`, /起音强度时间线预览/);
+assert.match(practicePage, /还没有起音时间线/);
 assert.match(`${practicePage}
-${audioOnsetTimelinePreview}`, /Timeline preview is downsampled/);
+${audioOnsetTimelinePreview}`, /时间线预览已降采样/);
 assert.doesNotMatch(practicePage, /accuracyPercentage/);

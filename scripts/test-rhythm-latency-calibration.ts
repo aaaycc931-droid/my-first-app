@@ -144,9 +144,9 @@ const importedFeedback = getNonScoringImportedTargetPitchFeedback({
 assert.equal("score" in importedFeedback, false);
 
 const practicePage = readFileSync("app/practice/page.tsx", "utf8");
-assert.match(practicePage, /Tap latency calibration/);
-assert.match(practicePage, /Session-only calibration/);
-assert.match(practicePage, /This is not a rhythm score/);
-assert.match(practicePage, /No microphone onset detection yet/);
-assert.match(practicePage, /Apply session latency calibration/);
+assert.match(practicePage, /点击延迟校准/);
+assert.match(practicePage, /仅当前会话的校准/);
+assert.match(practicePage, /不是节奏分数/);
+assert.match(practicePage, /尚无麦克风起音检测/);
+assert.match(practicePage, /应用当前会话延迟校准/);
 assert.doesNotMatch(practicePage, /accuracyPercentage/);

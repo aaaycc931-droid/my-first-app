@@ -27,30 +27,30 @@ export function LocalMelodyGuideAudioImportPanel({
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div>
           <p className="text-sm font-semibold uppercase tracking-wide text-cyan-700">
-            P36 browser-local foundation
+            P36 浏览器本地基础
           </p>
           <h2 className="mt-1 text-2xl font-bold text-cyan-950">
-            Local Melody Guide Audio Import
+            本地旋律参考音频导入
           </h2>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-cyan-900">
-            Select a local audio file to use as the melody guide source for future target pitch curve drafting. {localMelodyGuideBrowserDecodeSupportCopy}
+            选择一个本地音频文件，作为后续目标音高曲线草稿的旋律参考来源。{localMelodyGuideBrowserDecodeSupportCopy}
           </p>
           <p className="mt-3 text-sm font-semibold text-cyan-900">
             {localMelodyGuideBestSourceCopy}
           </p>
         </div>
         <div className="rounded-2xl border border-cyan-200 bg-white p-4 text-sm text-cyan-950 shadow-sm lg:min-w-64">
-          <p className="font-semibold">Browser decode status</p>
-          <p className="mt-2 text-3xl font-bold">{source?.status ?? "idle"}</p>
+          <p className="font-semibold">浏览器解码状态</p>
+          <p className="mt-2 text-3xl font-bold">{source?.status ?? "空闲"}</p>
           <p className="mt-1 font-medium">
-            {source ? "Session-only melody guide source" : "No local guide selected"}
+            {source ? "仅当前会话的旋律参考来源" : "尚未选择本地参考音频"}
           </p>
         </div>
       </div>
 
       <div className="mt-5 rounded-2xl border border-cyan-200 bg-white p-4">
         <label className="block text-sm font-bold text-cyan-950">
-          Choose local melody guide audio
+          选择本地旋律参考音频
           <input
             ref={inputRef}
             type="file"
@@ -66,10 +66,10 @@ export function LocalMelodyGuideAudioImportPanel({
             disabled={!source}
             className="rounded-full border border-cyan-300 bg-white px-4 py-2 text-sm font-semibold text-cyan-800 disabled:text-slate-400"
           >
-            Clear / reset local guide
+            清除 / 重置本地参考
           </button>
           <span className="rounded-full border border-amber-200 bg-amber-50 px-4 py-2 text-sm font-semibold text-amber-800">
-            Melody guide source only · not formal scoring
+            仅作为旋律参考来源 · 不用于正式评分
           </span>
         </div>
       </div>
@@ -77,19 +77,19 @@ export function LocalMelodyGuideAudioImportPanel({
       {source ? (
         <div className="mt-5 grid gap-3 text-sm md:grid-cols-3">
           <div className="rounded-2xl bg-white p-4 ring-1 ring-cyan-200">
-            <p className="font-semibold text-cyan-950">Selected file</p>
+            <p className="font-semibold text-cyan-950">已选文件</p>
             <p className="mt-2 break-words text-cyan-800">{source.fileName}</p>
           </div>
           <div className="rounded-2xl bg-white p-4 ring-1 ring-cyan-200">
-            <p className="font-semibold text-cyan-950">File metadata</p>
+            <p className="font-semibold text-cyan-950">文件元数据</p>
             <p className="mt-2 text-cyan-800">
               {source.fileType} · {source.fileSizeLabel}
             </p>
           </div>
           <div className="rounded-2xl bg-white p-4 ring-1 ring-cyan-200">
-            <p className="font-semibold text-cyan-950">Decoded metadata</p>
+            <p className="font-semibold text-cyan-950">已解码元数据</p>
             <p className="mt-2 text-cyan-800">
-              Duration {source.decodedDurationSeconds === null ? "—" : `${source.decodedDurationSeconds.toFixed(2)}s`} · Sample rate {source.sampleRate ?? "—"} Hz · Channels {source.channelCount ?? "—"}
+              时长 {source.decodedDurationSeconds === null ? "—" : `${source.decodedDurationSeconds.toFixed(2)}s`} · 采样率 {source.sampleRate ?? "—"} Hz · 声道数 {source.channelCount ?? "—"}
             </p>
           </div>
         </div>
@@ -101,28 +101,28 @@ export function LocalMelodyGuideAudioImportPanel({
 
       <div className="mt-5 grid gap-3 text-sm lg:grid-cols-2">
         <div className="rounded-2xl border border-cyan-200 bg-white p-4">
-          <p className="font-bold text-cyan-950">MVP boundaries</p>
+          <p className="font-bold text-cyan-950">MVP 边界</p>
           <ul className="mt-2 list-disc space-y-1 pl-5 text-cyan-900">
             {localMelodyGuideLocalOnlyCopy.map((item) => (
               <li key={item}>{item}</li>
             ))}
-            <li>No private cloud song analysis in P36.</li>
-            <li>No target pitch curve generation until P37.</li>
+            <li>P36 不做私有云歌曲分析。</li>
+            <li>P37 之前不生成目标音高曲线。</li>
           </ul>
         </div>
         <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
-          <p className="font-bold text-amber-900">Source guidance</p>
+          <p className="font-bold text-amber-900">来源建议</p>
           <ul className="mt-2 list-disc space-y-1 pl-5 text-amber-800">
             <li>{localMelodyGuideBestSourceCopy}</li>
-            <li>Full mixed songs should wait for future private cloud song analysis.</li>
-            <li>Audio stays in browser for this MVP.</li>
+            <li>完整混音歌曲应等待未来私有云歌曲分析。</li>
+            <li>本 MVP 中音频保留在浏览器内。</li>
           </ul>
         </div>
       </div>
 
       {source?.warnings.length ? (
         <div className="mt-5 rounded-2xl border border-amber-200 bg-white p-4 text-sm">
-          <p className="font-bold text-amber-900">Warnings</p>
+          <p className="font-bold text-amber-900">警告</p>
           <ul className="mt-2 list-disc space-y-1 pl-5 text-amber-800">
             {source.warnings.map((warning) => (
               <li key={warning}>{warning}</li>

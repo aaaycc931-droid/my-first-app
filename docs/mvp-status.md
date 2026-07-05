@@ -739,3 +739,11 @@ Boundaries preserved: this does not add formal scoring, rhythm scoring, sight-si
 - P40 does not create a final target, does not create an official transcription, does not add scoring, does not add a persistent reviewed target or target library, does not add upload/cloud/account/database/API behavior, does not modify `/api/recognize`, does not add source separation/full-song extraction/phrase or note segmentation/editor/timeline/rhythm alignment/formal melody alignment, does not change parser/converter behavior, does not change piano runtime, and does not add dependencies.
 - 2026-07-05: User-reported real-browser QA on a Vercel Preview passed for the P40 core flow: `/practice` opened, local melody guide audio imported, the local target pitch curve draft generated, P39 review controls switched, the P40 action became clickable after selecting `Full draft`, the temporary reviewed draft practice target panel appeared, clear behavior worked, and local-guide/new-file/regenerate/reset/invalid-range cleanup behaved normally or safely. QA also confirmed no observed final target, official transcription, scoring, accuracy grade, pass/fail, persistent target/library, cloud/upload/account/database behavior, source separation, full-song extraction, or automatic playback/recording/pitch-estimation/scoring behavior. See `docs/p40-manual-browser-qa.md`.
 - The same QA found a product follow-up: `/practice` still has substantial English user-visible UI copy. Because the product is aimed at Chinese users, the next product step should prioritize Chinese UI copy unification and recording a project language rule before new feature work.
+
+## P40fix 中文 UI 文案统一与项目语言规则
+
+- 2026-07-05: P40fix 只统一 `/practice` 用户可见 UI 文案与记录项目语言规则，不进入 P40b 或任何功能扩展。
+- 项目默认面向中文用户；用户可见 UI 文案默认必须使用简体中文。
+- 英文只允许用于代码、类型名、开发者内部说明、必要技术标识，以及不可避免的技术缩写或数据标识（例如 BPM、Hz、ms、Web Audio、localStorage、IndexedDB）。
+- 未来新增功能不得继续加入英文用户可见 copy，除非用户明确要求。
+- P40fix 不改变 P40 target creation semantics，不改变 P40 gating，不改变 helper semantics，不新增功能，不新增 dependency，不新增 scoring、final target、official transcription、cloud/upload/account/database/API 行为。
