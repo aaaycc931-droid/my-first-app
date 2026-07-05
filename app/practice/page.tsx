@@ -51,6 +51,7 @@ import { LocalMelodyGuideAudioImportPanel } from "../../components/practice/Loca
 import { LocalTargetPitchCurveDraftPanel } from "../../components/practice/LocalTargetPitchCurveDraftPanel";
 import { LocalTargetPitchCurveReviewPreviewPanel } from "../../components/practice/LocalTargetPitchCurveReviewPreviewPanel";
 import { LocalTargetPitchCurveDraftReviewControlsPanel } from "../../components/practice/LocalTargetPitchCurveDraftReviewControlsPanel";
+import { LocalReviewedDraftPracticeTargetPanel } from "../../components/practice/LocalReviewedDraftPracticeTargetPanel";
 import { getNonScoringImportedTargetPitchFeedback } from "../../lib/practice/nonScoringImportedTargetPitchFeedback";
 import {
   createLocalTargetPitchCurveDraft,
@@ -61,6 +62,11 @@ import {
   getLocalTargetPitchCurveDraftSelectedDiagnostics,
   type LocalTargetPitchCurveDraftReviewSelection,
 } from "../../lib/practice/localTargetPitchCurveDraftReviewControls";
+import {
+  canCreateLocalReviewedDraftPracticeTarget,
+  createLocalReviewedDraftPracticeTarget,
+  type LocalReviewedDraftPracticeTarget,
+} from "../../lib/practice/localReviewedDraftPracticeTarget";
 import { mockMelodyTargetCurveExample } from "../../lib/practice/mock-melody-target-segments.example";
 import { researchTargetCurvePreviewExample } from "../../lib/practice/research-target-curve-preview.example";
 import {
@@ -424,10 +430,16 @@ export default function PracticePage() {
     useState<LocalMelodyGuideDecodedAudio | null>(null);
   const [localTargetPitchCurveDraft, setLocalTargetPitchCurveDraft] =
     useState<LocalTargetPitchCurveDraft | null>(null);
-  const [localTargetPitchCurveDraftReviewSelection, setLocalTargetPitchCurveDraftReviewSelection] =
-    useState<LocalTargetPitchCurveDraftReviewSelection>(() =>
-      createDefaultLocalTargetPitchCurveDraftReviewSelection(),
-    );
+  const [
+    localTargetPitchCurveDraftReviewSelection,
+    setLocalTargetPitchCurveDraftReviewSelection,
+  ] = useState<LocalTargetPitchCurveDraftReviewSelection>(() =>
+    createDefaultLocalTargetPitchCurveDraftReviewSelection(),
+  );
+  const [
+    localReviewedDraftPracticeTarget,
+    setLocalReviewedDraftPracticeTarget,
+  ] = useState<LocalReviewedDraftPracticeTarget | null>(null);
   const metronomeSchedulerRef = useRef<BrowserMetronomeScheduler | null>(null);
   const rhythmSchedulerRef = useRef<BrowserMetronomeScheduler | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -459,17 +471,23 @@ export default function PracticePage() {
   const localMelodyGuideRunIdRef = useRef(0);
 
   const localTargetPitchCurveDraftSelectedDiagnostics = useMemo(
-    () => getLocalTargetPitchCurveDraftSelectedDiagnostics(
-      localTargetPitchCurveDraft,
-      localTargetPitchCurveDraftReviewSelection,
-    ),
+    () =>
+      getLocalTargetPitchCurveDraftSelectedDiagnostics(
+        localTargetPitchCurveDraft,
+        localTargetPitchCurveDraftReviewSelection,
+      ),
     [localTargetPitchCurveDraft, localTargetPitchCurveDraftReviewSelection],
   );
+
+  const clearLocalReviewedDraftPracticeTarget = () => {
+    setLocalReviewedDraftPracticeTarget(null);
+  };
 
   const resetLocalTargetPitchCurveDraftReviewSelection = () => {
     setLocalTargetPitchCurveDraftReviewSelection(
       createDefaultLocalTargetPitchCurveDraftReviewSelection(),
     );
+    clearLocalReviewedDraftPracticeTarget();
   };
 
   const currentMelodyStep =
@@ -510,6 +528,36 @@ export default function PracticePage() {
   const importedTargetPitchFeedbackMayBeStale =
     Boolean(pitchEstimateResult && selectedImportedSegment) &&
     pitchEstimateImportedSegmentKey !== selectedImportedSegmentKey;
+
+  const canUseReviewedDraftAsTemporaryPracticeTarget =
+    Boolean(localTargetPitchCurveDraft) &&
+    canCreateLocalReviewedDraftPracticeTarget(
+      localTargetPitchCurveDraftSelectedDiagnostics,
+    );
+
+  const localReviewedDraftPitchFeedback = localReviewedDraftPracticeTarget
+    ? getNonScoringImportedTargetPitchFeedback({
+        targetFrequencyHz:
+          localReviewedDraftPracticeTarget.referenceFrequencyHz,
+        estimatedFrequencyHz: pitchEstimateResult?.estimatedFrequencyHz,
+        confidence: pitchEstimateResult?.confidence,
+        validPitchFrames: pitchEstimateResult?.validPitchFrames,
+      })
+    : null;
+
+  useEffect(() => {
+    if (
+      localReviewedDraftPracticeTarget &&
+      !canCreateLocalReviewedDraftPracticeTarget(
+        localTargetPitchCurveDraftSelectedDiagnostics,
+      )
+    ) {
+      clearLocalReviewedDraftPracticeTarget();
+    }
+  }, [
+    localReviewedDraftPracticeTarget,
+    localTargetPitchCurveDraftSelectedDiagnostics,
+  ]);
 
   const pitchComparisonResult = useMemo<PitchComparisonResult | null>(() => {
     const targetFrequencyHz = noteFrequencies[selectedTargetNote];
@@ -602,8 +650,12 @@ export default function PracticePage() {
 
   const audioOnsetTimelineDurationMs = Math.max(
     audioOnsetResult?.durationMs ?? 0,
-    ...audioOnsetRhythmFeedback.targetMarkers.map((marker) => marker.targetTimeMs),
-    ...audioOnsetRhythmFeedback.timelineMarkers.map((marker) => marker.displayTimeMs),
+    ...audioOnsetRhythmFeedback.targetMarkers.map(
+      (marker) => marker.targetTimeMs,
+    ),
+    ...audioOnsetRhythmFeedback.timelineMarkers.map(
+      (marker) => marker.displayTimeMs,
+    ),
     1,
   );
 
@@ -773,7 +825,6 @@ export default function PracticePage() {
     [],
   );
 
-
   const handleLocalMelodyGuideFileChange = async (
     event: React.ChangeEvent<HTMLInputElement>,
   ) => {
@@ -784,6 +835,7 @@ export default function PracticePage() {
     setLocalMelodyGuideDecodedAudio(null);
     setLocalTargetPitchCurveDraft(null);
     resetLocalTargetPitchCurveDraftReviewSelection();
+    clearLocalReviewedDraftPracticeTarget();
 
     if (!file) {
       setLocalMelodyGuideSource(null);
@@ -800,10 +852,7 @@ export default function PracticePage() {
       const audioData = await file.arrayBuffer();
       const audioBuffer = await audioContext.decodeAudioData(audioData);
 
-      if (
-        isMountedRef.current &&
-        runId === localMelodyGuideRunIdRef.current
-      ) {
+      if (isMountedRef.current && runId === localMelodyGuideRunIdRef.current) {
         setLocalMelodyGuideSource(
           applyLocalMelodyGuideDecodedMetadata(selectedSummary, {
             decodedDurationSeconds: audioBuffer.duration,
@@ -820,10 +869,7 @@ export default function PracticePage() {
         });
       }
     } catch {
-      if (
-        isMountedRef.current &&
-        runId === localMelodyGuideRunIdRef.current
-      ) {
+      if (isMountedRef.current && runId === localMelodyGuideRunIdRef.current) {
         setLocalMelodyGuideSource({ ...selectedSummary, status: "error" });
         setLocalMelodyGuideDecodeError(
           "This browser could not decode the selected local melody guide audio. Try another WAV, MP3, or M4A file supported by this browser.",
@@ -843,26 +889,35 @@ export default function PracticePage() {
     setLocalMelodyGuideDecodedAudio(null);
     setLocalTargetPitchCurveDraft(null);
     resetLocalTargetPitchCurveDraftReviewSelection();
+    clearLocalReviewedDraftPracticeTarget();
     if (localMelodyGuideInputRef.current) {
       localMelodyGuideInputRef.current.value = "";
     }
   };
 
-
   const handleGenerateLocalTargetPitchCurveDraft = () => {
     if (!localMelodyGuideDecodedAudio?.analysisReady) {
       setLocalTargetPitchCurveDraft(null);
       resetLocalTargetPitchCurveDraftReviewSelection();
+      clearLocalReviewedDraftPracticeTarget();
       return;
     }
 
     resetLocalTargetPitchCurveDraftReviewSelection();
+    clearLocalReviewedDraftPracticeTarget();
     setLocalTargetPitchCurveDraft(
       createLocalTargetPitchCurveDraft(
         localMelodyGuideDecodedAudio.channelData,
         localMelodyGuideDecodedAudio.sampleRate,
       ),
     );
+  };
+
+  const handleUseSelectedReviewRangeAsTemporaryPracticeTarget = () => {
+    const target = createLocalReviewedDraftPracticeTarget(
+      localTargetPitchCurveDraftSelectedDiagnostics,
+    );
+    setLocalReviewedDraftPracticeTarget(target);
   };
 
   const handleResetRhythmPractice = () => {
@@ -1822,7 +1877,6 @@ export default function PracticePage() {
           </section>
         </div>
 
-
         <LocalMelodyGuideAudioImportPanel
           source={localMelodyGuideSource}
           decodeError={localMelodyGuideDecodeError}
@@ -1846,38 +1900,87 @@ export default function PracticePage() {
           diagnostics={localTargetPitchCurveDraftSelectedDiagnostics}
           hasDraft={Boolean(localTargetPitchCurveDraft)}
           onUseFullDraft={() =>
-            setLocalTargetPitchCurveDraftReviewSelection((currentSelection) => ({
-              ...currentSelection,
-              mode: "full-draft",
-            }))
+            setLocalTargetPitchCurveDraftReviewSelection(
+              (currentSelection) => ({
+                ...currentSelection,
+                mode: "full-draft",
+              }),
+            )
           }
           onUseVoicedSpan={() =>
-            setLocalTargetPitchCurveDraftReviewSelection((currentSelection) => ({
-              ...currentSelection,
-              mode: "voiced-span",
-            }))
+            setLocalTargetPitchCurveDraftReviewSelection(
+              (currentSelection) => ({
+                ...currentSelection,
+                mode: "voiced-span",
+              }),
+            )
           }
           onUseManualFrameRange={() =>
-            setLocalTargetPitchCurveDraftReviewSelection((currentSelection) => ({
-              ...currentSelection,
-              mode: "manual-frame-range",
-            }))
+            setLocalTargetPitchCurveDraftReviewSelection(
+              (currentSelection) => ({
+                ...currentSelection,
+                mode: "manual-frame-range",
+              }),
+            )
           }
           onManualStartFrameChange={(frameIndex) =>
-            setLocalTargetPitchCurveDraftReviewSelection((currentSelection) => ({
-              ...currentSelection,
-              mode: "manual-frame-range",
-              manualStartFrame: frameIndex,
-            }))
+            setLocalTargetPitchCurveDraftReviewSelection(
+              (currentSelection) => ({
+                ...currentSelection,
+                mode: "manual-frame-range",
+                manualStartFrame: frameIndex,
+              }),
+            )
           }
           onManualEndFrameChange={(frameIndex) =>
-            setLocalTargetPitchCurveDraftReviewSelection((currentSelection) => ({
-              ...currentSelection,
-              mode: "manual-frame-range",
-              manualEndFrame: frameIndex,
-            }))
+            setLocalTargetPitchCurveDraftReviewSelection(
+              (currentSelection) => ({
+                ...currentSelection,
+                mode: "manual-frame-range",
+                manualEndFrame: frameIndex,
+              }),
+            )
           }
           onReset={resetLocalTargetPitchCurveDraftReviewSelection}
+        />
+
+        <section className="mt-6 rounded-3xl border border-fuchsia-200 bg-white p-5 shadow-sm sm:p-6">
+          <p className="text-sm font-semibold uppercase tracking-wide text-fuchsia-700">
+            P40 safe practice integration alpha
+          </p>
+          <h2 className="mt-1 text-xl font-bold text-fuchsia-950">
+            Use reviewed selection as a temporary diagnostic target
+          </h2>
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-700">
+            This action is explicit and creates only a browser-local,
+            session-only, reviewed-selection-only, non-scoring, clearable
+            temporary practice target. It does not start playback, recording,
+            pitch estimation, or scoring.
+          </p>
+          <button
+            type="button"
+            onClick={handleUseSelectedReviewRangeAsTemporaryPracticeTarget}
+            disabled={!canUseReviewedDraftAsTemporaryPracticeTarget}
+            className="mt-4 rounded-full bg-fuchsia-700 px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:bg-slate-300"
+          >
+            Use selected review range as temporary practice target
+          </button>
+          {!canUseReviewedDraftAsTemporaryPracticeTarget ? (
+            <p className="mt-3 text-xs leading-5 text-slate-600">
+              Enable after a local draft exists, the selected review range is
+              valid, and the selected range has voiced median frequency
+              diagnostics.
+            </p>
+          ) : null}
+        </section>
+
+        <LocalReviewedDraftPracticeTargetPanel
+          target={localReviewedDraftPracticeTarget}
+          latestEstimatedPitchHz={
+            pitchEstimateResult?.estimatedFrequencyHz ?? null
+          }
+          pitchFeedback={localReviewedDraftPitchFeedback}
+          onClear={clearLocalReviewedDraftPracticeTarget}
         />
 
         <section className="mt-6 rounded-3xl border border-teal-200 bg-teal-50 p-5 shadow-sm sm:p-6">
@@ -2352,7 +2455,9 @@ export default function PracticePage() {
           </div>
 
           <div className="mt-5 rounded-2xl border border-orange-200 bg-white p-4">
-            <p className="text-sm font-bold text-orange-950">Onset sensitivity preset</p>
+            <p className="text-sm font-bold text-orange-950">
+              Onset sensitivity preset
+            </p>
             <div className="mt-3 grid gap-2 text-sm md:grid-cols-3">
               {audioOnsetSensitivityOptions.map((preset) => (
                 <label
@@ -2376,7 +2481,12 @@ export default function PracticePage() {
               ))}
             </div>
             <p className="mt-3 text-sm leading-6 text-orange-900">
-              Sensitive may detect weaker onsets but can add extra candidates. Conservative may reduce extra candidates but can miss weak onsets. This is diagnostic, not scoring. Voice and sustained instruments may still need future tuning. Change the preset, then click Detect onsets again to re-run browser-local detection on the latest local recording.
+              Sensitive may detect weaker onsets but can add extra candidates.
+              Conservative may reduce extra candidates but can miss weak onsets.
+              This is diagnostic, not scoring. Voice and sustained instruments
+              may still need future tuning. Change the preset, then click Detect
+              onsets again to re-run browser-local detection on the latest local
+              recording.
             </p>
           </div>
 
@@ -2419,7 +2529,10 @@ export default function PracticePage() {
                   {audioOnsetResult.diagnosticSummary}
                 </p>
                 <p className="mt-2 text-orange-800">
-                  preset {audioOnsetResult.sensitivityPreset} · threshold {audioOnsetResult.threshold.toFixed(4)} · max strength {audioOnsetResult.maxStrength.toFixed(4)} · min gap {audioOnsetResult.minOnsetGapMs}ms
+                  preset {audioOnsetResult.sensitivityPreset} · threshold{" "}
+                  {audioOnsetResult.threshold.toFixed(4)} · max strength{" "}
+                  {audioOnsetResult.maxStrength.toFixed(4)} · min gap{" "}
+                  {audioOnsetResult.minOnsetGapMs}ms
                 </p>
                 <p className="mt-2 text-orange-800">
                   sampleRate {audioOnsetResult.sampleRate} Hz · duration{" "}
@@ -2457,14 +2570,22 @@ export default function PracticePage() {
                         >
                           <button
                             type="button"
-                            onClick={() => setFocusedAudioOnsetCandidateIndex(candidateIndex)}
-                            onFocus={() => setFocusedAudioOnsetCandidateIndex(candidateIndex)}
+                            onClick={() =>
+                              setFocusedAudioOnsetCandidateIndex(candidateIndex)
+                            }
+                            onFocus={() =>
+                              setFocusedAudioOnsetCandidateIndex(candidateIndex)
+                            }
                             className="text-left font-bold text-orange-950 underline decoration-orange-300 underline-offset-2"
                           >
-                            Marker #{candidateIndex + 1} · {candidate.onsetTimeMs.toFixed(0)}ms
+                            Marker #{candidateIndex + 1} ·{" "}
+                            {candidate.onsetTimeMs.toFixed(0)}ms
                           </button>
                           <span className="ml-2">
-                            {candidate.confidence} diagnostic confidence · candidateIndex {candidateIndex} · strength {candidate.strength.toFixed(4)} · threshold {candidate.threshold.toFixed(4)}
+                            {candidate.confidence} diagnostic confidence ·
+                            candidateIndex {candidateIndex} · strength{" "}
+                            {candidate.strength.toFixed(4)} · threshold{" "}
+                            {candidate.threshold.toFixed(4)}
                           </span>
                         </li>
                       ))}
@@ -2489,7 +2610,8 @@ export default function PracticePage() {
           <p className="mt-4 text-sm leading-6 text-orange-900">
             当前限制：人声、长笛、小提琴、连音、弱起音、强噪声环境可能更难检测；本阶段不做
             instrument-specific tuning、noise reduction、formal rhythm
-            assessment。P28 adds recording-start and first-onset alignment modes for non-scoring rhythm feedback matching。
+            assessment。P28 adds recording-start and first-onset alignment modes
+            for non-scoring rhythm feedback matching。
           </p>
         </section>
 
