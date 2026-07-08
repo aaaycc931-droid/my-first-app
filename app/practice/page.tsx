@@ -56,6 +56,7 @@ import {
   PracticeFeatureNavigation,
   type PracticeFeatureView,
 } from "../../components/practice/PracticeFeatureNavigation";
+import { PracticeFeatureSectionHeader } from "../../components/practice/PracticeFeatureSectionHeader";
 import { getNonScoringImportedTargetPitchFeedback } from "../../lib/practice/nonScoringImportedTargetPitchFeedback";
 import {
   createLocalTargetPitchCurveDraft,
@@ -1899,6 +1900,11 @@ export default function PracticePage() {
 
         {activeFeatureView === "local-melody" ? (
           <>
+            <PracticeFeatureSectionHeader
+              eyebrow="当前功能区：本地旋律"
+              title="本地旋律流程"
+              description="按本地音频导入 → 生成目标音高曲线草稿 → 检查选区 → 创建临时练习目标的顺序完成。所有内容只保留在当前浏览器会话中。"
+            />
         <LocalMelodyGuideAudioImportPanel
           source={localMelodyGuideSource}
           decodeError={localMelodyGuideDecodeError}
@@ -2008,6 +2014,11 @@ export default function PracticePage() {
 
         {activeFeatureView === "rhythm" ? (
           <>
+            <PracticeFeatureSectionHeader
+              eyebrow="当前功能区：节拍与节奏"
+              title="非评分节奏诊断工具"
+              description="这里集中放置节拍器、点击式节奏练习和当前会话延迟校准，用于观察节奏稳定性；不提供分数、等级、通过或失败判断。"
+            />
         <section className="mt-6 rounded-3xl border border-teal-200 bg-teal-50 p-5 shadow-sm sm:p-6">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
             <div>
@@ -2437,6 +2448,11 @@ export default function PracticePage() {
 
         {activeFeatureView === "onset" ? (
           <>
+            <PracticeFeatureSectionHeader
+              eyebrow="当前功能区：起音诊断"
+              title="从最新本地录音查看起音候选"
+              description="这里用于浏览器本地起音候选检测、时间线预览和非评分节奏反馈。请先在练习反馈功能区录制一次，再回到这里检测。"
+            />
         <section className="mt-6 rounded-3xl border border-orange-200 bg-orange-50 p-5 shadow-sm sm:p-6">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
             <div>
@@ -2623,6 +2639,11 @@ export default function PracticePage() {
 
         {activeFeatureView === "feedback" ? (
           <>
+            <PracticeFeatureSectionHeader
+              eyebrow="当前功能区：练习反馈"
+              title="本次会话的录音、音高估计与反馈"
+              description="这里保留本地录音、音高估计、导入目标音高反馈与练习记录。反馈只用于诊断参考，不是评分、等级或通过 / 失败判断。"
+            />
         <section className="mt-6 rounded-2xl border border-blue-200 bg-blue-50 p-5">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
@@ -3454,25 +3475,21 @@ export default function PracticePage() {
 
               <div className="mt-4 rounded-2xl border border-teal-200 bg-teal-50 p-4">
                 <p className="text-sm font-semibold uppercase tracking-wide text-teal-700">
-                  Pitch feedback
+                  音高反馈
                 </p>
                 <h4 className="mt-1 font-bold text-teal-950">
-                  Non-scoring feedback
+                  非评分反馈
                 </h4>
                 <p className="mt-2 text-sm leading-6 text-teal-900">
                   {importedTargetPitchFeedback.message}
                 </p>
                 <p className="mt-2 rounded-xl bg-white p-3 text-sm font-semibold leading-6 text-teal-900 ring-1 ring-teal-200">
-                  This feedback uses your latest local pitch estimate and the
-                  currently selected imported segment. Record again after
-                  switching segments for the clearest result. This is practice
-                  feedback, not a score.
+                  此反馈使用最新本地音高估计与当前选中的导入片段。切换片段后如需更清晰的结果，请重新录制一次。这是练习反馈，不是评分。
                 </p>
                 {importedTargetPitchFeedbackMayBeStale ? (
                   <p className="mt-2 rounded-xl bg-amber-50 p-3 text-sm font-semibold leading-6 text-amber-800 ring-1 ring-amber-200">
-                    Segment changed after the latest local pitch estimate.
-                    Record again for the clearest feedback on this segment. This
-                    is still non-scoring practice feedback.
+                    最新本地音高估计之后已切换片段。
+                    如需更清晰地查看此片段，请重新录制一次。这里仍然只是非评分练习反馈。
                   </p>
                 ) : null}
                 <dl className="mt-3 grid gap-3 text-sm sm:grid-cols-3">
@@ -3487,7 +3504,7 @@ export default function PracticePage() {
                     <dd className="mt-1 font-bold">
                       {pitchEstimateResult
                         ? `${pitchEstimateResult.estimatedFrequencyHz.toFixed(2)} Hz`
-                        : "No reliable pitch was detected."}
+                        : "没有检测到可靠音高。"}
                     </dd>
                   </div>
                   <div className="rounded-xl bg-white p-3 ring-1 ring-teal-200">
@@ -3513,9 +3530,9 @@ export default function PracticePage() {
           ) : importedPracticeLiteActive ? (
             <section className="mt-5 rounded-3xl border border-teal-200 bg-white p-5 text-teal-950 shadow-sm">
               <p className="text-sm font-semibold uppercase tracking-wide text-teal-700">
-                Pitch feedback
+                音高反馈
               </p>
-              <h3 className="mt-1 text-xl font-bold">Non-scoring feedback</h3>
+              <h3 className="mt-1 text-xl font-bold">非评分反馈</h3>
               <p className="mt-2 text-sm leading-6 text-teal-900">
                 {importedTargetPitchFeedback.message}
               </p>
