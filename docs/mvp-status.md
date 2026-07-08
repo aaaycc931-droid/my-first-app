@@ -34,6 +34,16 @@ P30 is diagnostic / practice foundation work for future human voice and instrume
 
 # MVP status
 
+## P41a — Future Product Requirements Roadmap Update (2026-07-08)
+
+P41a is a docs-only future product roadmap update. It records that a future formal product needs a user login / account system, while the current Practice Mode MVP remains browser-local, session-only, and without account, database, cloud, upload, login UI, auth API, user table, session / token code, or payment / membership runtime.
+
+The future account system is a required product capability for private practice workflows only: private song library, private cloud song analysis, practice draft saving, practice record sync, multi-device sync, membership / permission / quota management, and user data deletion / export. The account system is not a community account system and must not automatically introduce public profiles, following, comments, direct messages, public uploads, public sharing, or a public resource library.
+
+P41a does not choose an auth implementation. Email, phone number, WeChat login, or other login methods remain future research topics. Before any account work begins, the project needs a separate auth / account architecture plan covering identity, privacy, security, data ownership, deletion / export, membership boundaries, and how account-gated private cloud features stay separate from community features.
+
+P41a changes documentation only and does not modify runtime code, `/api/recognize`, parser / converter behavior, piano runtime, upload / cloud runtime, auth code, database schema, account UI, payment / membership runtime, package dependencies, or generated artifacts.
+
 ## P40b — 临时检查草稿练习目标 UX 稳定化 (2026-07-08)
 
 P40b stabilizes the user-facing UX around the P40 temporary reviewed-draft practice target on `/practice`. The empty state now explains that no temporary target exists until the user imports local melody guide audio, generates a local target pitch curve draft, reviews a valid selection, and explicitly creates the temporary target. The creation area now gives clearer Simplified Chinese disabled/ready reasons and states that regeneration, review reset, clearing audio, or selecting new audio can clear or invalidate the target.
