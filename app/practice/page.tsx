@@ -57,6 +57,7 @@ import {
   type PracticeFeatureView,
 } from "../../components/practice/PracticeFeatureNavigation";
 import { PracticeFeatureSectionHeader } from "../../components/practice/PracticeFeatureSectionHeader";
+import { SheetMusicImportPreviewPanel } from "../../components/practice/SheetMusicImportPreviewPanel";
 import { getNonScoringImportedTargetPitchFeedback } from "../../lib/practice/nonScoringImportedTargetPitchFeedback";
 import {
   createLocalTargetPitchCurveDraft,
@@ -350,6 +351,7 @@ const stopOscillator = (oscillator: OscillatorNode) => {
 export default function PracticePage() {
   const [activeFeatureView, setActiveFeatureView] =
     useState<PracticeFeatureView>("local-melody");
+  const sheetMusicImportInputRef = useRef<HTMLInputElement | null>(null);
   const [flowState, setFlowState] = useState<PracticeFlowState>("idle");
   const [metronomeBpm, setMetronomeBpm] = useState(defaultMetronomeConfig.bpm);
   const [metronomeMeter, setMetronomeMeter] = useState<MetronomeMeter>(
@@ -1897,6 +1899,17 @@ export default function PracticePage() {
           activeView={activeFeatureView}
           onActiveViewChange={setActiveFeatureView}
         />
+
+        {activeFeatureView === "sheet-music" ? (
+          <>
+            <PracticeFeatureSectionHeader
+              eyebrow="当前功能区：乐谱预览"
+              title="乐谱到练习目标输入系统 Stage A"
+              description="这里只提供本地乐谱图片导入与预览，不接入练习流程，不识谱，不生成练习目标。"
+            />
+            <SheetMusicImportPreviewPanel inputRef={sheetMusicImportInputRef} />
+          </>
+        ) : null}
 
         {activeFeatureView === "local-melody" ? (
           <>
