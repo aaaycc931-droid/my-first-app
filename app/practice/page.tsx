@@ -534,6 +534,15 @@ export default function PracticePage() {
     canCreateLocalReviewedDraftPracticeTarget(
       localTargetPitchCurveDraftSelectedDiagnostics,
     );
+  const reviewedDraftTemporaryTargetDisabledReason = !localTargetPitchCurveDraft
+    ? "请先导入本地旋律音频并生成目标音高曲线草稿。"
+    : localTargetPitchCurveDraftSelectedDiagnostics.selectedFrameCount <= 0
+      ? "当前检查选区没有可用帧，请调整检查模式或手动帧范围。"
+      : localTargetPitchCurveDraftSelectedDiagnostics.selectedVoicedFrameCount <= 0
+        ? "当前检查选区没有有声音高帧，请选择包含有声内容的范围。"
+        : localTargetPitchCurveDraftSelectedDiagnostics.selectedFrequencyMedianHz === null
+          ? "当前检查选区还没有可用的中位参考频率诊断。"
+          : "当前检查选区可创建临时诊断练习目标。";
 
   const localReviewedDraftPitchFeedback = localReviewedDraftPracticeTarget
     ? getNonScoringImportedTargetPitchFeedback({
@@ -1952,7 +1961,7 @@ export default function PracticePage() {
             将已检查选区用作临时诊断练习目标
           </h2>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-700">
-            此操作需要明确点击，只会创建一个浏览器本地、仅当前会话、仅来自已检查选区、不评分且可清除的临时练习目标。它不会启动播放、录音、音高估计或评分。
+            此操作需要明确点击，只会创建一个浏览器本地、仅当前会话、仅来自已检查选区、不评分且可清除的临时练习目标。它用于当前阶段练习反馈的诊断参考，不是最终目标、正式转写或正式歌曲分析结果，也不会启动播放、录音、音高估计或评分。
           </p>
           <button
             type="button"
@@ -1962,11 +1971,14 @@ export default function PracticePage() {
           >
             使用当前检查选区作为临时练习目标
           </button>
-          {!canUseReviewedDraftAsTemporaryPracticeTarget ? (
-            <p className="mt-3 text-xs leading-5 text-slate-600">
-              本地草稿存在、已选检查范围有效，并且该范围有有声中位频率诊断后才可启用。
-            </p>
-          ) : null}
+          <p className="mt-3 text-xs leading-5 text-slate-600">
+            {canUseReviewedDraftAsTemporaryPracticeTarget
+              ? "当前检查选区可用：点击后会替换现有临时目标，但不会改变草稿、检查控制或评分语义。"
+              : reviewedDraftTemporaryTargetDisabledReason}
+          </p>
+          <p className="mt-2 text-xs leading-5 text-slate-500">
+            重新生成草稿、重置检查控制、清除本地旋律音频或选择新的本地音频，都会清除或使当前临时目标失效。
+          </p>
         </section>
 
         <LocalReviewedDraftPracticeTargetPanel
