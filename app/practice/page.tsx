@@ -52,6 +52,10 @@ import { LocalTargetPitchCurveDraftPanel } from "../../components/practice/Local
 import { LocalTargetPitchCurveReviewPreviewPanel } from "../../components/practice/LocalTargetPitchCurveReviewPreviewPanel";
 import { LocalTargetPitchCurveDraftReviewControlsPanel } from "../../components/practice/LocalTargetPitchCurveDraftReviewControlsPanel";
 import { LocalReviewedDraftPracticeTargetPanel } from "../../components/practice/LocalReviewedDraftPracticeTargetPanel";
+import {
+  PracticeFeatureNavigation,
+  type PracticeFeatureView,
+} from "../../components/practice/PracticeFeatureNavigation";
 import { getNonScoringImportedTargetPitchFeedback } from "../../lib/practice/nonScoringImportedTargetPitchFeedback";
 import {
   createLocalTargetPitchCurveDraft,
@@ -343,6 +347,8 @@ const stopOscillator = (oscillator: OscillatorNode) => {
 };
 
 export default function PracticePage() {
+  const [activeFeatureView, setActiveFeatureView] =
+    useState<PracticeFeatureView>("local-melody");
   const [flowState, setFlowState] = useState<PracticeFlowState>("idle");
   const [metronomeBpm, setMetronomeBpm] = useState(defaultMetronomeConfig.bpm);
   const [metronomeMeter, setMetronomeMeter] = useState<MetronomeMeter>(
@@ -1886,6 +1892,13 @@ export default function PracticePage() {
           </section>
         </div>
 
+        <PracticeFeatureNavigation
+          activeView={activeFeatureView}
+          onActiveViewChange={setActiveFeatureView}
+        />
+
+        {activeFeatureView === "local-melody" ? (
+          <>
         <LocalMelodyGuideAudioImportPanel
           source={localMelodyGuideSource}
           decodeError={localMelodyGuideDecodeError}
@@ -1990,6 +2003,11 @@ export default function PracticePage() {
           onClear={clearLocalReviewedDraftPracticeTarget}
         />
 
+          </>
+        ) : null}
+
+        {activeFeatureView === "rhythm" ? (
+          <>
         <section className="mt-6 rounded-3xl border border-teal-200 bg-teal-50 p-5 shadow-sm sm:p-6">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
             <div>
@@ -2414,6 +2432,11 @@ export default function PracticePage() {
           </p>
         </section>
 
+          </>
+        ) : null}
+
+        {activeFeatureView === "onset" ? (
+          <>
         <section className="mt-6 rounded-3xl border border-orange-200 bg-orange-50 p-5 shadow-sm sm:p-6">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
             <div>
@@ -2595,6 +2618,11 @@ export default function PracticePage() {
           </p>
         </section>
 
+          </>
+        ) : null}
+
+        {activeFeatureView === "feedback" ? (
+          <>
         <section className="mt-6 rounded-2xl border border-blue-200 bg-blue-50 p-5">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
@@ -4153,6 +4181,8 @@ export default function PracticePage() {
             </section>
           </div>
         )}
+          </>
+        ) : null}
       </section>
     </main>
   );

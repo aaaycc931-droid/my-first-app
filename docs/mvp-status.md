@@ -756,3 +756,10 @@ Boundaries preserved: this does not add formal scoring, rhythm scoring, sight-si
 - 英文只允许用于代码、类型名、开发者内部说明、必要技术标识，以及不可避免的技术缩写或数据标识（例如 BPM、Hz、ms、Web Audio、localStorage、IndexedDB）。
 - 未来新增功能不得继续加入英文用户可见 copy，除非用户明确要求。
 - P40fix 不改变 P40 target creation semantics，不改变 P40 gating，不改变 helper semantics，不新增功能，不新增 dependency，不新增 scoring、final target、official transcription、cloud/upload/account/database/API 行为。
+
+## P41 Practice Mode 功能导航与主显示区基础
+
+- 2026-07-08: P41 为 `/practice` 增加轻量功能导航与主显示区基础，新增“本地旋律”“节拍与节奏”“起音诊断”“练习反馈”四个简体中文导航按钮。点击按钮只切换当前页面主显示区内容，不改变路由，不写入 localStorage，也不持久化当前功能视图。
+- `/practice` 仍然 owning 现有运行时状态，包括 decoded PCM、本地旋律 guide、draft、review selection、temporary reviewed draft practice target、rhythm state、onset state、calibration state、录音与音高估计状态。P41 只移动显示分组，不把状态迁移到全局 store。
+- 本地旋律组包含本地旋律参考音频导入、目标音高曲线草稿、草稿检查预览、草稿检查控制，以及 P40 临时检查草稿练习目标入口和面板。节拍与节奏组包含节拍器、点击式节奏练习与延迟校准。起音诊断组包含音频起音检测、起音强度时间线与起音节奏反馈。练习反馈组包含录音、音高估计、导入目标音高反馈、练习历史和现有静态/研究反馈区域。
+- P41 不改变任何 helper 的输入输出语义，不改变 P40 临时目标 gating 或 creation semantics，不新增评分、final target、official transcription、correction editor、pitch frame editing、drag timeline、persistent target/library、upload/cloud/account/database、source separation、full-song extraction、dependency、`/api/recognize`、parser/converter、piano runtime 或 `/piano` 行为。
