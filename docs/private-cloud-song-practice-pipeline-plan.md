@@ -19,13 +19,49 @@ Future product direction allows:
 The current MVP continues to be:
 
 - browser-local;
+- session-only;
 - non-scoring;
 - no upload;
 - no cloud;
 - no account;
-- no database.
+- no login UI;
+- no auth API;
+- no user table;
+- no session / token implementation;
+- no database;
+- no persistent private library;
+- no payment / membership implementation.
 
 This is the **current MVP boundary**, not a permanent product boundary. P35 is a docs-only architecture update and does not implement upload, cloud processing, accounts, storage, databases, source separation, melody extraction runtime, or scoring.
+
+## Future account requirement and boundary
+
+A future formal product needs a user login / account system. This is a long-term product requirement because private practice data and private cloud capabilities need clear ownership, quota, retention, deletion, export, and cross-device continuity.
+
+The future account system serves private practice capabilities only:
+
+- private song library;
+- private cloud song analysis;
+- practice draft saving;
+- practice record sync;
+- multi-device sync;
+- membership / permission / quota management;
+- user data deletion and export.
+
+The future account system does **not** serve community capabilities:
+
+- no community;
+- no public profile page;
+- no user following;
+- no comments;
+- no direct messages;
+- no public uploads;
+- no public sharing;
+- no public resource library.
+
+The exact account implementation is intentionally undecided. Email login, phone number login, WeChat login, and other identity options require a later dedicated decision. Before any account runtime starts, the project needs a separate auth / account architecture plan covering identity provider choice, privacy, security, user data ownership, deletion / export, session handling, membership / quota rules, and the boundary between private cloud features and non-community product scope.
+
+Any future account implementation must not automatically introduce public sharing, community browsing, following, comments, public uploads, public profiles, public resource libraries, or user-to-user social features.
 
 ## Why the current MVP remains browser-local
 
@@ -338,16 +374,25 @@ However, full-song extraction is imperfect. Harmony, choir, rap, noisy recording
 - Expected output: reviewable local target pitch curve draft.
 - Boundary: draft is non-scoring and session-local unless a later storage architecture exists.
 
-### D. Private Practice Library Architecture
+### D. Auth / Account Architecture Plan
+
+- Goal: decide the future private account architecture before any login runtime exists.
+- Allowed scope: docs, identity option research, privacy / security requirements, session strategy, user data ownership, deletion / export requirements, membership / quota boundaries, and private-cloud access rules.
+- Non-goals: login UI, auth API, user table, session / token code, database migrations, payment runtime, community accounts, public profiles, following, comments, direct messages, public uploads, or public sharing.
+- Dependencies: validated local import and target draft user experience plus a product decision that private cloud and multi-device sync are ready to plan.
+- Expected output: implementation-ready auth / account architecture plan.
+- Boundary: architecture first; no account runtime until requirements are complete and approved.
+
+### E. Private Practice Library Architecture
 
 - Goal: design private resource ownership, storage, retention, deletion, and generated practice data architecture.
 - Allowed scope: docs, schema planning, security / privacy / copyright requirements, UX flows.
-- Non-goals: runtime upload, object storage implementation, account implementation, database migrations.
-- Dependencies: validated local import and target draft user experience.
+- Non-goals: runtime upload, object storage implementation, account implementation, database migrations, community features.
+- Dependencies: validated local import, target draft user experience, and Auth / Account Architecture Plan.
 - Expected output: implementation-ready private library architecture.
 - Boundary: architecture first; no cloud runtime until requirements are complete.
 
-### E. Private Cloud Upload MVP
+### F. Private Cloud Upload MVP
 
 - Goal: accept private user uploads for private processing.
 - Allowed scope: account-gated private upload, private object storage, source deletion option, upload consent.
@@ -356,7 +401,7 @@ However, full-song extraction is imperfect. Harmony, choir, rap, noisy recording
 - Expected output: private source files can be uploaded and managed by their owner.
 - Boundary: upload is private and not discoverable.
 
-### F. Cloud Audio Processing Worker
+### G. Cloud Audio Processing Worker
 
 - Goal: process private audio jobs asynchronously.
 - Allowed scope: job queue, preprocessing, format normalization, loudness normalization, sample-rate conversion, quality checks.
@@ -365,7 +410,7 @@ However, full-song extraction is imperfect. Harmony, choir, rap, noisy recording
 - Expected output: normalized private audio ready for analysis.
 - Boundary: processing results remain private to the owner.
 
-### G. Source Separation
+### H. Source Separation
 
 - Goal: create vocal and accompaniment stems for analysis and practice.
 - Allowed scope: private worker-side separation, confidence diagnostics, optional stems.
@@ -374,7 +419,7 @@ However, full-song extraction is imperfect. Harmony, choir, rap, noisy recording
 - Expected output: private vocal / accompaniment stem results with warnings.
 - Boundary: stems inherit private visibility and deletion policy.
 
-### H. Vocal Melody Extraction
+### I. Vocal Melody Extraction
 
 - Goal: extract reviewable melody pitch curve candidates from vocal stems.
 - Allowed scope: F0 tracking, voiced / unvoiced detection, octave diagnostics, smoothing, note segmentation.
@@ -383,7 +428,7 @@ However, full-song extraction is imperfect. Harmony, choir, rap, noisy recording
 - Expected output: target pitch curve draft with confidence diagnostics.
 - Boundary: user review required.
 
-### I. Rhythm / Beat / Phrase Extraction
+### J. Rhythm / Beat / Phrase Extraction
 
 - Goal: extract timing structures for practice.
 - Allowed scope: vocal onsets, accompaniment beat grid, tempo, downbeat, phrase boundaries, confidence diagnostics.
@@ -392,7 +437,7 @@ However, full-song extraction is imperfect. Harmony, choir, rap, noisy recording
 - Expected output: target rhythm events, beat grid, phrase segment drafts.
 - Boundary: timing output is draft data until reviewed.
 
-### J. Practice Draft Review
+### K. Practice Draft Review
 
 - Goal: let users review and correct generated practice drafts.
 - Allowed scope: edit / accept pitch curve, rhythm events, beat grid, phrase segments, confidence warnings.
@@ -401,7 +446,7 @@ However, full-song extraction is imperfect. Harmony, choir, rap, noisy recording
 - Expected output: user-approved private practice draft.
 - Boundary: review is required before formal scoring.
 
-### K. Practice Mode Integration
+### L. Practice Mode Integration
 
 - Goal: use approved drafts inside practice mode.
 - Allowed scope: accompaniment playback, user singing / recording, pitch feedback, rhythm feedback, segment practice.
@@ -410,7 +455,7 @@ However, full-song extraction is imperfect. Harmony, choir, rap, noisy recording
 - Expected output: private song practice experience.
 - Boundary: feedback remains practice-oriented unless scoring system is separately built.
 
-### L. Formal Scoring System
+### M. Formal Scoring System
 
 - Goal: produce reliable scoring only after draft quality and review workflows are mature.
 - Allowed scope: scoring model design, calibration, latency handling, confidence thresholds, user-visible scoring semantics.
@@ -429,16 +474,17 @@ Recommended order:
 2. Build Local Melody Guide Audio Import.
 3. Build Local Target Pitch Curve Draft.
 4. Build Practice Draft Review.
-5. Then design Private Practice Library architecture.
-6. Finally build private cloud upload runtime.
+5. Create a dedicated Auth / Account Architecture Plan before any account runtime work.
+6. Then design Private Practice Library architecture.
+7. Finally build private cloud upload runtime.
 
 Reasons:
 
 - The project already has browser-local pitch / onset / rhythm foundation.
 - Local import can validate the core practice experience before server-side storage exists.
-- Private cloud requires account, storage, security, copyright, job queue, and GPU processing decisions.
+- Private cloud requires account architecture, storage, security, copyright, job queue, membership / quota, deletion / export, and GPU processing decisions.
 - Connecting cloud too early would cause product and infrastructure complexity to grow before the practice workflow is validated.
 
 ## P35 strict boundary confirmation
 
-P35 does not modify `/api/recognize`, upload runtime, cloud runtime, AI API, account, database, object storage, parser, converter, formal scoring, rhythm scoring, sight-singing comprehensive scoring, persistent rhythm history, audio fixtures, `metadata.local.json`, piano runtime, `/piano`, production Audiveris behavior, package dependencies, or UI runtime.
+P35 / P41a do not modify `/api/recognize`, upload runtime, cloud runtime, AI API, account runtime, login UI, auth API, user table, session / token code, payment / membership runtime, database, object storage, parser, converter, formal scoring, rhythm scoring, sight-singing comprehensive scoring, persistent rhythm history, audio fixtures, `metadata.local.json`, piano runtime, `/piano`, production Audiveris behavior, package dependencies, or UI runtime.
