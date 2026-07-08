@@ -52,7 +52,6 @@ The temporary target panel now emphasizes the current target source, checked fra
 
 P40b does not change P40 gating, target creation semantics, helper return semantics, final target behavior, official transcription, scoring, correction editing, pitch frame editing, persistent target/library behavior, upload/cloud/account/database behavior, `/api/recognize`, parser/converter behavior, piano runtime, or package dependencies.
 
-
 ## P28 — Audio Onset Alignment Modes for Non-scoring Rhythm Feedback (2026-07-03)
 
 P28 adds Audio Onset Alignment Modes to the P27 audio onset rhythm feedback bridge. The helper now supports both `recording-start` alignment and a new `first-onset` research / practice alignment option. `recording-start` keeps the P27 behavior: detected onset times are interpreted relative to the latest local recording start and target rhythm events begin at 0ms. `first-onset` maps the first detected onset to the first target event, then applies the optional session latency offset through the existing rhythm tap feedback helper, so recordings with leading silence or a late user start can be inspected with less whole-take offset. The helper returns diagnostic alignment metadata including alignment mode, alignment offset, first onset time, first target time, adjusted onset time, warnings, and a diagnostic summary.
@@ -773,3 +772,10 @@ Boundaries preserved: this does not add formal scoring, rhythm scoring, sight-si
 - `/practice` 仍然 owning 现有运行时状态，包括 decoded PCM、本地旋律 guide、draft、review selection、temporary reviewed draft practice target、rhythm state、onset state、calibration state、录音与音高估计状态。P41 只移动显示分组，不把状态迁移到全局 store。
 - 本地旋律组包含本地旋律参考音频导入、目标音高曲线草稿、草稿检查预览、草稿检查控制，以及 P40 临时检查草稿练习目标入口和面板。节拍与节奏组包含节拍器、点击式节奏练习与延迟校准。起音诊断组包含音频起音检测、起音强度时间线与起音节奏反馈。练习反馈组包含录音、音高估计、导入目标音高反馈、练习历史和现有静态/研究反馈区域。
 - P41 不改变任何 helper 的输入输出语义，不改变 P40 临时目标 gating 或 creation semantics，不新增评分、final target、official transcription、correction editor、pitch frame editing、drag timeline、persistent target/library、upload/cloud/account/database、source separation、full-song extraction、dependency、`/api/recognize`、parser/converter、piano runtime 或 `/piano` 行为。
+
+## P42 Practice Mode 功能导航轻量稳定化
+
+- 2026-07-08: P42 对 `/practice` 的 Practice Mode 功能导航做轻量稳定化：优化四个功能区的简体中文说明，强化当前 active tab 的“正在显示”状态，并在导航与功能区标题中提示切换功能区只切换主显示区，不清除当前会话数据、不写入 localStorage、不改变路由。
+- P42 为每个功能区增加简短中文说明：本地旋律明确仍按“本地音频导入 → 生成目标音高曲线草稿 → 检查选区 → 创建临时练习目标”推进；节拍与节奏、起音诊断、练习反馈继续定位为非评分诊断工具。
+- P42 只调整 copy、当前状态展示和轻量功能区 empty/state guidance；`/practice` 仍然 owning decoded PCM、本地旋律 guide、draft、review selection、temporary reviewed draft practice target、rhythm state、onset state、calibration state、录音与音高估计状态。切换导航不会清空这些状态，也不会持久化导航 state。
+- P42 不新增账号、登录、auth API、数据库、云端、上传、会员系统、评分、final target、official transcription、correction editor、pitch frame editing、drag timeline、persistent target/library、source separation、full-song extraction 或 dependency；不修改 `/api/recognize`、parser/converter、piano runtime；不改变 P40 gating、P40 target creation semantics 或 helper semantics。

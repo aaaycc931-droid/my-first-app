@@ -14,22 +14,23 @@ const practiceFeatureNavigationItems: PracticeFeatureNavigationItem[] = [
   {
     id: "local-melody",
     label: "本地旋律",
-    description: "导入参考音频、生成草稿、检查选区并创建临时目标。",
+    description:
+      "按顺序完成本地音频导入、目标音高曲线草稿、选区检查与临时练习目标。",
   },
   {
     id: "rhythm",
     label: "节拍与节奏",
-    description: "节拍器、点击式节奏练习与当前会话延迟校准。",
+    description: "使用节拍器、点击练习与会话内延迟校准观察节奏稳定性，不评分。",
   },
   {
     id: "onset",
     label: "起音诊断",
-    description: "从最新本地录音检测起音并查看起音节奏反馈。",
+    description: "从最新本地录音检测起音候选，并查看非评分节奏诊断反馈。",
   },
   {
     id: "feedback",
     label: "练习反馈",
-    description: "录音、音高估计、导入目标音高反馈与练习记录。",
+    description: "录音、音高估计、导入目标音高反馈与本次会话练习记录。",
   },
 ];
 
@@ -57,15 +58,19 @@ export function PracticeFeatureNavigation({
             练习模式主显示区
           </h2>
           <p className="mt-2 text-sm leading-6 text-slate-600">
-            点击下方功能按钮，只切换当前主显示区内容；页面状态仍保留在本次会话中。
+            点击下方功能按钮，只切换当前主显示区内容；不会清除本地旋律草稿、临时目标、节拍、起音或录音反馈等当前会话数据。
           </p>
         </div>
         <p className="rounded-full bg-emerald-50 px-4 py-2 text-sm font-semibold text-emerald-800 ring-1 ring-emerald-200">
-          当前显示：{activeItem.label}
+          当前功能区：{activeItem.label}
         </p>
       </div>
 
-      <div className="mt-4 grid gap-3 md:grid-cols-4" role="tablist" aria-label="练习模式功能导航">
+      <div
+        className="mt-4 grid gap-3 md:grid-cols-4"
+        role="tablist"
+        aria-label="练习模式功能导航"
+      >
         {practiceFeatureNavigationItems.map((item) => {
           const isActive = item.id === activeView;
 
@@ -78,12 +83,21 @@ export function PracticeFeatureNavigation({
               onClick={() => onActiveViewChange(item.id)}
               className={`rounded-2xl p-4 text-left ring-1 transition ${
                 isActive
-                  ? "bg-emerald-700 text-white ring-emerald-700"
+                  ? "scale-[1.01] bg-emerald-700 text-white shadow-md ring-2 ring-emerald-300"
                   : "bg-slate-50 text-slate-800 ring-slate-200 hover:bg-emerald-50 hover:ring-emerald-200"
               }`}
             >
-              <span className="block text-base font-bold">{item.label}</span>
-              <span className={`mt-2 block text-sm leading-5 ${isActive ? "text-emerald-50" : "text-slate-600"}`}>
+              <span className="flex items-center justify-between gap-2 text-base font-bold">
+                {item.label}
+                {isActive ? (
+                  <span className="rounded-full bg-white/20 px-2 py-0.5 text-xs font-semibold text-white">
+                    正在显示
+                  </span>
+                ) : null}
+              </span>
+              <span
+                className={`mt-2 block text-sm leading-5 ${isActive ? "text-emerald-50" : "text-slate-600"}`}
+              >
                 {item.description}
               </span>
             </button>
