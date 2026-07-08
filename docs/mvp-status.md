@@ -1,3 +1,11 @@
+## P45 — Stage A Sheet Music Import Preview Acceptance Criteria (2026-07-08)
+
+P45 is a docs-only / source-review update for Stage A of the sheet-music-to-practice-target route. It adds `docs/stage-a-sheet-music-import-preview-acceptance-criteria.md` to define acceptance criteria before any Stage A runtime work begins. Stage A is limited to browser-local sheet music image import and preview: selecting a local image, showing a local preview, displaying basic file metadata, and supporting clear / replace behavior. It is not OCR, not OMR, not PDF parsing, not recognition, not target generation, not `/practice` integration, not scoring, and not a formal transcription.
+
+P45 documents the required Stage A user flow, UI states, Simplified Chinese copy, supported file rules, metadata requirements, clear / replace / stale behavior, no-upload Network QA checklist, explicit non-goals, and handoff boundaries for later Stage B through Stage F work. It clarifies that PDF support, manual notation drafts, mock recognition drafts, validation / measure checks, temporary practice target creation, and real OCR / OMR integration belong to later stages and must not be pulled into Stage A.
+
+P45 changes documentation only and does not modify runtime code, UI, components, file pickers, OCR, PDF parser, upload, account, database, cloud, scoring, final target, dependencies, `/api/recognize`, `/practice` runtime behavior, parser / converter behavior, or piano runtime. QA level recommendation: none.
+
 ## P44 — Sheet Music to Practice Target MVP Staged Plan (2026-07-08)
 
 P44 is a docs-only staged planning update for the sheet-music-to-practice-target input system. It adds `docs/sheet-music-to-practice-target-mvp-plan.md` to clarify that sheet music recognition is a practice-content input capability for the Chinese-user-facing sight-singing and ear-training system, not a standalone OCR tool. The intended output is a previewable, reviewable, modifiable, confirmable practice target draft that can later support sight-singing practice, rhythm practice, future pitch target generation, and non-scoring practice feedback.
