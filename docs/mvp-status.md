@@ -34,6 +34,15 @@ P30 is diagnostic / practice foundation work for future human voice and instrume
 
 # MVP status
 
+## P40b — 临时检查草稿练习目标 UX 稳定化 (2026-07-08)
+
+P40b stabilizes the user-facing UX around the P40 temporary reviewed-draft practice target on `/practice`. The empty state now explains that no temporary target exists until the user imports local melody guide audio, generates a local target pitch curve draft, reviews a valid selection, and explicitly creates the temporary target. The creation area now gives clearer Simplified Chinese disabled/ready reasons and states that regeneration, review reset, clearing audio, or selecting new audio can clear or invalidate the target.
+
+The temporary target panel now emphasizes the current target source, checked frame range, current-session/browser-local lifetime, non-scoring diagnostic purpose, clear action, and cleanup conditions. Boundary copy clarifies that the target is not a final target, not official transcription, not scoring, not accuracy/grade/pass/fail, and not a formal song analysis result. Warnings remain display-only and are presented as reliability/boundary explanations.
+
+P40b does not change P40 gating, target creation semantics, helper return semantics, final target behavior, official transcription, scoring, correction editing, pitch frame editing, persistent target/library behavior, upload/cloud/account/database behavior, `/api/recognize`, parser/converter behavior, piano runtime, or package dependencies.
+
+
 ## P28 — Audio Onset Alignment Modes for Non-scoring Rhythm Feedback (2026-07-03)
 
 P28 adds Audio Onset Alignment Modes to the P27 audio onset rhythm feedback bridge. The helper now supports both `recording-start` alignment and a new `first-onset` research / practice alignment option. `recording-start` keeps the P27 behavior: detected onset times are interpreted relative to the latest local recording start and target rhythm events begin at 0ms. `first-onset` maps the first detected onset to the first target event, then applies the optional session latency offset through the existing rhythm tap feedback helper, so recordings with leading silence or a late user start can be inspected with less whole-take offset. The helper returns diagnostic alignment metadata including alignment mode, alignment offset, first onset time, first target time, adjusted onset time, warnings, and a diagnostic summary.
