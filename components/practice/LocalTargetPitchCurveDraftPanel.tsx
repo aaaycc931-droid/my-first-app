@@ -16,7 +16,7 @@ export function LocalTargetPitchCurveDraftPanel({
   onGenerate,
   disabled = false,
 }: LocalTargetPitchCurveDraftPanelProps) {
-  const statusLabel = draft?.status ?? (isAnalysisReady ? "ready" : "waiting for decoded guide");
+  const statusLabel = draft?.status === "ready" ? "已就绪" : isAnalysisReady ? "已就绪" : "等待已解码参考音频";
 
   return (
     <section className="mt-6 rounded-3xl border border-violet-200 bg-violet-50 p-5 shadow-sm sm:p-6">

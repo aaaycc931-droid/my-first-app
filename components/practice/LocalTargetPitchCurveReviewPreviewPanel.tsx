@@ -8,7 +8,7 @@ type LocalTargetPitchCurveReviewPreviewPanelProps = {
 const formatTime = (timeMs: number | null) =>
   timeMs === null ? "—" : `${timeMs.toFixed(0)} ms`;
 
-const formatCoverage = (ratio: number) => `${(ratio * 100).toFixed(1)}% coverage`;
+const formatCoverage = (ratio: number) => `覆盖率 ${(ratio * 100).toFixed(1)}%`;
 
 export function LocalTargetPitchCurveReviewPreviewPanel({
   draft,
