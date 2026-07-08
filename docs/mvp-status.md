@@ -1,3 +1,25 @@
+## P47 — Stage A Manual Browser QA Record and Source Review (2026-07-08)
+
+P47 records the completed manual browser QA result for P46 + P46fix. The user completed local browser QA and confirmed the Stage A sheet music import preview baseline passes. This is a docs-only QA record for future Stage B / C / D / E work; it does not change runtime code.
+
+Manual QA results recorded:
+
+1. Opening `/practice` still defaults to `local-melody` / 本地旋律, not `sheet-music` / 乐谱预览.
+2. Clicking the “乐谱预览” navigation item enters the Stage A panel.
+3. Selecting PNG / JPG / JPEG images displays a browser-local preview.
+4. Metadata displays file name, MIME type, file size, image width, image height, local import status, local-only state, not-ready-for-recognition state, and not-ready-for-practice state.
+5. Clicking clear removes the preview and metadata and returns the panel to empty / cleared state.
+6. Replacing the image makes the old preview and old metadata no longer count as the current valid source.
+7. Selecting unsupported PDF, audio, video, document, or other non-image files shows a Chinese warning and does not generate preview or metadata.
+8. DevTools Network confirms that image content is not uploaded.
+9. DevTools Network confirms that no upload API is called.
+10. DevTools Network confirms that `/api/recognize` is not called.
+11. Refreshing the page does not retain the selected image.
+12. Application inspection confirms no localStorage or IndexedDB persistence of image content.
+13. The page does not show misleading copy such as score, accuracy, final target, official transcription, target ready, 识别完成, 可评分, 已保存, or 已上传.
+
+Stage A boundary confirmations remain unchanged: Stage A is only browser-local image preview. It does not do OCR, OMR, PDF parser runtime, upload, save, account, database, cloud, recognition draft generation, practice target generation, `/practice` practice-flow integration, scoring, final target, or official transcription. It also does not modify `/api/recognize`, parser / converter behavior, piano runtime, P40 temporary targets, local melody guide reference audio, metronome, rhythm, onset, or feedback functions. QA level recommendation: none.
+
 ## P46 — Stage A Local Sheet Music Image Import Preview Runtime Alpha (2026-07-08)
 
 P46 implements the Stage A runtime alpha for the sheet-music-to-practice-target input route on `/practice`. It adds a display-only local sheet music image import and preview panel where users can choose a local PNG / JPG / JPEG image, preview it in the browser, inspect file name, MIME type, file size, image width and height, local import status, local-only state, recognition availability, and practice-entry availability. The panel supports clearing and replacing the current image, rejects unsupported files and files over 10 MB, handles image decode failure with a warning, and releases object URLs when files are cleared, replaced, fail to decode, or the panel unmounts.
