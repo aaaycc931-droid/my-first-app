@@ -73,7 +73,7 @@ export function LocalTargetPitchCurveDraftReviewControlsPanel({
           </label>
         </div>
         <p className="mt-3 text-xs leading-5 text-violet-700">
-          请求的手动边界：帧 {selection.manualStartFrame} → {selection.manualEndFrame}. helper 校验后的应用边界：帧 {formatFrame(diagnostics.selectedStartFrame)} → {formatFrame(diagnostics.selectedEndFrame)}.
+          请求的手动边界：帧 {selection.manualStartFrame} → {selection.manualEndFrame}。辅助校验后的应用边界：帧 {formatFrame(diagnostics.selectedStartFrame)} → {formatFrame(diagnostics.selectedEndFrame)}。
         </p>
       </div>
 
@@ -88,7 +88,7 @@ export function LocalTargetPitchCurveDraftReviewControlsPanel({
       </div>
 
       <div className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm">
-        <p className="font-bold text-amber-900">警告 and boundary copy</p>
+        <p className="font-bold text-amber-900">警告与边界说明</p>
         <ul className="mt-2 list-disc space-y-1 pl-5 text-amber-800">
           {diagnostics.warnings.map((warning) => <li key={warning}>{warning}</li>)}
         </ul>

@@ -1127,7 +1127,7 @@ export default function PracticePage() {
       stopLatencyCalibrationRuntime();
       setLatencyCalibrationPhase("idle");
       setLatencyCalibrationError(
-        "此浏览器无法启动 calibration click；请确认在用户手势中点击开始。",
+        "此浏览器无法启动校准点击；请确认在用户手势中点击开始。",
       );
     }
   };
@@ -1608,7 +1608,7 @@ export default function PracticePage() {
   const handleDetectAudioOnsets = async () => {
     if (!recordedAudioBlob) {
       setAudioOnsetError(
-        "请先录制一次本地练习，再运行 browser-local onset detection。",
+        "请先录制一次本地练习，再运行浏览器本地起音检测。",
       );
       return;
     }
@@ -1642,7 +1642,7 @@ export default function PracticePage() {
         audioOnsetRunId === audioOnsetRunIdRef.current
       ) {
         setAudioOnsetError(
-          "此浏览器无法完成本地 onset detection。音频不会上传，也不会调用 AI。",
+          "此浏览器无法完成本地起音检测。音频不会上传，也不会调用 AI。",
         );
       }
     } finally {
@@ -2785,19 +2785,19 @@ export default function PracticePage() {
           <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
             <div>
               <p className="text-sm font-semibold uppercase tracking-wide text-cyan-700">
-                UI-only static prototype
+                仅界面的静态原型
               </p>
               <h2 className="mt-1 text-2xl font-bold text-cyan-950">
                 实时音高趋势预览
               </h2>
               <p className="mt-2 max-w-3xl text-sm leading-6 text-cyan-900">
-                目标音块读取 hand-authored TargetPitchCurve
-                example；用户音高曲线仍是静态占位。当前版本只是界面预览，不会打开麦克风，也不会分析音频。
+                目标音块读取手写的 TargetPitchCurve
+                示例；用户音高曲线仍是静态占位。当前版本只是界面预览，不会打开麦克风，也不会分析音频。
               </p>
               <p className="mt-2 max-w-3xl text-sm leading-6 text-cyan-800">
                 长期方向：目标曲线可先来自五线谱 / MusicXML /
                 MIDI，之后再探索用户本地提供的单旋律示范音频。P8c
-                不实现音频导入、旋律提取、人声分离或 Song Learning Mode。
+                不实现音频导入、旋律提取、人声分离或歌曲学习模式。
               </p>
             </div>
             <div className="rounded-2xl border border-cyan-300 bg-white p-4 text-sm text-cyan-950 shadow-sm lg:min-w-64">
@@ -2856,19 +2856,19 @@ export default function PracticePage() {
                   aria-hidden="true"
                 />
                 <div className="absolute left-3 top-[18%] rounded-full bg-white/90 px-2 py-1 text-xs font-semibold text-slate-500 ring-1 ring-slate-200">
-                  +50 cents
+                  +50 音分
                 </div>
                 <div className="absolute left-3 top-[34%] rounded-full bg-white/90 px-2 py-1 text-xs font-semibold text-slate-500 ring-1 ring-slate-200">
-                  +25 cents
+                  +25 音分
                 </div>
                 <div className="absolute left-3 top-1/2 -translate-y-1/2 rounded-full bg-cyan-600 px-2 py-1 text-xs font-semibold text-white">
-                  0 cents 目标中心线
+                  0 音分目标中心线
                 </div>
                 <div className="absolute left-3 top-[62%] rounded-full bg-white/90 px-2 py-1 text-xs font-semibold text-slate-500 ring-1 ring-slate-200">
-                  -25 cents
+                  -25 音分
                 </div>
                 <div className="absolute left-3 top-[78%] rounded-full bg-white/90 px-2 py-1 text-xs font-semibold text-slate-500 ring-1 ring-slate-200">
-                  -50 cents
+                  -50 音分
                 </div>
 
                 {staticPreviewTargetSegments.map((segment) => (
@@ -2915,13 +2915,13 @@ export default function PracticePage() {
                 </svg>
 
                 <div className="absolute bottom-4 left-[45%] rounded-xl border border-slate-200 bg-white/95 px-3 py-2 text-xs font-semibold text-slate-600 shadow-sm">
-                  unknown / no pitch gap
+                  未知 / 无音高间隙
                 </div>
                 <div className="absolute bottom-4 right-4 rounded-2xl border border-violet-200 bg-violet-50 px-4 py-3 text-xs text-violet-900 shadow-sm">
                   <p className="font-bold">静态占位读数</p>
-                  <p className="mt-1">Estimated note: E4</p>
+                  <p className="mt-1">估计音名：E4</p>
                   <p>Hz: 329.63</p>
-                  <p>Confidence: mock 0.72</p>
+                  <p>置信度：模拟 0.72</p>
                 </div>
                 <div className="absolute bottom-4 left-4 hidden gap-8 text-xs font-semibold text-slate-400 sm:flex">
                   <span>0:00</span>
@@ -3281,7 +3281,7 @@ export default function PracticePage() {
               <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                 <div>
                   <p className="text-sm font-semibold uppercase tracking-wide text-teal-700">
-                    imported practice lite
+                    导入练习轻量预览
                   </p>
                   <h3 className="mt-1 text-2xl font-bold">导入练习预览</h3>
                   <ul className="mt-3 grid gap-2 text-sm font-semibold text-teal-900 sm:grid-cols-2">

@@ -12,9 +12,21 @@ const formatFrequency = (frequencyHz: number | null) =>
   frequencyHz === null ? "—" : `${frequencyHz.toFixed(1)} Hz`;
 const formatPercent = (ratio: number) => `${(ratio * 100).toFixed(1)}%`;
 const formatSeconds = (seconds: number | null) =>
-  seconds === null ? "—" : `${seconds.toFixed(2)} sec`;
+  seconds === null ? "—" : `${seconds.toFixed(2)} 秒`;
 const formatCents = (cents: number | null) =>
-  cents === null ? "—" : `${cents.toFixed(1)} cents`;
+  cents === null ? "—" : `${cents.toFixed(1)} 音分`;
+
+const pitchFeedbackCategoryLabels: Record<string, string> = {
+  "no-target-data": "无目标音高数据",
+  "no-reliable-pitch": "未检测到可靠音高",
+  close: "接近目标",
+  above: "高于目标",
+  below: "低于目标",
+  "waiting-for-local-estimate": "等待本地音高估计",
+};
+
+const formatPitchFeedbackCategory = (category: string | null | undefined) =>
+  pitchFeedbackCategoryLabels[category ?? "waiting-for-local-estimate"] ?? category ?? "等待本地音高估计";
 
 export function LocalReviewedDraftPracticeTargetPanel({
   target,
@@ -118,7 +130,7 @@ export function LocalReviewedDraftPracticeTargetPanel({
           </p>
           <p>
             <span className="font-semibold">诊断类别：</span>{" "}
-            {pitchFeedback?.category ?? "waiting-for-local-estimate"}
+            {formatPitchFeedbackCategory(pitchFeedback?.category)}
           </p>
         </div>
         <p className="mt-3 text-xs leading-5 text-fuchsia-700">
@@ -127,7 +139,7 @@ export function LocalReviewedDraftPracticeTargetPanel({
       </div>
 
       <div className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm">
-        <p className="font-bold text-amber-900">警告 and boundary copy</p>
+        <p className="font-bold text-amber-900">警告与边界说明</p>
         <ul className="mt-2 list-disc space-y-1 pl-5 text-amber-800">
           {target.warnings.map((warning) => (
             <li key={warning}>{warning}</li>
