@@ -350,7 +350,7 @@ const stopOscillator = (oscillator: OscillatorNode) => {
 
 export default function PracticePage() {
   const [activeFeatureView, setActiveFeatureView] =
-    useState<PracticeFeatureView>("sheet-music");
+    useState<PracticeFeatureView>("local-melody");
   const sheetMusicImportInputRef = useRef<HTMLInputElement | null>(null);
   const [flowState, setFlowState] = useState<PracticeFlowState>("idle");
   const [metronomeBpm, setMetronomeBpm] = useState(defaultMetronomeConfig.bpm);
