@@ -34,6 +34,16 @@ P30 is diagnostic / practice foundation work for future human voice and instrume
 
 # MVP status
 
+## P43 — 视唱练耳系统功能细节设计标准与功能地图 (2026-07-08)
+
+P43 is a docs-only product design update. It adds `docs/sight-singing-ear-training-feature-detail-map.md` and repositions the final product as a Chinese-user-facing sight-singing and ear-training practice system, with pitch, rhythm, ear training, sight-singing, and practice feedback as the main body. Sheet music recognition is clarified as a future score-to-practice-target input system, not a standalone OCR tool, while private song practice remains a future supplemental source of personalized practice material.
+
+P43 defines the mandatory design standard that all automatically generated, automatically recognized, or automatically analyzed results must go through preview, review, modification / confirmation, and only then enter practice. This applies to score recognition results, target pitch curve drafts, private song analysis results, rhythm analysis results, phrase analysis results, generated practice targets, and future formal scoring targets.
+
+P43 lists the subject functions of the sight-singing and ear-training system: practice content generation and import, pitch practice, rhythm practice, sight-singing practice, ear-training practice, practice feedback, practice target review and correction, practice records and progress tracking, private song practice supplementation, and account / private data systems. It also records detailed requirements for score recognition, feedback, current MVP boundaries, future enhancement directions, and explicit non-goals.
+
+P43 changes documentation only and does not modify runtime code, UI, account, database, cloud, upload, scoring, final target, correction editor, package dependencies, `/api/recognize`, parser / converter behavior, or piano runtime.
+
 ## P41a — Future Product Requirements Roadmap Update (2026-07-08)
 
 P41a is a docs-only future product roadmap update. It records that a future formal product needs a user login / account system, while the current Practice Mode MVP remains browser-local, session-only, and without account, database, cloud, upload, login UI, auth API, user table, session / token code, or payment / membership runtime.

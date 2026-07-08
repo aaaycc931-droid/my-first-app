@@ -63,6 +63,13 @@ The exact account implementation is intentionally undecided. Email login, phone 
 
 Any future account implementation must not automatically introduce public sharing, community browsing, following, comments, public uploads, public profiles, public resource libraries, or user-to-user social features.
 
+
+## P43 relationship to sight-singing and ear-training
+
+P43 clarifies that private song practice is not the largest current product subject. The largest product subject is the sight-singing and ear-training practice system. Private song practice remains a future supplemental material source for that system, used to create private practice drafts only after account, privacy, copyright, cloud processing, deletion, and export requirements are designed.
+
+Any future private song analysis result must remain a draft until the user previews it, checks it, modifies or confirms it, and then explicitly sends it into pitch, rhythm, sight-singing, or feedback practice. Private song analysis must not bypass the practice target review and correction flow, must not produce official transcription by default, and must not directly enter formal scoring.
+
 ## Why the current MVP remains browser-local
 
 The current MVP stays browser-local because the project is still validating the core practice experience: local recording, local pitch estimation, local onset diagnostics, imported target feedback, and non-scoring rhythm feedback. Keeping this stage browser-local avoids premature complexity in account management, object storage, copyright workflows, security review, job queues, GPU processing, and data retention policies.
