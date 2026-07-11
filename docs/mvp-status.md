@@ -1,3 +1,15 @@
+## P48 — Stage B Manual Notation Fragment Draft Acceptance Criteria (2026-07-11)
+
+P48 is a docs-only acceptance criteria update for Stage B of the sheet-music-to-practice-target route. It adds `docs/stage-b-manual-notation-fragment-draft-acceptance-criteria.md` to define the future “manual notation fragment draft” stage before runtime work begins. Stage B is limited to user-created short notation fragment drafts with preview, edit, delete, clear, reset, checked / stale rules, and future validation / practice disabled reasons.
+
+P48 clarifies that Stage B is not OCR, OMR, automatic recognition, official transcription, final target, practice target, scoring, PDF parsing, upload, cloud, account, database, or persistence. Stage A images may be used only as a visual reference; Stage B must not read, recognize, upload, or describe a draft as an automatic result from the image. If a referenced Stage A image is replaced or cleared, dependent drafts must become stale or require explicit confirmation to continue as independent manual drafts.
+
+P48 records the recommended minimal Stage B scope: time signatures `2/4`, `3/4`, and `4/4`; pitch range C4–C5; half, quarter, and eighth notes; at least quarter rests; 1–2 measures; a maximum of 8 note or rest events; and no dotted rhythms, triplets, slurs, ties, accidentals, complex key signatures, multiple voices, chords, lyrics, ornaments, multiple staves, or complex cross-measure structures. The first preview may be a structured list or simplified timeline rather than a full staff renderer.
+
+P48 defines the Stage B state model: empty, editing, draft, invalid, unchecked, checked, stale, cleared, future-validation-disabled, and future-practice-disabled. It explicitly states that checked only means the user reviewed the current draft; it does not mean the draft passed measure validation, became an official transcription, became a practice target, can be scored, or can enter practice. Stage B hands off to future Stage D validation only; Stage C mock recognition, Stage D validation gate, Stage E session-only temporary practice target creation, and Stage F real OCR / OMR remain separate stages.
+
+P48 changes documentation only and does not modify runtime code, UI, `/practice`, `/api/recognize`, app / components / lib files, tests, parser / converter behavior, piano runtime, packages, dependencies, upload, cloud, account, database, validation gates, practice target creation, scoring, final targets, or official transcription. QA level recommendation: none. Suggested next step: P49 — Stage B Manual Notation Fragment Draft Runtime Alpha.
+
 ## P47b — Codex Project Entry Rules Hardening (2026-07-11)
 
 P47b is a docs-only project entry rules hardening update. `AGENTS.md` now records Fast Track + Strict Complete Mode so future stages prioritize one valuable, runnable, testable vertical slice instead of unnecessary low-value splits or repeated docs-only phases, while still avoiding rough implementations and unbounded rewrites.
