@@ -88,7 +88,7 @@ export function MockRecognitionDraftPanel({
         <div className="flex flex-wrap gap-2">
           <button type="button" onClick={generate} disabled={!canGenerate} className="rounded-full bg-cyan-700 px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:bg-slate-300">{draft ? "重新生成模拟草稿" : "生成模拟识谱草稿"}</button>
           <button type="button" onClick={() => setDraft((currentDraft) => currentDraft?.checked ? markMockRecognitionDraftUnchecked(currentDraft) : markMockRecognitionDraftChecked(currentDraft))} disabled={!canUseCurrent} className="rounded-full border border-cyan-300 px-4 py-2 text-sm font-semibold text-cyan-800 disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-400">{draft?.checked ? "重新检查" : "标记为已检查"}</button>
-          <button type="button" onClick={() => { setDraft(clearMockRecognitionDraft()); setShowOverwriteConfirm(false); }} className="rounded-full border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">清除模拟草稿</button>
+          <button type="button" onClick={() => { setDraft(clearMockRecognitionDraft); setShowOverwriteConfirm(false); }} className="rounded-full border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">清除模拟草稿</button>
         </div>
       </div>
 
@@ -105,7 +105,7 @@ export function MockRecognitionDraftPanel({
           <div><dt className="font-semibold text-slate-700">事件数量</dt><dd>{draft?.events.length ?? 0}</dd></div>
           <div><dt className="font-semibold text-slate-700">草稿整体状态</dt><dd>{statusLabels[status]}</dd></div>
           <div><dt className="font-semibold text-slate-700">是否已检查</dt><dd>{draft?.checked && !draft.stale ? "是" : "否"}</dd></div>
-          <div><dt className="font-semibold text-slate-700">是否 stale</dt><dd>{draft?.stale ? "是" : "否"}</dd></div>
+          <div><dt className="font-semibold text-slate-700">是否已失效</dt><dd>{draft?.stale ? "是" : "否"}</dd></div>
           <div><dt className="font-semibold text-slate-700">是否可进入小节校验</dt><dd>否，小节时值校验将在 Stage D 提供。</dd></div>
           <div><dt className="font-semibold text-slate-700">是否可进入练习</dt><dd>否，当前仍是模拟识谱草稿，不能直接进入练习。</dd></div>
         </dl>
