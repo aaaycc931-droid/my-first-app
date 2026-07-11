@@ -71,8 +71,17 @@ export function markMockRecognitionDraftUnchecked(draft: MockRecognitionDraft | 
   return { ...draft, checked: false, cleared: false };
 }
 
-export function clearMockRecognitionDraft(): null {
-  return null;
+export function clearMockRecognitionDraft(
+  draft: MockRecognitionDraft | null,
+): MockRecognitionDraft | null {
+  if (!draft) return null;
+  return {
+    ...draft,
+    events: [],
+    checked: false,
+    stale: false,
+    cleared: true,
+  };
 }
 
 export function reconcileMockRecognitionDraftSource(draft: MockRecognitionDraft | null, currentSourceId: string | null): MockRecognitionDraft | null {
