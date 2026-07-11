@@ -1,6 +1,7 @@
 import { ChangeEvent, RefObject, useEffect, useRef, useState } from "react";
 
 import {
+  createLocalSheetMusicSessionSourceId,
   formatLocalSheetMusicFileSize,
   localSheetMusicAcceptedFileInput,
   validateLocalSheetMusicImageFile,
@@ -81,11 +82,11 @@ export function SheetMusicImportPreviewPanel({
 
     const objectUrl = URL.createObjectURL(file);
     objectUrlRef.current = objectUrl;
-    const sourceId = `${file.name}:${file.size}:${file.lastModified}`;
     setPreviewState({ status: "loading", fileName: file.name, objectUrl });
 
     const image = new Image();
     image.onload = () => {
+      const sourceId = createLocalSheetMusicSessionSourceId();
       onSourceChange?.(sourceId);
       setPreviewState({
         status: "ready",
