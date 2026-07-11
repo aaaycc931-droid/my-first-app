@@ -1,5 +1,4 @@
 import {
-  canCreateNotationValidation,
   canCreatePracticeTargetFromNotationDraft,
   type NotationDraftEvent,
   type NotationFragmentDraft,
@@ -108,7 +107,7 @@ export function copyMockRecognitionDraftToManualDraft(draft: MockRecognitionDraf
 }
 
 export function canCreateValidationFromMockRecognitionDraft(): false {
-  return canCreateNotationValidation();
+  return false;
 }
 
 export function canCreatePracticeTargetFromMockRecognitionDraft(): false {

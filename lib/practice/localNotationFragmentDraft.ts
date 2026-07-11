@@ -126,5 +126,4 @@ export function getNotationDraftStatus(draft: NotationFragmentDraft): NotationDr
   return draft.checked ? "checked" : "draft";
 }
 
-export function canCreateNotationValidation(): false { return false; }
 export function canCreatePracticeTargetFromNotationDraft(): false { return false; }
