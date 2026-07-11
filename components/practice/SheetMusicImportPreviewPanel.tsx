@@ -24,6 +24,7 @@ type SheetMusicPreviewState =
 
 type SheetMusicImportPreviewPanelProps = {
   inputRef: RefObject<HTMLInputElement>;
+  onSourceChange?: (sourceId: string | null) => void;
 };
 
 const disabledReason =
@@ -31,6 +32,7 @@ const disabledReason =
 
 export function SheetMusicImportPreviewPanel({
   inputRef,
+  onSourceChange,
 }: SheetMusicImportPreviewPanelProps) {
   const [previewState, setPreviewState] = useState<SheetMusicPreviewState>({
     status: "empty",
@@ -55,6 +57,7 @@ export function SheetMusicImportPreviewPanel({
   const handleClear = (message = "已清除当前本地文件。") => {
     revokeCurrentObjectUrl();
     resetFileInput();
+    onSourceChange?.(null);
     setPreviewState({ status: "empty", message });
   };
 
@@ -63,6 +66,7 @@ export function SheetMusicImportPreviewPanel({
     revokeCurrentObjectUrl();
 
     if (!file) {
+      onSourceChange?.(null);
       setPreviewState({ status: "empty" });
       return;
     }
@@ -70,16 +74,19 @@ export function SheetMusicImportPreviewPanel({
     const validation = validateLocalSheetMusicImageFile(file);
     if (!validation.ok) {
       resetFileInput();
+      onSourceChange?.(null);
       setPreviewState({ status: "unsupported", message: validation.message });
       return;
     }
 
     const objectUrl = URL.createObjectURL(file);
     objectUrlRef.current = objectUrl;
+    const sourceId = `${file.name}:${file.size}:${file.lastModified}`;
     setPreviewState({ status: "loading", fileName: file.name, objectUrl });
 
     const image = new Image();
     image.onload = () => {
+      onSourceChange?.(sourceId);
       setPreviewState({
         status: "ready",
         objectUrl,
@@ -95,6 +102,7 @@ export function SheetMusicImportPreviewPanel({
     image.onerror = () => {
       revokeCurrentObjectUrl();
       resetFileInput();
+      onSourceChange?.(null);
       setPreviewState({
         status: "decode-failed",
         message:
