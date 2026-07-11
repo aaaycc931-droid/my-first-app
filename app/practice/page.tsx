@@ -1,6 +1,3 @@
-Warning: truncated output (original token count: 44759)
-Total output lines: 4247
-
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -1812,7 +1809,1240 @@ export default function PracticePage() {
     stopPlayback();
     setHasMockFeedback(false);
     setPlayError("");
-    setFlowState("id…14759 tokens truncated…l border border-cyan-200 bg-white p-4 text-cyan-900">
+    setFlowState("idle");
+  };
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.code !== "Space" || event.repeat) {
+        return;
+      }
+      const target = event.target as HTMLElement | null;
+      if (
+        target?.tagName === "INPUT" ||
+        target?.tagName === "SELECT" ||
+        target?.tagName === "TEXTAREA"
+      ) {
+        return;
+      }
+      event.preventDefault();
+      if (latencyCalibrationPhase === "practice") {
+        handleLatencyCalibrationTap();
+        return;
+      }
+      handleRhythmTap();
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [rhythmPhase, latencyCalibrationPhase]);
+
+  const isListening = flowState === "listening";
+  const isAnyTargetPlaybackActive = isListening || isSelectedTargetNotePlaying;
+
+  return (
+    <main className="min-h-screen bg-slate-50 px-4 py-10 text-slate-900 sm:px-6">
+      <section className="mx-auto max-w-4xl rounded-3xl bg-white p-6 shadow-sm ring-1 ring-slate-200 sm:p-8">
+        <div className="border-b border-slate-200 pb-6">
+          <p className="text-sm font-semibold text-emerald-600">
+            浏览器本地练习模式
+          </p>
+          <h1 className="mt-2 text-3xl font-bold tracking-tight sm:text-4xl">
+            练习模式
+          </h1>
+          <p className="mt-3 text-slate-600">
+            这是一个本地旋律逐步练习原型。你可以听一个目标音、录制一次浏览器本地练习，并把本地音高估计与当前步骤目标音进行对比。
+          </p>
+          <p className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm font-medium text-amber-800">
+            当前状态：浏览器本地练习模式，不上传音频，不持久保存，不调用 AI
+            API，不提供正式评分，不提供等级 / 通过 /
+            失败判断，也不进行节奏评测或视唱综合评测。
+          </p>
+        </div>
+
+        <div className="mt-6 grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
+          <section className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
+            <p className="text-sm font-semibold uppercase tracking-wide text-slate-500">
+              模拟旋律练习
+            </p>
+            <h2 className="mt-2 text-2xl font-bold">{mockExercise.title}</h2>
+            <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
+              <div className="rounded-xl bg-white p-4 ring-1 ring-slate-200">
+                <dt className="font-semibold text-slate-700">目标音列表</dt>
+                <dd className="mt-1 text-slate-600">
+                  {mockExercise.targetNotes.join(" · ")}
+                </dd>
+              </div>
+              <div className="rounded-xl bg-white p-4 ring-1 ring-slate-200">
+                <dt className="font-semibold text-slate-700">建议 BPM</dt>
+                <dd className="mt-1 text-slate-600">
+                  {mockExercise.suggestedBpm} BPM
+                </dd>
+              </div>
+              <div className="rounded-xl bg-white p-4 ring-1 ring-slate-200 sm:col-span-2">
+                <dt className="font-semibold text-slate-700">练习目标</dt>
+                <dd className="mt-1 text-slate-600">{mockExercise.goal}</dd>
+              </div>
+            </dl>
+          </section>
+
+          <section className="rounded-2xl border border-slate-200 bg-white p-5">
+            <h2 className="text-xl font-bold">练习步骤</h2>
+            <ol className="mt-4 space-y-3">
+              {practiceSteps.map((step, index) => (
+                <li
+                  key={step}
+                  className="flex gap-3 rounded-xl bg-slate-50 p-3"
+                >
+                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-sm font-bold text-emerald-700">
+                    {index + 1}
+                  </span>
+                  <span className="font-medium text-slate-700">{step}</span>
+                </li>
+              ))}
+            </ol>
+          </section>
+        </div>
+
+        <PracticeFeatureNavigation
+          activeView={activeFeatureView}
+          onActiveViewChange={setActiveFeatureView}
+        />
+
+        {activeFeatureView === "sheet-music" ? (
+          <>
+            <PracticeFeatureSectionHeader
+              eyebrow="当前功能区：乐谱预览"
+              title="乐谱到练习目标输入系统 Stage A / Stage B / Stage C / Stage D"
+              description="这里提供本地乐谱图片预览、手动乐谱片段草稿、严格标注的模拟识谱草稿与小节时值校验；当前不做真实识谱，不生成练习目标。"
+            />
+            <SheetMusicImportPreviewPanel
+              inputRef={sheetMusicImportInputRef}
+              onSourceChange={setSheetMusicSourceId}
+            />
+            <MockRecognitionDraftPanel
+              currentSheetMusicSourceId={sheetMusicSourceId}
+              manualDraftEventCount={manualNotationEventCount}
+              onCopyToManualDraft={(draft, notice) => {
+                setManualNotationImportDraft(draft);
+                setManualNotationImportNotice(notice);
+              }}
+            />
+            <ManualNotationFragmentDraftPanel
+              currentSheetMusicSourceId={sheetMusicSourceId}
+              importedDraft={manualNotationImportDraft}
+              importNotice={manualNotationImportNotice}
+              onDraftEventCountChange={setManualNotationEventCount}
+              onDraftChange={setManualNotationDraft}
+            />
+            <NotationDraftValidationPanel draft={manualNotationDraft} />
+          </>
+        ) : null}
+
+        {activeFeatureView === "local-melody" ? (
+          <>
+            <PracticeFeatureSectionHeader
+              eyebrow="当前功能区：本地旋律"
+              title="本地旋律流程"
+              description="按本地音频导入 → 生成目标音高曲线草稿 → 检查选区 → 创建临时练习目标的顺序完成。所有内容只保留在当前浏览器会话中。"
+            />
+        <LocalMelodyGuideAudioImportPanel
+          source={localMelodyGuideSource}
+          decodeError={localMelodyGuideDecodeError}
+          inputRef={localMelodyGuideInputRef}
+          onFileChange={handleLocalMelodyGuideFileChange}
+          onClear={handleClearLocalMelodyGuide}
+        />
+
+        <LocalTargetPitchCurveDraftPanel
+          draft={localTargetPitchCurveDraft}
+          isAnalysisReady={Boolean(localMelodyGuideDecodedAudio?.analysisReady)}
+          onGenerate={handleGenerateLocalTargetPitchCurveDraft}
+        />
+
+        <LocalTargetPitchCurveReviewPreviewPanel
+          draft={localTargetPitchCurveDraft}
+        />
+
+        <LocalTargetPitchCurveDraftReviewControlsPanel
+          selection={localTargetPitchCurveDraftReviewSelection}
+          diagnostics={localTargetPitchCurveDraftSelectedDiagnostics}
+          hasDraft={Boolean(localTargetPitchCurveDraft)}
+          onUseFullDraft={() =>
+            setLocalTargetPitchCurveDraftReviewSelection(
+              (currentSelection) => ({
+                ...currentSelection,
+                mode: "full-draft",
+              }),
+            )
+          }
+          onUseVoicedSpan={() =>
+            setLocalTargetPitchCurveDraftReviewSelection(
+              (currentSelection) => ({
+                ...currentSelection,
+                mode: "voiced-span",
+              }),
+            )
+          }
+          onUseManualFrameRange={() =>
+            setLocalTargetPitchCurveDraftReviewSelection(
+              (currentSelection) => ({
+                ...currentSelection,
+                mode: "manual-frame-range",
+              }),
+            )
+          }
+          onManualStartFrameChange={(frameIndex) =>
+            setLocalTargetPitchCurveDraftReviewSelection(
+              (currentSelection) => ({
+                ...currentSelection,
+                mode: "manual-frame-range",
+                manualStartFrame: frameIndex,
+              }),
+            )
+          }
+          onManualEndFrameChange={(frameIndex) =>
+            setLocalTargetPitchCurveDraftReviewSelection(
+              (currentSelection) => ({
+                ...currentSelection,
+                mode: "manual-frame-range",
+                manualEndFrame: frameIndex,
+              }),
+            )
+          }
+          onReset={resetLocalTargetPitchCurveDraftReviewSelection}
+        />
+
+        <section className="mt-6 rounded-3xl border border-fuchsia-200 bg-white p-5 shadow-sm sm:p-6">
+          <p className="text-sm font-semibold uppercase tracking-wide text-fuchsia-700">
+            P40 安全练习接入 Alpha
+          </p>
+          <h2 className="mt-1 text-xl font-bold text-fuchsia-950">
+            将已检查选区用作临时诊断练习目标
+          </h2>
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-700">
+            此操作需要明确点击，只会创建一个浏览器本地、仅当前会话、仅来自已检查选区、不评分且可清除的临时练习目标。它用于当前阶段练习反馈的诊断参考，不是最终目标、正式转写或正式歌曲分析结果，也不会启动播放、录音、音高估计或评分。
+          </p>
+          <button
+            type="button"
+            onClick={handleUseSelectedReviewRangeAsTemporaryPracticeTarget}
+            disabled={!canUseReviewedDraftAsTemporaryPracticeTarget}
+            className="mt-4 rounded-full bg-fuchsia-700 px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:bg-slate-300"
+          >
+            使用当前检查选区作为临时练习目标
+          </button>
+          <p className="mt-3 text-xs leading-5 text-slate-600">
+            {canUseReviewedDraftAsTemporaryPracticeTarget
+              ? "当前检查选区可用：点击后会替换现有临时目标，但不会改变草稿、检查控制或评分语义。"
+              : reviewedDraftTemporaryTargetDisabledReason}
+          </p>
+          <p className="mt-2 text-xs leading-5 text-slate-500">
+            重新生成草稿、重置检查控制、清除本地旋律音频或选择新的本地音频，都会清除或使当前临时目标失效。
+          </p>
+        </section>
+
+        <LocalReviewedDraftPracticeTargetPanel
+          target={localReviewedDraftPracticeTarget}
+          latestEstimatedPitchHz={
+            pitchEstimateResult?.estimatedFrequencyHz ?? null
+          }
+          pitchFeedback={localReviewedDraftPitchFeedback}
+          onClear={clearLocalReviewedDraftPracticeTarget}
+        />
+
+          </>
+        ) : null}
+
+        {activeFeatureView === "rhythm" ? (
+          <>
+            <PracticeFeatureSectionHeader
+              eyebrow="当前功能区：节拍与节奏"
+              title="非评分节奏诊断工具"
+              description="这里集中放置节拍器、点击式节奏练习和当前会话延迟校准，用于观察节奏稳定性；不提供分数、等级、通过或失败判断。"
+            />
+        <section className="mt-6 rounded-3xl border border-teal-200 bg-teal-50 p-5 shadow-sm sm:p-6">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+            <div>
+              <p className="text-sm font-semibold uppercase tracking-wide text-teal-700">
+                节拍器基础
+              </p>
+              <h2 className="mt-1 text-2xl font-bold text-teal-950">
+                未来节奏训练基础节拍器
+              </h2>
+              <p className="mt-2 max-w-3xl text-sm leading-6 text-teal-900">
+                这是浏览器本地 Web Audio 节拍器基础模块，用于未来预备拍、细分拍元数据、点击式节奏练习和节奏训练复用。当前只提供稳定节拍、预备拍与元数据，不做节奏评分、正式评测、通过 / 失败或等级。
+              </p>
+            </div>
+            <div className="rounded-2xl border border-teal-200 bg-white p-4 text-sm text-teal-950 shadow-sm lg:min-w-64">
+              <p className="font-semibold">当前 beat</p>
+              <p className="mt-2 text-3xl font-bold">
+                {metronomeBeat
+                  ? `${metronomeBeat.phase === "count-in" ? "预备拍 " : "练习 "}${metronomeBeat.barNumber}.${metronomeBeat.beatNumber}`
+                  : "—"}
+              </p>
+              <p className="mt-1 font-medium">
+                {metronomeBeat
+                  ? metronomeBeat.isStrongBeat
+                    ? "小节重拍"
+                    : "弱拍"
+                  : "等待开始"}
+              </p>
+            </div>
+          </div>
+
+          <div className="mt-5 grid gap-3 text-sm md:grid-cols-6">
+            <label className="rounded-2xl bg-white p-4 font-semibold text-teal-950 ring-1 ring-teal-200">
+              BPM
+              <input
+                type="number"
+                min="30"
+                max="240"
+                value={metronomeBpm}
+                onChange={(event) =>
+                  setMetronomeBpm(Number(event.target.value))
+                }
+                disabled={isMetronomeRunning}
+                className="mt-2 w-full rounded-xl border border-teal-200 px-3 py-2 text-slate-900 disabled:bg-slate-100"
+              />
+            </label>
+            <label className="rounded-2xl bg-white p-4 font-semibold text-teal-950 ring-1 ring-teal-200">
+              拍号
+              <select
+                value={metronomeMeter}
+                onChange={(event) =>
+                  setMetronomeMeter(event.target.value as MetronomeMeter)
+                }
+                disabled={isMetronomeRunning}
+                className="mt-2 w-full rounded-xl border border-teal-200 px-3 py-2 text-slate-900 disabled:bg-slate-100"
+              >
+                {supportedMetronomeMeters.map((meter) => (
+                  <option key={meter} value={meter}>
+                    {meter}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="rounded-2xl bg-white p-4 font-semibold text-teal-950 ring-1 ring-teal-200">
+              预备拍
+              <select
+                value={metronomeCountInBars}
+                onChange={(event) =>
+                  setMetronomeCountInBars(
+                    Number(event.target.value) as CountInBars,
+                  )
+                }
+                disabled={isMetronomeRunning}
+                className="mt-2 w-full rounded-xl border border-teal-200 px-3 py-2 text-slate-900 disabled:bg-slate-100"
+              >
+                {supportedCountInBars.map((bars) => (
+                  <option key={bars} value={bars}>
+                    {bars === 0 ? "关闭" : `${bars} 小节`}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="rounded-2xl bg-white p-4 font-semibold text-teal-950 ring-1 ring-teal-200">
+              细分拍
+              <select
+                value={metronomeSubdivision}
+                onChange={(event) =>
+                  setMetronomeSubdivision(
+                    event.target.value as MetronomeSubdivision,
+                  )
+                }
+                disabled={isMetronomeRunning}
+                className="mt-2 w-full rounded-xl border border-teal-200 px-3 py-2 text-slate-900 disabled:bg-slate-100"
+              >
+                {supportedMetronomeSubdivisions.map((subdivision) => (
+                  <option key={subdivision} value={subdivision}>
+                    {subdivision === "quarter"
+                      ? "四分音符"
+                      : subdivision === "eighth"
+                        ? "八分音符"
+                        : "十六分音符"}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <div className="rounded-2xl bg-white p-4 ring-1 ring-teal-200">
+              <p className="font-semibold text-teal-950">强拍 / 弱拍</p>
+              <p className="mt-2 text-teal-800">
+                每小节第 1 拍为强拍；预备拍与练习阶段分开。
+              </p>
+            </div>
+            <div className="rounded-2xl bg-white p-4 ring-1 ring-teal-200">
+              <p className="font-semibold text-teal-950">本地边界</p>
+              <p className="mt-2 text-teal-800">
+                细分拍当前只是未来节奏练习的元数据；音频只播放拍级点击声。
+              </p>
+            </div>
+          </div>
+
+          <div className="mt-5 flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={handleStartMetronome}
+              disabled={isMetronomeRunning}
+              className="rounded-full bg-teal-700 px-4 py-2 text-sm font-semibold text-white disabled:bg-teal-300"
+            >
+              开始节拍器
+            </button>
+            <button
+              type="button"
+              onClick={handleStopMetronome}
+              disabled={!isMetronomeRunning}
+              className="rounded-full border border-teal-300 bg-white px-4 py-2 text-sm font-semibold text-teal-800 disabled:text-slate-400"
+            >
+              停止节拍器
+            </button>
+            <span className="rounded-full border border-amber-200 bg-amber-50 px-4 py-2 text-sm font-semibold text-amber-800">
+              仅基础模块：没有节奏分数 / 通过 / 失败 / 等级
+            </span>
+          </div>
+          {metronomeError ? (
+            <p className="mt-3 text-sm font-semibold text-red-700">
+              {metronomeError}
+            </p>
+          ) : null}
+        </section>
+
+        <section className="mt-6 rounded-3xl border border-violet-200 bg-violet-50 p-5 shadow-sm sm:p-6">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+            <div>
+              <p className="text-sm font-semibold uppercase tracking-wide text-violet-700">
+                节奏练习 Alpha
+              </p>
+              <h2 className="mt-1 text-2xl font-bold text-violet-950">
+                点击式节奏练习 Alpha
+              </h2>
+              <p className="mt-2 max-w-3xl text-sm leading-6 text-violet-900">
+                当前 Alpha 可选择四分音符脉冲（每拍点击一次）或
+                八分音符脉冲（每拍点击两次）。它复用当前 BPM、拍号与
+                预备拍；目标模式独立于细分拍点击声，当前仍只播放
+                拍级点击声。
+              </p>
+              <p className="mt-3 rounded-2xl border border-amber-200 bg-amber-50 p-3 text-sm font-semibold text-amber-800">
+                仅提供不评分的练习反馈：只显示接近 / 偏早 / 偏晚 /
+                漏掉 / 额外，不提供正式分数、准确率百分比、等级、通过 /
+                失败或最终评测；还没有麦克风起音检测。
+              </p>
+            </div>
+            <div className="rounded-2xl border border-violet-200 bg-white p-4 text-sm text-violet-950 shadow-sm lg:min-w-64">
+              <p className="font-semibold">当前阶段</p>
+              <p className="mt-2 text-3xl font-bold">{rhythmPhase}</p>
+              <p className="mt-1 font-medium">
+                {rhythmPhase === "count-in"
+                  ? "先听预备拍，进入练习阶段后再点击"
+                  : rhythmPhase === "practice"
+                    ? "请按空格键或点击“点击”"
+                    : "等待开始"}
+              </p>
+            </div>
+          </div>
+
+          <div className="mt-5 grid gap-3 text-sm md:grid-cols-4">
+            <label className="rounded-2xl bg-white p-4 font-semibold text-violet-950 ring-1 ring-violet-200">
+              目标模式
+              <select
+                value={rhythmTargetPattern}
+                onChange={(event) =>
+                  setRhythmTargetPattern(
+                    event.target.value as RhythmTargetPattern,
+                  )
+                }
+                disabled={
+                  rhythmPhase === "count-in" || rhythmPhase === "practice"
+                }
+                className="mt-2 w-full rounded-xl border border-violet-200 px-3 py-2 text-slate-900 disabled:bg-slate-100"
+              >
+                {rhythmTargetPatternOptions.map((pattern) => (
+                  <option key={pattern} value={pattern}>
+                    {rhythmTargetPatternLabels[pattern]}
+                  </option>
+                ))}
+              </select>
+              <span className="mt-2 block text-violet-800">
+                {rhythmTargetPatternTapGuidance[rhythmTargetPattern]} ·{" "}
+                {rhythmPracticeBarCount} 小节
+              </span>
+            </label>
+            <div className="rounded-2xl bg-white p-4 ring-1 ring-violet-200">
+              <p className="font-semibold text-violet-950">点击次数</p>
+              <p className="mt-2 text-violet-800">
+                {rhythmFeedbackSummary.tapCount} 次练习点击
+              </p>
+            </div>
+            <div className="rounded-2xl bg-white p-4 ring-1 ring-violet-200">
+              <p className="font-semibold text-violet-950">容差</p>
+              <p className="mt-2 text-violet-800">
+                接近 ±{rhythmCloseToleranceMs}ms · 匹配窗口 ±
+                {rhythmMatchWindowMs}ms
+              </p>
+            </div>
+            <div className="rounded-2xl bg-white p-4 ring-1 ring-violet-200">
+              <p className="font-semibold text-violet-950">最近反馈</p>
+              <p className="mt-2 text-violet-800">
+                {rhythmFeedbackSummary.status}
+              </p>
+            </div>
+          </div>
+
+          <div className="mt-5 flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={handleStartRhythmPractice}
+              disabled={
+                rhythmPhase === "count-in" || rhythmPhase === "practice"
+              }
+              className="rounded-full bg-violet-700 px-4 py-2 text-sm font-semibold text-white disabled:bg-violet-300"
+            >
+              开始节奏练习
+            </button>
+            <button
+              type="button"
+              onClick={handleStopRhythmPractice}
+              disabled={
+                rhythmPhase !== "count-in" && rhythmPhase !== "practice"
+              }
+              className="rounded-full border border-violet-300 bg-white px-4 py-2 text-sm font-semibold text-violet-800 disabled:text-slate-400"
+            >
+              停止
+            </button>
+            <button
+              type="button"
+              onClick={handleResetRhythmPractice}
+              className="rounded-full border border-violet-300 bg-white px-4 py-2 text-sm font-semibold text-violet-800"
+            >
+              重置
+            </button>
+            <button
+              type="button"
+              onClick={handleRhythmTap}
+              disabled={rhythmPhase !== "practice"}
+              className="rounded-full bg-white px-5 py-2 text-sm font-bold text-violet-900 ring-1 ring-violet-300 disabled:text-slate-400"
+            >
+              点击 / 空格键
+            </button>
+          </div>
+          {rhythmError ? (
+            <p className="mt-3 text-sm font-semibold text-red-700">
+              {rhythmError}
+            </p>
+          ) : null}
+
+          <div className="mt-5 rounded-2xl border border-indigo-200 bg-white p-4">
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+              <div>
+                <p className="text-sm font-semibold uppercase tracking-wide text-indigo-700">
+                  点击延迟校准
+                </p>
+                <h3 className="mt-1 text-xl font-bold text-indigo-950">
+                  仅当前会话的校准估计
+                </h3>
+                <p className="mt-2 text-sm leading-6 text-indigo-900">
+                  这有助于调整浏览器 / 键盘点击时序。它不是节奏分数。尚无麦克风起音检测。不会保存到账号或数据库。
+                </p>
+              </div>
+              <label className="rounded-2xl border border-indigo-200 bg-indigo-50 p-3 text-sm font-semibold text-indigo-950">
+                <input
+                  type="checkbox"
+                  checked={applyLatencyCalibration}
+                  onChange={(event) =>
+                    setApplyLatencyCalibration(event.target.checked)
+                  }
+                  disabled={latencyCalibrationResult.offsetMs === null}
+                  className="mr-2"
+                />
+                应用当前会话延迟校准
+                <span className="mt-1 block font-normal text-indigo-800">
+                  {activeLatencyOffsetMs !== 0
+                    ? `反馈已按 ${Math.round(activeLatencyOffsetMs)}ms 估计值调整。`
+                    : "已关闭或正在等待估计值。"}
+                </span>
+              </label>
+            </div>
+
+            <div className="mt-4 grid gap-3 text-sm md:grid-cols-4">
+              <div className="rounded-2xl bg-indigo-50 p-3 ring-1 ring-indigo-100">
+                <p className="font-semibold text-indigo-950">状态</p>
+                <p className="mt-1 text-indigo-800">
+                  {latencyCalibrationResult.status}
+                </p>
+              </div>
+              <div className="rounded-2xl bg-indigo-50 p-3 ring-1 ring-indigo-100">
+                <p className="font-semibold text-indigo-950">样本</p>
+                <p className="mt-1 text-indigo-800">
+                  {latencyCalibrationResult.acceptedSampleCount} 个已接受 /{" "}
+                  {latencyCalibrationResult.sampleCount} 次点击
+                </p>
+              </div>
+              <div className="rounded-2xl bg-indigo-50 p-3 ring-1 ring-indigo-100">
+                <p className="font-semibold text-indigo-950">
+                  估计偏移
+                </p>
+                <p className="mt-1 text-indigo-800">
+                  {latencyCalibrationResult.offsetMs === null
+                    ? "—"
+                    : `${Math.round(latencyCalibrationResult.offsetMs)}ms`}
+                </p>
+              </div>
+              <div className="rounded-2xl bg-indigo-50 p-3 ring-1 ring-indigo-100">
+                <p className="font-semibold text-indigo-950">稳定性提示</p>
+                <p className="mt-1 text-indigo-800">
+                  {latencyCalibrationResult.stabilityHint}
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-4 flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={handleStartLatencyCalibration}
+                disabled={
+                  latencyCalibrationPhase === "count-in" ||
+                  latencyCalibrationPhase === "practice"
+                }
+                className="rounded-full bg-indigo-700 px-4 py-2 text-sm font-semibold text-white disabled:bg-indigo-300"
+              >
+                开始校准
+              </button>
+              <button
+                type="button"
+                onClick={handleStopLatencyCalibration}
+                disabled={
+                  latencyCalibrationPhase !== "count-in" &&
+                  latencyCalibrationPhase !== "practice"
+                }
+                className="rounded-full border border-indigo-300 bg-white px-4 py-2 text-sm font-semibold text-indigo-800 disabled:text-slate-400"
+              >
+                停止校准
+              </button>
+              <button
+                type="button"
+                onClick={handleResetLatencyCalibration}
+                className="rounded-full border border-indigo-300 bg-white px-4 py-2 text-sm font-semibold text-indigo-800"
+              >
+                重置校准
+              </button>
+              <button
+                type="button"
+                onClick={handleLatencyCalibrationTap}
+                disabled={latencyCalibrationPhase !== "practice"}
+                className="rounded-full bg-white px-5 py-2 text-sm font-bold text-indigo-900 ring-1 ring-indigo-300 disabled:text-slate-400"
+              >
+                校准点击 / 空格键
+              </button>
+            </div>
+            {latencyCalibrationError ? (
+              <p className="mt-3 text-sm font-semibold text-red-700">
+                {latencyCalibrationError}
+              </p>
+            ) : null}
+            <p className="mt-3 text-sm leading-6 text-indigo-900">
+              校准使用浏览器本地输入时间戳，与预备拍后的四分音符点击目标对齐。它只估计当前会话级点击偏移；不测量音频硬件往返延迟、正式评测准确度、麦克风或乐器起音时序。
+            </p>
+          </div>
+
+          <div className="mt-5 rounded-2xl border border-violet-200 bg-white p-4">
+            <h3 className="font-bold text-violet-950">
+              练习反馈日志（本轮仅当前会话）
+            </h3>
+            <p className="mt-2 text-sm font-semibold text-violet-800">
+              模式：{rhythmTargetPatternLabels[rhythmTargetPattern]} ·{" "}
+              {rhythmTargetPatternTapGuidance[rhythmTargetPattern]}
+            </p>
+            {rhythmFeedbackSummary.feedback.length > 0 ? (
+              <ul className="mt-3 grid gap-2 text-sm sm:grid-cols-2">
+                {rhythmFeedbackSummary.feedback
+                  .slice(-12)
+                  .map((item, index) => (
+                    <li
+                      key={`${item.category}-${item.tapId ?? item.targetIndex}-${index}`}
+                      className="rounded-xl bg-violet-50 p-3 text-violet-900"
+                    >
+                      <span className="font-bold">{item.category}</span>
+                      <span className="ml-2">{item.message}</span>
+                      {item.offsetMs !== null ? (
+                        <span className="ml-2 text-violet-700">
+                          偏移 {Math.round(item.offsetMs)}ms
+                        </span>
+                      ) : null}
+                    </li>
+                  ))}
+              </ul>
+            ) : (
+              <p className="mt-3 text-sm text-violet-800">
+                {rhythmPhase === "practice"
+                  ? "等待 tap。"
+                  : "开始后先听预备拍；练习阶段的点击才会进入反馈。"}
+              </p>
+            )}
+          </div>
+
+          <p className="mt-4 text-sm leading-6 text-violet-900">
+            时间戳来自浏览器本地输入事件，可能受键盘、浏览器与设备延迟影响；P25 只做仅当前会话的点击延迟校准估计，不做麦克风起音检测、音频硬件往返测量，不上传音频，也不写入持久节奏历史。
+          </p>
+        </section>
+
+          </>
+        ) : null}
+
+        {activeFeatureView === "onset" ? (
+          <>
+            <PracticeFeatureSectionHeader
+              eyebrow="当前功能区：起音诊断"
+              title="从最新本地录音查看起音候选"
+              description="这里用于浏览器本地起音候选检测、时间线预览和非评分节奏反馈。请先在练习反馈功能区录制一次，再回到这里检测。"
+            />
+        <section className="mt-6 rounded-3xl border border-orange-200 bg-orange-50 p-5 shadow-sm sm:p-6">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+            <div>
+              <p className="text-sm font-semibold uppercase tracking-wide text-orange-700">
+                音频起音检测基础
+              </p>
+              <h2 className="mt-1 text-2xl font-bold text-orange-950">
+                浏览器本地音频起音研究面板
+              </h2>
+              <p className="mt-2 max-w-3xl text-sm leading-6 text-orange-900">
+                从最新本地录音中检测起音，作为未来人声节奏训练、钢琴、吉他 / 拨弦乐器、打击乐和其他短起音乐器的研究 / 练习基础。
+              </p>
+              <p className="mt-3 rounded-2xl border border-amber-200 bg-amber-50 p-3 text-sm font-semibold text-amber-800">
+                这不是节奏分数，也不是节奏评分。没有通过/失败、等级或准确率百分比。不上传、不使用云端 / AI、无账号、无数据库，也无持久节奏历史。
+              </p>
+            </div>
+            <div className="rounded-2xl border border-orange-200 bg-white p-4 text-sm text-orange-950 shadow-sm lg:min-w-64">
+              <p className="font-semibold">检测到的起音候选</p>
+              <p className="mt-2 text-3xl font-bold">
+                {audioOnsetResult ? audioOnsetResult.onsetCount : "—"}
+              </p>
+              <p className="mt-1 font-medium">
+                {recordedAudioBlob
+                  ? "已有最新本地录音"
+                  : "请先本地录音"}
+              </p>
+            </div>
+          </div>
+
+          <div className="mt-5 rounded-2xl border border-orange-200 bg-white p-4">
+            <p className="text-sm font-bold text-orange-950">
+              起音灵敏度预设
+            </p>
+            <div className="mt-3 grid gap-2 text-sm md:grid-cols-3">
+              {audioOnsetSensitivityOptions.map((preset) => (
+                <label
+                  key={preset}
+                  className="rounded-2xl border border-orange-200 bg-orange-50 p-3 text-orange-950"
+                >
+                  <span className="flex items-center gap-2 font-semibold capitalize">
+                    <input
+                      type="radio"
+                      name="audio-onset-sensitivity"
+                      value={preset}
+                      checked={audioOnsetSensitivityPreset === preset}
+                      onChange={() => setAudioOnsetSensitivityPreset(preset)}
+                    />
+                    {preset}
+                  </span>
+                  <span className="mt-1 block text-orange-800">
+                    {audioOnsetSensitivityPresets[preset].description}
+                  </span>
+                </label>
+              ))}
+            </div>
+            <p className="mt-3 text-sm leading-6 text-orange-900">
+              灵敏模式可能检测到更弱的起音，但也可能增加额外候选。保守模式可能减少额外候选，但也可能漏掉较弱起音。本功能仅用于诊断，不用于评分。人声和延音乐器未来可能仍需调校。修改预设后，请再次点击检测按钮，在最新本地录音上重新运行浏览器本地检测。
+            </p>
+          </div>
+
+          <div className="mt-5 flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={handleDetectAudioOnsets}
+              disabled={!recordedAudioBlob || isDetectingAudioOnsets}
+              className="rounded-full bg-orange-700 px-4 py-2 text-sm font-semibold text-white disabled:bg-orange-300"
+            >
+              {isDetectingAudioOnsets
+                ? "正在本地检测起音…"
+                : "从最新本地录音检测起音"}
+            </button>
+            <span className="rounded-full border border-orange-200 bg-white px-4 py-2 text-sm font-semibold text-orange-800">
+              仅候选检测 · 仅诊断置信度
+            </span>
+          </div>
+
+          {audioOnsetError ? (
+            <p className="mt-3 text-sm font-semibold text-red-700">
+              {audioOnsetError}
+            </p>
+          ) : null}
+          {!audioOnsetResult ? (
+            <div className="mt-5 rounded-2xl border border-dashed border-orange-300 bg-white p-4 text-sm text-orange-900">
+              <p className="font-bold text-orange-950">还没有起音时间线</p>
+              <p className="mt-2">
+                从最新本地录音检测起音，以预览起音强度。这是浏览器本地诊断预览，不用于评分。
+              </p>
+            </div>
+          ) : null}
+          {audioOnsetResult ? (
+            <div className="mt-5 grid gap-3 text-sm lg:grid-cols-[0.8fr_1.2fr]">
+              <div className="rounded-2xl bg-white p-4 ring-1 ring-orange-200">
+                <p className="font-bold text-orange-950">诊断摘要</p>
+                <p className="mt-2 text-orange-900">
+                  {audioOnsetResult.diagnosticSummary}
+                </p>
+                <p className="mt-2 text-orange-800">
+                  预设 {audioOnsetResult.sensitivityPreset} · 阈值{" "}
+                  {audioOnsetResult.threshold.toFixed(4)} · 最大强度{" "}
+                  {audioOnsetResult.maxStrength.toFixed(4)} · 最小间隔{" "}
+                  {audioOnsetResult.minOnsetGapMs}ms
+                </p>
+                <p className="mt-2 text-orange-800">
+                  采样率 {audioOnsetResult.sampleRate} Hz · 时长{" "}
+                  {audioOnsetResult.durationMs.toFixed(0)}ms · 帧{" "}
+                  {audioOnsetResult.frameSize} · 步长 {audioOnsetResult.hopSize}
+                </p>
+                {audioOnsetResult.warnings.length > 0 ? (
+                  <ul className="mt-2 list-disc space-y-1 pl-5 text-orange-800">
+                    {audioOnsetResult.warnings.map((warning) => (
+                      <li key={warning}>{warning}</li>
+                    ))}
+                  </ul>
+                ) : null}
+              </div>
+              <AudioOnsetTimelinePreview
+                onsetResult={audioOnsetResult}
+                rhythmFeedback={audioOnsetRhythmFeedback}
+                markerDensitySummary={audioOnsetMarkerDensitySummary}
+                timelineDurationMs={audioOnsetTimelineDurationMs}
+                focusedCandidateIndex={focusedAudioOnsetCandidateIndex}
+                onFocusCandidate={setFocusedAudioOnsetCandidateIndex}
+              />
+              <div className="rounded-2xl bg-white p-4 ring-1 ring-orange-200">
+                <p className="font-bold text-orange-950">
+                  检测到的起音时间
+                </p>
+                {audioOnsetResult.candidates.length > 0 ? (
+                  <ul className="mt-2 grid gap-2 sm:grid-cols-2">
+                    {audioOnsetResult.candidates
+                      .slice(0, 12)
+                      .map((candidate, candidateIndex) => (
+                        <li
+                          key={`${candidate.frameIndex}-${candidate.onsetTimeMs}`}
+                          className={`rounded-xl p-3 text-orange-900 ${candidateIndex === focusedAudioOnsetCandidateIndex ? "bg-purple-50 ring-2 ring-purple-300" : "bg-orange-50"}`}
+                        >
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setFocusedAudioOnsetCandidateIndex(candidateIndex)
+                            }
+                            onFocus={() =>
+                              setFocusedAudioOnsetCandidateIndex(candidateIndex)
+                            }
+                            className="text-left font-bold text-orange-950 underline decoration-orange-300 underline-offset-2"
+                          >
+                            标记 #{candidateIndex + 1} ·{" "}
+                            {candidate.onsetTimeMs.toFixed(0)}ms
+                          </button>
+                          <span className="ml-2">
+                            {candidate.confidence} 诊断置信度 ·
+                            候选索引 {candidateIndex} · 强度{" "}
+                            {candidate.strength.toFixed(4)} · 阈值{" "}
+                            {candidate.threshold.toFixed(4)}
+                          </span>
+                        </li>
+                      ))}
+                  </ul>
+                ) : (
+                  <p className="mt-2 text-orange-800">
+                    没有超过诊断阈值的起音候选。
+                  </p>
+                )}
+              </div>
+            </div>
+          ) : null}
+
+          {/* P34 extracted panel preserves boundary copy: No upload / cloud / AI. */}
+          <AudioOnsetRhythmFeedbackPanel
+            rhythmFeedback={audioOnsetRhythmFeedback}
+            alignmentMode={audioOnsetAlignmentMode}
+            onAlignmentModeChange={setAudioOnsetAlignmentMode}
+            onFocusCandidate={setFocusedAudioOnsetCandidateIndex}
+          />
+
+          <p className="mt-4 text-sm leading-6 text-orange-900">
+            当前限制：人声、长笛、小提琴、连音、弱起音、强噪声环境可能更难检测；本阶段不做
+            特定乐器调校、降噪、正式节奏评测。P28 加入录音开始与首个起音两种对齐模式，用于不评分的节奏反馈匹配。
+          </p>
+        </section>
+
+          </>
+        ) : null}
+
+        {activeFeatureView === "feedback" ? (
+          <>
+            <PracticeFeatureSectionHeader
+              eyebrow="当前功能区：练习反馈"
+              title="本次会话的录音、音高估计与反馈"
+              description="这里保留本地录音、音高估计、导入目标音高反馈与练习记录。反馈只用于诊断参考，不是评分、等级或通过 / 失败判断。"
+            />
+        <section className="mt-6 rounded-2xl border border-blue-200 bg-blue-50 p-5">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h2 className="text-xl font-bold text-blue-950">
+                交互式模拟流程
+              </h2>
+              <p className="mt-1 text-sm font-medium text-blue-800">
+                状态： {flowState}
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={handleListenToTarget}
+                disabled={isListening}
+                className="rounded-full bg-blue-700 px-4 py-2 text-sm font-semibold text-white disabled:bg-blue-300"
+              >
+                {isListening ? "正在播放目标音…" : "听目标音"}
+              </button>
+              <button
+                type="button"
+                onClick={stopPlayback}
+                disabled={!isAnyTargetPlaybackActive}
+                className="rounded-full border border-blue-300 bg-white px-4 py-2 text-sm font-semibold text-blue-800 disabled:text-slate-400"
+              >
+                停止播放
+              </button>
+              <button
+                type="button"
+                onClick={handleStartMockAttempt}
+                className="rounded-full bg-emerald-600 px-4 py-2 text-sm font-semibold text-white"
+              >
+                开始模拟练习
+              </button>
+              <button
+                type="button"
+                onClick={handleShowMockFeedback}
+                className="rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white"
+              >
+                显示模拟反馈
+              </button>
+              <button
+                type="button"
+                onClick={handleRetry}
+                className="rounded-full border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700"
+              >
+                重试
+              </button>
+            </div>
+          </div>
+
+          {playError ? (
+            <p className="mt-3 text-sm font-semibold text-red-700">
+              {playError}
+            </p>
+          ) : null}
+          {flowState === "attempting" ? (
+            <p className="mt-4 rounded-xl border border-emerald-200 bg-white p-4 text-sm font-semibold text-emerald-800">
+              这次练习可以包含一段仅保留在浏览器本地的录音。音频不上传、不保存到服务器，也不提供正式评分。
+            </p>
+          ) : null}
+
+          <div className="mt-4 flex flex-wrap gap-2">
+            {mockExercise.targetNotes.map((note, index) => (
+              <span
+                key={`${note}-${index}`}
+                className={`rounded-full px-4 py-2 text-sm font-semibold ring-1 ${activeNoteIndex === index ? "bg-blue-700 text-white ring-blue-700" : "bg-white text-blue-800 ring-blue-200"}`}
+              >
+                {note}
+              </span>
+            ))}
+          </div>
+        </section>
+
+        <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+            <div>
+              <p className="text-sm font-semibold uppercase tracking-wide text-slate-500">
+                本地引导流程
+              </p>
+              <h2 className="mt-1 text-xl font-bold text-slate-950">
+                旋律逐步练习流程
+              </h2>
+              <p className="mt-2 text-sm text-slate-600">
+                按固定旋律一步一步练习。步骤 X / N
+                表示当前位置，当前目标音是本步骤的音，上一音 / 下一音 /
+                重新开始只会移动所选步骤。
+              </p>
+              <ol className="mt-4 grid gap-2 text-sm text-slate-700 sm:grid-cols-2">
+                <li className="rounded-xl bg-slate-50 p-3 font-medium ring-1 ring-slate-200">
+                  1. 选择旋律步骤
+                </li>
+                <li className="rounded-xl bg-slate-50 p-3 font-medium ring-1 ring-slate-200">
+                  2. 播放目标音并聆听
+                </li>
+                <li className="rounded-xl bg-slate-50 p-3 font-medium ring-1 ring-slate-200">
+                  3. 录制一次本地练习
+                </li>
+                <li className="rounded-xl bg-slate-50 p-3 font-medium ring-1 ring-slate-200">
+                  4. 在本地估计音高
+                </li>
+                <li className="rounded-xl bg-slate-50 p-3 font-medium ring-1 ring-slate-200 sm:col-span-2">
+                  5. 只查看对比结果，不提供正式评分
+                </li>
+              </ol>
+            </div>
+            <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900 lg:max-w-xs">
+              <p className="font-semibold">原型边界</p>
+              <ul className="mt-2 list-disc space-y-1 pl-5">
+                <li>估计结果只与当前步骤目标音对比。</li>
+                <li>这不是正式评分、等级、通过或失败判断。</li>
+                <li>这不是节奏评测或视唱综合评测。</li>
+                <li>音频和练习记录不上传，也不持久保存。</li>
+                <li>不调用 AI API。</li>
+              </ul>
+            </div>
+          </div>
+
+          <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-3">
+            <div className="rounded-xl bg-slate-50 p-4 ring-1 ring-slate-200">
+              <dt className="font-semibold text-slate-700">当前目标音</dt>
+              <dd className="mt-1 text-slate-600">{selectedTargetNote}</dd>
+            </div>
+            <div className="rounded-xl bg-slate-50 p-4 ring-1 ring-slate-200">
+              <dt className="font-semibold text-slate-700">目标频率</dt>
+              <dd className="mt-1 text-slate-600">
+                {noteFrequencies[selectedTargetNote].toFixed(2)} Hz
+              </dd>
+            </div>
+            <div className="rounded-xl bg-slate-50 p-4 ring-1 ring-slate-200">
+              <dt className="font-semibold text-slate-700">录音</dt>
+              <dd className="mt-1 text-slate-600">
+                {recordedAudioBlob ? "练习录音已准备好" : "还没有录音"}
+              </dd>
+            </div>
+            <div className="rounded-xl bg-slate-50 p-4 ring-1 ring-slate-200">
+              <dt className="font-semibold text-slate-700">音高估计</dt>
+              <dd className="mt-1 text-slate-600">
+                {pitchEstimateResult
+                  ? "音高估计已准备好"
+                  : pitchEstimateErrorFeedback
+                    ? "需要更清晰的本地录音"
+                    : "尚未估计"}
+              </dd>
+            </div>
+            <div className="rounded-xl bg-slate-50 p-4 ring-1 ring-slate-200">
+              <dt className="font-semibold text-slate-700">置信状态</dt>
+              <dd className="mt-1 text-slate-600">
+                {pitchConfidenceFeedback
+                  ? pitchConfidenceFeedback.label
+                  : "等待本地估计"}
+              </dd>
+            </div>
+            <div className="rounded-xl bg-slate-50 p-4 ring-1 ring-slate-200">
+              <dt className="font-semibold text-slate-700">对比</dt>
+              <dd className="mt-1 text-slate-600">
+                {pitchComparisonResult ? "对比已准备好" : "等待音高估计"}
+              </dd>
+            </div>
+          </dl>
+
+          {pitchEstimateResult ? (
+            <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
+              <div className="rounded-xl bg-indigo-50 p-4 ring-1 ring-indigo-200">
+                <dt className="font-semibold text-indigo-950">估计频率 Hz</dt>
+                <dd className="mt-1 text-indigo-800">
+                  {pitchEstimateResult.estimatedFrequencyHz.toFixed(2)}
+                </dd>
+              </div>
+              <div className="rounded-xl bg-indigo-50 p-4 ring-1 ring-indigo-200">
+                <dt className="font-semibold text-indigo-950">最接近的音</dt>
+                <dd className="mt-1 text-indigo-800">
+                  {pitchEstimateResult.nearestNote}
+                </dd>
+              </div>
+            </dl>
+          ) : null}
+
+          {pitchComparisonResult ? (
+            <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
+              <div className="rounded-xl bg-violet-50 p-4 ring-1 ring-violet-200">
+                <dt className="font-semibold text-violet-950">对比提示</dt>
+                <dd className="mt-1 text-violet-800">
+                  {pitchComparisonResult.comparisonHint}
+                </dd>
+              </div>
+              <div className="rounded-xl bg-violet-50 p-4 ring-1 ring-violet-200">
+                <dt className="font-semibold text-violet-950">
+                  与目标音的音分差
+                </dt>
+                <dd className="mt-1 text-violet-800">
+                  {pitchComparisonResult.centsFromTarget.toFixed(1)}
+                </dd>
+              </div>
+            </dl>
+          ) : null}
+        </section>
+
+        <section className="mt-6 rounded-3xl border border-cyan-200 bg-cyan-50 p-5 shadow-sm sm:p-6">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+            <div>
+              <p className="text-sm font-semibold uppercase tracking-wide text-cyan-700">
+                仅界面的静态原型
+              </p>
+              <h2 className="mt-1 text-2xl font-bold text-cyan-950">
+                实时音高趋势预览
+              </h2>
+              <p className="mt-2 max-w-3xl text-sm leading-6 text-cyan-900">
+                目标音块读取手写的 TargetPitchCurve
+                示例；用户音高曲线仍是静态占位。当前版本只是界面预览，不会打开麦克风，也不会分析音频。
+              </p>
+              <p className="mt-2 max-w-3xl text-sm leading-6 text-cyan-800">
+                长期方向：目标曲线可先来自五线谱 / MusicXML /
+                MIDI，之后再探索用户本地提供的单旋律示范音频。P8c
+                不实现音频导入、旋律提取、人声分离或歌曲学习模式。
+              </p>
+            </div>
+            <div className="rounded-2xl border border-cyan-300 bg-white p-4 text-sm text-cyan-950 shadow-sm lg:min-w-64">
+              <p className="font-semibold">当前状态</p>
+              <dl className="mt-3 space-y-2">
+                <div className="flex justify-between gap-4">
+                  <dt className="text-cyan-700">当前目标音</dt>
+                  <dd className="font-bold">{selectedTargetNote}</dd>
+                </div>
+                <div className="flex justify-between gap-4">
+                  <dt className="text-cyan-700">反馈状态</dt>
+                  <dd className="font-bold">未开始实时反馈</dd>
+                </div>
+                <div className="flex justify-between gap-4">
+                  <dt className="text-cyan-700">正式评分</dt>
+                  <dd className="font-bold">无</dd>
+                </div>
+              </dl>
+            </div>
+          </div>
+
+          <div className="mt-5 flex flex-wrap gap-2">
+            <button
+              type="button"
+              disabled
+              aria-disabled="true"
+              className="cursor-not-allowed rounded-full bg-cyan-300 px-4 py-2 text-sm font-semibold text-cyan-950 opacity-70"
+            >
+              开始实时反馈（界面预览）
+            </button>
+            <button
+              type="button"
+              disabled
+              aria-disabled="true"
+              className="cursor-not-allowed rounded-full border border-cyan-300 bg-white px-4 py-2 text-sm font-semibold text-cyan-700 opacity-70"
+            >
+              停止实时反馈（界面预览）
+            </button>
+            <span className="rounded-full border border-amber-200 bg-amber-50 px-4 py-2 text-sm font-semibold text-amber-800">
+              当前为界面预览：不会打开麦克风
+            </span>
+          </div>
+
+          <div className="mt-5 overflow-hidden rounded-3xl border border-cyan-200 bg-white shadow-inner">
+            <div className="grid min-h-[420px] grid-cols-[4.5rem_1fr] sm:grid-cols-[5.5rem_1fr]">
+              <div className="flex flex-col justify-between border-r border-cyan-100 bg-slate-50 px-3 py-6 text-right text-xs font-semibold text-slate-500">
+                {["C4", "B3", "A3", "G3", "F3", "E3", "D3", "C3"].map(
+                  (note) => (
+                    <span key={note}>{note}</span>
+                  ),
+                )}
+              </div>
+              <div className="relative overflow-hidden bg-[linear-gradient(to_right,rgba(14,165,233,0.14)_1px,transparent_1px),linear-gradient(to_bottom,rgba(14,165,233,0.14)_1px,transparent_1px)] bg-[size:12.5%_12.5%] p-4 sm:p-6">
+                <div
+                  className="absolute inset-x-0 top-1/2 border-t-2 border-cyan-500"
+                  aria-hidden="true"
+                />
+                <div className="absolute left-3 top-[18%] rounded-full bg-white/90 px-2 py-1 text-xs font-semibold text-slate-500 ring-1 ring-slate-200">
+                  +50 音分
+                </div>
+                <div className="absolute left-3 top-[34%] rounded-full bg-white/90 px-2 py-1 text-xs font-semibold text-slate-500 ring-1 ring-slate-200">
+                  +25 音分
+                </div>
+                <div className="absolute left-3 top-1/2 -translate-y-1/2 rounded-full bg-cyan-600 px-2 py-1 text-xs font-semibold text-white">
+                  0 音分目标中心线
+                </div>
+                <div className="absolute left-3 top-[62%] rounded-full bg-white/90 px-2 py-1 text-xs font-semibold text-slate-500 ring-1 ring-slate-200">
+                  -25 音分
+                </div>
+                <div className="absolute left-3 top-[78%] rounded-full bg-white/90 px-2 py-1 text-xs font-semibold text-slate-500 ring-1 ring-slate-200">
+                  -50 音分
+                </div>
+
+                {staticPreviewTargetSegments.map((segment) => (
+                  <div
+                    key={segment.targetId}
+                    className="absolute flex h-5 items-center justify-center rounded-full bg-emerald-500/80 px-2 text-[10px] font-bold text-white shadow-sm"
+                    style={getStaticPreviewTargetBlockStyle(segment)}
+                    aria-label={`静态目标音块 ${segment.displayLabel}`}
+                  >
+                    <span className="truncate">{segment.displayLabel}</span>
+                  </div>
+                ))}
+
+                <svg
+                  className="absolute inset-0 h-full w-full"
+                  role="img"
+                  aria-label="静态用户音高曲线占位，不是真实音高数据"
+                  viewBox="0 0 100 100"
+                  preserveAspectRatio="none"
+                >
+                  <path
+                    d="M 10 56 C 18 52, 22 48, 29 49 S 42 42, 48 43"
+                    fill="none"
+                    stroke="#7c3aed"
+                    strokeWidth="1.5"
+                    strokeLinecap="round"
+                    strokeDasharray="0"
+                  />
+                  <path
+                    d="M 58 37 C 64 34, 70 40, 76 45 S 86 50, 93 48"
+                    fill="none"
+                    stroke="#7c3aed"
+                    strokeWidth="1.5"
+                    strokeLinecap="round"
+                  />
+                  <path
+                    d="M 49 43 L 57 38"
+                    fill="none"
+                    stroke="#94a3b8"
+                    strokeWidth="1.2"
+                    strokeLinecap="round"
+                    strokeDasharray="2 2"
+                  />
+                </svg>
+
+                <div className="absolute bottom-4 left-[45%] rounded-xl border border-slate-200 bg-white/95 px-3 py-2 text-xs font-semibold text-slate-600 shadow-sm">
+                  未知 / 无音高间隙
+                </div>
+                <div className="absolute bottom-4 right-4 rounded-2xl border border-violet-200 bg-violet-50 px-4 py-3 text-xs text-violet-900 shadow-sm">
+                  <p className="font-bold">静态占位读数</p>
+                  <p className="mt-1">估计音名：E4</p>
+                  <p>Hz: 329.63</p>
+                  <p>置信度：模拟 0.72</p>
+                </div>
+                <div className="absolute bottom-4 left-4 hidden gap-8 text-xs font-semibold text-slate-400 sm:flex">
+                  <span>0:00</span>
+                  <span>小节 1</span>
+                  <span>小节 2</span>
+                  <span>0:08</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-4 grid gap-3 text-sm md:grid-cols-3">
+            <div className="rounded-2xl border border-cyan-200 bg-white p-4 text-cyan-900">
+              <p className="font-semibold">浏览器本地</p>
+              <p className="mt-1">
+                未来实时分析也应优先浏览器本地处理；P8c 没有上传音频。
+              </p>
+            </div>
+            <div className="rounded-2xl border border-cyan-200 bg-white p-4 text-cyan-900">
               <p className="font-semibold">当前不请求麦克风</p>
               <p className="mt-1">
                 本预览按钮禁用，不请求麦克风权限，不绑定 getUserMedia。
