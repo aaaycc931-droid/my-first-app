@@ -1,4 +1,5 @@
 import {
+  createLocalSheetMusicSessionSourceId,
   formatLocalSheetMusicFileSize,
   localSheetMusicMaxFileSizeBytes,
   validateLocalSheetMusicImageFile,
@@ -44,5 +45,12 @@ assert("reason" in oversizedResult && oversizedResult.reason === "file-too-large
 
 assert(formatLocalSheetMusicFileSize(1024) === "1.0 KB", "KB formatting should be stable");
 assert(formatLocalSheetMusicFileSize(1024 * 1024) === "1.0 MB", "MB formatting should be stable");
+
+const firstSourceId = createLocalSheetMusicSessionSourceId({ randomUUID: () => "first-token" });
+const secondSourceId = createLocalSheetMusicSessionSourceId({ randomUUID: () => "second-token" });
+assert(firstSourceId === "local-sheet-source:first-token", "Source id should use an opaque session token");
+assert(secondSourceId === "local-sheet-source:second-token", "Second preview should get a new opaque token");
+assert(firstSourceId !== secondSourceId, "Consecutive successful previews must not reuse source ids");
+assert(!firstSourceId.includes("score.png"), "Source id must not be derived from file metadata");
 
 console.log("local sheet music import source helper tests passed");

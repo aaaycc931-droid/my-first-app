@@ -7,6 +7,8 @@ export type LocalSheetMusicFileValidationResult =
   | { ok: true }
   | { ok: false; reason: "unsupported-type" | "file-too-large"; message: string };
 
+export type LocalSheetMusicSourceIdGenerator = { randomUUID: () => string };
+
 const supportedMimeTypes = new Set(["image/png", "image/jpeg", "image/jpg"]);
 const supportedExtensions = [".png", ".jpg", ".jpeg"];
 
@@ -52,4 +54,10 @@ export function validateLocalSheetMusicImageFile(
   }
 
   return { ok: true };
+}
+
+export function createLocalSheetMusicSessionSourceId(
+  generator: LocalSheetMusicSourceIdGenerator = crypto,
+): string {
+  return `local-sheet-source:${generator.randomUUID()}`;
 }
