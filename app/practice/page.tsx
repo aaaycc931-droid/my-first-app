@@ -59,6 +59,8 @@ import {
 import { PracticeFeatureSectionHeader } from "../../components/practice/PracticeFeatureSectionHeader";
 import { SheetMusicImportPreviewPanel } from "../../components/practice/SheetMusicImportPreviewPanel";
 import { ManualNotationFragmentDraftPanel } from "../../components/practice/ManualNotationFragmentDraftPanel";
+import { MockRecognitionDraftPanel } from "../../components/practice/MockRecognitionDraftPanel";
+import type { NotationFragmentDraft } from "../../lib/practice/localNotationFragmentDraft";
 import { getNonScoringImportedTargetPitchFeedback } from "../../lib/practice/nonScoringImportedTargetPitchFeedback";
 import {
   createLocalTargetPitchCurveDraft,
@@ -354,6 +356,9 @@ export default function PracticePage() {
     useState<PracticeFeatureView>("local-melody");
   const sheetMusicImportInputRef = useRef<HTMLInputElement | null>(null);
   const [sheetMusicSourceId, setSheetMusicSourceId] = useState<string | null>(null);
+  const [manualNotationImportDraft, setManualNotationImportDraft] = useState<NotationFragmentDraft | null>(null);
+  const [manualNotationImportNotice, setManualNotationImportNotice] = useState<string | null>(null);
+  const [manualNotationEventCount, setManualNotationEventCount] = useState(0);
   const [flowState, setFlowState] = useState<PracticeFlowState>("idle");
   const [metronomeBpm, setMetronomeBpm] = useState(defaultMetronomeConfig.bpm);
   const [metronomeMeter, setMetronomeMeter] = useState<MetronomeMeter>(
@@ -1906,15 +1911,26 @@ export default function PracticePage() {
           <>
             <PracticeFeatureSectionHeader
               eyebrow="当前功能区：乐谱预览"
-              title="乐谱到练习目标输入系统 Stage A / Stage B"
-              description="这里提供本地乐谱图片预览，以及严格受限的手动乐谱片段草稿；当前不识谱，不生成练习目标。"
+              title="乐谱到练习目标输入系统 Stage A / Stage B / Stage C"
+              description="这里提供本地乐谱图片预览、手动乐谱片段草稿，以及严格标注的模拟识谱草稿；当前不做真实识谱，不生成练习目标。"
             />
             <SheetMusicImportPreviewPanel
               inputRef={sheetMusicImportInputRef}
               onSourceChange={setSheetMusicSourceId}
             />
+            <MockRecognitionDraftPanel
+              currentSheetMusicSourceId={sheetMusicSourceId}
+              manualDraftEventCount={manualNotationEventCount}
+              onCopyToManualDraft={(draft, notice) => {
+                setManualNotationImportDraft(draft);
+                setManualNotationImportNotice(notice);
+              }}
+            />
             <ManualNotationFragmentDraftPanel
               currentSheetMusicSourceId={sheetMusicSourceId}
+              importedDraft={manualNotationImportDraft}
+              importNotice={manualNotationImportNotice}
+              onDraftEventCountChange={setManualNotationEventCount}
             />
           </>
         ) : null}

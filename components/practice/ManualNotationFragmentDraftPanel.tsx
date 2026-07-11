@@ -29,6 +29,9 @@ import {
 
 type ManualNotationFragmentDraftPanelProps = {
   currentSheetMusicSourceId: string | null;
+  importedDraft?: NotationFragmentDraft | null;
+  importNotice?: string | null;
+  onDraftEventCountChange?: (eventCount: number) => void;
 };
 
 const durationLabels: Record<NotationDuration, string> = {
@@ -55,6 +58,9 @@ const emptyInput = {
 
 export function ManualNotationFragmentDraftPanel({
   currentSheetMusicSourceId,
+  importedDraft,
+  importNotice,
+  onDraftEventCountChange,
 }: ManualNotationFragmentDraftPanelProps) {
   const [draft, setDraft] = useState<NotationFragmentDraft>(() =>
     createNotationFragmentDraft(),
@@ -66,6 +72,16 @@ export function ManualNotationFragmentDraftPanel({
       reconcileNotationDraftSource(currentDraft, currentSheetMusicSourceId),
     );
   }, [currentSheetMusicSourceId]);
+
+  useEffect(() => {
+    if (importedDraft) {
+      setDraft(importedDraft);
+    }
+  }, [importedDraft]);
+
+  useEffect(() => {
+    onDraftEventCountChange?.(draft.events.length);
+  }, [draft.events.length, onDraftEventCountChange]);
 
   const status = getNotationDraftStatus(draft);
   const reachedLimit = draft.events.length >= maxNotationDraftEvents;
@@ -160,6 +176,7 @@ export function ManualNotationFragmentDraftPanel({
 
         <div className="rounded-2xl border border-slate-200 bg-white p-4">
           <h3 className="text-lg font-bold text-slate-950">草稿预览</h3>
+          {importNotice ? <p className="mt-2 rounded-2xl border border-cyan-200 bg-cyan-50 p-3 text-sm font-semibold text-cyan-900">{importNotice}</p> : null}
           <dl className="mt-3 grid gap-2 text-sm sm:grid-cols-2">
             <div><dt className="font-semibold text-slate-700">当前拍号</dt><dd>{draft.timeSignature}</dd></div>
             <div><dt className="font-semibold text-slate-700">小节数量</dt><dd>2</dd></div>
