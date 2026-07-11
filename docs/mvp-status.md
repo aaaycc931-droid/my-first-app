@@ -1,3 +1,15 @@
+## P47b — Codex Project Entry Rules Hardening (2026-07-11)
+
+P47b is a docs-only project entry rules hardening update. `AGENTS.md` now records Fast Track + Strict Complete Mode so future stages prioritize one valuable, runnable, testable vertical slice instead of unnecessary low-value splits or repeated docs-only phases, while still avoiding rough implementations and unbounded rewrites.
+
+P47b adds a general feature completeness checklist for future user-facing feature changes, including user purpose, first step, empty / loading / invalid states, disabled reason, preview, automatic-result review / modification / confirmation, clear / reset, stale behavior after source replacement, invalidation of old checked / validation / temporary targets, misleading formal-result copy checks, Simplified Chinese UI, focused tests, build need, QA level recommendation, and browser manual QA need.
+
+P47b also strengthens the required-doc rule for sheet-music work: tasks involving staff notation, sheet preview, notation draft, recognition, OCR / OMR, sheet-music-to-practice-target, or Stage A–F must read `docs/sheet-music-to-practice-target-mvp-plan.md` and the current stage's acceptance criteria document in addition to the general required docs. If the current stage has no acceptance criteria document, Codex must state that explicitly and must not assume its contents.
+
+P47b adds GitHub, Vercel, browser QA, and remote-state honesty rules. Codex must not claim browser QA without an available browser, must not claim GitHub PR / remote branch / merge-state checks without remote access, must not claim Vercel deployments or checks passed without Vercel access, must distinguish local tests from remote checks, must not treat source-level review as browser manual QA, and must mark unavailable checks as not executed with reasons.
+
+P47b does not change runtime code, UI, packages, dependencies, `/practice`, `/api/recognize`, parser / converter behavior, piano runtime, or Stage B runtime. QA level recommendation: none. Next step remains P48.
+
 ## P47 — Stage A Manual Browser QA Record and Source Review (2026-07-08)
 
 P47 records the completed manual browser QA result for P46 + P46fix. The user completed local browser QA and confirmed the Stage A sheet music import preview baseline passes. This is a docs-only QA record for future Stage B / C / D / E work; it does not change runtime code.
