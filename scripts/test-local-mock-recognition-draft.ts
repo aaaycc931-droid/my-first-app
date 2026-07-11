@@ -61,8 +61,15 @@ assert.equal(manual.events[1].pitch, "D4");
 
 let existingManual = createNotationFragmentDraft();
 existingManual = addNotationDraftEvent(existingManual, { type: "note", pitch: "C4", duration: "quarter", measure: 1 });
-const clearedMock = clearMockRecognitionDraft();
-assert.equal(clearedMock, null);
+const clearedMock = clearMockRecognitionDraft(draft);
+assert.ok(clearedMock);
+assert.equal(clearedMock.events.length, 0);
+assert.equal(clearedMock.checked, false);
+assert.equal(clearedMock.stale, false);
+assert.equal(clearedMock.cleared, true);
+assert.equal(getMockRecognitionDraftStatus(clearedMock), "cleared");
+assert.equal(canUseMockRecognitionDraftAsCurrent(clearedMock, sourceA), false);
+assert.equal(copyMockRecognitionDraftToManualDraft(clearedMock), null);
 assert.equal(existingManual.events.length, 1);
 assert.equal(sourceA, "image-a");
 
