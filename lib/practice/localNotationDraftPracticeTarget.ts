@@ -31,7 +31,7 @@ export type NotationTemporaryPracticeTarget = {
 const boundaryWarnings = [
   "这是当前浏览器会话内的临时练习目标。",
   "它来自已检查且通过小节时值校验的手动草稿，不是正式识谱或最终目标。",
-  "当前练习不录音、不评分、不产生正式成绩。",
+  "当前目标不自动录音或评分；视唱音符可由用户主动进入本地跟练反馈。",
   "刷新页面后目标会消失；不会上传，也不会写入 localStorage、IndexedDB 或数据库。",
 ] as const;
 

@@ -22,7 +22,7 @@ const practiceFeatureNavigationItems: PracticeFeatureNavigationItem[] = [
   {
     id: "notation-practice",
     label: "临时乐谱练习",
-    description: "按已确认的临时乐谱目标逐事件练习；当前不录音、不评分。",
+    description: "按已确认的临时乐谱目标逐事件练习；可主动进入本地非评分音高跟练。",
   },
   {
     id: "local-melody",
