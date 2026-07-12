@@ -81,6 +81,10 @@ import {
   getNotationTargetPitchFrequencyHz,
 } from "../../lib/practice/nonScoringNotationTargetPitchFeedback";
 import {
+  createNotationTemporaryRhythmTapTargets,
+  getNotationTemporaryRhythmTotalBeats,
+} from "../../lib/practice/notationTemporaryRhythmTap";
+import {
   createLocalTargetPitchCurveDraft,
   type LocalTargetPitchCurveDraft,
 } from "../../lib/practice/localTargetPitchCurveDraft";
@@ -127,6 +131,12 @@ type NotationPracticePitchFeedbackContext = {
   eventIndex: number;
   pitch: NonNullable<NotationDraftEvent["pitch"]>;
   targetFrequencyHz: number;
+};
+
+type NotationRhythmTapPracticeContext = {
+  targetId: string;
+  draftFingerprint: string;
+  targetEventCount: number;
 };
 
 const getNotationPracticePitchFeedbackContextKey = (
@@ -397,6 +407,7 @@ export default function PracticePage() {
   const [notationTemporaryPracticeTarget, setNotationTemporaryPracticeTarget] = useState<NotationTemporaryPracticeTarget | null>(null);
   const [notationTemporaryPracticeTargetMode, setNotationTemporaryPracticeTargetMode] = useState<NotationTemporaryPracticeTargetMode>("sight-singing");
   const [notationPracticePitchFeedbackContext, setNotationPracticePitchFeedbackContext] = useState<NotationPracticePitchFeedbackContext | null>(null);
+  const [notationRhythmTapPracticeContext, setNotationRhythmTapPracticeContext] = useState<NotationRhythmTapPracticeContext | null>(null);
   const [flowState, setFlowState] = useState<PracticeFlowState>("idle");
   const [metronomeBpm, setMetronomeBpm] = useState(defaultMetronomeConfig.bpm);
   const [metronomeMeter, setMetronomeMeter] = useState<MetronomeMeter>(
@@ -566,6 +577,27 @@ export default function PracticePage() {
       return currentContext;
     });
   }, [notationTemporaryPracticeTarget]);
+
+  useEffect(() => {
+    const currentTarget = notationTemporaryPracticeTarget;
+    if (
+      !notationRhythmTapPracticeContext ||
+      (currentTarget &&
+        currentTarget.status === "active" &&
+        currentTarget.mode === "rhythm" &&
+        currentTarget.id === notationRhythmTapPracticeContext.targetId &&
+        currentTarget.draftFingerprint === notationRhythmTapPracticeContext.draftFingerprint)
+    ) {
+      return;
+    }
+
+    stopRhythmPracticeRuntime();
+    setNotationRhythmTapPracticeContext(null);
+    setRhythmPhase("idle");
+    setRhythmTargets([]);
+    setRhythmTaps([]);
+    setRhythmNowMs(0);
+  }, [notationTemporaryPracticeTarget, notationRhythmTapPracticeContext]);
 
   const clearLocalReviewedDraftPracticeTarget = () => {
     setLocalReviewedDraftPracticeTarget(null);
@@ -1052,6 +1084,7 @@ export default function PracticePage() {
   };
 
   const handleStartRhythmPractice = async () => {
+    setNotationRhythmTapPracticeContext(null);
     handleResetRhythmPractice();
 
     const beatsPerBar = getBeatsPerBar(metronomeMeter);
@@ -1133,6 +1166,86 @@ export default function PracticePage() {
       setRhythmError(
         "此浏览器无法启动节奏练习节拍器；请确认在用户手势中点击开始。",
       );
+    }
+  };
+
+  const handleStartNotationRhythmPractice = async (
+    target: NotationTemporaryPracticeTarget | null,
+  ) => {
+    if (!target || target.status !== "active" || target.mode !== "rhythm") {
+      return;
+    }
+
+    handleResetRhythmPractice();
+
+    const targetEventCount = target.events.filter((event) => event.type === "note").length;
+    if (targetEventCount === 0) {
+      setNotationRhythmTapPracticeContext(null);
+      setRhythmError("当前临时节奏目标没有需要拍击的音符事件。");
+      return;
+    }
+
+    const meter = target.timeSignature as MetronomeMeter;
+    const beatsPerBar = getBeatsPerBar(meter);
+    const beatDurationMs = (60 / metronomeBpm) * 1000;
+    const countInBeatCount = metronomeCountInBars * beatsPerBar;
+    const nowMs = performance.now();
+    const practiceStartTimeMs = nowMs + 80 + countInBeatCount * beatDurationMs;
+    const config = {
+      bpm: metronomeBpm,
+      meter,
+      countIn: { enabled: metronomeCountInBars > 0, bars: metronomeCountInBars },
+      subdivision: metronomeSubdivision,
+    } as const;
+    const targets = createNotationTemporaryRhythmTapTargets({
+      draft: target,
+      config,
+      practiceStartTimeMs,
+    });
+    const practiceDurationMs =
+      getNotationTemporaryRhythmTotalBeats(target.events) * beatDurationMs +
+      rhythmMatchWindowMs +
+      120;
+
+    setMetronomeMeter(meter);
+    setNotationRhythmTapPracticeContext({
+      targetId: target.id,
+      draftFingerprint: target.draftFingerprint,
+      targetEventCount,
+    });
+    setRhythmTargets(targets);
+    setRhythmTaps([]);
+    setRhythmNowMs(nowMs);
+    setRhythmPhase(countInBeatCount > 0 ? "count-in" : "practice");
+    setRhythmError("");
+
+    rhythmTimerIdRef.current = window.setInterval(() => {
+      setRhythmNowMs(performance.now());
+    }, 60);
+
+    if (countInBeatCount > 0) {
+      rhythmTimeoutIdsRef.current.push(
+        window.setTimeout(() => setRhythmPhase("practice"), Math.max(0, practiceStartTimeMs - performance.now())),
+      );
+    }
+
+    rhythmTimeoutIdsRef.current.push(
+      window.setTimeout(() => {
+        stopRhythmPracticeRuntime();
+        setRhythmPhase("stopped");
+        setRhythmNowMs(performance.now());
+      }, Math.max(0, practiceStartTimeMs - nowMs + practiceDurationMs)),
+    );
+
+    const scheduler = new BrowserMetronomeScheduler({ config });
+    rhythmSchedulerRef.current = scheduler;
+
+    try {
+      await scheduler.start();
+    } catch {
+      stopRhythmPracticeRuntime();
+      setRhythmPhase("idle");
+      setRhythmError("此浏览器无法启动临时节奏目标的节拍器；请确认在用户手势中点击开始。");
     }
   };
 
@@ -2048,11 +2161,15 @@ export default function PracticePage() {
                 if (target) {
                   setNotationTemporaryPracticeTarget(target);
                   setNotationPracticePitchFeedbackContext(null);
+                  setNotationRhythmTapPracticeContext(null);
+                  handleResetRhythmPractice();
                 }
               }}
               onClear={() => {
                 setNotationTemporaryPracticeTarget(null);
                 setNotationPracticePitchFeedbackContext(null);
+                setNotationRhythmTapPracticeContext(null);
+                handleResetRhythmPractice();
               }}
               onEnterPractice={() => setActiveFeatureView("notation-practice")}
             />
@@ -2064,7 +2181,7 @@ export default function PracticePage() {
             <PracticeFeatureSectionHeader
               eyebrow="当前功能区：临时乐谱练习"
               title="当前会话内的非评分乐谱练习"
-              description="此处使用经确认创建的临时乐谱目标按事件顺序练习；视唱音符可主动进入本地非评分音高跟练，不会替换本地旋律流程或保存数据。"
+              description="此处使用经确认创建的临时乐谱目标按事件顺序练习；视唱音符可主动进入本地非评分音高跟练，节奏目标可主动进入本地拍击练习，不会替换本地旋律流程或保存数据。"
             />
             <NotationTemporaryPracticePanel
               target={notationTemporaryPracticeTarget}
@@ -2072,6 +2189,8 @@ export default function PracticePage() {
               onClear={() => {
                 setNotationTemporaryPracticeTarget(null);
                 setNotationPracticePitchFeedbackContext(null);
+                setNotationRhythmTapPracticeContext(null);
+                handleResetRhythmPractice();
               }}
               onPracticeCurrentNote={(event, eventIndex) => {
                 const targetFrequencyHz = getNotationTargetPitchFrequencyHz(
@@ -2099,6 +2218,23 @@ export default function PracticePage() {
                   targetFrequencyHz,
                 });
                 setActiveFeatureView("feedback");
+              }}
+              onPracticeRhythmTarget={() => {
+                const currentTarget = notationTemporaryPracticeTarget;
+                if (
+                  !currentTarget ||
+                  currentTarget.status !== "active" ||
+                  currentTarget.mode !== "rhythm"
+                ) {
+                  return;
+                }
+                setNotationPracticePitchFeedbackContext(null);
+                setNotationRhythmTapPracticeContext({
+                  targetId: currentTarget.id,
+                  draftFingerprint: currentTarget.draftFingerprint,
+                  targetEventCount: currentTarget.events.filter((event) => event.type === "note").length,
+                });
+                setActiveFeatureView("rhythm");
               }}
             />
           </>
@@ -2381,10 +2517,9 @@ export default function PracticePage() {
                 点击式节奏练习 Alpha
               </h2>
               <p className="mt-2 max-w-3xl text-sm leading-6 text-violet-900">
-                当前 Alpha 可选择四分音符脉冲（每拍点击一次）或
-                八分音符脉冲（每拍点击两次）。它复用当前 BPM、拍号与
-                预备拍；目标模式独立于细分拍点击声，当前仍只播放
-                拍级点击声。
+                {notationRhythmTapPracticeContext
+                  ? "当前正在准备一个已确认的临时节奏目标。非休止事件的起点会成为 tap 参考点；休止只推进时间，不要求点击。它复用当前 BPM、拍号、预备拍与拍级点击声。"
+                  : "当前 Alpha 可选择四分音符脉冲（每拍点击一次）或八分音符脉冲（每拍点击两次）。它复用当前 BPM、拍号与预备拍；目标模式独立于细分拍点击声，当前仍只播放拍级点击声。"}
               </p>
               <p className="mt-3 rounded-2xl border border-amber-200 bg-amber-50 p-3 text-sm font-semibold text-amber-800">
                 仅提供不评分的练习反馈：只显示接近 / 偏早 / 偏晚 /
@@ -2407,7 +2542,7 @@ export default function PracticePage() {
 
           <div className="mt-5 grid gap-3 text-sm md:grid-cols-4">
             <label className="rounded-2xl bg-white p-4 font-semibold text-violet-950 ring-1 ring-violet-200">
-              目标模式
+              {notationRhythmTapPracticeContext ? "临时节奏目标" : "目标模式"}
               <select
                 value={rhythmTargetPattern}
                 onChange={(event) =>
@@ -2416,7 +2551,7 @@ export default function PracticePage() {
                   )
                 }
                 disabled={
-                  rhythmPhase === "count-in" || rhythmPhase === "practice"
+                  Boolean(notationRhythmTapPracticeContext) || rhythmPhase === "count-in" || rhythmPhase === "practice"
                 }
                 className="mt-2 w-full rounded-xl border border-violet-200 px-3 py-2 text-slate-900 disabled:bg-slate-100"
               >
@@ -2427,8 +2562,9 @@ export default function PracticePage() {
                 ))}
               </select>
               <span className="mt-2 block text-violet-800">
-                {rhythmTargetPatternTapGuidance[rhythmTargetPattern]} ·{" "}
-                {rhythmPracticeBarCount} 小节
+                {notationRhythmTapPracticeContext
+                  ? `当前目标含 ${notationRhythmTapPracticeContext.targetEventCount} 个需要拍击的音符事件。`
+                  : `${rhythmTargetPatternTapGuidance[rhythmTargetPattern]} · ${rhythmPracticeBarCount} 小节`}
               </span>
             </label>
             <div className="rounded-2xl bg-white p-4 ring-1 ring-violet-200">
@@ -2455,13 +2591,13 @@ export default function PracticePage() {
           <div className="mt-5 flex flex-wrap gap-2">
             <button
               type="button"
-              onClick={handleStartRhythmPractice}
+              onClick={() => notationRhythmTapPracticeContext ? handleStartNotationRhythmPractice(notationTemporaryPracticeTarget) : handleStartRhythmPractice()}
               disabled={
                 rhythmPhase === "count-in" || rhythmPhase === "practice"
               }
               className="rounded-full bg-violet-700 px-4 py-2 text-sm font-semibold text-white disabled:bg-violet-300"
             >
-              开始节奏练习
+              {notationRhythmTapPracticeContext ? "开始此节奏目标练习" : "开始节奏练习"}
             </button>
             <button
               type="button"
@@ -2613,8 +2749,9 @@ export default function PracticePage() {
               练习反馈日志（本轮仅当前会话）
             </h3>
             <p className="mt-2 text-sm font-semibold text-violet-800">
-              模式：{rhythmTargetPatternLabels[rhythmTargetPattern]} ·{" "}
-              {rhythmTargetPatternTapGuidance[rhythmTargetPattern]}
+              {notationRhythmTapPracticeContext
+                ? "来源：已确认的临时节奏目标；每个非休止事件起点对应一个 tap 参考点。"
+                : `模式：${rhythmTargetPatternLabels[rhythmTargetPattern]} · ${rhythmTargetPatternTapGuidance[rhythmTargetPattern]}`}
             </p>
             {rhythmFeedbackSummary.feedback.length > 0 ? (
               <ul className="mt-3 grid gap-2 text-sm sm:grid-cols-2">

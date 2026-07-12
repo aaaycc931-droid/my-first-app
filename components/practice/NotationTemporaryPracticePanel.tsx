@@ -8,11 +8,12 @@ type Props = {
   onGoToSheetMusic: () => void;
   onClear: () => void;
   onPracticeCurrentNote: (event: NotationDraftEvent, eventIndex: number) => void;
+  onPracticeRhythmTarget: () => void;
 };
 
 const durationLabels = { half: "二分", quarter: "四分", eighth: "八分" } as const;
 
-export function NotationTemporaryPracticePanel({ target, onGoToSheetMusic, onClear, onPracticeCurrentNote }: Props) {
+export function NotationTemporaryPracticePanel({ target, onGoToSheetMusic, onClear, onPracticeCurrentNote, onPracticeRhythmTarget }: Props) {
   const [eventIndex, setEventIndex] = useState(0);
 
   useEffect(() => setEventIndex(0), [target?.id]);
@@ -54,7 +55,7 @@ export function NotationTemporaryPracticePanel({ target, onGoToSheetMusic, onCle
         <p className="mt-3 text-lg font-semibold">{durationLabels[event.duration]}{isSightSinging ? (isRest ? "：保持休止。" : "：按此音高视唱。") : (isRest ? "：保持休止。" : "：按此时值拍读或拍击。")}</p>
       </div>
       <div className="mt-5 flex flex-wrap justify-center gap-2"><button type="button" onClick={() => setEventIndex((current) => Math.max(0, current - 1))} disabled={eventIndex === 0} className="rounded-full border border-fuchsia-300 px-4 py-2 text-sm font-semibold text-fuchsia-800 disabled:text-slate-400">上一个事件</button><button type="button" onClick={() => setEventIndex((current) => Math.min(target.events.length - 1, current + 1))} disabled={eventIndex === target.events.length - 1} className="rounded-full bg-fuchsia-700 px-4 py-2 text-sm font-semibold text-white disabled:bg-fuchsia-300">下一个事件</button><button type="button" onClick={() => setEventIndex(0)} className="rounded-full border border-fuchsia-300 px-4 py-2 text-sm font-semibold text-fuchsia-800">从头开始</button></div>
-      {isSightSinging && !isRest ? <div className="mt-5 rounded-2xl border border-violet-200 bg-violet-50 p-4 text-left text-sm text-violet-950"><p className="font-semibold">当前视唱音符的本地跟练</p><p className="mt-1 leading-6">主动进入后，可使用现有的浏览器本地录音与音高估计查看这一个音符的参考提示。不会自动打开麦克风，也不是正式评分。</p><button type="button" onClick={() => onPracticeCurrentNote(event, eventIndex)} className="mt-3 rounded-full bg-violet-700 px-4 py-2 font-semibold text-white">使用当前音符进行本地跟练</button></div> : <p className="mt-5 rounded-2xl border border-slate-200 bg-white p-4 text-sm leading-6 text-slate-700">{isRest ? "休止事件不需要音高跟练；请保持休止并继续下一个事件。" : "当前为临时节奏练习，P53 不提供音高跟练反馈。"}</p>}
+      {isSightSinging && !isRest ? <div className="mt-5 rounded-2xl border border-violet-200 bg-violet-50 p-4 text-left text-sm text-violet-950"><p className="font-semibold">当前视唱音符的本地跟练</p><p className="mt-1 leading-6">主动进入后，可使用现有的浏览器本地录音与音高估计查看这一个音符的参考提示。不会自动打开麦克风，也不是正式评分。</p><button type="button" onClick={() => onPracticeCurrentNote(event, eventIndex)} className="mt-3 rounded-full bg-violet-700 px-4 py-2 font-semibold text-white">使用当前音符进行本地跟练</button></div> : !isSightSinging ? <div className="mt-5 rounded-2xl border border-indigo-200 bg-indigo-50 p-4 text-left text-sm text-indigo-950"><p className="font-semibold">此临时节奏目标的本地拍击练习</p><p className="mt-1 leading-6">主动进入后，可复用现有浏览器节拍器与 tap / 空格键输入，按非休止事件的起点获得非评分节奏提示。不会打开麦克风，不会生成正式成绩。</p><button type="button" onClick={onPracticeRhythmTarget} className="mt-3 rounded-full bg-indigo-700 px-4 py-2 font-semibold text-white">使用此临时节奏目标进行拍击练习</button></div> : <p className="mt-5 rounded-2xl border border-slate-200 bg-white p-4 text-sm leading-6 text-slate-700">休止事件不需要音高跟练；请保持休止并继续下一个事件。</p>}
       <div className="mt-5 flex flex-wrap gap-2"><button type="button" onClick={onGoToSheetMusic} className="rounded-full border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700">返回目标预览</button><button type="button" onClick={onClear} className="rounded-full border border-rose-300 px-4 py-2 text-sm font-semibold text-rose-700">清除临时目标</button></div>
     </section>
   );
