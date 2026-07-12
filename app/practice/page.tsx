@@ -61,7 +61,16 @@ import { SheetMusicImportPreviewPanel } from "../../components/practice/SheetMus
 import { ManualNotationFragmentDraftPanel } from "../../components/practice/ManualNotationFragmentDraftPanel";
 import { MockRecognitionDraftPanel } from "../../components/practice/MockRecognitionDraftPanel";
 import { NotationDraftValidationPanel } from "../../components/practice/NotationDraftValidationPanel";
+import { NotationDraftPracticeTargetPanel } from "../../components/practice/NotationDraftPracticeTargetPanel";
+import { NotationTemporaryPracticePanel } from "../../components/practice/NotationTemporaryPracticePanel";
 import { createNotationFragmentDraft, type NotationFragmentDraft } from "../../lib/practice/localNotationFragmentDraft";
+import {
+  createNotationTemporaryPracticeTarget,
+  reconcileNotationTemporaryPracticeTarget,
+  type NotationTemporaryPracticeTarget,
+  type NotationTemporaryPracticeTargetMode,
+} from "../../lib/practice/localNotationDraftPracticeTarget";
+import type { NotationDraftValidationResult } from "../../lib/practice/localNotationDraftValidation";
 import { getNonScoringImportedTargetPitchFeedback } from "../../lib/practice/nonScoringImportedTargetPitchFeedback";
 import {
   createLocalTargetPitchCurveDraft,
@@ -361,6 +370,9 @@ export default function PracticePage() {
   const [manualNotationImportNotice, setManualNotationImportNotice] = useState<string | null>(null);
   const [manualNotationEventCount, setManualNotationEventCount] = useState(0);
   const [manualNotationDraft, setManualNotationDraft] = useState<NotationFragmentDraft>(() => createNotationFragmentDraft());
+  const [manualNotationValidationResult, setManualNotationValidationResult] = useState<NotationDraftValidationResult | null>(null);
+  const [notationTemporaryPracticeTarget, setNotationTemporaryPracticeTarget] = useState<NotationTemporaryPracticeTarget | null>(null);
+  const [notationTemporaryPracticeTargetMode, setNotationTemporaryPracticeTargetMode] = useState<NotationTemporaryPracticeTargetMode>("sight-singing");
   const [flowState, setFlowState] = useState<PracticeFlowState>("idle");
   const [metronomeBpm, setMetronomeBpm] = useState(defaultMetronomeConfig.bpm);
   const [metronomeMeter, setMetronomeMeter] = useState<MetronomeMeter>(
@@ -496,6 +508,16 @@ export default function PracticePage() {
       ),
     [localTargetPitchCurveDraft, localTargetPitchCurveDraftReviewSelection],
   );
+
+  useEffect(() => {
+    setNotationTemporaryPracticeTarget((currentTarget) =>
+      reconcileNotationTemporaryPracticeTarget(
+        currentTarget,
+        manualNotationDraft,
+        manualNotationValidationResult,
+      ),
+    );
+  }, [manualNotationDraft, manualNotationValidationResult]);
 
   const clearLocalReviewedDraftPracticeTarget = () => {
     setLocalReviewedDraftPracticeTarget(null);
@@ -1913,8 +1935,8 @@ export default function PracticePage() {
           <>
             <PracticeFeatureSectionHeader
               eyebrow="当前功能区：乐谱预览"
-              title="乐谱到练习目标输入系统 Stage A / Stage B / Stage C / Stage D"
-              description="这里提供本地乐谱图片预览、手动乐谱片段草稿、严格标注的模拟识谱草稿与小节时值校验；当前不做真实识谱，不生成练习目标。"
+              title="乐谱到练习目标输入系统 Stage A / Stage B / Stage C / Stage D / Stage E"
+              description="这里提供本地乐谱图片预览、草稿检查、小节时值校验和经确认生成的临时乐谱练习目标；当前不做真实识谱、正式转写或评分。"
             />
             <SheetMusicImportPreviewPanel
               inputRef={sheetMusicImportInputRef}
@@ -1935,7 +1957,43 @@ export default function PracticePage() {
               onDraftEventCountChange={setManualNotationEventCount}
               onDraftChange={setManualNotationDraft}
             />
-            <NotationDraftValidationPanel draft={manualNotationDraft} />
+            <NotationDraftValidationPanel
+              draft={manualNotationDraft}
+              result={manualNotationValidationResult}
+              onResultChange={setManualNotationValidationResult}
+            />
+            <NotationDraftPracticeTargetPanel
+              draft={manualNotationDraft}
+              validation={manualNotationValidationResult}
+              target={notationTemporaryPracticeTarget}
+              mode={notationTemporaryPracticeTargetMode}
+              onModeChange={setNotationTemporaryPracticeTargetMode}
+              onConfirmCreate={() => {
+                const target = createNotationTemporaryPracticeTarget(
+                  manualNotationDraft,
+                  manualNotationValidationResult,
+                  notationTemporaryPracticeTargetMode,
+                );
+                if (target) setNotationTemporaryPracticeTarget(target);
+              }}
+              onClear={() => setNotationTemporaryPracticeTarget(null)}
+              onEnterPractice={() => setActiveFeatureView("notation-practice")}
+            />
+          </>
+        ) : null}
+
+        {activeFeatureView === "notation-practice" ? (
+          <>
+            <PracticeFeatureSectionHeader
+              eyebrow="当前功能区：临时乐谱练习"
+              title="当前会话内的非评分乐谱练习"
+              description="此处只使用经确认创建的临时乐谱目标按事件顺序练习；不会替换本地旋律流程，也不录音、评分或保存。"
+            />
+            <NotationTemporaryPracticePanel
+              target={notationTemporaryPracticeTarget}
+              onGoToSheetMusic={() => setActiveFeatureView("sheet-music")}
+              onClear={() => setNotationTemporaryPracticeTarget(null)}
+            />
           </>
         ) : null}
 

@@ -1,5 +1,6 @@
 export type PracticeFeatureView =
   | "sheet-music"
+  | "notation-practice"
   | "local-melody"
   | "rhythm"
   | "onset"
@@ -16,7 +17,12 @@ const practiceFeatureNavigationItems: PracticeFeatureNavigationItem[] = [
     id: "sheet-music",
     label: "乐谱预览",
     description:
-      "选择本地乐谱图片并查看预览与文件信息；当前不识谱、不生成练习目标。",
+      "选择本地乐谱图片、检查草稿并确认创建临时乐谱练习目标。",
+  },
+  {
+    id: "notation-practice",
+    label: "临时乐谱练习",
+    description: "按已确认的临时乐谱目标逐事件练习；当前不录音、不评分。",
   },
   {
     id: "local-melody",
@@ -74,7 +80,7 @@ export function PracticeFeatureNavigation({
       </div>
 
       <div
-        className="mt-4 grid gap-3 md:grid-cols-5"
+        className="mt-4 grid gap-3 md:grid-cols-3 lg:grid-cols-6"
         role="tablist"
         aria-label="练习模式功能导航"
       >

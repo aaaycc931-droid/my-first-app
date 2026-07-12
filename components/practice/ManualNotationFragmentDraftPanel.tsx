@@ -131,7 +131,7 @@ export function ManualNotationFragmentDraftPanel({
           <p className="text-sm font-semibold uppercase tracking-wide text-violet-700">Stage B Runtime Alpha</p>
           <h2 className="mt-1 text-2xl font-bold text-slate-950">手动乐谱片段草稿</h2>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-700">
-            当前只创建会话内的手动草稿，可把本地乐谱图片作为肉眼参考；不会自动识别图片内容，不会生成练习目标。
+            当前只创建会话内的手动草稿，可把本地乐谱图片作为肉眼参考；不会自动识别图片内容，只有完成检查和小节校验后才可在 Stage E 确认生成临时目标。
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -188,10 +188,10 @@ export function ManualNotationFragmentDraftPanel({
             <div><dt className="font-semibold text-slate-700">是否已检查</dt><dd>{draft.checked && !draft.stale ? "是" : "否"}</dd></div>
             <div><dt className="font-semibold text-slate-700">来源关系</dt><dd>{sourceLabel}</dd></div>
             <div><dt className="font-semibold text-slate-700">是否可进入校验</dt><dd>{draft.checked && !draft.stale ? "是，请使用下方 Stage D。" : "否，请先完成当前草稿检查。"}</dd></div>
-            <div><dt className="font-semibold text-slate-700">是否可进入练习</dt><dd>否</dd></div>
+            <div><dt className="font-semibold text-slate-700">是否可进入练习</dt><dd>需先通过下方小节校验并在 Stage E 确认。</dd></div>
           </dl>
           {status === "stale" ? <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900"><p className="font-bold">参考图片已变更，旧检查状态已失效。</p><p className="mt-1">请基于当前图片重新确认，或改为独立手动草稿；之后仍需重新检查。</p><div className="mt-3 flex flex-wrap gap-2">{currentSheetMusicSourceId ? <button type="button" onClick={() => setDraft((currentDraft) => confirmNotationDraftWithCurrentSource(currentDraft, currentSheetMusicSourceId))} className="rounded-full bg-amber-700 px-3 py-1.5 text-sm font-semibold text-white">基于当前图片重新确认</button> : null}<button type="button" onClick={() => setDraft(convertNotationDraftToIndependent)} className="rounded-full border border-amber-300 px-3 py-1.5 text-sm font-semibold text-amber-900">改为独立手动草稿</button></div></div> : null}
-          {draft.checked && !draft.stale ? <p className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 p-3 text-sm font-semibold text-emerald-900">已检查，但尚未进行小节时值校验；这不代表可以进入练习。</p> : <p className="mt-4 rounded-2xl border border-sky-200 bg-sky-50 p-3 text-sm text-sky-900">当前草稿尚未检查。修改草稿后，需要重新检查。</p>}
+          {draft.checked && !draft.stale ? <p className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 p-3 text-sm font-semibold text-emerald-900">已检查，请继续完成下方小节时值校验；检查本身不代表可以进入练习。</p> : <p className="mt-4 rounded-2xl border border-sky-200 bg-sky-50 p-3 text-sm text-sky-900">当前草稿尚未检查。修改草稿后，需要重新检查。</p>}
 
           <div className="mt-4 space-y-3">
             {draft.events.length === 0 ? <p className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-4 text-sm text-slate-700">当前没有音符或休止符。请先添加至少一个事件。</p> : null}
@@ -202,7 +202,7 @@ export function ManualNotationFragmentDraftPanel({
 
       <div className="mt-5 grid gap-3 text-sm md:grid-cols-2">
         <button type="button" disabled className="rounded-2xl border border-slate-200 bg-slate-100 p-4 text-left font-semibold text-slate-500">小节时值校验：请在下方 Stage D 面板中完成。</button>
-        <button type="button" disabled className="rounded-2xl border border-slate-200 bg-slate-100 p-4 text-left font-semibold text-slate-500">进入练习：当前内容仍是手动草稿，需要先完成检查与小节校验，暂时不能进入练习。</button>
+        <button type="button" disabled className="rounded-2xl border border-slate-200 bg-slate-100 p-4 text-left font-semibold text-slate-500">进入练习：请先完成下方 Stage D 校验，再在 Stage E 明确确认临时目标。</button>
       </div>
       <p className="mt-4 text-sm text-slate-600">会话边界：草稿只存在于当前页面内存；刷新后消失，不写入 localStorage 或 IndexedDB，不上传，不保存到数据库或私人曲库。</p>
     </section>

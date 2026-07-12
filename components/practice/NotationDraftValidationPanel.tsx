@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo } from "react";
 
 import type { NotationFragmentDraft } from "../../lib/practice/localNotationFragmentDraft";
 import {
@@ -11,6 +11,8 @@ import {
 
 type NotationDraftValidationPanelProps = {
   draft: NotationFragmentDraft;
+  result: NotationDraftValidationResult | null;
+  onResultChange: (result: NotationDraftValidationResult | null) => void;
 };
 
 const measureStateLabels: Record<NotationMeasureValidationState, string> = {
@@ -24,14 +26,17 @@ const formatQuarterBeats = (value: number) =>
 
 export function NotationDraftValidationPanel({
   draft,
+  result,
+  onResultChange,
 }: NotationDraftValidationPanelProps) {
-  const [result, setResult] = useState<NotationDraftValidationResult | null>(null);
+  const reconciledResult = useMemo(
+    () => reconcileNotationDraftValidation(result, draft),
+    [draft, result],
+  );
 
   useEffect(() => {
-    setResult((currentResult) =>
-      reconcileNotationDraftValidation(currentResult, draft),
-    );
-  }, [draft]);
+    if (reconciledResult !== result) onResultChange(reconciledResult);
+  }, [onResultChange, reconciledResult, result]);
 
   const disabledReason = useMemo(
     () => getNotationDraftValidationDisabledReason(draft),
@@ -40,7 +45,7 @@ export function NotationDraftValidationPanel({
 
   const runValidation = () => {
     const nextResult = validateNotationDraftMeasures(draft);
-    if (nextResult) setResult(nextResult);
+    if (nextResult) onResultChange(nextResult);
   };
 
   return (
@@ -60,12 +65,12 @@ export function NotationDraftValidationPanel({
             disabled={Boolean(disabledReason)}
             className="rounded-full bg-teal-700 px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:bg-slate-300"
           >
-            {result && result.status !== "stale" ? "重新校验" : "运行小节时值校验"}
+            {reconciledResult && reconciledResult.status !== "stale" ? "重新校验" : "运行小节时值校验"}
           </button>
           <button
             type="button"
-            onClick={() => setResult(null)}
-            disabled={!result}
+            onClick={() => onResultChange(null)}
+            disabled={!reconciledResult}
             className="rounded-full border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 disabled:cursor-not-allowed disabled:text-slate-400"
           >
             清除校验结果
@@ -83,28 +88,28 @@ export function NotationDraftValidationPanel({
         </p>
       )}
 
-      {!result ? (
+      {!reconciledResult ? (
         <div className="mt-4 rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-4 text-sm text-slate-700">
           当前没有校验结果。校验结果只存在于当前页面内存，刷新后消失。
         </div>
-      ) : result.status === "stale" ? (
+      ) : reconciledResult.status === "stale" ? (
         <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
           <p className="font-bold">旧校验结果已失效。</p>
           <p className="mt-1">草稿内容、拍号、检查状态或来源已经变化。请重新检查草稿后再次校验。</p>
         </div>
       ) : (
         <div className="mt-4">
-          <div className={`rounded-2xl border p-4 text-sm ${result.status === "valid" ? "border-emerald-200 bg-emerald-50 text-emerald-900" : "border-rose-200 bg-rose-50 text-rose-900"}`}>
+          <div className={`rounded-2xl border p-4 text-sm ${reconciledResult.status === "valid" ? "border-emerald-200 bg-emerald-50 text-emerald-900" : "border-rose-200 bg-rose-50 text-rose-900"}`}>
             <p className="font-bold">
-              {result.status === "valid"
+              {reconciledResult.status === "valid"
                 ? "校验通过：两个小节的时值总和均符合当前拍号。"
                 : "校验未通过：至少一个小节的时值总和不符合当前拍号。"}
             </p>
-            <p className="mt-1">当前拍号 {result.timeSignature}；每小节应为 {formatQuarterBeats(result.expectedQuarterBeatsPerMeasure)} 个四分音符拍。</p>
+            <p className="mt-1">当前拍号 {reconciledResult.timeSignature}；每小节应为 {formatQuarterBeats(reconciledResult.expectedQuarterBeatsPerMeasure)} 个四分音符拍。</p>
           </div>
 
           <div className="mt-4 grid gap-3 md:grid-cols-2">
-            {result.measures.map((measure) => (
+            {reconciledResult.measures.map((measure) => (
               <article key={measure.measure} className="rounded-2xl border border-slate-200 p-4 text-sm">
                 <h3 className="font-bold text-slate-950">第 {measure.measure} 小节</h3>
                 <dl className="mt-2 grid grid-cols-2 gap-2 text-slate-700">
@@ -122,10 +127,10 @@ export function NotationDraftValidationPanel({
       <div className="mt-5 grid gap-3 text-sm md:grid-cols-2">
         <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-slate-700">
           <p className="font-semibold">下一阶段就绪状态</p>
-          <p className="mt-1">{result?.status === "valid" ? "时值校验已通过，可供未来 Stage E 使用。" : "尚未获得当前草稿的有效通过结果。"}</p>
+          <p className="mt-1">{reconciledResult?.status === "valid" ? "时值校验已通过，可供 Stage E 创建临时练习目标。" : "尚未获得当前草稿的有效通过结果。"}</p>
         </div>
         <button type="button" disabled className="rounded-2xl border border-slate-200 bg-slate-100 p-4 text-left font-semibold text-slate-500">
-          进入练习：Stage E 尚未实现，当前不会创建临时练习目标。
+          进入练习：请在下方 Stage E 面板中确认创建临时目标。
         </button>
       </div>
       <p className="mt-4 text-sm text-slate-600">
