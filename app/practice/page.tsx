@@ -63,7 +63,11 @@ import { MockRecognitionDraftPanel } from "../../components/practice/MockRecogni
 import { NotationDraftValidationPanel } from "../../components/practice/NotationDraftValidationPanel";
 import { NotationDraftPracticeTargetPanel } from "../../components/practice/NotationDraftPracticeTargetPanel";
 import { NotationTemporaryPracticePanel } from "../../components/practice/NotationTemporaryPracticePanel";
-import { createNotationFragmentDraft, type NotationFragmentDraft } from "../../lib/practice/localNotationFragmentDraft";
+import {
+  createNotationFragmentDraft,
+  type NotationDraftEvent,
+  type NotationFragmentDraft,
+} from "../../lib/practice/localNotationFragmentDraft";
 import {
   createNotationTemporaryPracticeTarget,
   reconcileNotationTemporaryPracticeTarget,
@@ -72,6 +76,10 @@ import {
 } from "../../lib/practice/localNotationDraftPracticeTarget";
 import type { NotationDraftValidationResult } from "../../lib/practice/localNotationDraftValidation";
 import { getNonScoringImportedTargetPitchFeedback } from "../../lib/practice/nonScoringImportedTargetPitchFeedback";
+import {
+  getNonScoringNotationTargetPitchFeedback,
+  getNotationTargetPitchFrequencyHz,
+} from "../../lib/practice/nonScoringNotationTargetPitchFeedback";
 import {
   createLocalTargetPitchCurveDraft,
   type LocalTargetPitchCurveDraft,
@@ -111,6 +119,22 @@ type AudioAnalysisResult = {
   rmsLevel: number;
   simpleLevelHint: string;
 };
+
+type NotationPracticePitchFeedbackContext = {
+  targetId: string;
+  draftFingerprint: string;
+  eventId: string;
+  eventIndex: number;
+  pitch: NonNullable<NotationDraftEvent["pitch"]>;
+  targetFrequencyHz: number;
+};
+
+const getNotationPracticePitchFeedbackContextKey = (
+  context: NotationPracticePitchFeedbackContext | null,
+) =>
+  context
+    ? `${context.targetId}:${context.draftFingerprint}:${context.eventId}:${context.eventIndex}:${context.pitch}`
+    : null;
 
 type PitchComparisonResult = {
   targetNote: string;
@@ -372,6 +396,7 @@ export default function PracticePage() {
   const [manualNotationValidationResult, setManualNotationValidationResult] = useState<NotationDraftValidationResult | null>(null);
   const [notationTemporaryPracticeTarget, setNotationTemporaryPracticeTarget] = useState<NotationTemporaryPracticeTarget | null>(null);
   const [notationTemporaryPracticeTargetMode, setNotationTemporaryPracticeTargetMode] = useState<NotationTemporaryPracticeTargetMode>("sight-singing");
+  const [notationPracticePitchFeedbackContext, setNotationPracticePitchFeedbackContext] = useState<NotationPracticePitchFeedbackContext | null>(null);
   const [flowState, setFlowState] = useState<PracticeFlowState>("idle");
   const [metronomeBpm, setMetronomeBpm] = useState(defaultMetronomeConfig.bpm);
   const [metronomeMeter, setMetronomeMeter] = useState<MetronomeMeter>(
@@ -417,6 +442,8 @@ export default function PracticePage() {
   const [pitchEstimateResult, setPitchEstimateResult] =
     useState<PitchEstimateResult | null>(null);
   const [pitchEstimateImportedSegmentKey, setPitchEstimateImportedSegmentKey] =
+    useState<string | null>(null);
+  const [pitchEstimateNotationTargetKey, setPitchEstimateNotationTargetKey] =
     useState<string | null>(null);
   const [pitchEstimateError, setPitchEstimateError] = useState("");
   const [isEstimatingPitch, setIsEstimatingPitch] = useState(false);
@@ -518,6 +545,28 @@ export default function PracticePage() {
     );
   }, [manualNotationDraft, manualNotationValidationResult]);
 
+  useEffect(() => {
+    setNotationPracticePitchFeedbackContext((currentContext) => {
+      if (!currentContext) return null;
+
+      const currentTarget = notationTemporaryPracticeTarget;
+      const currentEvent = currentTarget?.events[currentContext.eventIndex];
+
+      if (
+        !currentTarget ||
+        currentTarget.status !== "active" ||
+        currentTarget.id !== currentContext.targetId ||
+        currentTarget.draftFingerprint !== currentContext.draftFingerprint ||
+        currentEvent?.id !== currentContext.eventId ||
+        currentEvent.pitch !== currentContext.pitch
+      ) {
+        return null;
+      }
+
+      return currentContext;
+    });
+  }, [notationTemporaryPracticeTarget]);
+
   const clearLocalReviewedDraftPracticeTarget = () => {
     setLocalReviewedDraftPracticeTarget(null);
   };
@@ -567,6 +616,25 @@ export default function PracticePage() {
   const importedTargetPitchFeedbackMayBeStale =
     Boolean(pitchEstimateResult && selectedImportedSegment) &&
     pitchEstimateImportedSegmentKey !== selectedImportedSegmentKey;
+  const notationPracticePitchFeedbackContextKey =
+    getNotationPracticePitchFeedbackContextKey(
+      notationPracticePitchFeedbackContext,
+    );
+  const notationTargetPitchFeedbackMayBeStale =
+    Boolean(pitchEstimateResult && notationPracticePitchFeedbackContext) &&
+    pitchEstimateNotationTargetKey !== notationPracticePitchFeedbackContextKey;
+  const notationTargetPitchFeedback =
+    notationPracticePitchFeedbackContext &&
+    pitchEstimateResult &&
+    !notationTargetPitchFeedbackMayBeStale
+      ? getNonScoringNotationTargetPitchFeedback({
+          targetFrequencyHz:
+            notationPracticePitchFeedbackContext.targetFrequencyHz,
+          estimatedFrequencyHz: pitchEstimateResult.estimatedFrequencyHz,
+          confidence: pitchEstimateResult.confidence,
+          validPitchFrames: pitchEstimateResult.validPitchFrames,
+        })
+      : null;
 
   const canUseReviewedDraftAsTemporaryPracticeTarget =
     Boolean(localTargetPitchCurveDraft) &&
@@ -1368,6 +1436,7 @@ export default function PracticePage() {
     setIsAnalyzingAudio(false);
     setPitchEstimateResult(null);
     setPitchEstimateImportedSegmentKey(null);
+    setPitchEstimateNotationTargetKey(null);
     setPitchEstimateError("");
     setIsEstimatingPitch(false);
     setAudioOnsetResult(null);
@@ -1569,10 +1638,12 @@ export default function PracticePage() {
     const attemptedMelodyStep =
       melodySteps[attemptedMelodyStepIndex] ?? melodySteps[0];
     const attemptedImportedSegmentKey = selectedImportedSegmentKey;
+    const attemptedNotationTargetKey = notationPracticePitchFeedbackContextKey;
 
     setPitchEstimateError("");
     setPitchEstimateResult(null);
     setPitchEstimateImportedSegmentKey(null);
+    setPitchEstimateNotationTargetKey(null);
     setIsEstimatingPitch(true);
 
     const pitchEstimateRunId = pitchEstimateRunIdRef.current + 1;
@@ -1595,6 +1666,7 @@ export default function PracticePage() {
 
         setPitchEstimateResult(result);
         setPitchEstimateImportedSegmentKey(attemptedImportedSegmentKey);
+        setPitchEstimateNotationTargetKey(attemptedNotationTargetKey);
 
         if (
           targetFrequencyHz &&
@@ -1973,9 +2045,15 @@ export default function PracticePage() {
                   manualNotationValidationResult,
                   notationTemporaryPracticeTargetMode,
                 );
-                if (target) setNotationTemporaryPracticeTarget(target);
+                if (target) {
+                  setNotationTemporaryPracticeTarget(target);
+                  setNotationPracticePitchFeedbackContext(null);
+                }
               }}
-              onClear={() => setNotationTemporaryPracticeTarget(null)}
+              onClear={() => {
+                setNotationTemporaryPracticeTarget(null);
+                setNotationPracticePitchFeedbackContext(null);
+              }}
               onEnterPractice={() => setActiveFeatureView("notation-practice")}
             />
           </>
@@ -1986,12 +2064,42 @@ export default function PracticePage() {
             <PracticeFeatureSectionHeader
               eyebrow="当前功能区：临时乐谱练习"
               title="当前会话内的非评分乐谱练习"
-              description="此处只使用经确认创建的临时乐谱目标按事件顺序练习；不会替换本地旋律流程，也不录音、评分或保存。"
+              description="此处使用经确认创建的临时乐谱目标按事件顺序练习；视唱音符可主动进入本地非评分音高跟练，不会替换本地旋律流程或保存数据。"
             />
             <NotationTemporaryPracticePanel
               target={notationTemporaryPracticeTarget}
               onGoToSheetMusic={() => setActiveFeatureView("sheet-music")}
-              onClear={() => setNotationTemporaryPracticeTarget(null)}
+              onClear={() => {
+                setNotationTemporaryPracticeTarget(null);
+                setNotationPracticePitchFeedbackContext(null);
+              }}
+              onPracticeCurrentNote={(event, eventIndex) => {
+                const targetFrequencyHz = getNotationTargetPitchFrequencyHz(
+                  event.pitch,
+                );
+                const currentTarget = notationTemporaryPracticeTarget;
+
+                if (
+                  !currentTarget ||
+                  currentTarget.status !== "active" ||
+                  currentTarget.mode !== "sight-singing" ||
+                  event.type !== "note" ||
+                  !event.pitch ||
+                  targetFrequencyHz === null
+                ) {
+                  return;
+                }
+
+                setNotationPracticePitchFeedbackContext({
+                  targetId: currentTarget.id,
+                  draftFingerprint: currentTarget.draftFingerprint,
+                  eventId: event.id,
+                  eventIndex,
+                  pitch: event.pitch,
+                  targetFrequencyHz,
+                });
+                setActiveFeatureView("feedback");
+              }}
             />
           </>
         ) : null}
@@ -2740,8 +2848,26 @@ export default function PracticePage() {
             <PracticeFeatureSectionHeader
               eyebrow="当前功能区：练习反馈"
               title="本次会话的录音、音高估计与反馈"
-              description="这里保留本地录音、音高估计、导入目标音高反馈与练习记录。反馈只用于诊断参考，不是评分、等级或通过 / 失败判断。"
+              description="这里保留本地录音、音高估计、临时乐谱与导入目标音高反馈及练习记录。反馈只用于诊断参考，不是评分、等级或通过 / 失败判断。"
             />
+        {notationPracticePitchFeedbackContext ? (
+          <section className="mt-6 rounded-3xl border border-violet-200 bg-violet-50 p-5 shadow-sm sm:p-6">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <p className="text-sm font-semibold uppercase tracking-wide text-violet-700">临时乐谱当前跟练</p>
+                <h2 className="mt-1 text-2xl font-bold text-violet-950">{notationPracticePitchFeedbackContext.pitch} · 事件 {notationPracticePitchFeedbackContext.eventIndex + 1}</h2>
+                <p className="mt-2 max-w-3xl text-sm leading-6 text-violet-900">请使用下方现有的浏览器本地录音和“进行本地音高估计”完成一次跟练。只有在你主动从临时视唱事件进入后，估计结果才会与此音符关联。</p>
+              </div>
+              <button type="button" onClick={() => setActiveFeatureView("notation-practice")} className="rounded-full border border-violet-300 bg-white px-4 py-2 text-sm font-semibold text-violet-800">返回临时乐谱练习</button>
+            </div>
+            <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
+              <div className="rounded-2xl bg-white p-4 ring-1 ring-violet-200"><dt className="font-semibold text-violet-950">当前参考音高</dt><dd className="mt-1 text-violet-800">{notationPracticePitchFeedbackContext.targetFrequencyHz.toFixed(2)} Hz</dd></div>
+              <div className="rounded-2xl bg-white p-4 ring-1 ring-violet-200"><dt className="font-semibold text-violet-950">本地估计状态</dt><dd className="mt-1 text-violet-800">{pitchEstimateResult ? (notationTargetPitchFeedbackMayBeStale ? "估计对应其他目标，请重新估计" : "已获得当前事件的本地估计") : "等待录音和本地音高估计"}</dd></div>
+            </dl>
+            {notationTargetPitchFeedbackMayBeStale ? <p className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-900">当前音高估计是在选择这个视唱音符之前或切换目标后得到的，不能作为当前事件的参考。请重新录音并进行本地音高估计。</p> : null}
+            {notationTargetPitchFeedback ? <div className="mt-4 rounded-2xl border border-violet-200 bg-white p-4 text-violet-950"><p className="font-semibold">{notationTargetPitchFeedback.title}</p><p className="mt-1 text-sm leading-6 text-violet-900">{notationTargetPitchFeedback.message}</p>{notationTargetPitchFeedback.centsDifference !== null ? <p className="mt-3 text-sm font-medium text-violet-800">与当前参考音的音分差：{notationTargetPitchFeedback.centsDifference.toFixed(1)}</p> : null}<p className="mt-3 text-sm leading-6 text-slate-700">这是本地、非评分的练习提示；不判断通过或失败，不生成正式成绩。</p></div> : null}
+          </section>
+        ) : null}
         <section className="mt-6 rounded-2xl border border-blue-200 bg-blue-50 p-5">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
