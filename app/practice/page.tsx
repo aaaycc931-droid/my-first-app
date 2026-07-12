@@ -60,7 +60,8 @@ import { PracticeFeatureSectionHeader } from "../../components/practice/Practice
 import { SheetMusicImportPreviewPanel } from "../../components/practice/SheetMusicImportPreviewPanel";
 import { ManualNotationFragmentDraftPanel } from "../../components/practice/ManualNotationFragmentDraftPanel";
 import { MockRecognitionDraftPanel } from "../../components/practice/MockRecognitionDraftPanel";
-import type { NotationFragmentDraft } from "../../lib/practice/localNotationFragmentDraft";
+import { NotationDraftValidationPanel } from "../../components/practice/NotationDraftValidationPanel";
+import { createNotationFragmentDraft, type NotationFragmentDraft } from "../../lib/practice/localNotationFragmentDraft";
 import { getNonScoringImportedTargetPitchFeedback } from "../../lib/practice/nonScoringImportedTargetPitchFeedback";
 import {
   createLocalTargetPitchCurveDraft,
@@ -359,6 +360,7 @@ export default function PracticePage() {
   const [manualNotationImportDraft, setManualNotationImportDraft] = useState<NotationFragmentDraft | null>(null);
   const [manualNotationImportNotice, setManualNotationImportNotice] = useState<string | null>(null);
   const [manualNotationEventCount, setManualNotationEventCount] = useState(0);
+  const [manualNotationDraft, setManualNotationDraft] = useState<NotationFragmentDraft>(() => createNotationFragmentDraft());
   const [flowState, setFlowState] = useState<PracticeFlowState>("idle");
   const [metronomeBpm, setMetronomeBpm] = useState(defaultMetronomeConfig.bpm);
   const [metronomeMeter, setMetronomeMeter] = useState<MetronomeMeter>(
@@ -1911,8 +1913,8 @@ export default function PracticePage() {
           <>
             <PracticeFeatureSectionHeader
               eyebrow="当前功能区：乐谱预览"
-              title="乐谱到练习目标输入系统 Stage A / Stage B / Stage C"
-              description="这里提供本地乐谱图片预览、手动乐谱片段草稿，以及严格标注的模拟识谱草稿；当前不做真实识谱，不生成练习目标。"
+              title="乐谱到练习目标输入系统 Stage A / Stage B / Stage C / Stage D"
+              description="这里提供本地乐谱图片预览、手动乐谱片段草稿、严格标注的模拟识谱草稿与小节时值校验；当前不做真实识谱，不生成练习目标。"
             />
             <SheetMusicImportPreviewPanel
               inputRef={sheetMusicImportInputRef}
@@ -1931,7 +1933,9 @@ export default function PracticePage() {
               importedDraft={manualNotationImportDraft}
               importNotice={manualNotationImportNotice}
               onDraftEventCountChange={setManualNotationEventCount}
+              onDraftChange={setManualNotationDraft}
             />
+            <NotationDraftValidationPanel draft={manualNotationDraft} />
           </>
         ) : null}
 

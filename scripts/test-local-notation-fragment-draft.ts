@@ -2,7 +2,6 @@ import assert from "node:assert/strict";
 
 import {
   addNotationDraftEvent,
-  canCreateNotationValidation,
   canCreatePracticeTargetFromNotationDraft,
   changeNotationDraftTimeSignature,
   clearNotationFragmentDraft,
@@ -90,7 +89,6 @@ assert.equal(importedFromMock.checked, false);
 assert.equal(importedFromMock.stale, false);
 assert.equal(importedFromMock.source.mode, "independent");
 
-assert.equal(canCreateNotationValidation(), false);
 assert.equal(canCreatePracticeTargetFromNotationDraft(), false);
 
 console.log("local notation fragment draft regression tests passed");

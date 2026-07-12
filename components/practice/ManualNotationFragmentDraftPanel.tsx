@@ -32,6 +32,7 @@ type ManualNotationFragmentDraftPanelProps = {
   importedDraft?: NotationFragmentDraft | null;
   importNotice?: string | null;
   onDraftEventCountChange?: (eventCount: number) => void;
+  onDraftChange?: (draft: NotationFragmentDraft) => void;
 };
 
 const durationLabels: Record<NotationDuration, string> = {
@@ -61,6 +62,7 @@ export function ManualNotationFragmentDraftPanel({
   importedDraft,
   importNotice,
   onDraftEventCountChange,
+  onDraftChange,
 }: ManualNotationFragmentDraftPanelProps) {
   const [draft, setDraft] = useState<NotationFragmentDraft>(() =>
     createNotationFragmentDraft(),
@@ -81,7 +83,8 @@ export function ManualNotationFragmentDraftPanel({
 
   useEffect(() => {
     onDraftEventCountChange?.(draft.events.length);
-  }, [draft.events.length, onDraftEventCountChange]);
+    onDraftChange?.(draft);
+  }, [draft, onDraftChange, onDraftEventCountChange]);
 
   const status = getNotationDraftStatus(draft);
   const reachedLimit = draft.events.length >= maxNotationDraftEvents;
@@ -184,7 +187,7 @@ export function ManualNotationFragmentDraftPanel({
             <div><dt className="font-semibold text-slate-700">草稿状态</dt><dd>{statusLabels[status]}</dd></div>
             <div><dt className="font-semibold text-slate-700">是否已检查</dt><dd>{draft.checked && !draft.stale ? "是" : "否"}</dd></div>
             <div><dt className="font-semibold text-slate-700">来源关系</dt><dd>{sourceLabel}</dd></div>
-            <div><dt className="font-semibold text-slate-700">是否可进入校验</dt><dd>否，小节时值校验将在后续阶段提供。</dd></div>
+            <div><dt className="font-semibold text-slate-700">是否可进入校验</dt><dd>{draft.checked && !draft.stale ? "是，请使用下方 Stage D。" : "否，请先完成当前草稿检查。"}</dd></div>
             <div><dt className="font-semibold text-slate-700">是否可进入练习</dt><dd>否</dd></div>
           </dl>
           {status === "stale" ? <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900"><p className="font-bold">参考图片已变更，旧检查状态已失效。</p><p className="mt-1">请基于当前图片重新确认，或改为独立手动草稿；之后仍需重新检查。</p><div className="mt-3 flex flex-wrap gap-2">{currentSheetMusicSourceId ? <button type="button" onClick={() => setDraft((currentDraft) => confirmNotationDraftWithCurrentSource(currentDraft, currentSheetMusicSourceId))} className="rounded-full bg-amber-700 px-3 py-1.5 text-sm font-semibold text-white">基于当前图片重新确认</button> : null}<button type="button" onClick={() => setDraft(convertNotationDraftToIndependent)} className="rounded-full border border-amber-300 px-3 py-1.5 text-sm font-semibold text-amber-900">改为独立手动草稿</button></div></div> : null}
@@ -198,7 +201,7 @@ export function ManualNotationFragmentDraftPanel({
       </div>
 
       <div className="mt-5 grid gap-3 text-sm md:grid-cols-2">
-        <button type="button" disabled className="rounded-2xl border border-slate-200 bg-slate-100 p-4 text-left font-semibold text-slate-500">小节时值校验：小节时值校验将在后续阶段提供。</button>
+        <button type="button" disabled className="rounded-2xl border border-slate-200 bg-slate-100 p-4 text-left font-semibold text-slate-500">小节时值校验：请在下方 Stage D 面板中完成。</button>
         <button type="button" disabled className="rounded-2xl border border-slate-200 bg-slate-100 p-4 text-left font-semibold text-slate-500">进入练习：当前内容仍是手动草稿，需要先完成检查与小节校验，暂时不能进入练习。</button>
       </div>
       <p className="mt-4 text-sm text-slate-600">会话边界：草稿只存在于当前页面内存；刷新后消失，不写入 localStorage 或 IndexedDB，不上传，不保存到数据库或私人曲库。</p>

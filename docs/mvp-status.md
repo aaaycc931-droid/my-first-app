@@ -1,3 +1,13 @@
+## P51 — Stage D Manual Draft Measure-Duration Validation Runtime Alpha (2026-07-11)
+
+P51 adds the Stage D acceptance criteria and runtime alpha in one complete vertical slice. The `/practice` default entry remains “本地旋律”. Inside “乐谱预览”, Stage D follows the Stage B manual draft and accepts only the current session-only manual draft. Users must first mark the draft as checked; empty, cleared, invalid, unchecked, or stale drafts show a Chinese disabled reason and cannot be validated.
+
+The pure local validation helper converts half, quarter, and eighth durations to `2`, `1`, and `0.5` quarter-note beats, counts quarter rests equally, derives the required beats from `2/4`, `3/4`, or `4/4`, and validates the fixed two measures separately. The UI shows expected, actual, difference, and complete / underfilled / overfilled state for each measure, plus an overall pass or fail result. This is an explainable measure-duration gate only; it is not recognition accuracy, a score, an official transcription, or a final target.
+
+Validation results store a fingerprint of the checked draft. Adding, editing, or deleting events; changing time signature; changing review state; source replacement or clear; source reconfirmation or detachment; and draft clear or reset make an old result stale. Users can re-run or clear only the validation result. Results remain in current-page React memory, disappear on refresh, and are not written to localStorage, IndexedDB, or a database.
+
+Stage E remains disabled even after a valid result. P51 does not create a practice target, enter practice, score performance, read image pixels, add OCR / OMR, parse PDF, call Audiveris or `/api/recognize`, upload, persist, add accounts, modify parser / converter or piano runtime, or add dependencies. QA level recommendation: strict; focused Stage D tests, Stage B / Stage C regression, production build, remote checks, and browser interaction QA are required before merge.
+
 ## P50qa-fix — Mock Draft Clear State and Chinese Label Stabilization (2026-07-11)
 
 P50 / P50fix browser QA passed the core Stage B / Stage C state flow, including mock generation and review, copy-to-manual and overwrite confirmation, identical-metadata image replacement producing new opaque source identities, Stage B / Stage C stale invalidation, decode-failure invalidation, refresh loss, and empty localStorage / IndexedDB. The QA found two small UI/state inconsistencies: clearing an existing mock draft returned `null`, so the visible status became “未生成” instead of the already-defined “已清除”; and the mock summary still exposed the internal English word `stale` in a user-visible label.
