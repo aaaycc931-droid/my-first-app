@@ -366,7 +366,6 @@ export default function PracticePage() {
     useState<PracticeFeatureView>("local-melody");
   const sheetMusicImportInputRef = useRef<HTMLInputElement | null>(null);
   const [sheetMusicSourceId, setSheetMusicSourceId] = useState<string | null>(null);
-  const [manualNotationImportDraft, setManualNotationImportDraft] = useState<NotationFragmentDraft | null>(null);
   const [manualNotationImportNotice, setManualNotationImportNotice] = useState<string | null>(null);
   const [manualNotationEventCount, setManualNotationEventCount] = useState(0);
   const [manualNotationDraft, setManualNotationDraft] = useState<NotationFragmentDraft>(() => createNotationFragmentDraft());
@@ -1946,13 +1945,13 @@ export default function PracticePage() {
               currentSheetMusicSourceId={sheetMusicSourceId}
               manualDraftEventCount={manualNotationEventCount}
               onCopyToManualDraft={(draft, notice) => {
-                setManualNotationImportDraft(draft);
+                setManualNotationDraft(draft);
                 setManualNotationImportNotice(notice);
               }}
             />
             <ManualNotationFragmentDraftPanel
               currentSheetMusicSourceId={sheetMusicSourceId}
-              importedDraft={manualNotationImportDraft}
+              draft={manualNotationDraft}
               importNotice={manualNotationImportNotice}
               onDraftEventCountChange={setManualNotationEventCount}
               onDraftChange={setManualNotationDraft}

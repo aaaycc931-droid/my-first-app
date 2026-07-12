@@ -1,3 +1,9 @@
+## P52fix — Preserve Manual Notation Draft Across Feature Navigation (2026-07-12)
+
+Post-merge production interaction QA found that `ManualNotationFragmentDraftPanel` kept its draft only in component-local state. Moving from “乐谱预览” to “临时乐谱练习” unmounted the panel; returning recreated it as empty and incorrectly made a still-current Stage E target stale. P52fix moves the authoritative manual draft state to the `/practice` page, while the Stage B panel becomes controlled by that session-only state. The draft, Stage D result, and active Stage E target now remain available while switching feature areas in the same page session. Refresh still clears them all.
+
+P52fix does not change validation rules, target creation conditions, target events, recording, playback, microphone access, scoring, OCR / OMR, upload, persistence, `/api/recognize`, dependencies, parser / converter, or piano runtime. QA level recommendation: strict; rerun Stage B / C / D / E focused tests and build, then verify the navigation regression in the merged public production site.
+
 ## P52 — Stage E Notation Temporary Practice Target Runtime Alpha (2026-07-12)
 
 P52 completes the next sheet-music vertical slice after Stage D. In `/practice` → “乐谱预览”, only the current session-only Stage B manual draft that remains checked and has a current Stage D valid measure-duration result can enter Stage E. The user selects either a temporary sight-singing or rhythm target, reviews a Chinese confirmation summary (source, time signature, two-measure scope, event count, review / validation state, and type), then explicitly clicks confirmation to create it. No target is created automatically.

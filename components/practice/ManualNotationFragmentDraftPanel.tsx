@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type Dispatch, type SetStateAction } from "react";
 
 import {
   addNotationDraftEvent,
@@ -6,7 +6,6 @@ import {
   clearNotationFragmentDraft,
   confirmNotationDraftWithCurrentSource,
   convertNotationDraftToIndependent,
-  createNotationFragmentDraft,
   deleteNotationDraftEvent,
   getNotationDraftStatus,
   markNotationDraftChecked,
@@ -29,10 +28,10 @@ import {
 
 type ManualNotationFragmentDraftPanelProps = {
   currentSheetMusicSourceId: string | null;
-  importedDraft?: NotationFragmentDraft | null;
+  draft: NotationFragmentDraft;
   importNotice?: string | null;
   onDraftEventCountChange?: (eventCount: number) => void;
-  onDraftChange?: (draft: NotationFragmentDraft) => void;
+  onDraftChange: Dispatch<SetStateAction<NotationFragmentDraft>>;
 };
 
 const durationLabels: Record<NotationDuration, string> = {
@@ -59,15 +58,13 @@ const emptyInput = {
 
 export function ManualNotationFragmentDraftPanel({
   currentSheetMusicSourceId,
-  importedDraft,
+  draft,
   importNotice,
   onDraftEventCountChange,
   onDraftChange,
 }: ManualNotationFragmentDraftPanelProps) {
-  const [draft, setDraft] = useState<NotationFragmentDraft>(() =>
-    createNotationFragmentDraft(),
-  );
   const [input, setInput] = useState(emptyInput);
+  const setDraft = onDraftChange;
 
   useEffect(() => {
     setDraft((currentDraft) =>
@@ -76,15 +73,8 @@ export function ManualNotationFragmentDraftPanel({
   }, [currentSheetMusicSourceId]);
 
   useEffect(() => {
-    if (importedDraft) {
-      setDraft(importedDraft);
-    }
-  }, [importedDraft]);
-
-  useEffect(() => {
     onDraftEventCountChange?.(draft.events.length);
-    onDraftChange?.(draft);
-  }, [draft, onDraftChange, onDraftEventCountChange]);
+  }, [draft.events.length, onDraftEventCountChange]);
 
   const status = getNotationDraftStatus(draft);
   const reachedLimit = draft.events.length >= maxNotationDraftEvents;
