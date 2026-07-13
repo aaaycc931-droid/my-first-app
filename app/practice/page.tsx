@@ -49,6 +49,7 @@ import {
 
 import { LocalMelodyGuideAudioImportPanel } from "../../components/practice/LocalMelodyGuideAudioImportPanel";
 import { LocalEarTrainingIntervalPanel } from "../../components/practice/LocalEarTrainingIntervalPanel";
+import { LocalEarTrainingRhythmPanel } from "../../components/practice/LocalEarTrainingRhythmPanel";
 import { LocalTargetPitchCurveDraftPanel } from "../../components/practice/LocalTargetPitchCurveDraftPanel";
 import { LocalTargetPitchCurveReviewPreviewPanel } from "../../components/practice/LocalTargetPitchCurveReviewPreviewPanel";
 import { LocalTargetPitchCurveDraftReviewControlsPanel } from "../../components/practice/LocalTargetPitchCurveDraftReviewControlsPanel";
@@ -2363,6 +2364,7 @@ export default function PracticePage() {
               description="从内置音程题开始练习听辨：播放题目、选择答案、查看解释并复练。题目和选择只保留在当前会话，不提供正式成绩。"
             />
             <LocalEarTrainingIntervalPanel />
+            <LocalEarTrainingRhythmPanel />
           </>
         ) : null}
 

@@ -1,3 +1,11 @@
+## P57 — Local Ear-Training Rhythm Runtime Alpha (2026-07-13)
+
+P57 adds a second runnable browser-local, session-only listening slice under `/practice` → “听辨练习”: a fixed four-beat rhythm-listening exercise. Users voluntarily play local synthesized clicks, choose a visible rhythm-shape label, reveal an explanation, reset the current question or move through deterministic built-in questions. 基础 includes 四拍均匀、前半小节更密、后半小节更密; 进阶 adds 中间留空. The first beat is a higher local click to make the four-beat reference clear, while all remaining onsets use a lower local click.
+
+The result only explains whether the selected label agrees with the built-in answer; it does not create a score, percentage, accuracy, grade, pass/fail result, formal assessment or history. Difficulty changes, reset and next stop playback and clear the old selection / answer state. Playback failure has a Simplified Chinese recovery message. Question sequence, selection and answer explanation remain only in React memory and disappear on refresh.
+
+P57 does not add file reading, microphone access, upload, API calls, localStorage / IndexedDB, account, database, cloud, persistence, downloaded question banks, OCR / OMR, `/api/recognize`, final targets, official transcription, formal scoring or dependencies. It adds `docs/local-ear-training-rhythm-alpha-acceptance-criteria.md`, a pure rhythm-question helper, panel and focused test. QA level recommendation: strict; run the focused test, component type check, build, `git diff --check`, remote checks and production browser QA for playback / stop, selection / answer / reset / next, difficulty reset, refresh boundary, Chinese UI and no misleading formal-result copy.
+
 ## P56 — Local Ear-Training Interval Direction Runtime Alpha (2026-07-13)
 
 P56 extends P55’s browser-local, session-only interval ear-training slice with explicit 上行 / 下行 direction selection. 上行 plays the root then the higher interval tone; 下行 plays the root then the lower interval tone. Switching direction resets the current sequence, selection and answer visibility, so an answer from a previous direction cannot be treated as the new question’s answer.
