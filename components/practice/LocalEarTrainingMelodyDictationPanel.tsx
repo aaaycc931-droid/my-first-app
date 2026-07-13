@@ -4,8 +4,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 
 import {
   createLocalEarTrainingMelodyQuestion,
-  earTrainingMelodyNoteIds,
   earTrainingMelodyNotes,
+  getEarTrainingMelodyNoteIds,
   getLocalEarTrainingMelodyAnswer,
   type EarTrainingMelodyDictationDifficulty,
 } from "../../lib/practice/localEarTrainingMelodyDictation";
@@ -81,7 +81,7 @@ export function LocalEarTrainingMelodyDictationPanel() {
       </div>
       <div className="rounded-2xl border border-slate-200 p-4">
         <p className="text-sm font-semibold text-slate-500">回答本题</p><p className="mt-1 text-lg font-bold text-slate-950">按播放顺序填写三个音名</p>
-        <div className="mt-4 grid gap-4 sm:grid-cols-3">{[0, 1, 2].map((index) => <fieldset key={index}><legend className="text-sm font-semibold text-slate-700">第 {index + 1} 个音</legend><div className="mt-2 grid gap-2">{earTrainingMelodyNoteIds.map((noteId) => <button key={noteId} type="button" onClick={() => chooseNote(index, noteId)} className={`rounded-xl border px-3 py-2 text-left font-semibold ${selectedNoteIds[index] === noteId ? "border-violet-600 bg-violet-50 text-violet-900 ring-2 ring-violet-200" : "border-slate-200 bg-white text-slate-800 hover:border-violet-300"}`}>{earTrainingMelodyNotes[noteId].label}</button>)}</div></fieldset>)}</div>
+        <div className="mt-4 grid gap-4 sm:grid-cols-3">{[0, 1, 2].map((index) => <fieldset key={index}><legend className="text-sm font-semibold text-slate-700">第 {index + 1} 个音</legend><div className="mt-2 grid gap-2">{getEarTrainingMelodyNoteIds(difficulty).map((noteId) => <button key={noteId} type="button" onClick={() => chooseNote(index, noteId)} className={`rounded-xl border px-3 py-2 text-left font-semibold ${selectedNoteIds[index] === noteId ? "border-violet-600 bg-violet-50 text-violet-900 ring-2 ring-violet-200" : "border-slate-200 bg-white text-slate-800 hover:border-violet-300"}`}>{earTrainingMelodyNotes[noteId].label}</button>)}</div></fieldset>)}</div>
         <div className="mt-4 flex flex-wrap gap-2"><button type="button" disabled={!answer.hasSelection} onClick={() => setIsAnswerVisible(true)} className="rounded-xl bg-slate-900 px-4 py-2.5 font-semibold text-white disabled:cursor-not-allowed disabled:bg-slate-300">查看本题答案</button>{isAnswerVisible && !answer.matchesAnswer ? <button type="button" onClick={retryCurrentQuestion} className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-2.5 font-semibold text-amber-900">重新播放并复练本题</button> : null}<button type="button" onClick={resetCurrentQuestion} className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 font-semibold text-slate-800">重置本题</button><button type="button" onClick={() => { resetCurrentQuestion(); setSequence((current) => current + 1); }} className="rounded-xl border border-violet-300 bg-white px-4 py-2.5 font-semibold text-violet-800">下一题</button></div>
         {!answer.hasSelection ? <p className="mt-3 text-sm leading-6 text-slate-500">请为三个位置都选择音名，再查看本题答案。</p> : null}
         {isAnswerVisible ? <div className="mt-4 rounded-2xl bg-slate-50 p-4 text-sm leading-6 text-slate-700"><p className="font-bold text-slate-950">本题答案：{answer.answerLabel}</p><p className="mt-1">{answer.explanation}</p><p className="mt-2">你的填写：{answer.selectedNoteIds.map((noteId) => noteId ? earTrainingMelodyNotes[noteId as keyof typeof earTrainingMelodyNotes].label : "未选择").join(" → ")}。{answer.matchesAnswer ? "这次填写与本题答案一致。" : "这次填写与本题答案不同；可以再次播放并重置本题复练。"}</p><p className="mt-2 text-slate-500">这是题目答案说明，不是正式分数、准确率、等级、通过或失败判断。</p></div> : null}

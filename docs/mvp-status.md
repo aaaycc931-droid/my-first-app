@@ -1,3 +1,7 @@
+## P61fix — Melody Dictation Difficulty Option Alignment (2026-07-13)
+
+P61fix aligns the visible answer choices with the stated melody-dictation difficulty scope. Basic mode now offers only C4, D4, E4 and G4; advanced mode additionally offers A4. The fixed built-in questions, local playback, answer logic, retry behavior, session-only boundary, and non-scoring wording are unchanged. QA level recommendation: standard; rerun the focused melody helper test, component TypeScript check, build, remote checks, and browser interaction QA before merge.
+
 ## P61 — Local Melody Dictation Runtime Alpha (2026-07-13)
 
 P61 adds a fourth browser-local listening exercise under `/practice` → “听辨练习”: “旋律听写”. It plays a fixed, deterministic three-note melody through browser-local Web Audio. The user fills the three positions in order using note names, then explicitly reveals the answer and an explanation. Incorrect answers expose an explicit “重新播放并复练本题” flow that clears the answer and replays the same question; reset and next-question controls remain available.

@@ -24,6 +24,13 @@ export const earTrainingMelodyNotes = {
 
 export const earTrainingMelodyNoteIds = Object.keys(earTrainingMelodyNotes) as Array<keyof typeof earTrainingMelodyNotes>;
 
+export const getEarTrainingMelodyNoteIds = (
+  difficulty: EarTrainingMelodyDictationDifficulty,
+): Array<keyof typeof earTrainingMelodyNotes> =>
+  difficulty === "基础"
+    ? ["c4", "d4", "e4", "g4"]
+    : earTrainingMelodyNoteIds;
+
 export const earTrainingMelodies: Record<EarTrainingMelodyDictationDifficulty, LocalEarTrainingMelody[]> = {
   基础: [
     { id: "up-step", label: "上行级进", noteIds: ["c4", "d4", "e4"], explanation: "这三个音依次上行：C4、D4、E4。" },
