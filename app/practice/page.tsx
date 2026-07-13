@@ -81,6 +81,13 @@ import {
   type NotationTemporaryPracticeTargetMode,
 } from "../../lib/practice/localNotationDraftPracticeTarget";
 import type { NotationDraftValidationResult } from "../../lib/practice/localNotationDraftValidation";
+import {
+  createNotationTemporaryPracticeProgress,
+  reconcileNotationTemporaryPracticeProgress,
+  resetNotationTemporaryPracticeProgress,
+  toggleNotationTemporaryPracticeEventCompletion,
+  type NotationTemporaryPracticeProgress,
+} from "../../lib/practice/notationTemporaryPracticeProgress";
 import { getNonScoringImportedTargetPitchFeedback } from "../../lib/practice/nonScoringImportedTargetPitchFeedback";
 import {
   getNonScoringNotationTargetPitchFeedback,
@@ -413,6 +420,7 @@ export default function PracticePage() {
   const [manualNotationDraft, setManualNotationDraft] = useState<NotationFragmentDraft>(() => createNotationFragmentDraft());
   const [manualNotationValidationResult, setManualNotationValidationResult] = useState<NotationDraftValidationResult | null>(null);
   const [notationTemporaryPracticeTarget, setNotationTemporaryPracticeTarget] = useState<NotationTemporaryPracticeTarget | null>(null);
+  const [notationTemporaryPracticeProgress, setNotationTemporaryPracticeProgress] = useState<NotationTemporaryPracticeProgress | null>(null);
   const [notationTemporaryPracticeTargetMode, setNotationTemporaryPracticeTargetMode] = useState<NotationTemporaryPracticeTargetMode>("sight-singing");
   const [notationPracticePitchFeedbackContext, setNotationPracticePitchFeedbackContext] = useState<NotationPracticePitchFeedbackContext | null>(null);
   const [notationRhythmTapPracticeContext, setNotationRhythmTapPracticeContext] = useState<NotationRhythmTapPracticeContext | null>(null);
@@ -563,6 +571,12 @@ export default function PracticePage() {
       ),
     );
   }, [manualNotationDraft, manualNotationValidationResult]);
+
+  useEffect(() => {
+    setNotationTemporaryPracticeProgress((currentProgress) =>
+      reconcileNotationTemporaryPracticeProgress(currentProgress, notationTemporaryPracticeTarget),
+    );
+  }, [notationTemporaryPracticeTarget]);
 
   useEffect(() => {
     setNotationPracticePitchFeedbackContext((currentContext) => {
@@ -2168,6 +2182,7 @@ export default function PracticePage() {
                 );
                 if (target) {
                   setNotationTemporaryPracticeTarget(target);
+                  setNotationTemporaryPracticeProgress(createNotationTemporaryPracticeProgress(target));
                   setNotationPracticePitchFeedbackContext(null);
                   setNotationRhythmTapPracticeContext(null);
                   handleResetRhythmPractice();
@@ -2175,6 +2190,7 @@ export default function PracticePage() {
               }}
               onClear={() => {
                 setNotationTemporaryPracticeTarget(null);
+                setNotationTemporaryPracticeProgress(null);
                 setNotationPracticePitchFeedbackContext(null);
                 setNotationRhythmTapPracticeContext(null);
                 handleResetRhythmPractice();
@@ -2182,95 +2198,6 @@ export default function PracticePage() {
               onEnterPractice={() => setActiveFeatureView("notation-practice")}
             />
           </>
-        ) : null}
-
-        {activeFeatureView === "notation-practice" ? (
-          <>
-            <PracticeFeatureSectionHeader
-              eyebrow="当前功能区：临时乐谱练习"
-              title="当前会话内的非评分乐谱练习"
-              description="此处使用经确认创建的临时乐谱目标按事件顺序练习；视唱音符可主动进入本地非评分音高跟练，节奏目标可主动进入本地拍击练习，不会替换本地旋律流程或保存数据。"
-            />
-            <NotationTemporaryPracticePanel
-              target={notationTemporaryPracticeTarget}
-              onGoToSheetMusic={() => setActiveFeatureView("sheet-music")}
-              onClear={() => {
-                setNotationTemporaryPracticeTarget(null);
-                setNotationPracticePitchFeedbackContext(null);
-                setNotationRhythmTapPracticeContext(null);
-                handleResetRhythmPractice();
-              }}
-              onPracticeCurrentNote={(event, eventIndex) => {
-                const targetFrequencyHz = getNotationTargetPitchFrequencyHz(
-                  event.pitch,
-                );
-                const currentTarget = notationTemporaryPracticeTarget;
-
-                if (
-                  !currentTarget ||
-                  currentTarget.status !== "active" ||
-                  currentTarget.mode !== "sight-singing" ||
-                  event.type !== "note" ||
-                  !event.pitch ||
-                  targetFrequencyHz === null
-                ) {
-                  return;
-                }
-
-                setNotationPracticePitchFeedbackContext({
-                  targetId: currentTarget.id,
-                  draftFingerprint: currentTarget.draftFingerprint,
-                  eventId: event.id,
-                  eventIndex,
-                  pitch: event.pitch,
-                  targetFrequencyHz,
-                });
-                setActiveFeatureView("feedback");
-              }}
-              onPracticeRhythmTarget={() => {
-                const currentTarget = notationTemporaryPracticeTarget;
-                if (
-                  !currentTarget ||
-                  currentTarget.status !== "active" ||
-                  currentTarget.mode !== "rhythm"
-                ) {
-                  return;
-                }
-                setNotationPracticePitchFeedbackContext(null);
-                setNotationRhythmTapPracticeContext({
-                  targetId: currentTarget.id,
-                  draftFingerprint: currentTarget.draftFingerprint,
-                  targetEventCount: currentTarget.events.filter((event) => event.type === "note").length,
-                });
-                setActiveFeatureView("rhythm");
-              }}
-            />
-          </>
-        ) : null}
-
-        {activeFeatureView === "local-melody" ? (
-          <>
-            <PracticeFeatureSectionHeader
-              eyebrow="当前功能区：本地旋律"
-              title="本地旋律流程"
-              description="按本地音频导入 → 生成目标音高曲线草稿 → 检查选区 → 创建临时练习目标的顺序完成。所有内容只保留在当前浏览器会话中。"
-            />
-        <LocalMelodyGuideAudioImportPanel
-          source={localMelodyGuideSource}
-          decodeError={localMelodyGuideDecodeError}
-          inputRef={localMelodyGuideInputRef}
-          onFileChange={handleLocalMelodyGuideFileChange}
-          onClear={handleClearLocalMelodyGuide}
-        />
-
-        <LocalTargetPitchCurveDraftPanel
-          draft={localTargetPitchCurveDraft}
-          isAnalysisReady={Boolean(localMelodyGuideDecodedAudio?.analysisReady)}
-          onGenerate={handleGenerateLocalTargetPitchCurveDraft}
-        />
-
-        <LocalTargetPitchCurveReviewPreviewPanel
-          draft={localTargetPitchCurveDraft}
         />
 
         <LocalTargetPitchCurveDraftReviewControlsPanel
