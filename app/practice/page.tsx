@@ -47,6 +47,8 @@ import {
   type MetronomeBeatMetadata,
 } from "../../lib/metronome/metronomeGrid";
 
+type EarTrainingExerciseMode = "单音" | "音程" | "节奏";
+
 import { LocalMelodyGuideAudioImportPanel } from "../../components/practice/LocalMelodyGuideAudioImportPanel";
 import { LocalEarTrainingIntervalPanel } from "../../components/practice/LocalEarTrainingIntervalPanel";
 import { LocalEarTrainingRhythmPanel } from "../../components/practice/LocalEarTrainingRhythmPanel";
@@ -401,6 +403,8 @@ const stopOscillator = (oscillator: OscillatorNode) => {
 export default function PracticePage() {
   const [activeFeatureView, setActiveFeatureView] =
     useState<PracticeFeatureView>("local-melody");
+  const [earTrainingExerciseMode, setEarTrainingExerciseMode] =
+    useState<EarTrainingExerciseMode>("单音");
   const sheetMusicImportInputRef = useRef<HTMLInputElement | null>(null);
   const [sheetMusicSourceId, setSheetMusicSourceId] = useState<string | null>(null);
   const [manualNotationImportNotice, setManualNotationImportNotice] = useState<string | null>(null);
@@ -2362,11 +2366,22 @@ export default function PracticePage() {
             <PracticeFeatureSectionHeader
               eyebrow="当前功能区：听辨练习"
               title="浏览器本地内置听辨"
-              description="从内置音程题开始练习听辨：播放题目、选择答案、查看解释并复练。题目和选择只保留在当前会话，不提供正式成绩。"
+              description="选择单音、音程或节奏题型后，播放题目、选择答案、查看解释并复练。各题型的当前会话状态互不清除，不提供正式成绩。"
             />
-            <LocalEarTrainingIntervalPanel />
-            <LocalEarTrainingRhythmPanel />
-            <LocalEarTrainingSinglePitchPanel />
+            <section className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+              <p className="text-sm font-semibold text-slate-700">选择听辨题型</p>
+              <p className="mt-1 text-sm leading-6 text-slate-500">切换题型只改变当前显示内容，不会保存记录，也不会清除其他题型当前会话中的题目与选择。</p>
+              <div className="mt-4 grid gap-2 sm:grid-cols-3">
+                {(["单音", "音程", "节奏"] as EarTrainingExerciseMode[]).map((mode) => (
+                  <button key={mode} type="button" onClick={() => setEarTrainingExerciseMode(mode)} aria-pressed={earTrainingExerciseMode === mode} className={`rounded-xl border px-4 py-3 text-left font-semibold transition ${earTrainingExerciseMode === mode ? "border-slate-900 bg-slate-900 text-white" : "border-slate-200 bg-white text-slate-800 hover:border-slate-400"}`}>
+                    {mode === "单音" ? "单音听辨" : mode === "音程" ? "音程听辨" : "节奏听辨"}
+                  </button>
+                ))}
+              </div>
+            </section>
+            {earTrainingExerciseMode === "单音" ? <LocalEarTrainingSinglePitchPanel /> : null}
+            {earTrainingExerciseMode === "音程" ? <LocalEarTrainingIntervalPanel /> : null}
+            {earTrainingExerciseMode === "节奏" ? <LocalEarTrainingRhythmPanel /> : null}
           </>
         ) : null}
 
