@@ -1,3 +1,11 @@
+## P59 — Local Ear-Training Exercise Selector Runtime (2026-07-13)
+
+P59 makes the existing browser-local hearing exercises usable as a single practice area: `/practice` → “听辨练习” now presents a Simplified Chinese selector for 单音听辨、音程听辨 and 节奏听辨 instead of showing all three large panels at once. The default selected exercise is 单音听辨. Switching only changes the visible panel; each exercise remains mounted with its own current-page question, selection and answer state, so changing tabs does not discard an unfinished local exercise.
+
+P59 does not add a shared history, score, formal assessment, upload, API call, localStorage / IndexedDB, persistence, account, database, cloud, recording, microphone access, OCR / OMR, `/api/recognize`, final target, official transcription or dependency. QA level recommendation: standard for navigation behavior, plus strict regression QA for the existing audio panels once the production alias serves the merged main branch.
+
+## P58 — Local Ear-Training Single-Pitch Runtime Alpha (2026-07-13)
+
 ## P58 — Local Ear-Training Single-Pitch Runtime Alpha (2026-07-13)
 
 P58 adds a browser-local, session-only built-in single-pitch listening slice to `/practice` → “听辨练习”. Users choose 基础 (C4、D4、E4、G4) or 进阶 (also A4、B4), voluntarily play one browser-local synthesized sine tone, select an answer, reveal the fixed answer explanation, reset, or move to the next deterministic built-in question. Difficulty changes stop playback and clear prior answer state.
