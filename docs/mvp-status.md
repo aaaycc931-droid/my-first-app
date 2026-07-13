@@ -1,3 +1,43 @@
+## P63 — Notation Temporary Practice Round Completion Notice (2026-07-13)
+
+P63 completes P62’s manual practice-round feedback: once every event in the current active temporary notation target has been manually marked as practiced, the temporary-practice panel shows a clear Chinese completion notice. The notice explicitly says that this is only the user’s own round marker, not automatic pitch/rhythm detection, a score, grade, pass/fail decision, formal completion, official transcription or final target. The existing restart action still clears only the round markers.
+
+P63 keeps the same session-only target-bound progress state. A cleared, stale or replaced target, or page refresh, removes both the markers and the notice. It does not add recording, microphone use, playback, scoring, upload, API calls, storage, dependencies, OCR / OMR or any change to draft validation or target creation. QA level recommendation: standard; focused progress tests, type check, build, remote checks and browser interaction QA are required.
+
+## P62 — Notation Temporary Practice Round Progress (2026-07-13)
+
+P62 adds a session-only, user-controlled practice-round progress indicator to `/practice` → “临时乐谱练习”. The user can mark or unmark the current event as practiced, see the number of manually marked events in the current round, and use “从头重新练习” to return to event one and clear only these manual marks. Progress remains available when moving between the sheet-music preview and temporary-practice areas in the same page session.
+
+The marker records only that the user chose to mark an event in this round. It is explicitly not pitch or rhythm accuracy, a score, grade, pass/fail result, automatic detection, validation, official transcription, or final target. Progress is cleared when the target is cleared, becomes stale, is replaced, or the page is refreshed; it is never stored in localStorage, IndexedDB, account, database or cloud storage. P62 does not add recording, microphone access, automatic playback, scoring, OCR / OMR, upload, API calls or dependencies. QA level recommendation: strict because it changes an active temporary-practice runtime; focused tests, type check, build, remote checks, and browser interaction QA are required.
+
+## P61fix — Melody Dictation Difficulty Option Alignment (2026-07-13)
+
+P61fix aligns the visible answer choices with the stated melody-dictation difficulty scope. Basic mode now offers only C4, D4, E4 and G4; advanced mode additionally offers A4. The fixed built-in questions, local playback, answer logic, retry behavior, session-only boundary, and non-scoring wording are unchanged. QA level recommendation: standard; rerun the focused melody helper test, component TypeScript check, build, remote checks, and browser interaction QA before merge.
+
+## P61 — Local Melody Dictation Runtime Alpha (2026-07-13)
+
+P61 adds a fourth browser-local listening exercise under `/practice` → “听辨练习”: “旋律听写”. It plays a fixed, deterministic three-note melody through browser-local Web Audio. The user fills the three positions in order using note names, then explicitly reveals the answer and an explanation. Incorrect answers expose an explicit “重新播放并复练本题” flow that clears the answer and replays the same question; reset and next-question controls remain available.
+
+The initial scope uses C4, D4, E4, G4 and, in advanced mode, A4. It provides fixed short melodies rather than recognition, recording, a user-generated melody, automatic transcription, a final target, or a score. “答案一致” only describes the selected sequence against the current built-in question; it is explicitly not a score, accuracy, grade, pass/fail result, or formal assessment.
+
+Question sequence, selections and answer explanation live only in current-page memory and disappear after refresh. P61 does not upload, call an API, use localStorage or IndexedDB, add accounts, database, cloud, persistence, microphone access, recording, scoring, OCR / OMR, dependencies, or changes to parser / converter / piano runtime. QA level recommendation: strict because it adds a local audio playback and answer/retry flow; focused helper tests, component type checking, remote checks, and browser interaction QA are required before merge.
+
+## P60 — Local Ear-Training Wrong-Answer Retry Runtime (2026-07-13)
+
+P60 completes the first local wrong-answer re-practice handoff across 单音、音程 and 节奏 listening panels. After a user explicitly reveals an answer and the selected answer does not agree with the built-in answer, a Simplified Chinese “重新播放并复练本题” action becomes available. It retains the same deterministic question, clears the old selection and answer explanation, and immediately starts the panel’s existing browser-local playback. The normal reset and next-question actions remain available.
+
+P60 does not retain a wrong-answer list, count attempts, create a score, percentage, grade, pass/fail result, formal assessment or history. It does not add upload, API calls, localStorage / IndexedDB, persistence, accounts, databases, cloud, microphone access, recording, OCR / OMR, `/api/recognize`, final targets, official transcription or dependencies. QA level recommendation: strict because it changes the local audio replay and reset flow; run focused regression tests, panel type check, build, remote checks and production browser QA.
+
+## P59 — Local Ear-Training Exercise Selector Runtime (2026-07-13)
+
+## P59 — Local Ear-Training Exercise Selector Runtime (2026-07-13)
+
+P59 makes the existing browser-local hearing exercises usable as a single practice area: `/practice` → “听辨练习” now presents a Simplified Chinese selector for 单音听辨、音程听辨 and 节奏听辨 instead of showing all three large panels at once. The default selected exercise is 单音听辨. Switching only changes the visible panel; each exercise remains mounted with its own current-page question, selection and answer state, so changing tabs does not discard an unfinished local exercise.
+
+P59 does not add a shared history, score, formal assessment, upload, API call, localStorage / IndexedDB, persistence, account, database, cloud, recording, microphone access, OCR / OMR, `/api/recognize`, final target, official transcription or dependency. QA level recommendation: standard for navigation behavior, plus strict regression QA for the existing audio panels once the production alias serves the merged main branch.
+
+## P58 — Local Ear-Training Single-Pitch Runtime Alpha (2026-07-13)
+
 ## P58 — Local Ear-Training Single-Pitch Runtime Alpha (2026-07-13)
 
 P58 adds a browser-local, session-only built-in single-pitch listening slice to `/practice` → “听辨练习”. Users choose 基础 (C4、D4、E4、G4) or 进阶 (also A4、B4), voluntarily play one browser-local synthesized sine tone, select an answer, reveal the fixed answer explanation, reset, or move to the next deterministic built-in question. Difficulty changes stop playback and clear prior answer state.
