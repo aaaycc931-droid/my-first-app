@@ -2,6 +2,7 @@ export type PracticeFeatureView =
   | "sheet-music"
   | "notation-practice"
   | "local-melody"
+  | "ear-training"
   | "rhythm"
   | "onset"
   | "feedback";
@@ -29,6 +30,11 @@ const practiceFeatureNavigationItems: PracticeFeatureNavigationItem[] = [
     label: "本地旋律",
     description:
       "按顺序完成本地音频导入、目标音高曲线草稿、选区检查与临时练习目标。",
+  },
+  {
+    id: "ear-training",
+    label: "听辨练习",
+    description: "使用浏览器本地合成音完成内置音程听辨题，不保存正式成绩。",
   },
   {
     id: "rhythm",
@@ -80,7 +86,7 @@ export function PracticeFeatureNavigation({
       </div>
 
       <div
-        className="mt-4 grid gap-3 md:grid-cols-3 lg:grid-cols-6"
+        className="mt-4 grid gap-3 md:grid-cols-3 lg:grid-cols-7"
         role="tablist"
         aria-label="练习模式功能导航"
       >

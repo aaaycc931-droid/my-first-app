@@ -1,3 +1,13 @@
+## P55 — Local Ear-Training Interval Runtime Alpha (2026-07-13)
+
+P55 adds the first runnable inner-product ear-training slice to `/practice`: a new “听辨练习” feature area with browser-local, session-only built-in interval questions. The default entry remains “本地旋律”. Users can choose 基础 or 进阶 difficulty, explicitly play two sequential Web Audio sine tones, choose an interval, reveal the answer explanation, reset the current question, or move to the next built-in question.
+
+The first slice intentionally uses deterministic built-in question rotation rather than a downloaded or persisted question bank. 基础 covers 大三度、纯四度、纯五度; 进阶 adds 小二度、大二度、小三度. Answer display says whether the current choice agrees with the answer and explains the semitone distance, but it does not create a score, percentage, grade, pass / fail, formal assessment, or practice history.
+
+Playback, selections, answer visibility and question sequence stay in current-page memory and disappear on refresh. P55 does not upload or read files, request a microphone, call an API, write localStorage / IndexedDB, add an account, database, cloud, persistence, downloaded question library, OCR / OMR, `/api/recognize`, formal scoring or dependencies. It adds `docs/local-ear-training-interval-alpha-acceptance-criteria.md`, a pure interval-question helper and focused test. QA level recommendation: strict; run the focused test, build, `git diff --check`, remote PR checks and production browser QA for play / stop / answer / reset / next / refresh and no-persistence boundaries.
+
+## P54 — Stage E Temporary Notation Rhythm Tap Runtime Alpha (2026-07-12)
+
 Warning: truncated output (original token count: 62353)
 Total output lines: 955
 

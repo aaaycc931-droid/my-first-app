@@ -48,6 +48,7 @@ import {
 } from "../../lib/metronome/metronomeGrid";
 
 import { LocalMelodyGuideAudioImportPanel } from "../../components/practice/LocalMelodyGuideAudioImportPanel";
+import { LocalEarTrainingIntervalPanel } from "../../components/practice/LocalEarTrainingIntervalPanel";
 import { LocalTargetPitchCurveDraftPanel } from "../../components/practice/LocalTargetPitchCurveDraftPanel";
 import { LocalTargetPitchCurveReviewPreviewPanel } from "../../components/practice/LocalTargetPitchCurveReviewPreviewPanel";
 import { LocalTargetPitchCurveDraftReviewControlsPanel } from "../../components/practice/LocalTargetPitchCurveDraftReviewControlsPanel";
@@ -2351,6 +2352,17 @@ export default function PracticePage() {
           onClear={clearLocalReviewedDraftPracticeTarget}
         />
 
+          </>
+        ) : null}
+
+        {activeFeatureView === "ear-training" ? (
+          <>
+            <PracticeFeatureSectionHeader
+              eyebrow="当前功能区：听辨练习"
+              title="浏览器本地内置听辨"
+              description="从内置音程题开始练习听辨：播放题目、选择答案、查看解释并复练。题目和选择只保留在当前会话，不提供正式成绩。"
+            />
+            <LocalEarTrainingIntervalPanel />
           </>
         ) : null}
 
