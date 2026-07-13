@@ -1,3 +1,9 @@
+## P63 — Notation Temporary Practice Round Completion Notice (2026-07-13)
+
+P63 completes P62’s manual practice-round feedback: once every event in the current active temporary notation target has been manually marked as practiced, the temporary-practice panel shows a clear Chinese completion notice. The notice explicitly says that this is only the user’s own round marker, not automatic pitch/rhythm detection, a score, grade, pass/fail decision, formal completion, official transcription or final target. The existing restart action still clears only the round markers.
+
+P63 keeps the same session-only target-bound progress state. A cleared, stale or replaced target, or page refresh, removes both the markers and the notice. It does not add recording, microphone use, playback, scoring, upload, API calls, storage, dependencies, OCR / OMR or any change to draft validation or target creation. QA level recommendation: standard; focused progress tests, type check, build, remote checks and browser interaction QA are required.
+
 ## P62 — Notation Temporary Practice Round Progress (2026-07-13)
 
 P62 adds a session-only, user-controlled practice-round progress indicator to `/practice` → “临时乐谱练习”. The user can mark or unmark the current event as practiced, see the number of manually marked events in the current round, and use “从头重新练习” to return to event one and clear only these manual marks. Progress remains available when moving between the sheet-music preview and temporary-practice areas in the same page session.

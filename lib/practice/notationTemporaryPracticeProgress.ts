@@ -39,3 +39,15 @@ export const toggleNotationTemporaryPracticeEventCompletion = (
 export const resetNotationTemporaryPracticeProgress = (
   progress: NotationTemporaryPracticeProgress,
 ): NotationTemporaryPracticeProgress => ({ ...progress, completedEventIndexes: [] });
+
+export const isNotationTemporaryPracticeRoundComplete = (
+  progress: NotationTemporaryPracticeProgress | null,
+  target: NotationTemporaryPracticeTarget | null,
+): boolean => Boolean(
+  progress &&
+    target &&
+    target.status === "active" &&
+    progress.targetId === target.id &&
+    progress.draftFingerprint === target.draftFingerprint &&
+    progress.completedEventIndexes.length === target.events.length,
+);

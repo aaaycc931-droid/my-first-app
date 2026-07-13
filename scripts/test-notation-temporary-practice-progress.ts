@@ -1,5 +1,6 @@
 import {
   createNotationTemporaryPracticeProgress,
+  isNotationTemporaryPracticeRoundComplete,
   reconcileNotationTemporaryPracticeProgress,
   resetNotationTemporaryPracticeProgress,
   toggleNotationTemporaryPracticeEventCompletion,
@@ -16,4 +17,7 @@ expect(complete.completedEventIndexes.join(",") === "0,2", "完成事件应保�
 expect(resetNotationTemporaryPracticeProgress(complete).completedEventIndexes.length === 0, "从头重练应清空本轮完成标记");
 expect(reconcileNotationTemporaryPracticeProgress(complete, { ...target, events: [{}, {}] } as any)?.completedEventIndexes.join(",") === "0", "事件范围缩小应移除越界标记");
 expect(reconcileNotationTemporaryPracticeProgress(complete, { ...target, status: "stale" } as any) === null, "失效目标不应保留进度");
+expect(!isNotationTemporaryPracticeRoundComplete(complete, target), "未标记所有事件时不应显示完成");
+const allComplete = [0, 1, 2].reduce((progress, index) => toggleNotationTemporaryPracticeEventCompletion(progress, index), initial);
+expect(isNotationTemporaryPracticeRoundComplete(allComplete, target), "标记所有事件后应完成本轮");
 console.log("notation temporary practice progress tests passed");
