@@ -69,3 +69,4 @@ export function NotationTemporaryPracticePanel({ target, onGoToSheetMusic, onCle
       <div className="mt-5 flex flex-wrap gap-2"><button type="button" onClick={onGoToSheetMusic} className="rounded-full border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700">返回目标预览</button><button type="button" onClick={onClear} className="rounded-full border border-rose-300 px-4 py-2 text-sm font-semibold text-rose-700">清除临时目标</button></div>
     </section>
   );
+}
