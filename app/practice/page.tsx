@@ -81,6 +81,13 @@ import {
   type NotationTemporaryPracticeTargetMode,
 } from "../../lib/practice/localNotationDraftPracticeTarget";
 import type { NotationDraftValidationResult } from "../../lib/practice/localNotationDraftValidation";
+import {
+  createNotationTemporaryPracticeProgress,
+  reconcileNotationTemporaryPracticeProgress,
+  resetNotationTemporaryPracticeProgress,
+  toggleNotationTemporaryPracticeEventCompletion,
+  type NotationTemporaryPracticeProgress,
+} from "../../lib/practice/notationTemporaryPracticeProgress";
 import { getNonScoringImportedTargetPitchFeedback } from "../../lib/practice/nonScoringImportedTargetPitchFeedback";
 import {
   getNonScoringNotationTargetPitchFeedback,
@@ -413,6 +420,7 @@ export default function PracticePage() {
   const [manualNotationDraft, setManualNotationDraft] = useState<NotationFragmentDraft>(() => createNotationFragmentDraft());
   const [manualNotationValidationResult, setManualNotationValidationResult] = useState<NotationDraftValidationResult | null>(null);
   const [notationTemporaryPracticeTarget, setNotationTemporaryPracticeTarget] = useState<NotationTemporaryPracticeTarget | null>(null);
+  const [notationTemporaryPracticeProgress, setNotationTemporaryPracticeProgress] = useState<NotationTemporaryPracticeProgress | null>(null);
   const [notationTemporaryPracticeTargetMode, setNotationTemporaryPracticeTargetMode] = useState<NotationTemporaryPracticeTargetMode>("sight-singing");
   const [notationPracticePitchFeedbackContext, setNotationPracticePitchFeedbackContext] = useState<NotationPracticePitchFeedbackContext | null>(null);
   const [notationRhythmTapPracticeContext, setNotationRhythmTapPracticeContext] = useState<NotationRhythmTapPracticeContext | null>(null);
@@ -563,6 +571,12 @@ export default function PracticePage() {
       ),
     );
   }, [manualNotationDraft, manualNotationValidationResult]);
+
+  useEffect(() => {
+    setNotationTemporaryPracticeProgress((currentProgress) =>
+      reconcileNotationTemporaryPracticeProgress(currentProgress, notationTemporaryPracticeTarget),
+    );
+  }, [notationTemporaryPracticeTarget]);
 
   useEffect(() => {
     setNotationPracticePitchFeedbackContext((currentContext) => {
@@ -2168,6 +2182,7 @@ export default function PracticePage() {
                 );
                 if (target) {
                   setNotationTemporaryPracticeTarget(target);
+                  setNotationTemporaryPracticeProgress(createNotationTemporaryPracticeProgress(target));
                   setNotationPracticePitchFeedbackContext(null);
                   setNotationRhythmTapPracticeContext(null);
                   handleResetRhythmPractice();
@@ -2175,6 +2190,7 @@ export default function PracticePage() {
               }}
               onClear={() => {
                 setNotationTemporaryPracticeTarget(null);
+                setNotationTemporaryPracticeProgress(null);
                 setNotationPracticePitchFeedbackContext(null);
                 setNotationRhythmTapPracticeContext(null);
                 handleResetRhythmPractice();
@@ -2196,6 +2212,7 @@ export default function PracticePage() {
               onGoToSheetMusic={() => setActiveFeatureView("sheet-music")}
               onClear={() => {
                 setNotationTemporaryPracticeTarget(null);
+                setNotationTemporaryPracticeProgress(null);
                 setNotationPracticePitchFeedbackContext(null);
                 setNotationRhythmTapPracticeContext(null);
                 handleResetRhythmPractice();
@@ -2244,6 +2261,16 @@ export default function PracticePage() {
                 });
                 setActiveFeatureView("rhythm");
               }}
+              progress={notationTemporaryPracticeProgress}
+              onToggleEventCompletion={(eventIndex) => {
+                if (!notationTemporaryPracticeTarget || notationTemporaryPracticeTarget.status !== "active") return;
+                setNotationTemporaryPracticeProgress((currentProgress) => {
+                  const progress = reconcileNotationTemporaryPracticeProgress(currentProgress, notationTemporaryPracticeTarget)
+                    ?? createNotationTemporaryPracticeProgress(notationTemporaryPracticeTarget);
+                  return toggleNotationTemporaryPracticeEventCompletion(progress, eventIndex);
+                });
+              }}
+              onRestartPracticeRound={() => setNotationTemporaryPracticeProgress((currentProgress) => currentProgress ? resetNotationTemporaryPracticeProgress(currentProgress) : currentProgress)}
             />
           </>
         ) : null}
