@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import type { NotationTemporaryPracticeTarget } from "../../lib/practice/localNotationDraftPracticeTarget";
 import type { NotationDraftEvent } from "../../lib/practice/localNotationFragmentDraft";
 import type { NotationTemporaryPracticeProgress } from "../../lib/practice/notationTemporaryPracticeProgress";
+import { isNotationTemporaryPracticeRoundComplete } from "../../lib/practice/notationTemporaryPracticeProgress";
 
 type Props = {
   target: NotationTemporaryPracticeTarget | null;
@@ -49,6 +50,7 @@ export function NotationTemporaryPracticePanel({ target, onGoToSheetMusic, onCle
   const isSightSinging = target.mode === "sight-singing";
   const isCurrentEventCompleted = progress?.completedEventIndexes.includes(eventIndex) ?? false;
   const completedEventCount = progress?.completedEventIndexes.length ?? 0;
+  const isRoundComplete = isNotationTemporaryPracticeRoundComplete(progress, target);
 
   return (
     <section className="mt-6 rounded-3xl border border-fuchsia-200 bg-fuchsia-50 p-5 shadow-sm sm:p-6">
@@ -61,6 +63,7 @@ export function NotationTemporaryPracticePanel({ target, onGoToSheetMusic, onCle
         <p className="mt-3 text-lg font-semibold">{durationLabels[event.duration]}{isSightSinging ? (isRest ? "：保持休止。" : "：按此音高视唱。") : (isRest ? "：保持休止。" : "：按此时值拍读或拍击。")}</p>
       </div>
       <div className="mt-5 rounded-2xl border border-fuchsia-200 bg-white p-4 text-sm leading-6 text-fuchsia-950"><p className="font-semibold">本轮手动练习进度：{completedEventCount} / {target.events.length} 个事件已标记完成</p><p className="mt-1">此标记只帮助你安排本轮复练，不代表唱准、拍准、评分、通过或正式结果。</p></div>
+      {isRoundComplete ? <div className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm leading-6 text-emerald-950"><p className="font-semibold">本轮事件已全部手动标记完成</p><p className="mt-1">这只表示你已按自己的判断完成本轮练习；不是系统评分或正式完成结果。你可以从头重新练习，或返回目标预览继续检查。</p></div> : null}
       <div className="mt-5 flex flex-wrap justify-center gap-2"><button type="button" onClick={() => setEventIndex((current) => Math.max(0, current - 1))} disabled={eventIndex === 0} className="rounded-full border border-fuchsia-300 px-4 py-2 text-sm font-semibold text-fuchsia-800 disabled:text-slate-400">上一个事件</button><button type="button" onClick={() => setEventIndex((current) => Math.min(target.events.length - 1, current + 1))} disabled={eventIndex === target.events.length - 1} className="rounded-full bg-fuchsia-700 px-4 py-2 text-sm font-semibold text-white disabled:bg-fuchsia-300">下一个事件</button><button type="button" onClick={() => onToggleEventCompletion(eventIndex)} className="rounded-full border border-emerald-300 bg-emerald-50 px-4 py-2 text-sm font-semibold text-emerald-900">{isCurrentEventCompleted ? "取消本事件完成标记" : "标记本事件已练习"}</button><button type="button" onClick={() => { setEventIndex(0); onRestartPracticeRound(); }} className="rounded-full border border-fuchsia-300 px-4 py-2 text-sm font-semibold text-fuchsia-800">从头重新练习</button></div>
       {isSightSinging && !isRest ? <div className="mt-5 rounded-2xl border border-violet-200 bg-violet-50 p-4 text-left text-sm text-violet-950"><p className="font-semibold">当前视唱音符的本地跟练</p><p className="mt-1 leading-6">主动进入后，可使用现有的浏览器本地录音与音高估计查看这一个音符的参考提示。不会自动打开麦克风，也不是正式评分。</p><button type="button" onClick={() => onPracticeCurrentNote(event, eventIndex)} className="mt-3 rounded-full bg-violet-700 px-4 py-2 font-semibold text-white">使用当前音符进行本地跟练</button></div> : !isSightSinging ? <div className="mt-5 rounded-2xl border border-indigo-200 bg-indigo-50 p-4 text-left text-sm text-indigo-950"><p className="font-semibold">此临时节奏目标的本地拍击练习</p><p className="mt-1 leading-6">主动进入后，可复用现有浏览器节拍器与 tap / 空格键输入，按非休止事件的起点获得非评分节奏提示。不会打开麦克风，不会生成正式成绩。</p><button type="button" onClick={onPracticeRhythmTarget} className="mt-3 rounded-full bg-indigo-700 px-4 py-2 font-semibold text-white">使用此临时节奏目标进行拍击练习</button></div> : <p className="mt-5 rounded-2xl border border-slate-200 bg-white p-4 text-sm leading-6 text-slate-700">休止事件不需要音高跟练；请保持休止并继续下一个事件。</p>}
       <div className="mt-5 flex flex-wrap gap-2"><button type="button" onClick={onGoToSheetMusic} className="rounded-full border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700">返回目标预览</button><button type="button" onClick={onClear} className="rounded-full border border-rose-300 px-4 py-2 text-sm font-semibold text-rose-700">清除临时目标</button></div>
