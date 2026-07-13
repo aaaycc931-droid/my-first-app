@@ -1,3 +1,11 @@
+## P60 — Local Ear-Training Wrong-Answer Retry Runtime (2026-07-13)
+
+P60 completes the first local wrong-answer re-practice handoff across 单音、音程 and 节奏 listening panels. After a user explicitly reveals an answer and the selected answer does not agree with the built-in answer, a Simplified Chinese “重新播放并复练本题” action becomes available. It retains the same deterministic question, clears the old selection and answer explanation, and immediately starts the panel’s existing browser-local playback. The normal reset and next-question actions remain available.
+
+P60 does not retain a wrong-answer list, count attempts, create a score, percentage, grade, pass/fail result, formal assessment or history. It does not add upload, API calls, localStorage / IndexedDB, persistence, accounts, databases, cloud, microphone access, recording, OCR / OMR, `/api/recognize`, final targets, official transcription or dependencies. QA level recommendation: strict because it changes the local audio replay and reset flow; run focused regression tests, panel type check, build, remote checks and production browser QA.
+
+## P59 — Local Ear-Training Exercise Selector Runtime (2026-07-13)
+
 ## P59 — Local Ear-Training Exercise Selector Runtime (2026-07-13)
 
 P59 makes the existing browser-local hearing exercises usable as a single practice area: `/practice` → “听辨练习” now presents a Simplified Chinese selector for 单音听辨、音程听辨 and 节奏听辨 instead of showing all three large panels at once. The default selected exercise is 单音听辨. Switching only changes the visible panel; each exercise remains mounted with its own current-page question, selection and answer state, so changing tabs does not discard an unfinished local exercise.

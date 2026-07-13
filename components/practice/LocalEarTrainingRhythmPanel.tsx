@@ -99,6 +99,11 @@ export function LocalEarTrainingRhythmPanel() {
     setSequence((current) => current + 1);
   };
 
+  const retryCurrentQuestion = () => {
+    resetCurrentQuestion();
+    playQuestion();
+  };
+
   return (
     <section className="mt-5 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
       <p className="text-sm font-semibold uppercase tracking-wide text-violet-600">P57 Runtime Alpha</p>
@@ -155,6 +160,7 @@ export function LocalEarTrainingRhythmPanel() {
             <button type="button" disabled={!answer.hasSelection} onClick={() => setIsAnswerVisible(true)} className="rounded-xl bg-slate-900 px-4 py-2.5 font-semibold text-white disabled:cursor-not-allowed disabled:bg-slate-300">
               查看本题答案
             </button>
+            {isAnswerVisible && !answer.matchesAnswer ? <button type="button" onClick={retryCurrentQuestion} className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-2.5 font-semibold text-amber-900">重新播放并复练本题</button> : null}
             <button type="button" onClick={resetCurrentQuestion} className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 font-semibold text-slate-800">重置本题</button>
             <button type="button" onClick={nextQuestion} className="rounded-xl border border-violet-300 bg-white px-4 py-2.5 font-semibold text-violet-800">下一题</button>
           </div>
