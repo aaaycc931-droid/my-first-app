@@ -1,3 +1,11 @@
+## P56 — Local Ear-Training Interval Direction Runtime Alpha (2026-07-13)
+
+P56 extends P55’s browser-local, session-only interval ear-training slice with explicit 上行 / 下行 direction selection. 上行 plays the root then the higher interval tone; 下行 plays the root then the lower interval tone. Switching direction resets the current sequence, selection and answer visibility, so an answer from a previous direction cannot be treated as the new question’s answer.
+
+The built-in deterministic question rotation, difficulty options, voluntary Web Audio playback, answer explanation, reset and next-question flow remain non-scoring. P56 does not add melody dictation, downloadable question banks, recording, microphone access, upload, API calls, localStorage / IndexedDB, accounts, databases, cloud, persistence, OCR / OMR, `/api/recognize`, final targets, official transcription or dependencies. It adds `docs/local-ear-training-interval-direction-acceptance-criteria.md` and extends the P55 focused helper test. QA level recommendation: strict; run focused tests, build, `git diff --check`, remote checks and production browser QA for direction reset, directional playback state, answer / reset / next and refresh boundaries.
+
+## P55 — Local Ear-Training Interval Runtime Alpha (2026-07-13)
+
 ## P55 — Local Ear-Training Interval Runtime Alpha (2026-07-13)
 
 P55 adds the first runnable inner-product ear-training slice to `/practice`: a new “听辨练习” feature area with browser-local, session-only built-in interval questions. The default entry remains “本地旋律”. Users can choose 基础 or 进阶 difficulty, explicitly play two sequential Web Audio sine tones, choose an interval, reveal the answer explanation, reset the current question, or move to the next built-in question.

@@ -6,8 +6,10 @@ import {
   createLocalEarTrainingQuestion,
   earTrainingIntervals,
   getIntervalTargetFrequencyHz,
+  getLocalEarTrainingDirectionDescription,
   getLocalEarTrainingAnswer,
   type EarTrainingDifficulty,
+  type EarTrainingDirection,
 } from "../../lib/practice/localEarTrainingIntervals";
 
 const stopOscillator = (oscillator: OscillatorNode) => {
@@ -21,6 +23,7 @@ const stopOscillator = (oscillator: OscillatorNode) => {
 
 export function LocalEarTrainingIntervalPanel() {
   const [difficulty, setDifficulty] = useState<EarTrainingDifficulty>("基础");
+  const [direction, setDirection] = useState<EarTrainingDirection>("上行");
   const [sequence, setSequence] = useState(0);
   const [selectedIntervalId, setSelectedIntervalId] = useState<string | null>(null);
   const [isAnswerVisible, setIsAnswerVisible] = useState(false);
@@ -31,8 +34,8 @@ export function LocalEarTrainingIntervalPanel() {
   const finishTimerRef = useRef<number | null>(null);
 
   const question = useMemo(
-    () => createLocalEarTrainingQuestion({ difficulty, sequence }),
-    [difficulty, sequence],
+    () => createLocalEarTrainingQuestion({ difficulty, direction, sequence }),
+    [difficulty, direction, sequence],
   );
   const answer = useMemo(
     () => getLocalEarTrainingAnswer({ question, selectedIntervalId }),
@@ -125,7 +128,30 @@ export function LocalEarTrainingIntervalPanel() {
             <option value="基础">基础：大三度、纯四度、纯五度</option>
             <option value="进阶">进阶：二度、三度、纯四度、纯五度</option>
           </select>
-          <p className="mt-4 text-sm leading-6 text-emerald-900">当前为内置题目 {sequence + 1}。题目音高由浏览器本地 Web Audio 合成，不读取文件、不调用接口。</p>
+          <fieldset className="mt-4">
+            <legend className="text-sm font-semibold text-slate-800">音程方向</legend>
+            <div className="mt-2 grid grid-cols-2 gap-2">
+              {(["上行", "下行"] as EarTrainingDirection[]).map((option) => (
+                <button
+                  key={option}
+                  type="button"
+                  onClick={() => {
+                    stopPlayback();
+                    setDirection(option);
+                    setSequence(0);
+                    setSelectedIntervalId(null);
+                    setIsAnswerVisible(false);
+                    setAudioError("");
+                  }}
+                  aria-pressed={direction === option}
+                  className={`rounded-xl border px-3 py-2 text-sm font-semibold ${direction === option ? "border-emerald-600 bg-emerald-100 text-emerald-950" : "border-emerald-200 bg-white text-emerald-800"}`}
+                >
+                  {option}
+                </button>
+              ))}
+            </div>
+          </fieldset>
+          <p className="mt-4 text-sm leading-6 text-emerald-900">当前为内置题目 {sequence + 1}（{direction}）。{getLocalEarTrainingDirectionDescription(direction)} 题目音高由浏览器本地 Web Audio 合成，不读取文件、不调用接口。</p>
           <button type="button" onClick={playQuestion} disabled={isPlaying} className="mt-4 w-full rounded-xl bg-emerald-700 px-4 py-3 font-semibold text-white disabled:cursor-not-allowed disabled:bg-emerald-300">
             {isPlaying ? "正在播放两个音…" : "播放题目"}
           </button>
@@ -137,7 +163,7 @@ export function LocalEarTrainingIntervalPanel() {
 
         <div className="rounded-2xl border border-slate-200 p-4">
           <p className="text-sm font-semibold text-slate-500">回答本题</p>
-          <p className="mt-1 text-lg font-bold text-slate-950">听完后选择两个音之间的音程</p>
+          <p className="mt-1 text-lg font-bold text-slate-950">听完后选择两个音之间的{direction}音程</p>
           <div className="mt-4 grid gap-2 sm:grid-cols-3">
             {earTrainingIntervals[difficulty].map((interval) => (
               <button

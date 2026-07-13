@@ -1,4 +1,5 @@
 export type EarTrainingDifficulty = "基础" | "进阶";
+export type EarTrainingDirection = "上行" | "下行";
 
 export type LocalEarTrainingInterval = {
   id: string;
@@ -10,6 +11,7 @@ export type LocalEarTrainingInterval = {
 export type LocalEarTrainingQuestion = {
   id: string;
   difficulty: EarTrainingDifficulty;
+  direction: EarTrainingDirection;
   rootLabel: string;
   rootFrequencyHz: number;
   interval: LocalEarTrainingInterval;
@@ -40,9 +42,11 @@ const questionRoots = [
 
 export const createLocalEarTrainingQuestion = ({
   difficulty,
+  direction,
   sequence,
 }: {
   difficulty: EarTrainingDifficulty;
+  direction: EarTrainingDirection;
   sequence: number;
 }): LocalEarTrainingQuestion => {
   const intervals = earTrainingIntervals[difficulty];
@@ -51,8 +55,9 @@ export const createLocalEarTrainingQuestion = ({
   const root = questionRoots[Math.floor(safeSequence / intervals.length) % questionRoots.length];
 
   return {
-    id: `${difficulty}-${safeSequence}-${interval.id}-${root.label}`,
+    id: `${difficulty}-${direction}-${safeSequence}-${interval.id}-${root.label}`,
     difficulty,
+    direction,
     rootLabel: root.label,
     rootFrequencyHz: root.frequencyHz,
     interval,
@@ -60,7 +65,12 @@ export const createLocalEarTrainingQuestion = ({
 };
 
 export const getIntervalTargetFrequencyHz = (question: LocalEarTrainingQuestion): number =>
-  question.rootFrequencyHz * 2 ** (question.interval.semitones / 12);
+  question.rootFrequencyHz *
+  2 ** ((question.direction === "上行" ? 1 : -1) * question.interval.semitones / 12);
+
+export const getLocalEarTrainingDirectionDescription = (
+  direction: EarTrainingDirection,
+): string => (direction === "上行" ? "第一个音较低，第二个音较高。" : "第一个音较高，第二个音较低。");
 
 export const getLocalEarTrainingAnswer = ({
   question,
