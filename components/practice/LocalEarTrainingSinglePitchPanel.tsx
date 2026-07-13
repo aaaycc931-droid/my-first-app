@@ -72,6 +72,11 @@ export function LocalEarTrainingSinglePitchPanel() {
     }
   };
 
+  const retryCurrentQuestion = () => {
+    resetCurrentQuestion();
+    playQuestion();
+  };
+
   return (
     <section className="mt-5 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
       <p className="text-sm font-semibold uppercase tracking-wide text-sky-600">P58 Runtime Alpha</p>
@@ -95,6 +100,7 @@ export function LocalEarTrainingSinglePitchPanel() {
           <div className="mt-4 grid gap-2 sm:grid-cols-3">{earTrainingSinglePitches[difficulty].map((pitch) => <button key={pitch.id} type="button" onClick={() => setSelectedPitchId(pitch.id)} className={`rounded-xl border px-3 py-3 text-left font-semibold transition ${selectedPitchId === pitch.id ? "border-sky-600 bg-sky-50 text-sky-900 ring-2 ring-sky-200" : "border-slate-200 bg-white text-slate-800 hover:border-sky-300"}`}>{pitch.label}</button>)}</div>
           <div className="mt-4 flex flex-wrap gap-2">
             <button type="button" disabled={!answer.hasSelection} onClick={() => setIsAnswerVisible(true)} className="rounded-xl bg-slate-900 px-4 py-2.5 font-semibold text-white disabled:cursor-not-allowed disabled:bg-slate-300">查看本题答案</button>
+            {isAnswerVisible && !answer.matchesAnswer ? <button type="button" onClick={retryCurrentQuestion} className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-2.5 font-semibold text-amber-900">重新播放并复练本题</button> : null}
             <button type="button" onClick={resetCurrentQuestion} className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 font-semibold text-slate-800">重置本题</button>
             <button type="button" onClick={() => { resetCurrentQuestion(); setSequence((current) => current + 1); }} className="rounded-xl border border-sky-300 bg-white px-4 py-2.5 font-semibold text-sky-800">下一题</button>
           </div>
