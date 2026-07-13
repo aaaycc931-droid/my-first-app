@@ -1,3 +1,11 @@
+## P58 — Local Ear-Training Single-Pitch Runtime Alpha (2026-07-13)
+
+P58 adds a browser-local, session-only built-in single-pitch listening slice to `/practice` → “听辨练习”. Users choose 基础 (C4、D4、E4、G4) or 进阶 (also A4、B4), voluntarily play one browser-local synthesized sine tone, select an answer, reveal the fixed answer explanation, reset, or move to the next deterministic built-in question. Difficulty changes stop playback and clear prior answer state.
+
+The response only explains whether the current choice agrees with the built-in answer. It does not create a score, percentage, accuracy, grade, pass/fail result, formal assessment or history. Playback, question sequence, selection and answer explanation are current-page memory only and disappear on refresh.
+
+P58 does not add microphone access, recording, file reading, upload, API calls, localStorage / IndexedDB, account, database, cloud, persistence, downloaded question banks, OCR / OMR, `/api/recognize`, final targets, official transcription, formal scoring or dependencies. It adds `docs/local-ear-training-single-pitch-alpha-acceptance-criteria.md`, a pure helper, panel and focused test. QA level recommendation: strict; run focused test, component type check, build, `git diff --check`, remote checks and production browser QA.
+
 ## P57 — Local Ear-Training Rhythm Runtime Alpha (2026-07-13)
 
 P57 adds a second runnable browser-local, session-only listening slice under `/practice` → “听辨练习”: a fixed four-beat rhythm-listening exercise. Users voluntarily play local synthesized clicks, choose a visible rhythm-shape label, reveal an explanation, reset the current question or move through deterministic built-in questions. 基础 includes 四拍均匀、前半小节更密、后半小节更密; 进阶 adds 中间留空. The first beat is a higher local click to make the four-beat reference clear, while all remaining onsets use a lower local click.
