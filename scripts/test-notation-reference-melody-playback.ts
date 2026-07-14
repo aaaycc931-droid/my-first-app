@@ -25,4 +25,10 @@ assert.ok(Math.abs(getNotationReferenceMelodyPlaybackDurationSeconds(events) - 2
 assert.deepEqual(getNotationReferenceMelodyPlaybackPlan([]), []);
 assert.equal(getNotationReferenceMelodyPlaybackDurationSeconds([]), 0);
 
+const slowPlan = getNotationReferenceMelodyPlaybackPlan(events, 0.75);
+assert.ok(Math.abs(slowPlan[0].durationSeconds - 0.8) < 0.000001);
+assert.ok(Math.abs(slowPlan[1].offsetSeconds - 0.8) < 0.000001);
+assert.ok(Math.abs(slowPlan[2].offsetSeconds - 1.6) < 0.000001);
+assert.ok(Math.abs(getNotationReferenceMelodyPlaybackDurationSeconds(events, 0.75) - 3.6) < 0.000001);
+
 console.log("notation reference melody playback tests passed");

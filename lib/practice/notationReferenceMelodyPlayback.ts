@@ -7,6 +7,9 @@ const durationSeconds: Record<NotationDuration, number> = {
   eighth: 0.3,
 };
 
+export const notationReferenceMelodyPlaybackRates = [0.75, 1] as const;
+export type NotationReferenceMelodyPlaybackRate = (typeof notationReferenceMelodyPlaybackRates)[number];
+
 export type NotationReferenceMelodyPlaybackEvent = {
   eventIndex: number;
   frequencyHz: number | null;
@@ -14,11 +17,11 @@ export type NotationReferenceMelodyPlaybackEvent = {
   durationSeconds: number;
 };
 
-export function getNotationReferenceMelodyPlaybackPlan(events: NotationDraftEvent[]): NotationReferenceMelodyPlaybackEvent[] {
+export function getNotationReferenceMelodyPlaybackPlan(events: NotationDraftEvent[], rate: NotationReferenceMelodyPlaybackRate = 1): NotationReferenceMelodyPlaybackEvent[] {
   let offsetSeconds = 0;
 
   return events.map((event, eventIndex) => {
-    const duration = durationSeconds[event.duration];
+    const duration = durationSeconds[event.duration] / rate;
     const playbackEvent = {
       eventIndex,
       frequencyHz: event.type === "note" ? getNotationTargetPitchFrequencyHz(event.pitch) : null,
@@ -30,8 +33,8 @@ export function getNotationReferenceMelodyPlaybackPlan(events: NotationDraftEven
   });
 }
 
-export function getNotationReferenceMelodyPlaybackDurationSeconds(events: NotationDraftEvent[]): number {
-  const plan = getNotationReferenceMelodyPlaybackPlan(events);
+export function getNotationReferenceMelodyPlaybackDurationSeconds(events: NotationDraftEvent[], rate: NotationReferenceMelodyPlaybackRate = 1): number {
+  const plan = getNotationReferenceMelodyPlaybackPlan(events, rate);
   const lastEvent = plan.at(-1);
   return lastEvent ? lastEvent.offsetSeconds + lastEvent.durationSeconds : 0;
 }
