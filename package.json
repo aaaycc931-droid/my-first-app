@@ -17,6 +17,7 @@
     "validate:mxl-import": "node scripts/validate-mxl-import.mjs",
     "validate:repository-hygiene": "node scripts/validate-repository-hygiene.mjs",
     "validate:final-platform-schema": "node scripts/validate-final-platform-schema.mjs",
+    "test:cloud-practice-attempt": "rm -rf .next/cloud-practice-attempt && tsc --module NodeNext --moduleResolution NodeNext --target ES2020 --outDir .next/cloud-practice-attempt --noEmit false --declaration false --sourceMap false --incremental false scripts/test-cloud-practice-attempt.ts lib/practice/cloudPracticeAttempt.ts && node .next/cloud-practice-attempt/scripts/test-cloud-practice-attempt.js",
     "audiveris:export-local": "node scripts/audiveris-export-local.mjs",
     "musicxml:inspect-local": "node scripts/musicxml-inspect-local.mjs",
     "validate:dev-omr-api-boundary": "node scripts/validate-dev-omr-api-boundary.mjs",
