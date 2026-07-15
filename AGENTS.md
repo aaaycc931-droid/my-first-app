@@ -84,6 +84,8 @@
 
 ## 当前 MVP 边界
 
+“最终产品”计划已由用户正式授权，但当前已合并 runtime 仍是下列 MVP。任何首次打开账号、云端、上传、持久化、正式评测或生产 OMR 的实现，必须先遵守 `docs/final-product-shape-and-feature-map.md` 和 `docs/final-product-implementation-blueprint.md` 的数据所有权、隐私、删除、版本化和验收要求；不得把未接入的外部服务宣称为已上线能力。
+
 当前 MVP 仍保持：
 
 - browser-local；
