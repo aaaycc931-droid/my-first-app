@@ -442,7 +442,13 @@ export default function Home() {
               className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 font-medium text-emerald-800 transition hover:border-emerald-300 hover:bg-emerald-100 sm:col-span-2"
               href="/practice"
             >
-              试用练习模式原型：这是一个早期模拟学习流程，用于未来练习反馈方向的预览。
+              进入练习：使用现有的本地视唱、节奏和听辨练习功能。
+            </Link>
+            <Link
+              className="rounded-2xl border border-indigo-200 bg-indigo-50 p-4 font-medium text-indigo-800 transition hover:border-indigo-300 hover:bg-indigo-100 sm:col-span-2"
+              href="/account"
+            >
+              打开私人学习账户：登录后可逐步启用私有数据同步、素材与学习记录。
             </Link>
           </div>
         </div>

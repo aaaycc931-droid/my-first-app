@@ -54,6 +54,7 @@
     "test:notation-reference-melody-playback": "rm -rf .next/notation-reference-melody-playback && tsc --module NodeNext --moduleResolution NodeNext --target ES2022 --outDir .next/notation-reference-melody-playback --noEmit false --declaration false --sourceMap false --incremental false scripts/test-notation-reference-melody-playback.ts lib/practice/notationReferenceMelodyPlayback.ts lib/practice/nonScoringNotationTargetPitchFeedback.ts lib/practice/localNotationFragmentDraft.ts && node .next/notation-reference-melody-playback/scripts/test-notation-reference-melody-playback.js"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.110.5",
     "fflate": "^0.8.2",
     "next": "^14.2.0",
     "pitchy": "^4.1.0",
