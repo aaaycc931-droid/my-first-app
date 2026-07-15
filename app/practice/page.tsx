@@ -1,6 +1,3 @@
-Warning: truncated output (original token count: 50121)
-Total output lines: 4652
-
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -2671,7 +2668,19 @@ export default function PracticePage() {
             <div className="rounded-2xl bg-white p-4 ring-1 ring-violet-200">
               <p className="font-semibold text-violet-950">最近反馈</p>
               <p className="mt-2 text-violet-800">
-                {rhythmFeedbackSummary.status…121 tokens truncated…et-700 px-4 py-2 text-sm font-semibold text-white disabled:bg-violet-300"
+                {rhythmFeedbackSummary.status}
+              </p>
+            </div>
+          </div>
+
+          <div className="mt-5 flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => notationRhythmTapPracticeContext ? handleStartNotationRhythmPractice(notationTemporaryPracticeTarget) : handleStartRhythmPractice()}
+              disabled={
+                rhythmPhase === "count-in" || rhythmPhase === "practice"
+              }
+              className="rounded-full bg-violet-700 px-4 py-2 text-sm font-semibold text-white disabled:bg-violet-300"
             >
               {notationRhythmTapPracticeContext ? "开始此节奏目标练习" : "开始节奏练习"}
             </button>
