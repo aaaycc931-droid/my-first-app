@@ -101,6 +101,7 @@ import {
   createLocalTargetPitchCurveDraft,
   type LocalTargetPitchCurveDraft,
 } from "../../lib/practice/localTargetPitchCurveDraft";
+import { isCourseExerciseId } from "../../lib/practice/cloudPracticeAttempt";
 import {
   createDefaultLocalTargetPitchCurveDraftReviewSelection,
   getLocalTargetPitchCurveDraftSelectedDiagnostics,
@@ -413,6 +414,7 @@ export default function PracticePage() {
     useState<PracticeFeatureView>("local-melody");
   const [earTrainingExerciseMode, setEarTrainingExerciseMode] =
     useState<EarTrainingExerciseMode>("单音");
+  const [courseExerciseId, setCourseExerciseId] = useState<string | null>(null);
   const sheetMusicImportInputRef = useRef<HTMLInputElement | null>(null);
   const [sheetMusicSourceId, setSheetMusicSourceId] = useState<string | null>(null);
   const [manualNotationImportNotice, setManualNotationImportNotice] = useState<string | null>(null);
@@ -561,6 +563,20 @@ export default function PracticePage() {
       ),
     [localTargetPitchCurveDraft, localTargetPitchCurveDraftReviewSelection],
   );
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const requestedExerciseId = params.get("exercise");
+    if (
+      params.get("feature") === "ear-training" &&
+      params.get("mode") === "single-pitch" &&
+      isCourseExerciseId(requestedExerciseId)
+    ) {
+      setActiveFeatureView("ear-training");
+      setEarTrainingExerciseMode("单音");
+      setCourseExerciseId(requestedExerciseId);
+    }
+  }, []);
 
   useEffect(() => {
     setNotationTemporaryPracticeTarget((currentTarget) =>
@@ -2396,6 +2412,15 @@ export default function PracticePage() {
               title="浏览器本地内置听辨"
               description="选择单音、音程、节奏或旋律听写题型后，播放题目、选择答案、查看解释并复练。各题型的当前会话状态互不清除，不提供正式成绩。"
             />
+            {courseExerciseId ? (
+              <section className="rounded-3xl border border-indigo-200 bg-indigo-50 p-5 text-indigo-950 shadow-sm sm:p-6">
+                <p className="text-sm font-semibold text-indigo-700">系统课程练习</p>
+                <h2 className="mt-1 text-xl font-bold">基础单音听辨</h2>
+                <p className="mt-2 text-sm leading-6">
+                  你从系统课程进入了当前题目。登录后查看答案时会保存一条仅本人可见的练习记录；未登录仍可完成题目，但不会保存。记录不是正式分数、等级或通过判断。
+                </p>
+              </section>
+            ) : null}
             <section className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
               <p className="text-sm font-semibold text-slate-700">选择听辨题型</p>
               <p className="mt-1 text-sm leading-6 text-slate-500">切换题型只改变当前显示内容，不会保存记录，也不会清除其他题型当前会话中的题目与选择。</p>
@@ -2407,7 +2432,7 @@ export default function PracticePage() {
                 ))}
               </div>
             </section>
-            {earTrainingExerciseMode === "单音" ? <LocalEarTrainingSinglePitchPanel /> : null}
+            {earTrainingExerciseMode === "单音" ? <LocalEarTrainingSinglePitchPanel courseExerciseId={courseExerciseId ?? undefined} /> : null}
             {earTrainingExerciseMode === "音程" ? <LocalEarTrainingIntervalPanel /> : null}
             {earTrainingExerciseMode === "节奏" ? <LocalEarTrainingRhythmPanel /> : null}
             {earTrainingExerciseMode === "旋律听写" ? <LocalEarTrainingMelodyDictationPanel /> : null}

@@ -1,3 +1,15 @@
+## P72 — System Course Single-Pitch Practice Persistence (2026-07-15)
+
+P72 connects the first published system-course exercise to the existing single-pitch ear-training runtime. The course library now loads published exercises, exposes a Chinese “开始单音听辨” entry, and opens `/practice` directly in the matching listening exercise while preserving the normal `/practice` default as “本地旋律”. Loading, empty and error states remain explicit.
+
+The first published exercise is versioned and seeded under lesson 1. When a signed-in user explicitly reveals an answer from the course entry, an authenticated Postgres RPC atomically writes one owner-bound `practice_session` and one completed `practice_attempt`. The stored client summary includes the exercise kind, difficulty, deterministic question sequence, selected pitch, target pitch, answer agreement and an explicit `formal_evaluation: false` marker. RLS and `auth.uid()` remain the ownership boundary; anonymous users can complete the local exercise but cannot persist attempts. The browser continues to synthesize audio locally and never uploads audio.
+
+The UI reports saving, saved, login-required and save-error states. It continues to describe answer agreement as an explanation rather than a score, grade, accuracy percentage, pass/fail result or formal assessment. Existing non-course listening entry behavior remains session-only. Focused payload and schema-contract tests, TypeScript, production build, remote checks and strict browser QA are required. QA level recommendation: strict because this is the first account-bound persistent practice-record flow.
+
+## P71 Live Configuration and Account QA (2026-07-15)
+
+The production Supabase project was configured with the final platform schema, the foundation-course seed and explicit Data API grants. The production Vercel deployment now uses the public Supabase URL and publishable key. Browser interaction confirmed `/learn` reads one published course and three lessons, `/account` completes email magic-link login and reads the private profile, profile edits persist after refresh, and `/practice` still defaults to “本地旋律”. No formal scoring or uploaded audio was introduced by this configuration.
+
 ## P63 — Notation Temporary Practice Round Completion Notice (2026-07-13)
 
 P63 completes P62’s manual practice-round feedback: once every event in the current active temporary notation target has been manually marked as practiced, the temporary-practice panel shows a clear Chinese completion notice. The notice explicitly says that this is only the user’s own round marker, not automatic pitch/rhythm detection, a score, grade, pass/fail decision, formal completion, official transcription or final target. The existing restart action still clears only the round markers.
