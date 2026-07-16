@@ -1,8 +1,12 @@
-## P92 — Android 0.2.0 可追溯候选与供应链锁定（本地验证通过，待 CI，2026-07-16）
+## P93 — Android 本机复练 React 行为回归（本地验证通过，待 CI，2026-07-16）
+
+P93 为 Android 移动入口新增真实挂载 React `App` 的 DOM 行为回归，而不是继续只依赖源码字符串契约。测试在 `happy-dom` 中通过 React 19 `createRoot` 驱动用户可见按钮和浏览历史，覆盖答错写入最小复练目标、首页进入复练后答对移除、清除取消与确认、前进/后退不恢复陈旧复练状态，以及 `localStorage` 保存/清除异常时中文降级提示且练习不中断。该测试加入 `quality` 工作流；它证明组件行为与存储边界的自动化回归，不等于真实 Android System WebView、触控、跨应用重启、音频或真机 QA。QA level recommendation：**strict**。
+
+## P92 — Android 0.2.0 可追溯候选与供应链锁定（自动 CI 通过，2026-07-16）
 
 P92 把下一轮 Android 私测候选升级为 `0.2.0` / `versionCode 2`，并以根 `package.json` 作为唯一版本源。Gradle、APK 打包器和上传前 verifier 都读取同一份受控元数据；`package-lock.json`、Gradle 映射和 `docs/android-private-test-changelog.md` 的当前版本标题由自动校验交叉核对。版本名只允许无前导零的 stable SemVer，versionCode 必须是 `1..2100000000` 的整数。该切片提供版本与变更记录可追溯性，但不把调试签名包冒充可覆盖升级的 release 包；安装本候选前仍需卸载旧 debug 包，本机复练数据会随卸载清除。
 
-同一切片把 GitHub Actions 的 checkout、Node、Java、Android SDK 和 artifact upload 动作固定到经过官方仓库核对的完整 commit SHA，并在 Gradle wrapper 中固定 Gradle 8.14.3 `-all` 分发包 SHA-256 `ed1a8d686605fd7c23bdf62c7fc7add1c5b23b2bbc3721e661934ef4a4911d7c`。focused policy test 会拒绝浮动 tag、未批准 action、错误 tag 注释或缺失/变化的 Gradle 摘要。固定 SHA 会停止自动获得补丁，后续升级必须通过显式依赖审查和完整 CI。当前本地版本校验、供应链策略测试、lint、typecheck、移动构建和 Android 本地边界校验必须全部通过；真实 Gradle 构建与 0.2.0 APK 摘要以本切片 CI 为准，真机 QA 仍单独记录。QA level recommendation：**strict**。
+同一切片把 GitHub Actions 的 checkout、Node、Java、Android SDK 和 artifact upload 动作固定到经过官方仓库核对的完整 commit SHA，并在 Gradle wrapper 中固定 Gradle 8.14.3 `-all` 分发包 SHA-256 `ed1a8d686605fd7c23bdf62c7fc7add1c5b23b2bbc3721e661934ef4a4911d7c`。focused policy test 会拒绝浮动 tag、未批准 action、错误 tag 注释或缺失/变化的 Gradle 摘要。PR #343 的 GitHub Actions run `29490844673` 已让 `quality` 与 `android-local` 两个 job 均 PASS；artifact `8372367371` 中 `solfeggio-local-test-v0.2.0-debug.apk` 的 SHA-256 为 `c64e7220fd4ae1919ebe63583194010d31f7ea062cf4bcbd9680bdf119914949`，artifact ZIP digest 为 `6606cb6e39dfd637dbc35535189419ef3443453c41d76e2f20c4aace471be88f`。该候选仍是调试签名，真机 QA 仍须单独记录。QA level recommendation：**strict**。
 
 ## P91 — Android CI 工件独立复核门禁（自动 CI 通过，2026-07-16）
 

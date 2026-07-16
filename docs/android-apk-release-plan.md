@@ -49,6 +49,7 @@ Android APK
 - 查看答案后锁定当前选择，避免答案显示后再修改为正确答案；复练或下一题才会开始新的尝试；
 - 独立本地练习使用会话内随机题序；同一会话的同一题号可复现，题库完整一轮后才循环。该题序不写入账号、数据库、`localStorage` 或 `IndexedDB`，也不构成学习记录、难度自适应或正式评分；
 - Android 本机错题复练队列：查看答案后，答错题置顶加入、答对题移除，最多保留 12 个最小复现目标；首页可查看数量并进入复练；清除全部复练必须经过页面内二次确认；
+- React 移动入口行为回归真实挂载 `App`，自动覆盖错题加入、答对移除、清除取消/确认、浏览历史前进后退及存储异常降级；该 DOM 回归不替代真实 WebView 或手机验证；
 - 复练队列存储不可用、内容失效或读写失败时显示简体中文提示，四类本地练习仍须可用；卸载应用或清除应用数据会删除队列；
 - 统一的本地音频启动、播放、停止与定时器清理；音频只能在用户点击后恢复；
 - 应用切换练习、进入后台、页面冻结、页面卸载或 Android 原生暂停时停止声音并暂停音频上下文；恢复时明确提示题目已重置，不自动播放；
@@ -65,13 +66,13 @@ Android APK
 | A. 本地移动入口 | Vite 入口、四类练习、本地桩、相对资源路径 | PASS | 静态构建通过；无生产云端标识；断网边界可自动校验 |
 | B. Android 工程 | Capacitor 工程、固定包名、图标、启动画面、无网络权限 | PASS | Gradle 构建成功；APK 结构、包名、SDK 和权限检查通过 |
 | C. 私测 APK | V2 调试签名 APK、SHA-256 | PASS | APK 可下载；签名验证通过；校验和已记录；每次成功的 Android CI 均产出带 commit、SHA-256 与本地边界报告的可下载 debug APK 工件 |
-| C1. CI 候选下载物 | 每次 Android 本地构建的调试 APK、SHA-256 与可独立复核的报告 | PASS | P91 PR #342 run `29490109582` 的 `quality` 与 `android-local` 均 PASS；独立 verifier 在上传前核对 APK、校验文件、报告、版本和 commit，artifact `8372077214` 的内部 APK SHA-256 与 ZIP digest 已分别记录 |
+| C1. CI 候选下载物 | 每次 Android 本地构建的调试 APK、SHA-256 与可独立复核的报告 | PASS | P92 PR #343 run `29490844673` 的 `quality` 与 `android-local` 均 PASS；artifact `8372367371` 中 0.2.0 APK 的 SHA-256 为 `c64e7220fd4ae1919ebe63583194010d31f7ea062cf4bcbd9680bdf119914949` |
 | D. 真机验收 | 安装、启动、四类播放/停止/答案/重置、后台恢复 | IN_PROGRESS | 至少一台真实 Android 手机完成首轮测试；最终候选覆盖三档设备 |
 | E. 私下正式包 | 专用 release key、版本升级和回滚包 | NOT_STARTED | 功能冻结后再创建；密钥不入仓库；安装、覆盖升级和回滚经过验证 |
 
 调试签名 APK 是可安装的私测包，不得冒充最终私下正式包。当前先让真实用户测试功能，再决定专用 release key 和最终版本号。
 
-当前候选包的哈希、签名、结构检查和未执行项记录在 `docs/android-private-test-build-evidence.md`；面向测试者的版本变化记录在 `docs/android-private-test-changelog.md`。0.2.0（versionCode 2）的实际 APK 仍须等待对应切片 CI 构建，不能用 P91 的 0.1.0 基线工件替代。
+当前候选包的哈希、签名、结构检查和未执行项记录在 `docs/android-private-test-build-evidence.md`；面向测试者的版本变化记录在 `docs/android-private-test-changelog.md`。0.2.0（versionCode 2）已由 P92 CI 构建并复核；它仍是调试签名私测包，不是覆盖升级或最终 release 签名证据。
 
 ## 5. 构建基线
 
