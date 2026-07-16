@@ -44,6 +44,7 @@ jobs:
           npm run test:local-practice-review-queue
           npm run test:mobile-practice-review-storage
           npm run test:mobile-practice-review-ui-contract
+          npm run test:mobile-practice-review-behavior
           npm run test:android-local-artifact-verifier
           npm run test:android-version
           npm run test:ci-supply-chain-policy

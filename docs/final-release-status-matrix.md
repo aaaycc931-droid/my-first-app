@@ -31,8 +31,8 @@
 | V1-20 | 观测与事故响应 | NOT_STARTED | GitHub Actions、Vercel 状态 | 错误追踪、指标、隐私日志、告警接收人和故障手册 |
 | V1-21 | 内容与教学审核 | NOT_STARTED | 中文题目、答案解释和难度草案 | 2 名教育审核者、题量/正确率/难度递进验收 |
 | V1-22 | 用户可用性验收 | NOT_STARTED | 开发与所有者 QA | 5 名目标用户、核心任务成功率和误解检查 |
-| V1-23 | 发布证据包 | IN_PROGRESS | PR、CI、Vercel、Supabase/RLS 证据已开始记录；P91 PR #342 run `29490109582` 两个 job PASS，artifact `8372077214` 的内部 APK SHA-256 与 ZIP digest 已分别核对，C1 已 PASS | 汇总全部基准、设备、删除/恢复、教育和用户验收证据；0.2.0 候选须取得本切片 CI 与工件证据 |
-| V1-24 | Android 本地 APK | IN_PROGRESS | Capacitor 工程、本地四类练习、会话内可复现随机题序、Android-only 本机错题复练队列（最小目标、最多 12 项、答错置顶/答对移除、二次确认清除）、无网络权限、V2 调试签名 APK、SHA-256 与结构校验已通过；P91 PR #342 run `29490109582` 的 `quality` / `android-local` 均 PASS，独立 verifier 核对 artifact `8372077214`，内部 APK SHA-256 为 `c5060dad9fd6f11401b5c6eb2d08319b082272068a6abccb59dd20d819ecbcd4`。见 `docs/android-private-test-build-evidence.md`。 | 0.2.0（versionCode 2）本切片 CI 与候选工件；首台真机安装、跨重启复练、音频、后台恢复与存储异常；三档设备；专用 release 签名、升级与回滚 |
+| V1-23 | 发布证据包 | IN_PROGRESS | PR、CI、Vercel、Supabase/RLS 证据已开始记录；P92 PR #343 run `29490844673` 两个 job PASS，0.2.0 artifact `8372367371` 的内部 APK SHA-256 与 ZIP digest 已分别核对，C1 已 PASS | 汇总全部基准、设备、删除/恢复、教育和用户验收证据；P93 React 行为回归须取得 CI 证据 |
+| V1-24 | Android 本地 APK | IN_PROGRESS | Capacitor 工程、本地四类练习、会话内可复现随机题序、Android-only 本机错题复练队列（最小目标、最多 12 项、答错置顶/答对移除、二次确认清除）、无网络权限、V2 调试签名 APK、SHA-256 与结构校验已通过；P92 PR #343 run `29490844673` 的 `quality` / `android-local` 均 PASS，artifact `8372367371` 中 0.2.0 APK 的 SHA-256 为 `c64e7220fd4ae1919ebe63583194010d31f7ea062cf4bcbd9680bdf119914949`。P93 新增真实挂载 React App 的本机复练行为回归。见 `docs/android-private-test-build-evidence.md`。 | P93 CI；首台真机安装、跨重启复练、音频、后台恢复与存储异常；三档设备；专用 release 签名、升级与回滚 |
 | V1-25 | 最终生产发布 | BLOCKED | 当前 P84 生产 Web 版本已部署 | V1-02 至 V1-24 的全部 MUST 门槛尚未通过 |
 
 ## 2. 已确认不阻塞 V1 的能力
@@ -50,7 +50,7 @@
 
 按依赖关系推进：
 
-1. V1-24 Android 本地 APK：完成 0.2.0（versionCode 2）本切片 CI 与候选工件后，执行首台真机安装、四类练习音频、本机错题队列跨重启/清除、后台恢复、存储异常和断网回归，并根据私测反馈迭代；当前不做 AAB、商店、TWA、域名关联或认证回跳。
+1. V1-24 Android 本地 APK：完成 P93 React 行为回归 CI 后，继续扩充离线核心练习与自动回归；随后执行首台真机安装、四类练习音频、本机错题队列跨重启/清除、后台恢复、存储异常和断网回归，并根据私测反馈迭代；当前不做 AAB、商店、TWA、域名关联或认证回跳。
 2. V1-03 / V1-02 / V1-15 Web 数据生命周期、账户与权限：闭合已经上线的账户/数据库责任；它们不阻塞当前本地 APK 启动。
 3. V1-12 学习历史与复习：把已有 attempts 转化为可见学习闭环。
 4. V1-04 系统课程：补齐视唱、题量、难度与课程进度。

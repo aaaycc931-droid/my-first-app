@@ -77,6 +77,7 @@
     "test:local-practice-review-queue": "rm -rf .next/local-practice-review-queue && tsc --module NodeNext --moduleResolution NodeNext --target ES2020 --outDir .next/local-practice-review-queue --noEmit false --declaration false --sourceMap false --incremental false scripts/test-local-practice-review-queue.ts lib/practice/localPracticeReviewQueue.ts && node .next/local-practice-review-queue/scripts/test-local-practice-review-queue.js",
     "test:mobile-practice-review-storage": "rm -rf .next/mobile-practice-review-storage && tsc --module NodeNext --moduleResolution NodeNext --target ES2020 --outDir .next/mobile-practice-review-storage --noEmit false --declaration false --sourceMap false --incremental false scripts/test-mobile-practice-review-storage.ts mobile/src/runtime/mobilePracticeReviewStorage.ts lib/practice/localPracticeReviewQueue.ts && node .next/mobile-practice-review-storage/scripts/test-mobile-practice-review-storage.js",
     "test:mobile-practice-review-ui-contract": "node scripts/test-mobile-practice-review-ui-contract.mjs",
+    "test:mobile-practice-review-behavior": "vitest run --config vitest.mobile.config.ts",
     "test:mobile-lifecycle": "rm -rf .next/mobile-lifecycle && tsc --module NodeNext --moduleResolution NodeNext --target ES2020 --outDir .next/mobile-lifecycle --noEmit false --declaration false --sourceMap false --incremental false scripts/test-mobile-lifecycle.ts mobile/src/runtime/mobileLifecycle.ts && node .next/mobile-lifecycle/scripts/test-mobile-lifecycle.js",
     "test:practice-module-registry": "rm -rf .next/practice-module-registry && tsc --module NodeNext --moduleResolution NodeNext --target ES2022 --outDir .next/practice-module-registry --noEmit false --declaration false --sourceMap false --incremental false scripts/test-practice-module-registry.ts lib/product/practiceModuleRegistry.ts && node .next/practice-module-registry/scripts/test-practice-module-registry.js",
     "test:note-frequency": "rm -rf .next/note-frequency && tsc --module NodeNext --moduleResolution NodeNext --target ES2020 --outDir .next/note-frequency --noEmit false --declaration false --sourceMap false --incremental false scripts/test-note-frequency.ts lib/audio/noteFrequency.ts && node .next/note-frequency/scripts/test-note-frequency.js",
@@ -107,9 +108,11 @@
     "autoprefixer": "^10.4.20",
     "eslint": "9.39.5",
     "eslint-config-next": "16.2.10",
+    "happy-dom": "20.10.x",
     "postcss": "^8.4.40",
     "tailwindcss": "^3.4.0",
     "typescript": "^5.5.0",
-    "vite": "^8.1.4"
+    "vite": "^8.1.4",
+    "vitest": "4.1.x"
   }
 }

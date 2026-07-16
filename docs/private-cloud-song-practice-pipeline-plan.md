@@ -32,6 +32,8 @@ The current MVP continues to be:
 - no persistent private library;
 - no payment / membership implementation.
 
+The Android local private-test client is a separate offline boundary. Its on-device wrong-answer review queue and React behavior regressions store only minimal deterministic exercise targets, never private song material, audio, account identifiers, scores, or cloud task data. This does not implement or relax any private-cloud pipeline requirement.
+
 This is the **current MVP boundary**, not a permanent product boundary. P35 is a docs-only architecture update and does not implement upload, cloud processing, accounts, storage, databases, source separation, melody extraction runtime, or scoring.
 
 ## Future account requirement and boundary
