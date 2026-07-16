@@ -118,3 +118,107 @@ jobs:
           end;
           $$;
           SQL
+
+      - name: Smoke test authenticated writes and cross-user RLS
+        shell: bash
+        run: |
+          psql --set ON_ERROR_STOP=on <<'SQL'
+          begin;
+
+          select set_config(
+            'smoke.user_id',
+            coalesce(
+              (select id::text from auth.users order by created_at limit 1),
+              ''
+            ),
+            true
+          );
+
+          do $$
+          begin
+            if current_setting('smoke.user_id', true) = '' then
+              raise exception 'RLS smoke test requires one existing auth user';
+            end if;
+          end;
+          $$;
+
+          set local role authenticated;
+          select set_config(
+            'request.jwt.claim.sub',
+            current_setting('smoke.user_id'),
+            true
+          );
+
+          select set_config(
+            'smoke.interval_attempt_id',
+            public.record_interval_attempt(
+              '00000000-0000-4000-8000-000000000202',
+              1,
+              '基础',
+              '上行',
+              0,
+              'major-third',
+              'major-third',
+              true
+            )::text,
+            true
+          );
+
+          select set_config(
+            'smoke.rhythm_attempt_id',
+            public.record_rhythm_attempt(
+              '00000000-0000-4000-8000-000000000203',
+              1,
+              '基础',
+              0,
+              'even-quarters',
+              'even-quarters',
+              true
+            )::text,
+            true
+          );
+
+          do $$
+          declare
+            visible_attempts integer;
+          begin
+            select count(*)
+            into visible_attempts
+            from public.practice_attempts
+            where id in (
+              current_setting('smoke.interval_attempt_id')::uuid,
+              current_setting('smoke.rhythm_attempt_id')::uuid
+            );
+
+            if visible_attempts <> 2 then
+              raise exception 'authenticated owner cannot read both smoke attempts';
+            end if;
+          end;
+          $$;
+
+          select set_config(
+            'request.jwt.claim.sub',
+            'ffffffff-ffff-4fff-8fff-ffffffffffff',
+            true
+          );
+
+          do $$
+          declare
+            leaked_attempts integer;
+          begin
+            select count(*)
+            into leaked_attempts
+            from public.practice_attempts
+            where id in (
+              current_setting('smoke.interval_attempt_id')::uuid,
+              current_setting('smoke.rhythm_attempt_id')::uuid
+            );
+
+            if leaked_attempts <> 0 then
+              raise exception 'cross-user RLS isolation failed';
+            end if;
+          end;
+          $$;
+
+          rollback;
+          SQL
