@@ -15,6 +15,9 @@ for (const expected of [
   ".getTracks().forEach((track) => track.stop())",
   "context.close()",
   "generationRef.current",
+  "recordingGenerationRef.current",
+  "MediaRecorder",
+  "URL.revokeObjectURL",
   "releaseResources();",
   'echoCancellation: false',
   'noiseSuppression: false',
@@ -22,12 +25,16 @@ for (const expected of [
 
 for (const expected of [
   "开始实时反馈",
+  "开始会话录音",
+  "停止录音",
+  "播放本次录音",
+  "丢弃本次录音",
   "停止监听",
   "停止并清空",
   "曲线时间缩放",
   "目标参考线（不计分）",
   "不足以可靠判断",
-  "不录音、不保存、不上传",
+  "不自动保存、不上传",
   "不生成分数、等级或通过判断",
 ]) requireCopy(panel, expected, "实时音高中文界面");
 

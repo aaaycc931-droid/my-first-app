@@ -2,6 +2,12 @@
 
 执行日期：2026-07-16
 
+## P98 专业滚动曲线候选
+
+P98 已在 PR #349 的 GitHub Actions run `29500174037` 完成自动化验证，`quality` 与 `android-local` 两个 job 均为 PASS；合并后的 main squash commit 为 `a85e4ba769c6fb7724d7b2075faf7f8b9cb7989d`。artifact `8376148510` 内 APK SHA-256 为 `52c9669d0bd42f3bec94df72c57d985728a11557d73c849a395998cb1764996a`，GitHub artifact ZIP digest 为 `e18142a77247b56e59d384b44b72c47133135bf7a3c872500691fc1e75b1f6e3`。
+
+工件报告继续确认 Debug 签名、`0.2.0` / versionCode 2、本地资源、无远程 server、无网络和宽泛存储权限。该自动证据包含 SVG 滚动曲线，但不证明真机刷新率、延迟、旋转、小屏可读性或人声准确度，也不包含 P99 会话录音。
+
 ## P97 实时音高帧候选
 
 P97 已在 PR #348 的 GitHub Actions run `29499485270` 完成自动化验证，`quality` 与 `android-local` 两个 job 均为 PASS；合并后的 main squash commit 为 `1a13987d5b589125281c62754091a2b79654ed72`。artifact `8375849926` 内 APK SHA-256 为 `3ba5d57f41b3dc931356318b87f78b7aa24b8fb31e1bf69b99a544154d73d37e`，GitHub artifact ZIP digest 为 `d56c8ae0789ec32e9a04acc25235fc436f83ba66d7b8c359e4d268e79d80fb89`。
