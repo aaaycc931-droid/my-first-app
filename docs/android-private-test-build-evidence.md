@@ -2,6 +2,12 @@
 
 执行日期：2026-07-16
 
+## P103 探索性音高观察候选
+
+P103 已在 PR #354 的 GitHub Actions run `29505316896` 完成自动化验证，两个 job 均 PASS；合并后的 main commit 为 `dfd3402a106138ff2aad464a6a962684f733fbd5`。artifact `8378264201` 下载 ZIP SHA-256 为 `dcb187d90f2203e374110eb7d62e517c1a7175228a6cb79044d1ab8a0f71e3de`，其内部 APK SHA-256 为 `389412852bfde6a0628be381f82eb5154b15682cfd8c70b56543a461581f769b`，与工件报告一致。
+
+自动合成与真实挂载 DOM 测试不证明真实人声阈值、颤音教学适用性、真机采样/延迟或教育审核；P104 门槛仍未满足。
+
 ## P102 本机练声记录候选
 
 P102 已在 PR #353 的 GitHub Actions run `29504298671` 完成自动化验证，`quality` 与 `android-local` 两个 job 均 PASS；合并后的 main commit 为 `1cc7ad9a1211994ec06f405ed0df10c8dfff2926`。artifact `8377845031` 下载 ZIP SHA-256 为 `5f35ed5890f840aefd96d27d92a623a8517eb9c6083620946d2f5580bba034af`，其内部 APK SHA-256 为 `3ac74de46162daead3ec3f4bb74536d998ce880c6af74fea14970a8ee489e64c`，与 `.sha256` 和 JSON 报告一致。

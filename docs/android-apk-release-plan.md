@@ -74,13 +74,13 @@ Android APK
 | A. 本地移动入口 | Vite 入口、四类练习、本地参考钢琴、本地桩、相对资源路径 | PASS | 静态构建通过；无生产云端标识；断网边界可自动校验 |
 | B. Android 工程 | Capacitor 工程、固定包名、图标、启动画面、无网络权限 | PASS | Gradle 构建成功；APK 结构、包名、SDK 和权限检查通过 |
 | C. 私测 APK | V2 调试签名 APK、SHA-256 | PASS | APK 可下载；签名验证通过；校验和已记录；每次成功的 Android CI 均产出带 commit、SHA-256 与本地边界报告的可下载 debug APK 工件 |
-| C1. CI 候选下载物 | 每次 Android 本地构建的调试 APK、SHA-256 与可独立复核的报告 | PASS | P102 PR #353 run `29504298671` 的两个 job 均 PASS；artifact `8377845031` 中 APK SHA-256 为 `3ac74de46162daead3ec3f4bb74536d998ce880c6af74fea14970a8ee489e64c`；P103 待新 CI 工件 |
+| C1. CI 候选下载物 | 每次 Android 本地构建的调试 APK、SHA-256 与可独立复核的报告 | PASS | P103 PR #354 run `29505316896` 的两个 job 均 PASS；artifact `8378264201` 中 APK SHA-256 为 `389412852bfde6a0628be381f82eb5154b15682cfd8c70b56543a461581f769b` |
 | D. 真机验收 | 安装、启动、四类播放/停止/答案/重置、钢琴多指/延音/全停、后台恢复 | IN_PROGRESS | 至少一台真实 Android 手机完成首轮测试；最终候选覆盖三档设备 |
 | E. 私下正式包 | 专用 release key、版本升级和回滚包 | NOT_STARTED | 功能冻结后再创建；密钥不入仓库；安装、覆盖升级和回滚经过验证 |
 
 调试签名 APK 是可安装的私测包，不得冒充最终私下正式包。当前先让真实用户测试功能，再决定专用 release key 和最终版本号。
 
-当前候选包的哈希、签名、结构检查和未执行项记录在 `docs/android-private-test-build-evidence.md`；面向测试者的版本变化记录在 `docs/android-private-test-changelog.md`。0.2.0（versionCode 2）的最新已核对候选为 P101；P102 必须使用新 CI 工件。它仍是调试签名私测包，不是覆盖升级或最终 release 签名证据。
+当前候选包的哈希、签名、结构检查和未执行项记录在 `docs/android-private-test-build-evidence.md`；面向测试者的版本变化记录在 `docs/android-private-test-changelog.md`。0.2.0（versionCode 2）的最新已核对候选为 P103。它仍是调试签名私测包，不是覆盖升级、P104 真实证据或最终 release 签名证据。
 
 ## 5. 构建基线
 

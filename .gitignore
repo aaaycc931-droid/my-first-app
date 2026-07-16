@@ -22,3 +22,6 @@ local-fixtures/real-voice/metadata.local.json
 # Local-only melody guide audio experiments: never commit WAV fixtures or local metadata.
 local-fixtures/melody-guide-audio/audio/*.wav
 local-fixtures/melody-guide-audio/metadata.local.json
+
+# P104 release evidence contains local device and participant summaries.
+local-fixtures/android-p104/evidence.local.json

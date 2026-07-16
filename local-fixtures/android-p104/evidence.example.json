@@ -1,0 +1,7 @@
+{
+  "schemaVersion": 1,
+  "candidate": { "versionName": "0.3.0", "versionCode": 3, "commitSha": "replace-with-40-lowercase-hex", "apkSha256": "replace-with-64-lowercase-hex" },
+  "pitchBenchmark": { "syntheticOrInstrumentSamples": 0, "realVoiceSamples": 0, "participantCount": 0, "deviceClassCount": 0, "realVoiceMedianAbsoluteCents": 999, "realVoiceP95AbsoluteCents": 999, "realVoiceOctaveErrorRatePercent": 100, "consentAndSourceRecorded": false, "heldOutAcceptanceSet": false, "coverageIncludesRangesDynamicsVibratoNoise": false },
+  "androidRuns": [],
+  "educationReview": { "reviewerCount": 0, "observationCopyApproved": false, "thresholdsApproved": false }
+}

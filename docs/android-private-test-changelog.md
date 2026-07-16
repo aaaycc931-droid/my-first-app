@@ -4,7 +4,7 @@
 
 ## 0.2.0（versionCode 2）
 
-构建状态：P102 候选已通过 CI；P103 探索性音高观察切片待 CI。
+构建状态：P103 候选已通过 CI；P104 真实证据门槛尚未满足。
 
 ### 用户可见变化
 
@@ -32,4 +32,4 @@
 
 ### 构建状态
 
-`versionName 0.2.0` / `versionCode 2` 的 P102 候选已由 run `29504298671` 构建；artifact `8377845031` 内 APK SHA-256 为 `3ac74de46162daead3ec3f4bb74536d998ce880c6af74fea14970a8ee489e64c`，ZIP digest 为 `5f35ed5890f840aefd96d27d92a623a8517eb9c6083620946d2f5580bba034af`。P103 必须等待本切片 CI 生成新工件，不得沿用该摘要。
+`versionName 0.2.0` / `versionCode 2` 的 P103 候选已由 run `29505316896` 构建；artifact `8378264201` 内 APK SHA-256 为 `389412852bfde6a0628be381f82eb5154b15682cfd8c70b56543a461581f769b`，ZIP digest 为 `dcb187d90f2203e374110eb7d62e517c1a7175228a6cb79044d1ab8a0f71e3de`。它仍是 debug 签名，不能替代 P104 真机、人声和教育证据。
