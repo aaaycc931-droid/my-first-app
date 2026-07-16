@@ -2,6 +2,12 @@
 
 执行日期：2026-07-16
 
+## P97 实时音高帧候选
+
+P97 已在 PR #348 的 GitHub Actions run `29499485270` 完成自动化验证，`quality` 与 `android-local` 两个 job 均为 PASS；合并后的 main squash commit 为 `1a13987d5b589125281c62754091a2b79654ed72`。artifact `8375849926` 内 APK SHA-256 为 `3ba5d57f41b3dc931356318b87f78b7aa24b8fb31e1bf69b99a544154d73d37e`，GitHub artifact ZIP digest 为 `d56c8ae0789ec32e9a04acc25235fc436f83ba66d7b8c359e4d268e79d80fb89`。
+
+工件报告确认 Debug 签名、`0.2.0` / versionCode 2、本地资源、无远程 server、无网络和宽泛存储权限；`RECORD_AUDIO` 仅供用户主动开始的实时音高入口。该自动证据不证明真实手机权限弹窗、连续采集延迟、人声音高准确度、发热或后台行为，也不包含 P98 滚动曲线。
+
 ## P96 三难度题库候选
 
 P96 已在 PR #347 的 GitHub Actions run `29498225599` 完成自动化验证，`quality` 与 `android-local` 两个 job 均为 PASS；合并后的 main squash commit 为 `fdba367c04efa3bd73dee0a598c67c79faea4861`。artifact `8375330934` 内 APK SHA-256 为 `d300ea6aef90d1c6749eae5a654f5b114f1a824ce1678d17adf04f62243c5935`，GitHub artifact ZIP digest 为 `8ac6a7304dde678075e7b24397539076462cb6e58d2b4da867e58d21393c912f`。

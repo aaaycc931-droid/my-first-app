@@ -23,7 +23,7 @@ const renderPanel = async () => {
 };
 
 const button = (container: ParentNode, label: string) => {
-  const match = Array.from(container.querySelectorAll("button")).find((item) => item.textContent === label);
+  const match = Array.from(container.querySelectorAll("button")).find((item) => item.textContent === label || item.getAttribute("aria-label") === label);
   if (!match) throw new Error(`找不到按钮：${label}`);
   return match;
 };
@@ -75,10 +75,26 @@ describe("Android 实时音高反馈行为", () => {
     expect(getUserMedia).toHaveBeenCalledTimes(1);
     expect(container.textContent).toContain("A4");
     expect(container.textContent).toContain("440.0 Hz");
+    expect(container.querySelectorAll("polyline")).toHaveLength(1);
+
+    await click(button(container, "5 秒"));
+    expect(container.textContent).toContain("最近 5 秒音高曲线");
+    await click(button(container, "目标音升高半音"));
+    expect(container.textContent).toContain("A♯4");
 
     await click(button(container, "停止监听"));
     expect(trackStop).toHaveBeenCalledTimes(1);
     expect(contextClose).toHaveBeenCalledTimes(1);
+  });
+
+  it("停止并清空会删除已采集曲线且释放麦克风", async () => {
+    const container = await renderPanel();
+    await click(button(container, "开始实时反馈"));
+    expect(container.querySelectorAll("polyline")).toHaveLength(1);
+
+    await click(button(container, "停止并清空曲线"));
+    expect(container.querySelectorAll("polyline")).toHaveLength(0);
+    expect(trackStop).toHaveBeenCalledTimes(1);
   });
 
   it("权限拒绝显示中文恢复提示且不伪造音名", async () => {
