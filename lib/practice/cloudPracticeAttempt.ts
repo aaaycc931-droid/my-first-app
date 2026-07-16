@@ -8,6 +8,27 @@ export type SinglePitchAttemptRpcArgs = {
   p_matches_answer: boolean;
 };
 
+export type IntervalAttemptRpcArgs = {
+  p_exercise_id: string;
+  p_target_version: number;
+  p_difficulty: "基础" | "进阶";
+  p_direction: "上行" | "下行";
+  p_sequence: number;
+  p_selected_interval_id: string;
+  p_target_interval_id: string;
+  p_matches_answer: boolean;
+};
+
+export type RhythmAttemptRpcArgs = {
+  p_exercise_id: string;
+  p_target_version: number;
+  p_difficulty: "基础" | "进阶";
+  p_sequence: number;
+  p_selected_pattern_id: string;
+  p_target_pattern_id: string;
+  p_matches_answer: boolean;
+};
+
 const uuidPattern =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -39,6 +60,71 @@ export const createSinglePitchAttemptRpcArgs = ({
     p_sequence: Math.max(0, Math.floor(sequence)),
     p_selected_pitch_id: selectedPitchId,
     p_target_pitch_id: targetPitchId,
+    p_matches_answer: matchesAnswer,
+  };
+};
+
+export const createIntervalAttemptRpcArgs = ({
+  exerciseId,
+  difficulty,
+  direction,
+  sequence,
+  selectedIntervalId,
+  targetIntervalId,
+  matchesAnswer,
+}: {
+  exerciseId: string;
+  difficulty: "基础" | "进阶";
+  direction: "上行" | "下行";
+  sequence: number;
+  selectedIntervalId: string;
+  targetIntervalId: string;
+  matchesAnswer: boolean;
+}): IntervalAttemptRpcArgs => {
+  if (!isCourseExerciseId(exerciseId)) throw new Error("Invalid course exercise id.");
+  if (!selectedIntervalId || !targetIntervalId) {
+    throw new Error("Interval ids are required.");
+  }
+
+  return {
+    p_exercise_id: exerciseId,
+    p_target_version: 1,
+    p_difficulty: difficulty,
+    p_direction: direction,
+    p_sequence: Math.max(0, Math.floor(sequence)),
+    p_selected_interval_id: selectedIntervalId,
+    p_target_interval_id: targetIntervalId,
+    p_matches_answer: matchesAnswer,
+  };
+};
+
+export const createRhythmAttemptRpcArgs = ({
+  exerciseId,
+  difficulty,
+  sequence,
+  selectedPatternId,
+  targetPatternId,
+  matchesAnswer,
+}: {
+  exerciseId: string;
+  difficulty: "基础" | "进阶";
+  sequence: number;
+  selectedPatternId: string;
+  targetPatternId: string;
+  matchesAnswer: boolean;
+}): RhythmAttemptRpcArgs => {
+  if (!isCourseExerciseId(exerciseId)) throw new Error("Invalid course exercise id.");
+  if (!selectedPatternId || !targetPatternId) {
+    throw new Error("Rhythm pattern ids are required.");
+  }
+
+  return {
+    p_exercise_id: exerciseId,
+    p_target_version: 1,
+    p_difficulty: difficulty,
+    p_sequence: Math.max(0, Math.floor(sequence)),
+    p_selected_pattern_id: selectedPatternId,
+    p_target_pattern_id: targetPatternId,
     p_matches_answer: matchesAnswer,
   };
 };

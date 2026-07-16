@@ -144,6 +144,20 @@ export function CourseLibrary() {
                                 >
                                   开始单音听辨
                                 </Link>
+                              ) : exercise.kind === "interval" ? (
+                                <Link
+                                  href={`/practice?feature=ear-training&mode=interval&exercise=${encodeURIComponent(exercise.id)}`}
+                                  className="mt-3 inline-flex rounded-full bg-emerald-700 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-800"
+                                >
+                                  开始音程听辨
+                                </Link>
+                              ) : exercise.kind === "rhythm" ? (
+                                <Link
+                                  href={`/practice?feature=ear-training&mode=rhythm&exercise=${encodeURIComponent(exercise.id)}`}
+                                  className="mt-3 inline-flex rounded-full bg-violet-700 px-4 py-2 text-sm font-semibold text-white hover:bg-violet-800"
+                                >
+                                  开始节奏听辨
+                                </Link>
                               ) : (
                                 <p className="mt-3 text-sm text-slate-500">该练习入口正在准备中。</p>
                               )}

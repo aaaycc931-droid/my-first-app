@@ -296,6 +296,6 @@ assert.match(practiceRhythmDiagnosticSource, /firstOnsetOrigin|首个起音/);
 assert.match(practiceRhythmDiagnosticSource, /紧凑标记图例/);
 assert.match(practiceRhythmDiagnosticSource, /audioOnsetMarkerDensitySummary/);
 assert.match(practiceRhythmDiagnosticSource, /已应用延迟偏移/);
-assert.match(practiceRhythmDiagnosticSource, /not a score/);
+assert.match(practiceRhythmDiagnosticSource, /非评分|不是正式评分|不提供正式成绩/);
 assert.equal(quarter.warnings.includes("This assumes recording timing aligns with the target timeline."), true);
 assert.doesNotMatch(practiceRhythmDiagnosticSource, /accuracyPercentage/);

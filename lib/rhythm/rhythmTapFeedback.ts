@@ -64,10 +64,200 @@ export type RhythmTapFeedbackSummary = {
   closeToleranceMs: number;
   matchWindowMs: number;
   appliedLatencyOffsetMs: number;
+  alignmentEngineId: RhythmAlignmentEngineId;
+};
+
+export type RhythmAlignmentEngineId = "monotonic-dynamic-programming-v1";
+
+export type RhythmAlignmentPair = {
+  targetPosition: number;
+  tapPosition: number;
+  offsetMs: number;
+};
+
+export type RhythmAlignmentResult = {
+  engineId: RhythmAlignmentEngineId;
+  pairs: RhythmAlignmentPair[];
+  unmatchedTargetPositions: number[];
+  unmatchedTapPositions: number[];
+  totalAbsoluteOffsetMs: number;
 };
 
 export const rhythmCloseToleranceMs = 80;
 export const rhythmMatchWindowMs = 180;
+export const rhythmAlignmentEngineId: RhythmAlignmentEngineId =
+  "monotonic-dynamic-programming-v1";
+
+type RhythmAlignmentStep = "match" | "miss" | "extra";
+
+type RhythmAlignmentCell = {
+  cost: number;
+  matchedCount: number;
+  totalAbsoluteOffsetMs: number;
+  previousTargetCount: number;
+  previousTapCount: number;
+  step: RhythmAlignmentStep;
+};
+
+const isPreferredAlignmentCell = (
+  candidate: RhythmAlignmentCell,
+  current: RhythmAlignmentCell | undefined,
+) => {
+  if (!current) return true;
+  const epsilon = 1e-9;
+  if (candidate.cost < current.cost - epsilon) return true;
+  if (candidate.cost > current.cost + epsilon) return false;
+  if (candidate.matchedCount !== current.matchedCount) {
+    return candidate.matchedCount > current.matchedCount;
+  }
+  if (candidate.totalAbsoluteOffsetMs !== current.totalAbsoluteOffsetMs) {
+    return candidate.totalAbsoluteOffsetMs < current.totalAbsoluteOffsetMs;
+  }
+  const priority: Record<RhythmAlignmentStep, number> = {
+    match: 0,
+    miss: 1,
+    extra: 2,
+  };
+  return priority[candidate.step] < priority[current.step];
+};
+
+export const alignRhythmTargetsAndTaps = ({
+  targets,
+  taps,
+  matchWindowMs,
+  latencyOffsetMs = 0,
+}: {
+  targets: RhythmTargetEvent[];
+  taps: RhythmTapEvent[];
+  matchWindowMs: number;
+  latencyOffsetMs?: number;
+}): RhythmAlignmentResult => {
+  const safeMatchWindowMs = Math.max(1, Math.abs(matchWindowMs));
+  const orderedTargetEntries = targets
+    .map((target, originalPosition) => ({ target, originalPosition }))
+    .sort(
+      (left, right) =>
+        left.target.targetTimeMs - right.target.targetTimeMs ||
+        left.originalPosition - right.originalPosition,
+    );
+  const orderedTapEntries = taps
+    .map((tap, originalPosition) => ({
+      tap,
+      originalPosition,
+      adjustedTimeMs: tap.timestampMs - latencyOffsetMs,
+    }))
+    .sort(
+      (left, right) =>
+        left.adjustedTimeMs - right.adjustedTimeMs ||
+        left.originalPosition - right.originalPosition,
+    );
+  const targetCount = orderedTargetEntries.length;
+  const tapCount = orderedTapEntries.length;
+  const cells: Array<Array<RhythmAlignmentCell | undefined>> = Array.from(
+    { length: targetCount + 1 },
+    () => Array<RhythmAlignmentCell | undefined>(tapCount + 1),
+  );
+  cells[0][0] = {
+    cost: 0,
+    matchedCount: 0,
+    totalAbsoluteOffsetMs: 0,
+    previousTargetCount: 0,
+    previousTapCount: 0,
+    step: "match",
+  };
+
+  const updateCell = (
+    targetPosition: number,
+    tapPosition: number,
+    candidate: RhythmAlignmentCell,
+  ) => {
+    if (isPreferredAlignmentCell(candidate, cells[targetPosition][tapPosition])) {
+      cells[targetPosition][tapPosition] = candidate;
+    }
+  };
+
+  for (let targetPosition = 0; targetPosition <= targetCount; targetPosition += 1) {
+    for (let tapPosition = 0; tapPosition <= tapCount; tapPosition += 1) {
+      const current = cells[targetPosition][tapPosition];
+      if (!current) continue;
+
+      if (targetPosition < targetCount) {
+        updateCell(targetPosition + 1, tapPosition, {
+          cost: current.cost + 1,
+          matchedCount: current.matchedCount,
+          totalAbsoluteOffsetMs: current.totalAbsoluteOffsetMs,
+          previousTargetCount: targetPosition,
+          previousTapCount: tapPosition,
+          step: "miss",
+        });
+      }
+      if (tapPosition < tapCount) {
+        updateCell(targetPosition, tapPosition + 1, {
+          cost: current.cost + 1,
+          matchedCount: current.matchedCount,
+          totalAbsoluteOffsetMs: current.totalAbsoluteOffsetMs,
+          previousTargetCount: targetPosition,
+          previousTapCount: tapPosition,
+          step: "extra",
+        });
+      }
+      if (targetPosition < targetCount && tapPosition < tapCount) {
+        const target = orderedTargetEntries[targetPosition].target;
+        const tap = orderedTapEntries[tapPosition];
+        const offsetMs = tap.adjustedTimeMs - target.targetTimeMs;
+        const absoluteOffsetMs = Math.abs(offsetMs);
+        if (absoluteOffsetMs <= safeMatchWindowMs) {
+          updateCell(targetPosition + 1, tapPosition + 1, {
+            cost: current.cost + absoluteOffsetMs / safeMatchWindowMs,
+            matchedCount: current.matchedCount + 1,
+            totalAbsoluteOffsetMs:
+              current.totalAbsoluteOffsetMs + absoluteOffsetMs,
+            previousTargetCount: targetPosition,
+            previousTapCount: tapPosition,
+            step: "match",
+          });
+        }
+      }
+    }
+  }
+
+  const pairs: RhythmAlignmentPair[] = [];
+  const unmatchedTargetPositions: number[] = [];
+  const unmatchedTapPositions: number[] = [];
+  let targetPosition = targetCount;
+  let tapPosition = tapCount;
+
+  while (targetPosition > 0 || tapPosition > 0) {
+    const cell = cells[targetPosition][tapPosition];
+    if (!cell) break;
+    if (cell.step === "match") {
+      const targetEntry = orderedTargetEntries[targetPosition - 1];
+      const tapEntry = orderedTapEntries[tapPosition - 1];
+      pairs.push({
+        targetPosition: targetEntry.originalPosition,
+        tapPosition: tapEntry.originalPosition,
+        offsetMs: tapEntry.adjustedTimeMs - targetEntry.target.targetTimeMs,
+      });
+    } else if (cell.step === "miss") {
+      unmatchedTargetPositions.push(
+        orderedTargetEntries[targetPosition - 1].originalPosition,
+      );
+    } else {
+      unmatchedTapPositions.push(orderedTapEntries[tapPosition - 1].originalPosition);
+    }
+    targetPosition = cell.previousTargetCount;
+    tapPosition = cell.previousTapCount;
+  }
+
+  return {
+    engineId: rhythmAlignmentEngineId,
+    pairs: pairs.reverse(),
+    unmatchedTargetPositions: unmatchedTargetPositions.reverse(),
+    unmatchedTapPositions: unmatchedTapPositions.reverse(),
+    totalAbsoluteOffsetMs:
+      cells[targetCount][tapCount]?.totalAbsoluteOffsetMs ?? 0,
+  };
+};
 
 const rhythmPatternSubdivisionCounts: Record<RhythmTargetPattern, number> = {
   "quarter-note-pulse": 1,
@@ -151,6 +341,7 @@ export const getRhythmTapFeedback = ({
       closeToleranceMs,
       matchWindowMs,
       appliedLatencyOffsetMs: latencyOffsetMs,
+      alignmentEngineId: rhythmAlignmentEngineId,
     };
   }
 
@@ -166,34 +357,31 @@ export const getRhythmTapFeedback = ({
       closeToleranceMs,
       matchWindowMs,
       appliedLatencyOffsetMs: latencyOffsetMs,
+      alignmentEngineId: rhythmAlignmentEngineId,
     };
   }
 
-  const usedTapIds = new Set<number>();
+  const alignment = alignRhythmTargetsAndTaps({
+    targets,
+    taps: practiceTaps,
+    matchWindowMs,
+    latencyOffsetMs,
+  });
+  const alignmentPairByTargetPosition = new Map(
+    alignment.pairs.map((pair) => [pair.targetPosition, pair]),
+  );
+  const matchedTapPositions = new Set(
+    alignment.pairs.map((pair) => pair.tapPosition),
+  );
   const feedback: RhythmTapFeedbackEvent[] = [];
 
-  targets.forEach((target) => {
-    let bestTapIndex = -1;
-    let bestAbsOffset = Number.POSITIVE_INFINITY;
+  targets.forEach((target, targetPosition) => {
+    const pair = alignmentPairByTargetPosition.get(targetPosition);
+    const bestTap = pair ? practiceTaps[pair.tapPosition] : undefined;
 
-    practiceTaps.forEach((tap, tapIndex) => {
-      if (usedTapIds.has(tap.id)) {
-        return;
-      }
-      const adjustedTapTimeMs = tap.timestampMs - latencyOffsetMs;
-      const absOffset = Math.abs(adjustedTapTimeMs - target.targetTimeMs);
-      if (absOffset <= matchWindowMs && absOffset < bestAbsOffset) {
-        bestTapIndex = tapIndex;
-        bestAbsOffset = absOffset;
-      }
-    });
-
-    const bestTap = practiceTaps[bestTapIndex];
-
-    if (bestTap) {
-      usedTapIds.add(bestTap.id);
+    if (bestTap && pair) {
       const adjustedTapTimeMs = bestTap.timestampMs - latencyOffsetMs;
-      const offsetMs = adjustedTapTimeMs - target.targetTimeMs;
+      const offsetMs = pair.offsetMs;
       const category =
         Math.abs(offsetMs) <= closeToleranceMs
           ? "close"
@@ -230,8 +418,8 @@ export const getRhythmTapFeedback = ({
     }
   });
 
-  practiceTaps.forEach((tap) => {
-    if (usedTapIds.has(tap.id)) {
+  practiceTaps.forEach((tap, tapPosition) => {
+    if (matchedTapPositions.has(tapPosition)) {
       return;
     }
     feedback.push({
@@ -252,12 +440,13 @@ export const getRhythmTapFeedback = ({
         (a.tapTimeMs ?? a.targetTimeMs ?? 0) -
         (b.tapTimeMs ?? b.targetTimeMs ?? 0),
     ),
-    matchedTapCount: usedTapIds.size,
+    matchedTapCount: alignment.pairs.length,
     targetCount: targets.length,
     tapCount: practiceTaps.length,
     closeToleranceMs,
     matchWindowMs,
     appliedLatencyOffsetMs: latencyOffsetMs,
+    alignmentEngineId: alignment.engineId,
   };
 };
 
