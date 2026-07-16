@@ -1,5 +1,7 @@
 # P17a Complete Product Vision + Piano System Roadmap
 
+> 历史状态说明：本文件保留 P17a 时点的长期规划和当时能力盘点，其中“当前已经/尚未实现”的表述不再代表最新生产状态。当前事实见 `docs/mvp-status.md`，正式版 V1 范围和退出条件见 `docs/final-release-definition-of-done.md`，实时差距见 `docs/final-release-status-matrix.md`。
+
 ## 1. 产品上线原则
 
 本项目的长期上线原则如下：

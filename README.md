@@ -1,14 +1,18 @@
-# my-first-app
+# 视唱练耳学习平台
 
-五线谱识别 MVP / sheet music recognition MVP。
+面向中文学习者的私有视唱练耳 Web 平台。当前生产版本已经包含模块化学习首页、Supabase 账户与系统课程、单音/音程/节奏课程尝试持久化，以及浏览器本地音高、节奏、录音和乐谱草稿研究能力。
 
-## 项目简介
+正式版 V1 的唯一范围与完成标准见 [`docs/final-release-definition-of-done.md`](docs/final-release-definition-of-done.md)，实时状态见 [`docs/final-release-status-matrix.md`](docs/final-release-status-matrix.md)，已经真实交付的阶段事实见 [`docs/mvp-status.md`](docs/mvp-status.md)。
 
-这是一个使用 Next.js、TypeScript 和 Tailwind CSS 构建的五线谱识别 MVP。当前目标是先验证“上传乐谱图片 → 调用识别接口 → 展示并试听音符结果”的最小流程，而不是完整的个人作品集网站。
+下方“五线谱识别 MVP”章节保留早期项目背景；其中对“当前能力”的描述不应替代上述实时状态文件。
+
+## 早期 OMR MVP 背景（历史）
+
+项目使用 Next.js、TypeScript 和 Tailwind CSS。最早从“上传乐谱图片 → 调用识别接口 → 展示并试听音符结果”的五线谱识别 MVP 起步，现已扩展为以听辨、视唱、节奏、反馈和钢琴辅助为主体的学习平台。
 
 当前图片上传识别流程仍使用 mock provider：用户上传图片后，接口会返回模拟音符数据，用于验证前端上传、状态提示、结果展示和播放链路。真实五线谱图片识别 / OMR 尚未完成。
 
-## 当前功能
+## 早期 OMR 能力记录（历史）
 
 当前 MVP 已实现以下核心功能：
 
@@ -23,7 +27,7 @@
 - 已存在 dev-only MusicXML 导入 UI 和 dev API，用于上传 `.musicxml` / `.xml` 文件并验证解析链路。
 - 已存在 Audiveris 相关 dry-run / fixture 验证基础，但尚未成为默认识别链路。
 
-## 当前边界
+## 早期 OMR 边界记录（历史）
 
 以下能力尚未在当前 MVP 中完成，避免误解为已支持的正式功能：
 
