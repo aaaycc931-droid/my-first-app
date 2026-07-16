@@ -9,7 +9,6 @@ on:
 
 permissions:
   contents: read
-  issues: write
 
 jobs:
   deploy:
@@ -119,21 +118,3 @@ jobs:
           end;
           $$;
           SQL
-
-      - name: Report deployment result to the pull request
-        if: always()
-        shell: bash
-        env:
-          GH_TOKEN: ${{ github.token }}
-          JOB_STATUS: ${{ job.status }}
-          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-        run: |
-          if [ "$JOB_STATUS" = "success" ]; then
-            summary="Supabase P82–P84 migration and database permission verification succeeded."
-          else
-            summary="Supabase P82–P84 migration workflow failed and requires log inspection."
-          fi
-
-          gh pr comment 335 --body "$summary
-
-          Actions run: $RUN_URL"
