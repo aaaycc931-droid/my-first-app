@@ -1,4 +1,10 @@
+import groovy.json.JsonSlurper
+
 apply plugin: 'com.android.application'
+
+def packageMetadata = new JsonSlurper().parse(file('../../package.json'))
+def androidVersionName = packageMetadata.version as String
+def androidVersionCode = packageMetadata.solfeggio.androidVersionCode as Integer
 
 android {
     namespace = "com.aaaycc931.solfeggio"
@@ -11,8 +17,8 @@ android {
         applicationId "com.aaaycc931.solfeggio"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 1
-        versionName "0.1.0"
+        versionCode androidVersionCode
+        versionName androidVersionName
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.

@@ -1,7 +1,10 @@
 {
   "name": "my-first-app",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
+  "solfeggio": {
+    "androidVersionCode": 2
+  },
   "engines": {
     "node": ">=22.12.0"
   },
@@ -16,10 +19,13 @@
     "start": "next start",
     "lint": "eslint . --max-warnings=0",
     "typecheck": "tsc --noEmit",
-    "check": "npm run lint && npm run typecheck && npm run mobile:build && npm run validate:android-local && npm run build",
+    "check": "npm run lint && npm run typecheck && npm run validate:android-version && npm run mobile:build && npm run validate:android-local && npm run build",
     "mobile:build": "vite build --config mobile/vite.config.ts",
     "validate:android-local": "node scripts/validate-android-local.mjs",
+    "validate:android-version": "node scripts/validate-android-version-source.mjs",
+    "test:android-version": "node scripts/test-android-version.mjs",
     "test:android-local-artifact-verifier": "node scripts/test-verify-android-local-debug-artifact.mjs",
+    "test:ci-supply-chain-policy": "node scripts/test-ci-supply-chain-policy.mjs",
     "verify:android-local-artifact": "node scripts/verify-android-local-debug-artifact.mjs",
     "android:sync": "npm run mobile:build && cap sync android",
     "android:build:debug": "npm run android:sync && cd android && ./gradlew assembleDebug",

@@ -16,10 +16,10 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 22
           cache: npm
@@ -45,6 +45,8 @@ jobs:
           npm run test:mobile-practice-review-storage
           npm run test:mobile-practice-review-ui-contract
           npm run test:android-local-artifact-verifier
+          npm run test:android-version
+          npm run test:ci-supply-chain-policy
           npm run test:local-question-scheduler
           npm run test:local-ear-training-single-pitch
           npm run test:local-ear-training-intervals
@@ -52,7 +54,7 @@ jobs:
           npm run test:local-ear-training-melody-dictation
 
       - name: Validate local Android bundle
-        run: npm run android:sync && npm run validate:android-local
+        run: npm run validate:android-version && npm run android:sync && npm run validate:android-local
 
       - name: Build
         run: npm run build
@@ -63,28 +65,31 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 22
           cache: npm
 
       - name: Setup JDK
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00 # v4.7.1
         with:
           distribution: temurin
           java-version: "21"
 
       - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
+        uses: android-actions/setup-android@9fc6c4e9069bf8d3d10b2204b1fb8f6ef7065407 # v3.2.2
 
       - name: Install Android API 36
         run: sdkmanager "platforms;android-36" "build-tools;35.0.0"
 
       - name: Install dependencies
         run: npm ci
+
+      - name: Validate Android version provenance
+        run: npm run validate:android-version
 
       - name: Build local Android debug APK
         run: npm run android:sync && npm run validate:android-local && cd android && ./gradlew testDebugUnitTest assembleDebug
@@ -105,7 +110,7 @@ jobs:
 
       - name: Upload verified local Android debug APK
         if: ${{ success() }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: solfeggio-local-debug-apk-${{ github.sha }}
           path: artifacts/android-local/
