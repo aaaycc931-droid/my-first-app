@@ -1,0 +1,115 @@
+name: Deploy Supabase Practice Migrations
+
+on:
+  push:
+    branches:
+      - agent/p84-practice-upgrade
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      contains(github.event.head_commit.message, '[deploy-supabase]')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      DATABASE_URL: ${{ secrets.SUPABASE_DATABASE_URL }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Require database deployment secret
+        shell: bash
+        run: |
+          if [ -z "$DATABASE_URL" ]; then
+            echo "::error::SUPABASE_DATABASE_URL is not configured."
+            exit 1
+          fi
+
+      - name: Apply interval and rhythm practice migrations
+        shell: bash
+        run: |
+          psql "$DATABASE_URL" \
+            --set ON_ERROR_STOP=on \
+            --file supabase/migrations/0006_course_interval_practice.sql \
+            --file supabase/migrations/0007_course_rhythm_practice.sql
+
+      - name: Verify exercises, RPC security and role grants
+        shell: bash
+        run: |
+          psql "$DATABASE_URL" --set ON_ERROR_STOP=on <<'SQL'
+          do $$
+          begin
+            if not exists (
+              select 1
+              from public.exercises
+              where id = '00000000-0000-4000-8000-000000000202'
+                and kind = 'interval'
+                and is_published = true
+            ) then
+              raise exception 'interval exercise verification failed';
+            end if;
+
+            if not exists (
+              select 1
+              from public.exercises
+              where id = '00000000-0000-4000-8000-000000000203'
+                and kind = 'rhythm'
+                and is_published = true
+            ) then
+              raise exception 'rhythm exercise verification failed';
+            end if;
+
+            if not exists (
+              select 1
+              from pg_proc
+              where oid = to_regprocedure(
+                'public.record_interval_attempt(uuid,integer,text,text,integer,text,text,boolean)'
+              )
+                and prosecdef = true
+            ) then
+              raise exception 'interval RPC security verification failed';
+            end if;
+
+            if not exists (
+              select 1
+              from pg_proc
+              where oid = to_regprocedure(
+                'public.record_rhythm_attempt(uuid,integer,text,integer,text,text,boolean)'
+              )
+                and prosecdef = true
+            ) then
+              raise exception 'rhythm RPC security verification failed';
+            end if;
+
+            if has_function_privilege(
+              'anon',
+              'public.record_interval_attempt(uuid,integer,text,text,integer,text,text,boolean)',
+              'EXECUTE'
+            ) or has_function_privilege(
+              'anon',
+              'public.record_rhythm_attempt(uuid,integer,text,integer,text,text,boolean)',
+              'EXECUTE'
+            ) then
+              raise exception 'anonymous RPC execution must remain revoked';
+            end if;
+
+            if not has_function_privilege(
+              'authenticated',
+              'public.record_interval_attempt(uuid,integer,text,text,integer,text,text,boolean)',
+              'EXECUTE'
+            ) or not has_function_privilege(
+              'authenticated',
+              'public.record_rhythm_attempt(uuid,integer,text,integer,text,text,boolean)',
+              'EXECUTE'
+            ) then
+              raise exception 'authenticated RPC execution grant is missing';
+            end if;
+          end;
+          $$;
+          SQL
