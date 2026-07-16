@@ -8,6 +8,7 @@ import {
 } from "node:fs";
 import { basename, join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
+import { readAndroidVersion } from "./android-version.mjs";
 
 const fail = (message) => {
   throw new Error(`Android 私测 APK 工件完整性复验失败：${message}`);
@@ -194,25 +195,12 @@ export const verifyAndroidLocalDebugArtifact = ({
   };
 };
 
-const getMatch = (content, expression, description) => {
-  const match = content.match(expression);
-  if (!match) {
-    fail(`无法从 Android 配置读取${description}`);
-  }
-  return match[1];
-};
-
 const runFromRepository = () => {
   const root = process.cwd();
-  const appGradle = readFileSync(join(root, "android/app/build.gradle"), "utf8");
-  const expectedVersionName = getMatch(
-    appGradle,
-    /versionName\s+"([^"]+)"/,
-    " versionName",
-  );
-  const expectedVersionCode = Number(
-    getMatch(appGradle, /versionCode\s+(\d+)/, " versionCode"),
-  );
+  const {
+    versionName: expectedVersionName,
+    versionCode: expectedVersionCode,
+  } = readAndroidVersion(join(root, "package.json"));
   let expectedCommit = process.env.GITHUB_SHA;
   if (!expectedCommit) {
     try {

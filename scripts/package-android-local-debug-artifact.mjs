@@ -10,6 +10,7 @@ import {
 import { createHash } from "node:crypto";
 import { execFileSync, spawnSync } from "node:child_process";
 import { join } from "node:path";
+import { readAndroidVersion } from "./android-version.mjs";
 
 const root = process.cwd();
 const apkPath = join(
@@ -18,6 +19,7 @@ const apkPath = join(
 );
 const outputDirectory = join(root, "artifacts/android-local");
 const appGradlePath = join(root, "android/app/build.gradle");
+const packageJsonPath = join(root, "package.json");
 const androidVariablesPath = join(root, "android/variables.gradle");
 const manifestPath = join(root, "android/app/src/main/AndroidManifest.xml");
 const capacitorConfigPath = join(root, "capacitor.config.ts");
@@ -90,14 +92,7 @@ const applicationId = requireMatch(
   /applicationId\s+"([^"]+)"/,
   "applicationId",
 );
-const versionCode = Number(
-  requireMatch(appGradle, /versionCode\s+(\d+)/, "versionCode"),
-);
-const versionName = requireMatch(
-  appGradle,
-  /versionName\s+"([^"]+)"/,
-  "versionName",
-);
+const { versionCode, versionName } = readAndroidVersion(packageJsonPath);
 const minSdk = Number(
   requireMatch(androidVariables, /minSdkVersion\s*=\s*(\d+)/, "minSdkVersion"),
 );
@@ -111,12 +106,6 @@ const targetSdk = Number(
 
 if (applicationId !== "com.aaaycc931.solfeggio") {
   fail(`applicationId 不符合本地私测边界：${applicationId}`);
-}
-if (!Number.isSafeInteger(versionCode) || versionCode <= 0) {
-  fail("versionCode 必须是正整数");
-}
-if (!/^[0-9A-Za-z][0-9A-Za-z._-]*$/.test(versionName)) {
-  fail("versionName 含有不安全的工件文件名字符");
 }
 if (!Number.isSafeInteger(minSdk) || !Number.isSafeInteger(targetSdk)) {
   fail("minSdk 或 targetSdk 不是有效整数");

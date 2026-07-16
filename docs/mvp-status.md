@@ -1,8 +1,14 @@
-## P91 — Android CI 工件独立复核门禁（实现中，待 CI，2026-07-16）
+## P92 — Android 0.2.0 可追溯候选与供应链锁定（本地验证通过，待 CI，2026-07-16）
+
+P92 把下一轮 Android 私测候选升级为 `0.2.0` / `versionCode 2`，并以根 `package.json` 作为唯一版本源。Gradle、APK 打包器和上传前 verifier 都读取同一份受控元数据；`package-lock.json`、Gradle 映射和 `docs/android-private-test-changelog.md` 的当前版本标题由自动校验交叉核对。版本名只允许无前导零的 stable SemVer，versionCode 必须是 `1..2100000000` 的整数。该切片提供版本与变更记录可追溯性，但不把调试签名包冒充可覆盖升级的 release 包；安装本候选前仍需卸载旧 debug 包，本机复练数据会随卸载清除。
+
+同一切片把 GitHub Actions 的 checkout、Node、Java、Android SDK 和 artifact upload 动作固定到经过官方仓库核对的完整 commit SHA，并在 Gradle wrapper 中固定 Gradle 8.14.3 `-all` 分发包 SHA-256 `ed1a8d686605fd7c23bdf62c7fc7add1c5b23b2bbc3721e661934ef4a4911d7c`。focused policy test 会拒绝浮动 tag、未批准 action、错误 tag 注释或缺失/变化的 Gradle 摘要。固定 SHA 会停止自动获得补丁，后续升级必须通过显式依赖审查和完整 CI。当前本地版本校验、供应链策略测试、lint、typecheck、移动构建和 Android 本地边界校验必须全部通过；真实 Gradle 构建与 0.2.0 APK 摘要以本切片 CI 为准，真机 QA 仍单独记录。QA level recommendation：**strict**。
+
+## P91 — Android CI 工件独立复核门禁（自动 CI 通过，2026-07-16）
 
 P91 为 Android 私测工件增加与打包脚本相互独立的上传目录完整性验证入口，并把它接在 GitHub Actions 的打包步骤之后、artifact 上传之前。验证器要求输出目录精确包含一个 APK、同名 `.sha256`、JSON 和 Markdown 报告四个普通文件，拒绝符号链接和额外内容；它重新计算 APK SHA-256 与字节数，交叉核对 `.sha256`、JSON 的文件名/摘要/字节数/版本/commit，以及 Markdown 的文件名/摘要/版本/commit。focused negative tests 覆盖额外或缺失文件、校验文件指向错误 APK、摘要/字节数/版本/commit 被篡改。包名、SDK、签名、权限、APK 本地资源和云端边界仍由此前的打包脚本使用 Android 工具与内容检查验证，P91 verifier 不重复运行 `aapt` / `apksigner`，也不独立核对 workflow run 或 repository 字段。
 
-P90 已在 PR #341 GitHub Actions run `29489428878` 取得 `quality` 和 `android-local` 两个 job PASS，并上传 artifact `8371808955`。该 artifact ZIP 的 GitHub SHA-256 为 `a933369c439a87a72b3195482d30be9fb8f848317af11410d2a41ae7c7b2af4c`；PR merge-test SHA 是 `8e87ae1a0a706652b58752b28a76072fb7804cdd`，合并后的 `main` squash commit 是 `73e65f6ff9fa5fc9664aea910eab5da910dc7b3c`。ZIP digest 不是内部 APK digest；APK 文件自己的 SHA-256 仍须从下载工件的 `.sha256` 与报告核对。C1 只有在 P91 verifier 的实际 CI run 成功后才能从 `IN_PROGRESS` 改为 `PASS`。自动化证据不替代真实 Android 手机的安装、断网冷启动、音频、跨重启复练和生命周期 QA。QA level recommendation：**strict**。
+P91 已在 PR #342 GitHub Actions run `29490109582` 取得 `quality` 和 `android-local` 两个 job PASS。artifact `8372077214` 在上传前通过独立 verifier；工件内部 APK SHA-256 为 `c5060dad9fd6f11401b5c6eb2d08319b082272068a6abccb59dd20d819ecbcd4`，GitHub artifact ZIP digest 为 `fd416cf87553ed3d44d96a50ef79f1d0b373700d6554368474a4b6d82366fe11`。PR merge-test SHA 是 `9f7b481575e32b540ea15f67dbc23ccd24364026`，合并后的 `main` squash commit 是 `4c9e09a17eac6d7571b35660724bad9091c59933`。ZIP digest 与内部 APK digest 属于不同层级。该实际 CI 证据让 C1 从 `IN_PROGRESS` 改为 `PASS`；V1-24 仍为 `IN_PROGRESS`，因为 0.2.0/versionCode 2 还需本切片 CI，真实 Android 手机的安装、断网冷启动、音频、跨重启复练和生命周期 QA 也尚未执行。QA level recommendation：**strict**。
 
 ## P90 — Android 本机错题复练队列（自动 CI 通过，待真机 QA，2026-07-16）
 
