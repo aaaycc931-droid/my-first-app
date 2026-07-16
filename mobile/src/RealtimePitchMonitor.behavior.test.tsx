@@ -3,6 +3,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { RealtimePitchMonitorPanel } from "../../components/practice/RealtimePitchMonitorPanel";
+import { stopAllBrowserAudio } from "../../lib/audio/browserAudioEngine";
 
 let root: Root | null = null;
 let trackStop: ReturnType<typeof vi.fn>;
@@ -169,6 +170,16 @@ describe("Android 实时音高反馈行为", () => {
     expect(recorderStop).toHaveBeenCalledTimes(1);
     expect(trackStop).toHaveBeenCalledTimes(1);
     expect(container.textContent).toContain("状态：可以回放");
+  });
+
+  it("本地参考音开始时会停止麦克风，避免扬声器串入曲线", async () => {
+    const container = await renderPanel();
+    await click(button(container, "开始实时反馈"));
+    await act(async () => stopAllBrowserAudio());
+    await flush();
+
+    expect(trackStop).toHaveBeenCalledTimes(1);
+    expect(container.textContent).toContain("尚未开始");
   });
 
   it("缺少 MediaRecorder 时保持实时曲线可用并给出中文说明", async () => {

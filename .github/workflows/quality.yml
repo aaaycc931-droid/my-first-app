@@ -54,6 +54,9 @@ jobs:
           npm run test:expanded-local-practice-catalog
           npm run test:realtime-pitch-frame
           npm run test:realtime-pitch-curve
+          npm run test:local-vocal-exercise
+          npm run test:mobile-vocal-exercise-behavior
+          npm run test:local-vocal-exercise-ui-contract
           npm run test:realtime-pitch-monitor-ui-contract
           npm run test:realtime-pitch-monitor-behavior
           npm run test:local-ear-training-single-pitch

@@ -16,9 +16,11 @@ const requiredSources = [
   "components/piano/useLocalPianoAudio.ts",
   "components/practice/RealtimePitchMonitorPanel.tsx",
   "components/practice/RealtimePitchCurveChart.tsx",
+  "components/practice/LocalVocalExercisePanel.tsx",
   "components/practice/useRealtimePitchMonitor.ts",
   "lib/practice/pitchEstimate.ts",
   "lib/practice/realtimePitchCurve.ts",
+  "lib/practice/localVocalExercise.ts",
 ];
 
 for (const relativePath of requiredSources) {
@@ -160,6 +162,8 @@ for (const expectedCopy of [
   "开始实时反馈",
   "开始会话录音",
   "丢弃本次录音",
+  "练声目标生成器",
+  "播放参考音型",
   "曲线时间缩放",
   "挑战：",
   "本难度共",
