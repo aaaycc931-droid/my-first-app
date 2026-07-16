@@ -20,7 +20,7 @@
 | V1-09 | 图片/PDF OMR | IN_PROGRESS | mock flow、Audiveris fixture/runner 研究基础 | 隔离 worker、私有上传、真实 OMR、草稿编辑、失败恢复 |
 | V1-10 | 私有音频素材 | IN_PROGRESS | 浏览器本地导入、decode、音高曲线草稿、检查与临时目标 | 私有上传、worker、保留/删除、任务恢复、版权说明 |
 | V1-11 | 私有云任务 | NOT_STARTED | 数据模型和架构蓝图 | Storage、队列 worker、取消/重试、审计、配额和运行手册 |
-| V1-12 | 学习历史与复习 | IN_PROGRESS | 私有 practice attempts、课程答案摘要 | 历史 UI、技能画像、解释型 review queue、关闭建议 |
+| V1-12 | 学习历史与复习 | IN_PROGRESS | 私有 practice attempts、课程答案摘要；Android 本机最小错题复练队列（最多 12 项，非评分、不等同学习历史） | Web 历史 UI、技能画像、解释型跨会话 review queue、关闭建议；Android 本机队列真机验证 |
 | V1-13 | 音高算法基准 | IN_PROGRESS | 合成 fixture、真实声音数据计划、确定性测试 | 冻结验收集、设备/声部覆盖、量化阈值和专家审核 |
 | V1-14 | 节奏算法基准 | IN_PROGRESS | DP 对齐回归、tap/onset/latency 测试 | 真实设备/人声/乐器集、量化报告、低置信度校准 |
 | V1-15 | RLS 与最小权限 | IN_PROGRESS | P78 最小权限；P84 生产 RPC 和跨用户事务 smoke QA | 覆盖所有 owner tables、Storage、签名 URL、删除后访问 |
@@ -32,7 +32,7 @@
 | V1-21 | 内容与教学审核 | NOT_STARTED | 中文题目、答案解释和难度草案 | 2 名教育审核者、题量/正确率/难度递进验收 |
 | V1-22 | 用户可用性验收 | NOT_STARTED | 开发与所有者 QA | 5 名目标用户、核心任务成功率和误解检查 |
 | V1-23 | 发布证据包 | IN_PROGRESS | PR、CI、Vercel、Supabase/RLS 证据已开始记录 | 汇总全部基准、设备、删除/恢复、教育和用户验收证据 |
-| V1-24 | Android 本地 APK | IN_PROGRESS | Capacitor 工程、本地四类练习、会话内可复现随机题序、无网络权限、V2 调试签名 APK、SHA-256 与结构校验已通过；见 `docs/android-private-test-build-evidence.md`。当前正补齐 CI 可下载调试 APK 候选工件，未有成功运行前不计入证据。 | CI 工件实际成功并记录；首台真机安装/音频/后台恢复；三档设备；专用 release 签名、升级与回滚 |
+| V1-24 | Android 本地 APK | IN_PROGRESS | Capacitor 工程、本地四类练习、会话内可复现随机题序、Android-only 本机错题复练队列（最小目标、最多 12 项、答错置顶/答对移除、二次确认清除）、无网络权限、V2 调试签名 APK、SHA-256 与结构校验已通过；见 `docs/android-private-test-build-evidence.md`。既有构建证据不自动证明本切片或真机持久化已通过。 | P90 完整 CI/Android 构建；首台真机安装、跨重启复练、音频、后台恢复与存储异常；三档设备；专用 release 签名、升级与回滚 |
 | V1-25 | 最终生产发布 | BLOCKED | 当前 P84 生产 Web 版本已部署 | V1-02 至 V1-24 的全部 MUST 门槛尚未通过 |
 
 ## 2. 已确认不阻塞 V1 的能力
@@ -50,7 +50,7 @@
 
 按依赖关系推进：
 
-1. V1-24 Android 本地 APK：先让 CI 为每个成功构建提供可校验的调试 APK 候选下载物，再完成首台真机安装、四类练习音频、后台恢复和断网回归，并根据私测反馈迭代；当前不做 AAB、商店、TWA、域名关联或认证回跳。
+1. V1-24 Android 本地 APK：让 CI 为每个成功构建提供可校验的调试 APK 候选下载物，再完成首台真机安装、四类练习音频、本机错题队列跨重启/清除、后台恢复、存储异常和断网回归，并根据私测反馈迭代；当前不做 AAB、商店、TWA、域名关联或认证回跳。
 2. V1-03 / V1-02 / V1-15 Web 数据生命周期、账户与权限：闭合已经上线的账户/数据库责任；它们不阻塞当前本地 APK 启动。
 3. V1-12 学习历史与复习：把已有 attempts 转化为可见学习闭环。
 4. V1-04 系统课程：补齐视唱、题量、难度与课程进度。

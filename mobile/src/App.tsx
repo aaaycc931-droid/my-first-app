@@ -10,11 +10,25 @@ import {
   suspendAllBrowserAudio,
 } from "../../lib/audio/browserAudioEngine";
 import {
+  createEmptyLocalPracticeReviewQueue,
+  getLocalPracticeReviewTargetKey,
+  updateLocalPracticeReviewQueue,
+  type LocalPracticeAnswerResult,
+  type LocalPracticeReviewQueue,
+  type LocalPracticeReviewTarget,
+} from "../../lib/practice/localPracticeReviewQueue";
+import {
   createMobileLifecycleState,
   dismissMobileResetNotice,
   enterMobileBackground,
   enterMobileForeground,
 } from "./runtime/mobileLifecycle";
+import {
+  clearMobilePracticeReviewQueue,
+  getBrowserPracticeReviewStorage,
+  loadMobilePracticeReviewQueue,
+  saveMobilePracticeReviewQueue,
+} from "./runtime/mobilePracticeReviewStorage";
 
 const screens = ["home", "pitch", "interval", "rhythm", "melody"] as const;
 type Screen = (typeof screens)[number];
@@ -50,19 +64,66 @@ function screenFromHash(): Screen {
   return screens.includes(candidate as Screen) ? (candidate as Screen) : "home";
 }
 
-function PracticeScreen({ screen }: { screen: Exclude<Screen, "home"> }) {
-  if (screen === "pitch") return <LocalEarTrainingSinglePitchPanel />;
-  if (screen === "interval") return <LocalEarTrainingIntervalPanel />;
-  if (screen === "rhythm") return <LocalEarTrainingRhythmPanel />;
-  return <LocalEarTrainingMelodyDictationPanel />;
+const screenForReviewTarget = (target: LocalPracticeReviewTarget): Exclude<Screen, "home"> => {
+  if (target.kind === "single-pitch") return "pitch";
+  if (target.kind === "melody-dictation") return "melody";
+  return target.kind;
+};
+
+const reviewTargetLabel = (target: LocalPracticeReviewTarget): string => {
+  const title = screenDetails[screenForReviewTarget(target)].title;
+  const detail = target.kind === "interval" ? ` · ${target.direction}` : "";
+  return `${title} · ${target.difficulty}${detail}`;
+};
+
+function PracticeScreen({
+  screen,
+  reviewTarget,
+  onLocalAnswerResult,
+  onLeaveReviewTarget,
+}: {
+  screen: Exclude<Screen, "home">;
+  reviewTarget: LocalPracticeReviewTarget | null;
+  onLocalAnswerResult: (result: LocalPracticeAnswerResult) => void;
+  onLeaveReviewTarget: () => void;
+}) {
+  const sharedProps = { onLocalAnswerResult, onLeaveReviewTarget };
+  if (screen === "pitch") {
+    const target = reviewTarget?.kind === "single-pitch" ? reviewTarget : undefined;
+    return <LocalEarTrainingSinglePitchPanel key={target ? getLocalPracticeReviewTargetKey(target) : "random-pitch"} initialReviewTarget={target} {...sharedProps} />;
+  }
+  if (screen === "interval") {
+    const target = reviewTarget?.kind === "interval" ? reviewTarget : undefined;
+    return <LocalEarTrainingIntervalPanel key={target ? getLocalPracticeReviewTargetKey(target) : "random-interval"} initialReviewTarget={target} {...sharedProps} />;
+  }
+  if (screen === "rhythm") {
+    const target = reviewTarget?.kind === "rhythm" ? reviewTarget : undefined;
+    return <LocalEarTrainingRhythmPanel key={target ? getLocalPracticeReviewTargetKey(target) : "random-rhythm"} initialReviewTarget={target} {...sharedProps} />;
+  }
+  const target = reviewTarget?.kind === "melody-dictation" ? reviewTarget : undefined;
+  return <LocalEarTrainingMelodyDictationPanel key={target ? getLocalPracticeReviewTargetKey(target) : "random-melody"} initialReviewTarget={target} {...sharedProps} />;
 }
 
 export function App() {
   const [activeScreen, setActiveScreen] = useState<Screen>(screenFromHash);
+  const [initialReviewStorageResult] = useState(() =>
+    loadMobilePracticeReviewQueue(getBrowserPracticeReviewStorage()),
+  );
+  const [reviewQueue, setReviewQueue] = useState<LocalPracticeReviewQueue>(
+    initialReviewStorageResult.queue,
+  );
+  const [activeReviewTarget, setActiveReviewTarget] =
+    useState<LocalPracticeReviewTarget | null>(null);
+  const [reviewNotice, setReviewNotice] = useState<string | null>(
+    initialReviewStorageResult.notice,
+  );
+  const [isClearConfirmationVisible, setIsClearConfirmationVisible] =
+    useState(false);
   const [lifecycle, setLifecycle] = useState(() =>
     createMobileLifecycleState(!document.hidden),
   );
   const activeScreenRef = useRef(activeScreen);
+  const pendingReviewNavigationRef = useRef<Exclude<Screen, "home"> | null>(null);
 
   useEffect(() => {
     activeScreenRef.current = activeScreen;
@@ -76,12 +137,76 @@ export function App() {
   useEffect(() => {
     const handleHashChange = () => {
       stopActiveAudio();
-      setActiveScreen(screenFromHash());
+      const nextScreen = screenFromHash();
+      const shouldKeepReviewTarget = pendingReviewNavigationRef.current === nextScreen;
+      pendingReviewNavigationRef.current = null;
+      if (!shouldKeepReviewTarget) setActiveReviewTarget(null);
+      setActiveScreen(nextScreen);
       window.scrollTo({ top: 0, behavior: "auto" });
     };
     window.addEventListener("hashchange", handleHashChange);
     return () => window.removeEventListener("hashchange", handleHashChange);
   }, [stopActiveAudio]);
+
+  const handleLocalAnswerResult = useCallback(
+    (result: LocalPracticeAnswerResult) => {
+      const targetKey = getLocalPracticeReviewTargetKey(result.target);
+      const wasInReviewQueue = reviewQueue.some(
+        (target) => getLocalPracticeReviewTargetKey(target) === targetKey,
+      );
+      const nextQueue = updateLocalPracticeReviewQueue({
+        queue: reviewQueue,
+        target: result.target,
+        isCorrect: result.isCorrect,
+      });
+      setReviewQueue(nextQueue);
+      const saveResult = saveMobilePracticeReviewQueue(
+        getBrowserPracticeReviewStorage(),
+        nextQueue,
+      );
+      setReviewNotice(
+        saveResult.notice ??
+          (result.isCorrect
+            ? wasInReviewQueue
+              ? "本题已从本机复练中移除。"
+              : "本题回答已核对，未加入本机复练。"
+            : "已加入本机复练，可从练习首页再次打开。"),
+      );
+    },
+    [reviewQueue],
+  );
+
+  const leaveReviewTarget = useCallback(() => {
+    stopActiveAudio();
+    setActiveReviewTarget(null);
+  }, [stopActiveAudio]);
+
+  const startReviewTarget = useCallback(
+    (target: LocalPracticeReviewTarget) => {
+      stopActiveAudio();
+      setActiveReviewTarget(target);
+      const targetScreen = screenForReviewTarget(target);
+      if (screenFromHash() !== targetScreen) {
+        pendingReviewNavigationRef.current = targetScreen;
+        window.location.hash = targetScreen;
+      }
+    },
+    [stopActiveAudio],
+  );
+
+  const clearReviewQueue = useCallback(() => {
+    const result = clearMobilePracticeReviewQueue(
+      getBrowserPracticeReviewStorage(),
+    );
+    setIsClearConfirmationVisible(false);
+    if (result.notice) {
+      setReviewNotice(result.notice);
+      return;
+    }
+    setReviewQueue(createEmptyLocalPracticeReviewQueue());
+    setActiveReviewTarget(null);
+    setReviewNotice("本机复练记录已清除。");
+  }, []);
 
   useEffect(() => {
     const enterBackground = () => {
@@ -160,6 +285,22 @@ export function App() {
           </div>
         ) : null}
 
+        {reviewNotice ? (
+          <div
+            className="mb-4 flex items-start justify-between gap-3 rounded-2xl bg-indigo-50 p-3 text-sm leading-6 text-indigo-950 ring-1 ring-indigo-200"
+            role="status"
+          >
+            <p>{reviewNotice}</p>
+            <button
+              type="button"
+              onClick={() => setReviewNotice(null)}
+              className="shrink-0 rounded-lg px-2 py-1 font-semibold underline"
+            >
+              关闭
+            </button>
+          </div>
+        ) : null}
+
         {activeScreen === "home" ? (
           <>
             <section className="overflow-hidden rounded-3xl bg-gradient-to-br from-indigo-950 via-indigo-900 to-violet-800 p-6 text-white shadow-xl shadow-indigo-950/15">
@@ -190,6 +331,7 @@ export function App() {
                       <a
                         key={screen}
                         href={`#${screen}`}
+                        onClick={() => setActiveReviewTarget(null)}
                         className={`min-h-32 rounded-3xl p-5 text-left ring-1 transition active:scale-[0.99] ${detail.tone}`}
                       >
                         <span className="text-xs font-bold opacity-70">
@@ -208,11 +350,64 @@ export function App() {
               </div>
             </section>
 
+            <section className="mt-5 rounded-3xl border border-indigo-200 bg-indigo-50 p-5 shadow-sm" aria-labelledby="review-heading">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <p className="text-sm font-semibold text-indigo-700">仅保存在这台手机</p>
+                  <h2 id="review-heading" className="text-xl font-black text-indigo-950">
+                    本机复练（{reviewQueue.length}）
+                  </h2>
+                </div>
+                {reviewQueue.length > 0 ? (
+                  <button
+                    type="button"
+                    onClick={() => setIsClearConfirmationVisible(true)}
+                    className="min-h-11 rounded-xl border border-indigo-300 bg-white px-4 py-2 text-sm font-bold text-indigo-900"
+                  >
+                    清除记录
+                  </button>
+                ) : null}
+              </div>
+              {reviewQueue.length === 0 ? (
+                <p className="mt-3 text-sm leading-6 text-indigo-900">
+                  暂无复练题。查看答案后，答错的题会加入这里；答对同一道题会从这里移除。
+                </p>
+              ) : (
+                <ul className="mt-3 grid gap-2">
+                  {reviewQueue.map((target, index) => (
+                    <li key={getLocalPracticeReviewTargetKey(target)}>
+                      <button
+                        type="button"
+                        onClick={() => startReviewTarget(target)}
+                        className="flex min-h-12 w-full items-center justify-between gap-3 rounded-2xl border border-indigo-200 bg-white px-4 py-3 text-left font-bold text-indigo-950"
+                      >
+                        <span>{reviewTargetLabel(target)}</span>
+                        <span className="shrink-0 text-xs font-semibold text-indigo-600">
+                          复练 {index + 1}
+                        </span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {isClearConfirmationVisible ? (
+                <div className="mt-4 rounded-2xl border border-rose-200 bg-white p-4" role="alert">
+                  <p className="font-bold text-rose-950">确认清除全部本机复练记录？</p>
+                  <p className="mt-1 text-sm leading-6 text-slate-600">清除后无法恢复，但不会影响继续随机练习。</p>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <button type="button" onClick={clearReviewQueue} className="min-h-11 rounded-xl bg-rose-700 px-4 py-2 text-sm font-bold text-white">确认清除</button>
+                    <button type="button" onClick={() => setIsClearConfirmationVisible(false)} className="min-h-11 rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-bold text-slate-800">取消</button>
+                  </div>
+                </div>
+              ) : null}
+            </section>
+
             <section className="mt-5 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
               <h2 className="font-bold">当前测试边界</h2>
               <ul className="mt-3 grid gap-2 text-sm leading-6 text-slate-600">
                 <li>• 题目、答案和声音全部在手机本地运行。</li>
-                <li>• 练习进度只保留在当前页面，关闭后会清除。</li>
+                <li>• 当前作答与声音不保存；答错题的最小复现信息可加入本机复练。</li>
+                <li>• 本机复练最多保留 12 题，可随时清除；卸载或清除应用数据后消失。</li>
                 <li>• 暂不包含账号、云同步、上传和正式评分。</li>
               </ul>
             </section>
@@ -221,11 +416,19 @@ export function App() {
           <section aria-label={screenDetails[activeScreen].title}>
             <a
               href="#home"
+              onClick={() => setActiveReviewTarget(null)}
               className="mb-3 inline-flex min-h-11 items-center rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-bold text-slate-800 shadow-sm"
             >
               返回练习首页
             </a>
-            {lifecycle.isForeground ? <PracticeScreen screen={activeScreen} /> : null}
+            {lifecycle.isForeground ? (
+              <PracticeScreen
+                screen={activeScreen}
+                reviewTarget={activeReviewTarget}
+                onLocalAnswerResult={handleLocalAnswerResult}
+                onLeaveReviewTarget={leaveReviewTarget}
+              />
+            ) : null}
           </section>
         )}
       </main>
@@ -244,6 +447,7 @@ export function App() {
               <a
                 key={screen}
                 href={`#${screen}`}
+                onClick={() => setActiveReviewTarget(null)}
                 aria-current={activeScreen === screen ? "page" : undefined}
                 className={`min-h-12 rounded-xl px-1 py-2 text-xs font-bold ${
                   activeScreen === screen

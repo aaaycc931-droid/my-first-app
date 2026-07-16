@@ -8,7 +8,9 @@ const requiredSources = [
   "mobile/src/App.tsx",
   "mobile/src/MobileErrorBoundary.tsx",
   "mobile/src/runtime/mobileLifecycle.ts",
+  "mobile/src/runtime/mobilePracticeReviewStorage.ts",
   "mobile/src/stubs/supabaseBrowser.ts",
+  "lib/practice/localPracticeReviewQueue.ts",
 ];
 
 for (const relativePath of requiredSources) {
@@ -20,6 +22,14 @@ for (const relativePath of requiredSources) {
 const capacitorConfig = readFileSync(join(root, "capacitor.config.ts"), "utf8");
 const viteConfig = readFileSync(join(root, "mobile/vite.config.ts"), "utf8");
 const mobileApp = readFileSync(join(root, "mobile/src/App.tsx"), "utf8");
+const reviewQueueSource = readFileSync(
+  join(root, "lib/practice/localPracticeReviewQueue.ts"),
+  "utf8",
+);
+const reviewStorageSource = readFileSync(
+  join(root, "mobile/src/runtime/mobilePracticeReviewStorage.ts"),
+  "utf8",
+);
 const mainActivityPath = join(
   root,
   "android/app/src/main/java/com/aaaycc931/solfeggio/MainActivity.java",
@@ -38,6 +48,35 @@ if (!viteConfig.includes('target: "chrome74"')) {
 }
 if (!mobileApp.includes("stopAllBrowserAudio") || !mobileApp.includes("pagehide")) {
   throw new Error("移动端缺少音频全局停止或后台生命周期处理");
+}
+if (
+  !reviewQueueSource.includes("LOCAL_PRACTICE_REVIEW_QUEUE_MAX_ITEMS = 12")
+  || !reviewQueueSource.includes("schemaVersion")
+  || !reviewQueueSource.includes("catalogVersion")
+  || !reviewQueueSource.includes("isCorrect")
+) {
+  throw new Error("本机复练队列缺少容量、版本或答题更新边界");
+}
+if (
+  !reviewStorageSource.includes("solfeggio.mobile.practice-review-queue.v1")
+  || !reviewStorageSource.includes("loadMobilePracticeReviewQueue")
+  || !reviewStorageSource.includes("saveMobilePracticeReviewQueue")
+  || !reviewStorageSource.includes("clearMobilePracticeReviewQueue")
+) {
+  throw new Error("移动端缺少本机复练的读取、保存或清除边界");
+}
+for (const forbiddenReviewField of [
+  "selectedPitchId",
+  "selectedIntervalId",
+  "selectedPatternId",
+  "selectedNoteIds",
+  "audioData",
+  "score:",
+  "accuracy:",
+]) {
+  if (reviewQueueSource.includes(forbiddenReviewField)) {
+    throw new Error(`本机复练模型不得保存答案、音频或评分字段：${forbiddenReviewField}`);
+  }
 }
 if (existsSync(mainActivityPath)) {
   const mainActivity = readFileSync(mainActivityPath, "utf8");
@@ -76,7 +115,15 @@ for (const forbidden of [
   }
 }
 
-for (const expectedCopy of ["单音听辨", "音程听辨", "节奏听辨", "旋律听写", "本地模式"]) {
+for (const expectedCopy of [
+  "单音听辨",
+  "音程听辨",
+  "节奏听辨",
+  "旋律听写",
+  "本地模式",
+  "本机复练",
+  "solfeggio.mobile.practice-review-queue.v1",
+]) {
   if (!bundledText.includes(expectedCopy)) {
     throw new Error(`移动端 bundle 缺少核心练习：${expectedCopy}`);
   }
@@ -100,4 +147,4 @@ if (existsSync(manifestPath) && !existsSync(syncedIndex)) {
   throw new Error("Android 工程存在，但本地 Web 资源尚未同步");
 }
 
-console.log("Android 本地模式校验通过：固定包名、本地资源、四类练习、无远程运行时配置与生命周期保护。 ");
+console.log("Android 本地模式校验通过：固定包名、本地资源、四类练习、本机复练、无远程运行时配置与生命周期保护。 ");
