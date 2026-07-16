@@ -10,18 +10,23 @@ import {
   type EarTrainingMelodyDictationDifficulty,
 } from "../../lib/practice/localEarTrainingMelodyDictation";
 import { useLocalAudioPlayback } from "./useLocalAudioPlayback";
+import { useLockedPracticeAnswer } from "./useLockedPracticeAnswer";
 
 export function LocalEarTrainingMelodyDictationPanel() {
   const [difficulty, setDifficulty] = useState<EarTrainingMelodyDictationDifficulty>("基础");
   const [sequence, setSequence] = useState(0);
-  const [selectedNoteIds, setSelectedNoteIds] = useState<Array<string | null>>([null, null, null]);
-  const [isAnswerVisible, setIsAnswerVisible] = useState(false);
+  const answerLock = useLockedPracticeAnswer<Array<string | null>>(
+    [null, null, null],
+    (selection) => selection.every((noteId) => noteId !== null),
+  );
+  const selectedNoteIds = answerLock.selection;
+  const isAnswerVisible = answerLock.isAnswerVisible;
   const [audioError, setAudioError] = useState("");
   const { isPlaying, playbackState, play, stop: stopPlayback } = useLocalAudioPlayback();
   const question = useMemo(() => createLocalEarTrainingMelodyQuestion({ difficulty, sequence }), [difficulty, sequence]);
   const answer = useMemo(() => getLocalEarTrainingMelodyAnswer({ question, selectedNoteIds }), [question, selectedNoteIds]);
 
-  const resetCurrentQuestion = () => { stopPlayback(); setSelectedNoteIds([null, null, null]); setIsAnswerVisible(false); setAudioError(""); };
+  const resetCurrentQuestion = () => { stopPlayback(); answerLock.reset(); setAudioError(""); };
   const playQuestion = async () => {
     setAudioError("");
     const playbackError = await play((audioContext, channel) => {
@@ -44,10 +49,9 @@ export function LocalEarTrainingMelodyDictationPanel() {
     if (playbackError) setAudioError(playbackError);
   };
   const retryCurrentQuestion = () => { resetCurrentQuestion(); void playQuestion(); };
-  const chooseNote = (index: number, noteId: string) => {
-    setSelectedNoteIds((current) => current.map((value, valueIndex) => valueIndex === index ? noteId : value));
-    setIsAnswerVisible(false);
-  };
+  const chooseNote = (index: number, noteId: string) => answerLock.choose(
+    selectedNoteIds.map((value, valueIndex) => valueIndex === index ? noteId : value),
+  );
 
   return <section className="mt-5 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
     <p className="text-sm font-semibold tracking-wide text-violet-600">本地练习</p>
@@ -56,7 +60,7 @@ export function LocalEarTrainingMelodyDictationPanel() {
     <div className="mt-5 grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)]">
       <div className="rounded-2xl bg-violet-50 p-4 ring-1 ring-violet-100">
         <label className="block text-sm font-semibold text-slate-800" htmlFor="ear-training-melody-difficulty">练习难度</label>
-        <select id="ear-training-melody-difficulty" className="mt-2 w-full rounded-xl border border-violet-200 bg-white px-3 py-2 text-slate-900" value={difficulty} onChange={(event) => { stopPlayback(); setDifficulty(event.target.value as EarTrainingMelodyDictationDifficulty); setSequence(0); setSelectedNoteIds([null, null, null]); setIsAnswerVisible(false); setAudioError(""); }}>
+        <select id="ear-training-melody-difficulty" className="mt-2 w-full rounded-xl border border-violet-200 bg-white px-3 py-2 text-slate-900" value={difficulty} onChange={(event) => { stopPlayback(); setDifficulty(event.target.value as EarTrainingMelodyDictationDifficulty); setSequence(0); answerLock.reset(); setAudioError(""); }}>
           <option value="基础">基础：C4、D4、E4、G4</option><option value="进阶">进阶：增加 A4 与跳进</option>
         </select>
         <p className="mt-4 text-sm leading-6 text-violet-900">当前为内置题目 {sequence + 1}。三个音由浏览器本地 Web Audio 依次合成，不读取文件、不调用接口。</p>
@@ -66,10 +70,10 @@ export function LocalEarTrainingMelodyDictationPanel() {
       </div>
       <div className="rounded-2xl border border-slate-200 p-4">
         <p className="text-sm font-semibold text-slate-500">回答本题</p><p className="mt-1 text-lg font-bold text-slate-950">按播放顺序填写三个音名</p>
-        <div className="mt-4 grid gap-4 sm:grid-cols-3">{[0, 1, 2].map((index) => <fieldset key={index}><legend className="text-sm font-semibold text-slate-700">第 {index + 1} 个音</legend><div className="mt-2 grid gap-2">{getEarTrainingMelodyNoteIds(difficulty).map((noteId) => <button key={noteId} type="button" onClick={() => chooseNote(index, noteId)} className={`rounded-xl border px-3 py-2 text-left font-semibold ${selectedNoteIds[index] === noteId ? "border-violet-600 bg-violet-50 text-violet-900 ring-2 ring-violet-200" : "border-slate-200 bg-white text-slate-800 hover:border-violet-300"}`}>{earTrainingMelodyNotes[noteId].label}</button>)}</div></fieldset>)}</div>
-        <div className="mt-4 flex flex-wrap gap-2"><button type="button" disabled={!answer.hasSelection} onClick={() => setIsAnswerVisible(true)} className="rounded-xl bg-slate-900 px-4 py-2.5 font-semibold text-white disabled:cursor-not-allowed disabled:bg-slate-300">查看本题答案</button>{isAnswerVisible && !answer.matchesAnswer ? <button type="button" onClick={retryCurrentQuestion} className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-2.5 font-semibold text-amber-900">重新播放并复练本题</button> : null}<button type="button" onClick={resetCurrentQuestion} className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 font-semibold text-slate-800">重置本题</button><button type="button" onClick={() => { resetCurrentQuestion(); setSequence((current) => current + 1); }} className="rounded-xl border border-violet-300 bg-white px-4 py-2.5 font-semibold text-violet-800">下一题</button></div>
+        <div className="mt-4 grid gap-4 sm:grid-cols-3">{[0, 1, 2].map((index) => <fieldset key={index}><legend className="text-sm font-semibold text-slate-700">第 {index + 1} 个音</legend><div className="mt-2 grid gap-2">{getEarTrainingMelodyNoteIds(difficulty).map((noteId) => <button key={noteId} type="button" disabled={isAnswerVisible} onClick={() => chooseNote(index, noteId)} className={`rounded-xl border px-3 py-2 text-left font-semibold disabled:cursor-not-allowed disabled:opacity-70 ${selectedNoteIds[index] === noteId ? "border-violet-600 bg-violet-50 text-violet-900 ring-2 ring-violet-200" : "border-slate-200 bg-white text-slate-800 hover:border-violet-300"}`}>{earTrainingMelodyNotes[noteId].label}</button>)}</div></fieldset>)}</div>
+        <div className="mt-4 flex flex-wrap gap-2"><button type="button" disabled={!answer.hasSelection || isAnswerVisible} onClick={() => answerLock.reveal()} className="rounded-xl bg-slate-900 px-4 py-2.5 font-semibold text-white disabled:cursor-not-allowed disabled:bg-slate-300">查看本题答案</button>{isAnswerVisible && !answer.matchesAnswer ? <button type="button" onClick={retryCurrentQuestion} className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-2.5 font-semibold text-amber-900">重新播放并复练本题</button> : null}<button type="button" onClick={resetCurrentQuestion} className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 font-semibold text-slate-800">重置本题</button><button type="button" onClick={() => { resetCurrentQuestion(); setSequence((current) => current + 1); }} className="rounded-xl border border-violet-300 bg-white px-4 py-2.5 font-semibold text-violet-800">下一题</button></div>
         {!answer.hasSelection ? <p className="mt-3 text-sm leading-6 text-slate-500">请为三个位置都选择音名，再查看本题答案。</p> : null}
-        {isAnswerVisible ? <div className="mt-4 rounded-2xl bg-slate-50 p-4 text-sm leading-6 text-slate-700"><p className="font-bold text-slate-950">本题答案：{answer.answerLabel}</p><p className="mt-1">{answer.explanation}</p><p className="mt-2">你的填写：{answer.selectedNoteIds.map((noteId) => noteId ? earTrainingMelodyNotes[noteId as keyof typeof earTrainingMelodyNotes].label : "未选择").join(" → ")}。{answer.matchesAnswer ? "这次填写与本题答案一致。" : "这次填写与本题答案不同；可以再次播放并重置本题复练。"}</p><p className="mt-2 text-slate-500">这是题目答案说明，不是正式分数、准确率、等级、通过或失败判断。</p></div> : null}
+        {isAnswerVisible ? <div className="mt-4 rounded-2xl bg-slate-50 p-4 text-sm leading-6 text-slate-700"><p className="font-bold text-slate-950">本题答案：{answer.answerLabel}</p><p className="mt-1">{answer.explanation}</p><p className="mt-2">你的填写：{answer.selectedNoteIds.map((noteId) => noteId ? earTrainingMelodyNotes[noteId as keyof typeof earTrainingMelodyNotes].label : "未选择").join(" → ")}。{answer.matchesAnswer ? "这次填写与本题答案一致。" : "这次填写与本题答案不同；可以再次播放并重置本题复练。"}</p><p className="mt-2 text-slate-500">答案说明显示后，本题填写已锁定；请使用复练或下一题开始新的尝试。这不是正式分数、准确率、等级、通过或失败判断。</p></div> : null}
       </div>
     </div>
     <p className="mt-5 text-sm leading-6 text-slate-500">会话边界：题目序号、填写与答案说明只存在于当前页面内存；刷新后消失，不写入 localStorage、IndexedDB、账号或数据库。</p>

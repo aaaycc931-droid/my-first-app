@@ -17,6 +17,7 @@ import {
   useCourseAttemptPersistence,
 } from "./CourseAttemptPersistence";
 import { useLocalAudioPlayback } from "./useLocalAudioPlayback";
+import { useLockedPracticeAnswer } from "./useLockedPracticeAnswer";
 
 export function LocalEarTrainingIntervalPanel({
   courseExerciseId,
@@ -26,8 +27,12 @@ export function LocalEarTrainingIntervalPanel({
   const [difficulty, setDifficulty] = useState<EarTrainingDifficulty>("基础");
   const [direction, setDirection] = useState<EarTrainingDirection>("上行");
   const [sequence, setSequence] = useState(0);
-  const [selectedIntervalId, setSelectedIntervalId] = useState<string | null>(null);
-  const [isAnswerVisible, setIsAnswerVisible] = useState(false);
+  const answerLock = useLockedPracticeAnswer<string | null>(
+    null,
+    (selection) => selection !== null,
+  );
+  const selectedIntervalId = answerLock.selection;
+  const isAnswerVisible = answerLock.isAnswerVisible;
   const [audioError, setAudioError] = useState("");
   const { resetSaveStatus, saveCourseAttempt, saveStatus } =
     useCourseAttemptPersistence();
@@ -72,15 +77,14 @@ export function LocalEarTrainingIntervalPanel({
 
   const resetCurrentQuestion = () => {
     stopPlayback();
-    setSelectedIntervalId(null);
-    setIsAnswerVisible(false);
+    answerLock.reset();
     setAudioError("");
     resetSaveStatus();
   };
 
   const revealAnswer = async () => {
-    if (!answer.hasSelection || !selectedIntervalId) return;
-    setIsAnswerVisible(true);
+    const submittedIntervalId = answerLock.reveal();
+    if (!submittedIntervalId) return;
     if (!courseExerciseId) return;
 
     await saveCourseAttempt(
@@ -90,7 +94,7 @@ export function LocalEarTrainingIntervalPanel({
         difficulty,
         direction,
         sequence,
-        selectedIntervalId,
+        selectedIntervalId: submittedIntervalId,
         targetIntervalId: question.interval.id,
         matchesAnswer: answer.matchesAnswer,
       }),
@@ -127,8 +131,7 @@ export function LocalEarTrainingIntervalPanel({
               stopPlayback();
               setDifficulty(event.target.value as EarTrainingDifficulty);
               setSequence(0);
-              setSelectedIntervalId(null);
-              setIsAnswerVisible(false);
+              answerLock.reset();
               setAudioError("");
               resetSaveStatus();
             }}
@@ -148,8 +151,7 @@ export function LocalEarTrainingIntervalPanel({
                     stopPlayback();
                     setDirection(option);
                     setSequence(0);
-                    setSelectedIntervalId(null);
-                    setIsAnswerVisible(false);
+                    answerLock.reset();
                     setAudioError("");
                     resetSaveStatus();
                   }}
@@ -179,8 +181,9 @@ export function LocalEarTrainingIntervalPanel({
               <button
                 key={interval.id}
                 type="button"
-                onClick={() => { setSelectedIntervalId(interval.id); setIsAnswerVisible(false); resetSaveStatus(); }}
-                className={`rounded-xl border px-3 py-3 text-left font-semibold transition ${selectedIntervalId === interval.id ? "border-emerald-600 bg-emerald-50 text-emerald-900 ring-2 ring-emerald-200" : "border-slate-200 bg-white text-slate-800 hover:border-emerald-300"}`}
+                disabled={isAnswerVisible}
+                onClick={() => { if (answerLock.choose(interval.id)) resetSaveStatus(); }}
+                className={`rounded-xl border px-3 py-3 text-left font-semibold transition disabled:cursor-not-allowed disabled:opacity-70 ${selectedIntervalId === interval.id ? "border-emerald-600 bg-emerald-50 text-emerald-900 ring-2 ring-emerald-200" : "border-slate-200 bg-white text-slate-800 hover:border-emerald-300"}`}
               >
                 {interval.label}
               </button>
@@ -200,7 +203,7 @@ export function LocalEarTrainingIntervalPanel({
               <p className="font-bold text-slate-950">本题答案：{answer.answerLabel}</p>
               <p className="mt-1">{answer.explanation}</p>
               <p className="mt-2">你的选择：{earTrainingIntervals[difficulty].find((interval) => interval.id === selectedIntervalId)?.label ?? "未选择"}。{answer.matchesAnswer ? "这次选择与本题答案一致。" : "这次选择与本题答案不同；可以再次播放并重置本题复练。"}</p>
-              <p className="mt-2 text-slate-500">这是题目答案说明，不是正式分数、准确率、等级、通过或失败判断。</p>
+              <p className="mt-2 text-slate-500">答案说明显示后，本题选择已锁定；请使用复练或下一题开始新的尝试。这不是正式分数、准确率、等级、通过或失败判断。</p>
             </div>
           ) : null}
           {courseExerciseId ? <CourseAttemptSaveNotice status={saveStatus} /> : null}

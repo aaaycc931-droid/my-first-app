@@ -34,7 +34,7 @@ jobs:
         run: npm run typecheck
 
       - name: Mobile runtime tests
-        run: npm run test:browser-audio-engine && npm run test:mobile-lifecycle
+        run: npm run test:browser-audio-engine && npm run test:mobile-lifecycle && npm run test:local-practice-answer-lock
 
       - name: Validate local Android bundle
         run: npm run android:sync && npm run validate:android-local

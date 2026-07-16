@@ -1,3 +1,9 @@
+## P88 — Local Practice Answer Integrity (2026-07-16)
+
+P88 closes the answer-after-reveal integrity gap in all four local Android listening exercises. Each question now uses one shared answer-lock state: an answer can be revealed once only after a complete selection, and the selection is frozen while the explanation is visible. Reset, explicit retry, difficulty change and next question are the only paths that open a new attempt. This also prevents a course-mode user from repeatedly revealing the same displayed question after changing the selection. The visible Chinese explanation tells the learner that the current attempt is locked and remains an answer explanation rather than formal scoring.
+
+The lock semantics have a focused pure regression test and are part of the mobile runtime CI gate. Automated evidence at this commit covers that test, ESLint, TypeScript, Vite mobile build and the offline Android validator. QA level recommendation: strict; real-device verification still needs to exercise each answer/retry/reset path.
+
 ## P87 — Android Local Runtime Hardening (2026-07-16)
 
 P87 hardens the local Android private-test runtime without changing the offline boundary: all four listening exercises now share one user-gesture-gated audio playback hook rather than owning independent timers and channels. The shared browser engine keeps one lazy Web Audio context, supports an explicit preparation state, stops every active channel on navigation/backgrounding, and suspends the context after stopping. Entering background through document visibility, page hide/freeze, or the Capacitor Android pause bridge clears the active practice view; returning never resumes playback automatically and only shows the existing Chinese reset notice when a practice screen was active.
