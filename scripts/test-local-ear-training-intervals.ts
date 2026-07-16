@@ -20,6 +20,23 @@ assert.deepEqual(
   "未指定 seed 时，音程题目工厂仍必须是确定性的",
 );
 assert.equal(defaultQuestion.rootLabel, "C4");
+assert.equal(defaultQuestion.id, "基础-上行-0-major-third-C4", "course-v1 question id must remain unchanged");
+assert.equal(defaultQuestion.variantId, "interval:c4:major-third");
+const stableIntervalQuestion = createLocalEarTrainingQuestion({
+  difficulty: "基础",
+  direction: "下行",
+  sequence: 99,
+  questionIndex: 0,
+  variantId: "interval:g4:perfect-fifth",
+});
+assert.equal(stableIntervalQuestion.rootLabel, "G4");
+assert.equal(stableIntervalQuestion.interval.id, "perfect-fifth");
+assert.throws(() => createLocalEarTrainingQuestion({
+  difficulty: "基础",
+  direction: "上行",
+  sequence: 0,
+  variantId: "interval:c4:minor-second",
+}), /Invalid local interval variant id/);
 
 const seed = 20_260_716;
 const variantCount = getLocalEarTrainingQuestionVariantCount("基础");

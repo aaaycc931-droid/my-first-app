@@ -10,6 +10,7 @@ export type LocalEarTrainingInterval = {
 
 export type LocalEarTrainingQuestion = {
   id: string;
+  variantId: string;
   difficulty: EarTrainingDifficulty;
   direction: EarTrainingDirection;
   rootLabel: string;
@@ -34,11 +35,23 @@ export const earTrainingIntervals: Record<EarTrainingDifficulty, LocalEarTrainin
 };
 
 const questionRoots = [
-  { label: "C4", frequencyHz: 261.63 },
-  { label: "D4", frequencyHz: 293.66 },
-  { label: "E4", frequencyHz: 329.63 },
-  { label: "G4", frequencyHz: 392 },
+  { id: "c4", label: "C4", frequencyHz: 261.63 },
+  { id: "d4", label: "D4", frequencyHz: 293.66 },
+  { id: "e4", label: "E4", frequencyHz: 329.63 },
+  { id: "g4", label: "G4", frequencyHz: 392 },
 ];
+
+const getIntervalVariantId = (rootId: string, intervalId: string): string =>
+  `interval:${rootId}:${intervalId}`;
+
+export const isLocalEarTrainingIntervalVariantId = (
+  difficulty: EarTrainingDifficulty,
+  variantId: string,
+): boolean => questionRoots.some((root) =>
+  earTrainingIntervals[difficulty].some(
+    (interval) => getIntervalVariantId(root.id, interval.id) === variantId,
+  ),
+);
 
 export const getLocalEarTrainingQuestionVariantCount = (difficulty: EarTrainingDifficulty): number =>
   earTrainingIntervals[difficulty].length * questionRoots.length;
@@ -48,23 +61,34 @@ export const createLocalEarTrainingQuestion = ({
   direction,
   sequence,
   questionIndex,
+  variantId,
 }: {
   difficulty: EarTrainingDifficulty;
   direction: EarTrainingDirection;
   sequence: number;
   /** The APK may supply a shuffled root/interval combination index. */
   questionIndex?: number;
+  /** A persisted local review target uses this stable root/interval identity. */
+  variantId?: string;
 }): LocalEarTrainingQuestion => {
   const intervals = earTrainingIntervals[difficulty];
   const safeSequence = Number.isFinite(sequence) ? Math.max(0, Math.floor(sequence)) : 0;
   const safeQuestionIndex = questionIndex !== undefined && Number.isFinite(questionIndex)
     ? Math.max(0, Math.floor(questionIndex))
     : safeSequence;
-  const interval = intervals[safeQuestionIndex % intervals.length];
-  const root = questionRoots[Math.floor(safeQuestionIndex / intervals.length) % questionRoots.length];
+  const scheduledInterval = intervals[safeQuestionIndex % intervals.length];
+  const scheduledRoot = questionRoots[Math.floor(safeQuestionIndex / intervals.length) % questionRoots.length];
+  const resolved = variantId === undefined
+    ? { interval: scheduledInterval, root: scheduledRoot }
+    : questionRoots.flatMap((root) => intervals.map((interval) => ({ root, interval }))).find(
+      ({ root, interval }) => getIntervalVariantId(root.id, interval.id) === variantId,
+    );
+  if (!resolved) throw new Error("Invalid local interval variant id.");
+  const { interval, root } = resolved;
 
   return {
     id: `${difficulty}-${direction}-${safeSequence}-${interval.id}-${root.label}`,
+    variantId: getIntervalVariantId(root.id, interval.id),
     difficulty,
     direction,
     rootLabel: root.label,

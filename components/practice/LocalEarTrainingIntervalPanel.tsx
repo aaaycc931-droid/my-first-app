@@ -62,8 +62,14 @@ export function LocalEarTrainingIntervalPanel({
     useLocalAudioPlayback();
 
   const question = useMemo(
-    () => createLocalEarTrainingQuestion({ difficulty, direction, sequence, questionIndex }),
-    [difficulty, direction, questionIndex, sequence],
+    () => createLocalEarTrainingQuestion({
+      difficulty,
+      direction,
+      sequence,
+      questionIndex,
+      variantId: initialReviewTarget?.variantId,
+    }),
+    [difficulty, direction, initialReviewTarget?.variantId, questionIndex, sequence],
   );
   const answer = useMemo(
     () => getLocalEarTrainingAnswer({ question, selectedIntervalId }),
@@ -116,6 +122,7 @@ export function LocalEarTrainingIntervalPanel({
           direction,
           seed: sessionSeed,
           sequence,
+          variantId: question.variantId,
         },
         isCorrect: matchesAnswer,
       });

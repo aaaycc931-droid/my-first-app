@@ -9,12 +9,22 @@ export type LocalEarTrainingRhythmPattern = {
 
 export type LocalEarTrainingRhythmQuestion = {
   id: string;
+  variantId: string;
   difficulty: EarTrainingRhythmDifficulty;
   sequence: number;
   bpm: number;
   beatsPerMeasure: 4;
   pattern: LocalEarTrainingRhythmPattern;
 };
+
+const getRhythmVariantId = (patternId: string): string => `rhythm:${patternId}`;
+
+export const isLocalEarTrainingRhythmVariantId = (
+  difficulty: EarTrainingRhythmDifficulty,
+  variantId: string,
+): boolean => earTrainingRhythmPatterns[difficulty].some(
+  (pattern) => getRhythmVariantId(pattern.id) === variantId,
+);
 
 export const earTrainingRhythmPatterns: Record<
   EarTrainingRhythmDifficulty,
@@ -72,21 +82,28 @@ export const createLocalEarTrainingRhythmQuestion = ({
   difficulty,
   sequence,
   questionIndex,
+  variantId,
 }: {
   difficulty: EarTrainingRhythmDifficulty;
   sequence: number;
   /** The APK may supply a shuffled item index. Web courses keep this unset. */
   questionIndex?: number;
+  /** A persisted local review target uses this stable identity. */
+  variantId?: string;
 }): LocalEarTrainingRhythmQuestion => {
   const safeSequence = Number.isFinite(sequence) ? Math.max(0, Math.floor(sequence)) : 0;
   const safeQuestionIndex = questionIndex !== undefined && Number.isFinite(questionIndex)
     ? Math.max(0, Math.floor(questionIndex))
     : safeSequence;
   const patterns = earTrainingRhythmPatterns[difficulty];
-  const pattern = patterns[safeQuestionIndex % patterns.length];
+  const pattern = variantId === undefined
+    ? patterns[safeQuestionIndex % patterns.length]
+    : patterns.find((candidate) => getRhythmVariantId(candidate.id) === variantId);
+  if (!pattern) throw new Error("Invalid local rhythm variant id.");
 
   return {
     id: `${difficulty}-${safeSequence}-${pattern.id}`,
+    variantId: getRhythmVariantId(pattern.id),
     difficulty,
     sequence: safeSequence,
     bpm: difficulty === "基础" ? 84 : 100,

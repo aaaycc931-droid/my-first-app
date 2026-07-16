@@ -94,7 +94,12 @@ const getStoredQueue = () => {
   return queue ?? [];
 };
 
-const seedQueue = (target: LocalPracticeReviewTarget) => {
+type LegacySinglePitchReviewTarget = Omit<
+  Extract<LocalPracticeReviewTarget, { kind: "single-pitch" }>,
+  "variantId"
+>;
+
+const seedQueue = (target: LegacySinglePitchReviewTarget) => {
   window.localStorage.setItem(
     MOBILE_PRACTICE_REVIEW_STORAGE_KEY,
     JSON.stringify({ schemaVersion: 1, catalogVersion: 1, targets: [target] }),
@@ -102,7 +107,7 @@ const seedQueue = (target: LocalPracticeReviewTarget) => {
 };
 
 const singlePitchAnswerLabel = (
-  target: Extract<LocalPracticeReviewTarget, { kind: "single-pitch" }>,
+  target: LegacySinglePitchReviewTarget,
 ) => {
   const questionIndex = getScheduledQuestionIndex(
     createLocalQuestionSchedule(
@@ -145,6 +150,7 @@ describe("Android 本机复练行为", () => {
     const queue = getStoredQueue();
     expect(queue).toHaveLength(1);
     expect(queue[0]).toMatchObject({ kind: "single-pitch", difficulty: "基础" });
+    expect(queue[0]?.variantId).toBe("pitch:g4");
     const serialized = window.localStorage.getItem(MOBILE_PRACTICE_REVIEW_STORAGE_KEY) ?? "";
     expect(serialized).not.toMatch(/selected|answer|audio|score|accuracy|pass|fail/i);
     expect(container.textContent).toContain("已加入本机复练");
@@ -155,13 +161,99 @@ describe("Android 本机复练行为", () => {
     seedQueue(target);
     const container = await renderApp();
 
+    const migratedEnvelope = JSON.parse(
+      window.localStorage.getItem(MOBILE_PRACTICE_REVIEW_STORAGE_KEY) ?? "{}",
+    ) as { schemaVersion?: number; catalogVersion?: number; targets?: Array<Record<string, unknown>> };
+    expect(migratedEnvelope.schemaVersion).toBe(2);
+    expect(migratedEnvelope.catalogVersion).toBe(2);
+    expect(migratedEnvelope.targets?.[0]?.variantId).toBe("pitch:g4");
+
     expect(container.textContent).toContain("本机复练（1）");
     await click(findButton(container, "单音听辨 · 基础复练 1"));
     await click(findButton(container, singlePitchAnswerLabel(target)));
     await click(findButton(container, "查看本题答案"));
 
+    expect(container.textContent).toContain("本题答案：G4");
     expect(getStoredQueue()).toHaveLength(0);
     expect(container.textContent).toContain("本题已从本机复练中移除");
+  });
+
+  it("v2 复练以稳定题目标识为准，不受旧 seed 对应题序影响", async () => {
+    window.localStorage.setItem(
+      MOBILE_PRACTICE_REVIEW_STORAGE_KEY,
+      JSON.stringify({
+        schemaVersion: 2,
+        catalogVersion: 2,
+        targets: [{
+          kind: "single-pitch",
+          difficulty: "基础",
+          seed: 0,
+          sequence: 0,
+          variantId: "pitch:c4",
+        }],
+      }),
+    );
+    const container = await renderApp();
+
+    await click(findButton(container, "单音听辨 · 基础复练 1"));
+    await click(findButton(container, "C4"));
+    await click(findButton(container, "查看本题答案"));
+
+    expect(container.textContent).toContain("本题答案：C4");
+    expect(getStoredQueue()).toHaveLength(0);
+    expect(container.textContent).toContain("本题已从本机复练中移除");
+  });
+
+  it("v1 迁移写回失败时保留可用队列和原始记录", async () => {
+    const target = { kind: "single-pitch", difficulty: "基础", seed: 0, sequence: 0 } as const;
+    seedQueue(target);
+    const original = window.localStorage.getItem(MOBILE_PRACTICE_REVIEW_STORAGE_KEY);
+    const setItem = vi.spyOn(window.localStorage, "setItem").mockImplementation(() => {
+      throw new Error("quota");
+    });
+
+    const container = await renderApp();
+
+    expect(setItem).toHaveBeenCalled();
+    expect(container.textContent).toContain("本机复练旧记录已恢复，但升级保存失败；本次仍可继续复练");
+    expect(container.textContent).toContain("本机复练（1）");
+    expect(window.localStorage.getItem(MOBILE_PRACTICE_REVIEW_STORAGE_KEY)).toBe(original);
+
+    await click(findButton(container, "单音听辨 · 基础复练 1"));
+    await click(findButton(container, "G4"));
+    await click(findButton(container, "查看本题答案"));
+    expect(container.textContent).toContain("本题答案：G4");
+    expect(window.localStorage.getItem(MOBILE_PRACTICE_REVIEW_STORAGE_KEY)).toBe(original);
+    setItem.mockRestore();
+  });
+
+  it("答对移除保存失败时不伪称已持久移除", async () => {
+    const original = JSON.stringify({
+      schemaVersion: 2,
+      catalogVersion: 2,
+      targets: [{
+        kind: "single-pitch",
+        difficulty: "基础",
+        seed: 0,
+        sequence: 0,
+        variantId: "pitch:c4",
+      }],
+    });
+    window.localStorage.setItem(MOBILE_PRACTICE_REVIEW_STORAGE_KEY, original);
+    const container = await renderApp();
+    const setItem = vi.spyOn(window.localStorage, "setItem").mockImplementation(() => {
+      throw new Error("quota");
+    });
+
+    await click(findButton(container, "单音听辨 · 基础复练 1"));
+    await click(findButton(container, "C4"));
+    await click(findButton(container, "查看本题答案"));
+
+    expect(setItem).toHaveBeenCalled();
+    expect(container.textContent).toContain("本机复练记录保存失败，本次练习仍可继续");
+    expect(container.textContent).not.toContain("本题已从本机复练中移除");
+    expect(window.localStorage.getItem(MOBILE_PRACTICE_REVIEW_STORAGE_KEY)).toBe(original);
+    setItem.mockRestore();
   });
 
   it("清除记录必须经过二次确认，取消保留，确认才清除", async () => {

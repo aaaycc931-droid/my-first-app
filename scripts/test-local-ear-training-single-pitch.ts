@@ -18,6 +18,23 @@ assert.deepEqual(
   "未指定 seed 时，题目工厂仍必须是确定性的",
 );
 assert.ok(defaultQuestion.pitch.frequencyHz > 0, "默认题目的频率必须有效");
+assert.equal(defaultQuestion.id, "基础-0-c4", "course-v1 question id must remain unchanged");
+assert.equal(defaultQuestion.variantId, "pitch:c4");
+assert.equal(
+  createLocalEarTrainingSinglePitchQuestion({
+    difficulty: "基础",
+    sequence: 99,
+    questionIndex: 3,
+    variantId: "pitch:d4",
+  }).pitch.id,
+  "d4",
+  "stable variant id must take precedence over a changed schedule index",
+);
+assert.throws(() => createLocalEarTrainingSinglePitchQuestion({
+  difficulty: "基础",
+  sequence: 0,
+  variantId: "pitch:b4",
+}), /Invalid local single-pitch variant id/);
 
 const seed = 20_260_716;
 const basicPitches = earTrainingSinglePitches.基础;

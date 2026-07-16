@@ -12,13 +12,19 @@ import {
   type StorageLike,
 } from "../mobile/src/runtime/mobilePracticeReviewStorage";
 
-const createMemoryStorage = (): StorageLike & { values: Map<string, string> } => {
+const createMemoryStorage = (): StorageLike & {
+  values: Map<string, string>;
+  getSetCallCount: () => number;
+} => {
   const values = new Map<string, string>();
+  let setCallCount = 0;
 
   return {
     values,
+    getSetCallCount: () => setCallCount,
     getItem: (key) => values.get(key) ?? null,
     setItem: (key, value) => {
+      setCallCount += 1;
       values.set(key, value);
     },
     removeItem: (key) => {
@@ -40,6 +46,7 @@ const queue = updateLocalPracticeReviewQueue({
     difficulty: "基础",
     seed: 42,
     sequence: 3,
+    variantId: "pitch:c4",
   },
   isCorrect: false,
 });
@@ -51,6 +58,53 @@ assert.deepEqual(loadMobilePracticeReviewQueue(memoryStorage), {
   queue,
   notice: null,
 });
+
+const legacyStorage = createMemoryStorage();
+legacyStorage.values.set(
+  MOBILE_PRACTICE_REVIEW_STORAGE_KEY,
+  JSON.stringify({
+    schemaVersion: 1,
+    catalogVersion: 1,
+    targets: [{ kind: "single-pitch", difficulty: "基础", seed: 123, sequence: 4 }],
+  }),
+);
+const migratedLoad = loadMobilePracticeReviewQueue(legacyStorage);
+assert.deepEqual(migratedLoad, {
+  queue: [{
+    kind: "single-pitch",
+    difficulty: "基础",
+    seed: 123,
+    sequence: 4,
+    variantId: "pitch:d4",
+  }],
+  notice: null,
+});
+const migratedEnvelope = JSON.parse(
+  legacyStorage.values.get(MOBILE_PRACTICE_REVIEW_STORAGE_KEY) ?? "{}",
+) as { schemaVersion?: number; catalogVersion?: number };
+assert.equal(migratedEnvelope.schemaVersion, 2);
+assert.equal(migratedEnvelope.catalogVersion, 2);
+const setCallsAfterMigration = legacyStorage.getSetCallCount();
+assert.deepEqual(loadMobilePracticeReviewQueue(legacyStorage), migratedLoad);
+assert.equal(
+  legacyStorage.getSetCallCount(),
+  setCallsAfterMigration,
+  "a second load of the rewritten v2 queue must not rewrite storage again",
+);
+
+const migrationWriteFailure: StorageLike = {
+  getItem: () => JSON.stringify({
+    schemaVersion: 1,
+    catalogVersion: 1,
+    targets: [{ kind: "single-pitch", difficulty: "基础", seed: 123, sequence: 4 }],
+  }),
+  setItem: () => { throw new Error("set failed"); },
+  removeItem: () => undefined,
+};
+const migrationWriteFailureLoad = loadMobilePracticeReviewQueue(migrationWriteFailure);
+assert.equal(migrationWriteFailureLoad.queue[0]?.variantId, "pitch:d4");
+assert.match(migrationWriteFailureLoad.notice ?? "", /旧记录已恢复/);
+assert.match(migrationWriteFailureLoad.notice ?? "", /升级保存失败/);
 assert.deepEqual(clearMobilePracticeReviewQueue(memoryStorage), { notice: null });
 assert.equal(memoryStorage.values.has(MOBILE_PRACTICE_REVIEW_STORAGE_KEY), false);
 

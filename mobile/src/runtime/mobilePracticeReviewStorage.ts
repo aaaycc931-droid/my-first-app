@@ -1,6 +1,6 @@
 import {
   createEmptyLocalPracticeReviewQueue,
-  parseLocalPracticeReviewQueue,
+  deserializeLocalPracticeReviewQueue,
   serializeLocalPracticeReviewQueue,
   type LocalPracticeReviewQueue,
 } from "../../../lib/practice/localPracticeReviewQueue";
@@ -53,8 +53,8 @@ export const loadMobilePracticeReviewQueue = (
       };
     }
 
-    const queue = parseLocalPracticeReviewQueue(serialized);
-    if (!queue) {
+    const parsed = deserializeLocalPracticeReviewQueue(serialized);
+    if (!parsed) {
       try {
         storage.removeItem(MOBILE_PRACTICE_REVIEW_STORAGE_KEY);
       } catch {
@@ -69,10 +69,21 @@ export const loadMobilePracticeReviewQueue = (
       };
     }
 
-    return {
-      queue,
-      notice: null,
-    };
+    if (parsed.migrated) {
+      try {
+        storage.setItem(
+          MOBILE_PRACTICE_REVIEW_STORAGE_KEY,
+          serializeLocalPracticeReviewQueue(parsed.queue),
+        );
+      } catch {
+        return {
+          queue: parsed.queue,
+          notice: "本机复练旧记录已恢复，但升级保存失败；本次仍可继续复练。",
+        };
+      }
+    }
+
+    return { queue: parsed.queue, notice: null };
   } catch {
     return {
       queue: createEmptyLocalPracticeReviewQueue(),

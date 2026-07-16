@@ -58,8 +58,13 @@ export function LocalEarTrainingSinglePitchPanel({
   const { isPlaying, playbackState, play, stop: stopPlayback } =
     useLocalAudioPlayback();
   const question = useMemo(
-    () => createLocalEarTrainingSinglePitchQuestion({ difficulty, sequence, questionIndex }),
-    [difficulty, questionIndex, sequence],
+    () => createLocalEarTrainingSinglePitchQuestion({
+      difficulty,
+      sequence,
+      questionIndex,
+      variantId: initialReviewTarget?.variantId,
+    }),
+    [difficulty, initialReviewTarget?.variantId, questionIndex, sequence],
   );
   const answer = useMemo(() => getLocalEarTrainingSinglePitchAnswer({ question, selectedPitchId }), [question, selectedPitchId]);
 
@@ -81,6 +86,7 @@ export function LocalEarTrainingSinglePitchPanel({
           difficulty,
           seed: sessionSeed,
           sequence,
+          variantId: question.variantId,
         },
         isCorrect: matchesAnswer,
       });
