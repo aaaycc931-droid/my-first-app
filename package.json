@@ -19,6 +19,8 @@
     "check": "npm run lint && npm run typecheck && npm run mobile:build && npm run validate:android-local && npm run build",
     "mobile:build": "vite build --config mobile/vite.config.ts",
     "validate:android-local": "node scripts/validate-android-local.mjs",
+    "test:android-local-artifact-verifier": "node scripts/test-verify-android-local-debug-artifact.mjs",
+    "verify:android-local-artifact": "node scripts/verify-android-local-debug-artifact.mjs",
     "android:sync": "npm run mobile:build && cap sync android",
     "android:build:debug": "npm run android:sync && cd android && ./gradlew assembleDebug",
     "audiveris:check-local": "node scripts/audiveris-check-local.mjs",

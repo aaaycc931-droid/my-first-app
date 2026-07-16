@@ -31,8 +31,8 @@
 | V1-20 | 观测与事故响应 | NOT_STARTED | GitHub Actions、Vercel 状态 | 错误追踪、指标、隐私日志、告警接收人和故障手册 |
 | V1-21 | 内容与教学审核 | NOT_STARTED | 中文题目、答案解释和难度草案 | 2 名教育审核者、题量/正确率/难度递进验收 |
 | V1-22 | 用户可用性验收 | NOT_STARTED | 开发与所有者 QA | 5 名目标用户、核心任务成功率和误解检查 |
-| V1-23 | 发布证据包 | IN_PROGRESS | PR、CI、Vercel、Supabase/RLS 证据已开始记录 | 汇总全部基准、设备、删除/恢复、教育和用户验收证据 |
-| V1-24 | Android 本地 APK | IN_PROGRESS | Capacitor 工程、本地四类练习、会话内可复现随机题序、Android-only 本机错题复练队列（最小目标、最多 12 项、答错置顶/答对移除、二次确认清除）、无网络权限、V2 调试签名 APK、SHA-256 与结构校验已通过；见 `docs/android-private-test-build-evidence.md`。既有构建证据不自动证明本切片或真机持久化已通过。 | P90 完整 CI/Android 构建；首台真机安装、跨重启复练、音频、后台恢复与存储异常；三档设备；专用 release 签名、升级与回滚 |
+| V1-23 | 发布证据包 | IN_PROGRESS | PR、CI、Vercel、Supabase/RLS 证据已开始记录；PR #341 run `29489428878` 两个 job PASS，artifact ID 与 ZIP digest 已记录 | P91 独立 artifact verifier CI；核对 artifact 内 APK SHA-256；汇总全部基准、设备、删除/恢复、教育和用户验收证据 |
+| V1-24 | Android 本地 APK | IN_PROGRESS | Capacitor 工程、本地四类练习、会话内可复现随机题序、Android-only 本机错题复练队列（最小目标、最多 12 项、答错置顶/答对移除、二次确认清除）、无网络权限、V2 调试签名 APK、SHA-256 与结构校验已通过；P90 PR #341 的 `quality` / `android-local` 均 PASS，并上传 artifact `8371808955`；见 `docs/android-private-test-build-evidence.md`。artifact ZIP 摘要不等于内部 APK 摘要。 | P91 verifier CI PASS 与内部 APK SHA-256 核对；首台真机安装、跨重启复练、音频、后台恢复与存储异常；三档设备；专用 release 签名、升级与回滚 |
 | V1-25 | 最终生产发布 | BLOCKED | 当前 P84 生产 Web 版本已部署 | V1-02 至 V1-24 的全部 MUST 门槛尚未通过 |
 
 ## 2. 已确认不阻塞 V1 的能力

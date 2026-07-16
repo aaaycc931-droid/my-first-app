@@ -1,8 +1,14 @@
-## P90 — Android 本机错题复练队列（本地实现，待完整 CI 与真机 QA，2026-07-16）
+## P91 — Android CI 工件独立复核门禁（实现中，待 CI，2026-07-16）
+
+P91 为 Android 私测工件增加与打包脚本相互独立的上传目录完整性验证入口，并把它接在 GitHub Actions 的打包步骤之后、artifact 上传之前。验证器要求输出目录精确包含一个 APK、同名 `.sha256`、JSON 和 Markdown 报告四个普通文件，拒绝符号链接和额外内容；它重新计算 APK SHA-256 与字节数，交叉核对 `.sha256`、JSON 的文件名/摘要/字节数/版本/commit，以及 Markdown 的文件名/摘要/版本/commit。focused negative tests 覆盖额外或缺失文件、校验文件指向错误 APK、摘要/字节数/版本/commit 被篡改。包名、SDK、签名、权限、APK 本地资源和云端边界仍由此前的打包脚本使用 Android 工具与内容检查验证，P91 verifier 不重复运行 `aapt` / `apksigner`，也不独立核对 workflow run 或 repository 字段。
+
+P90 已在 PR #341 GitHub Actions run `29489428878` 取得 `quality` 和 `android-local` 两个 job PASS，并上传 artifact `8371808955`。该 artifact ZIP 的 GitHub SHA-256 为 `a933369c439a87a72b3195482d30be9fb8f848317af11410d2a41ae7c7b2af4c`；PR merge-test SHA 是 `8e87ae1a0a706652b58752b28a76072fb7804cdd`，合并后的 `main` squash commit 是 `73e65f6ff9fa5fc9664aea910eab5da910dc7b3c`。ZIP digest 不是内部 APK digest；APK 文件自己的 SHA-256 仍须从下载工件的 `.sha256` 与报告核对。C1 只有在 P91 verifier 的实际 CI run 成功后才能从 `IN_PROGRESS` 改为 `PASS`。自动化证据不替代真实 Android 手机的安装、断网冷启动、音频、跨重启复练和生命周期 QA。QA level recommendation：**strict**。
+
+## P90 — Android 本机错题复练队列（自动 CI 通过，待真机 QA，2026-07-16）
 
 P90 为 Android 本地移动入口补齐最小错题复练闭环。用户查看答案后，答错题以最近使用顺序加入本机复练队列并置顶，答对题从队列移除；队列最多保留 12 个目标。每项只保存复现该题所需的题型、难度、种子、题号以及音程方向（如适用），不保存用户选择、答案内容、音频、分数、准确率、账户、练习历史或云端标识。移动首页显示本机复练数量和可直接打开的目标；清除全部复练需要页面内二次确认。
 
-该持久化只由 Android 移动入口注入。共享 Web `/practice` 和课程练习不读写这一本机队列，课程答案也不会进入队列；普通练习的当前选择、答案显示状态和会话题序仍只在内存中。存储缺失、格式失效或读写失败时显示简体中文提示，但不得阻断四类本地练习；卸载应用或清除应用数据会丢失队列。该能力只是本机复练入口，不是学习历史、难度自适应、正式评分、准确率或通过/失败判断。当前源码包含队列模型和移动存储适配器的 focused tests，但完整质量门禁、Android 构建与真实手机跨重启持久化仍需分别验证；不得将自动化测试冒充真机 QA。QA level recommendation：**strict**。
+该持久化只由 Android 移动入口注入。共享 Web `/practice` 和课程练习不读写这一本机队列，课程答案也不会进入队列；普通练习的当前选择、答案显示状态和会话题序仍只在内存中。存储缺失、格式失效或读写失败时显示简体中文提示，但不得阻断四类本地练习；卸载应用或清除应用数据会丢失队列。该能力只是本机复练入口，不是学习历史、难度自适应、正式评分、准确率或通过/失败判断。PR #341 的 GitHub Actions run `29489428878` 已让 `quality` 与 `android-local` 两个 job 均 PASS，并上传私测 artifact；这证明自动化质量门禁与 Android debug 构建通过，不证明真实手机跨重启持久化、离线音频或生命周期 QA。QA level recommendation：**strict**。
 
 ## P89 — Android 本地题序可复现随机化（本地验证通过，待 CI，2026-07-16）
 
