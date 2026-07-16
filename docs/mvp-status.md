@@ -1,3 +1,11 @@
+## P89 — Android 本地题序可复现随机化（本地验证通过，待 CI，2026-07-16）
+
+P89 为四类独立本地听辨练习引入会话内的种子题序：应用每次新建本地练习会话时只在内存中生成一个随机种子；同一种子与题号始终得到同一题，题库会先完整走完一轮再循环。这样避免每次冷启动都从固定首题开始，同时保留可重复的纯逻辑测试。课程入口显式保持固定种子，以免已有课程题号、服务端答案和本地显示的题目发生偏移。
+
+该切片不写入账号、数据库、`localStorage` 或 `IndexedDB`，也不保存历史、调整难度、计算分数或改变“答案说明而非正式评分”的边界。当前自动化验收目标是题序调度器的 focused test、四类题型既有确定性/答案测试、移动构建与本地 Android 边界校验；真实 Android 手机、音频和后台恢复 QA 尚未执行，不能因源码或 CI 配置变更而宣称完成。
+
+紧随其后的发布工程切片会让成功的 Android CI 运行上传可下载的调试 APK 及同次构建的 SHA-256。该下载物将仍是私测候选，不是 release 签名包；在实际 workflow 成功并记录运行、commit、文件名与校验和前，不得标记为构建证据或真机通过。QA level recommendation：**strict**。
+
 ## P88 — Local Practice Answer Integrity (2026-07-16)
 
 P88 closes the answer-after-reveal integrity gap in all four local Android listening exercises. Each question now uses one shared answer-lock state: an answer can be revealed once only after a complete selection, and the selection is frozen while the explanation is visible. Reset, explicit retry, difficulty change and next question are the only paths that open a new attempt. This also prevents a course-mode user from repeatedly revealing the same displayed question after changing the selection. The visible Chinese explanation tells the learner that the current attempt is locked and remains an answer explanation rather than formal scoring.

@@ -38,4 +38,14 @@
 - Chromium 自动交互环境下载失败，因此没有声称完成模拟手机视口浏览器 QA。
 - 当前为调试证书签名的私测包；专用 release key、覆盖升级和回滚尚未执行。
 
+## CI 可下载工件规则
+
+后续每次 `android-local` GitHub Actions job 成功后，CI 会在调试 APK 构建完成后重新校验 APK 的签名、包名、版本、SDK、权限和内含本地资源，再上传一个保留 14 天的私测工件。工件包含：
+
+- `solfeggio-local-test-v<version>-debug.apk`；
+- 同名 SHA-256 校验文件；
+- JSON 与 Markdown 构建报告，记录版本、commit、工作流 run、APK 大小和本地运行时边界检查结果。
+
+如果 Gradle 测试/构建、源码 bundle 校验、APK 签名/结构校验或报告生成中的任一步失败，上传步骤不会执行。该机制不生成 AAB，不使用或保存 release 签名密钥，也不替代真实手机安装、飞行模式、音频和生命周期 QA。
+
 QA level recommendation：**strict**。下一门槛是按 `docs/android-apk-release-plan.md` 的真机私测清单完成首台手机验收。

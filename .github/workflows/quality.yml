@@ -6,6 +6,9 @@ on:
     branches:
       - main
 
+permissions:
+  contents: read
+
 jobs:
   quality:
     runs-on: ubuntu-latest
@@ -34,7 +37,15 @@ jobs:
         run: npm run typecheck
 
       - name: Mobile runtime tests
-        run: npm run test:browser-audio-engine && npm run test:mobile-lifecycle && npm run test:local-practice-answer-lock
+        run: |
+          npm run test:browser-audio-engine
+          npm run test:mobile-lifecycle
+          npm run test:local-practice-answer-lock
+          npm run test:local-question-scheduler
+          npm run test:local-ear-training-single-pitch
+          npm run test:local-ear-training-intervals
+          npm run test:local-ear-training-rhythm
+          npm run test:local-ear-training-melody-dictation
 
       - name: Validate local Android bundle
         run: npm run android:sync && npm run validate:android-local
@@ -72,4 +83,24 @@ jobs:
         run: npm ci
 
       - name: Build local Android debug APK
-        run: npm run android:sync && cd android && ./gradlew testDebugUnitTest assembleDebug
+        run: npm run android:sync && npm run validate:android-local && cd android && ./gradlew testDebugUnitTest assembleDebug
+
+      - name: Verify and package local Android debug APK
+        env:
+          GITHUB_SHA: ${{ github.sha }}
+          GITHUB_REF: ${{ github.ref }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GITHUB_WORKFLOW: ${{ github.workflow }}
+          GITHUB_RUN_ID: ${{ github.run_id }}
+          GITHUB_RUN_ATTEMPT: ${{ github.run_attempt }}
+          GITHUB_EVENT_NAME: ${{ github.event_name }}
+        run: node scripts/package-android-local-debug-artifact.mjs
+
+      - name: Upload verified local Android debug APK
+        if: ${{ success() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: solfeggio-local-debug-apk-${{ github.sha }}
+          path: artifacts/android-local/
+          if-no-files-found: error
+          retention-days: 14

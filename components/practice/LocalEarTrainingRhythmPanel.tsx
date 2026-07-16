@@ -16,6 +16,7 @@ import {
 } from "./CourseAttemptPersistence";
 import { useLocalAudioPlayback } from "./useLocalAudioPlayback";
 import { useLockedPracticeAnswer } from "./useLockedPracticeAnswer";
+import { useLocalQuestionSchedule } from "./useLocalQuestionSchedule";
 
 export function LocalEarTrainingRhythmPanel({
   courseExerciseId,
@@ -24,6 +25,11 @@ export function LocalEarTrainingRhythmPanel({
 }) {
   const [difficulty, setDifficulty] = useState<EarTrainingRhythmDifficulty>("基础");
   const [sequence, setSequence] = useState(0);
+  const { questionIndex, isReady: isQuestionReady } = useLocalQuestionSchedule({
+    itemCount: earTrainingRhythmPatterns[difficulty].length,
+    sequence,
+    isCourseExercise: Boolean(courseExerciseId),
+  });
   const answerLock = useLockedPracticeAnswer<string | null>(
     null,
     (selection) => selection !== null,
@@ -37,8 +43,8 @@ export function LocalEarTrainingRhythmPanel({
     useLocalAudioPlayback();
 
   const question = useMemo(
-    () => createLocalEarTrainingRhythmQuestion({ difficulty, sequence }),
-    [difficulty, sequence],
+    () => createLocalEarTrainingRhythmQuestion({ difficulty, sequence, questionIndex }),
+    [difficulty, questionIndex, sequence],
   );
   const answer = useMemo(
     () => getLocalEarTrainingRhythmAnswer({ question, selectedPatternId }),
@@ -134,8 +140,9 @@ export function LocalEarTrainingRhythmPanel({
             <option value="进阶">进阶：增加中间留空的节奏形状</option>
           </select>
           {courseExerciseId ? <p className="mt-2 text-xs leading-5 text-slate-500">系统课程已固定为基础难度，以保持题目版本一致。</p> : null}
-          <p className="mt-4 text-sm leading-6 text-violet-900">当前为内置题目 {sequence + 1}，四四拍，速度约为 {question.bpm} BPM。第一拍使用较高提示音，其余击拍使用较低提示音；题目由浏览器本地 Web Audio 合成，不读取文件、不调用接口。</p>
-          <button type="button" onClick={() => void playQuestion()} disabled={isPlaying} className="mt-4 w-full rounded-xl bg-violet-700 px-4 py-3 font-semibold text-white disabled:cursor-not-allowed disabled:bg-violet-300">
+          <p className="mt-4 text-sm leading-6 text-violet-900">当前为内置题目 {sequence + 1}，四四拍，速度约为 {question.bpm} BPM。{courseExerciseId ? "系统课程按固定顺序出题。" : "本轮题库会随机排序，全部出现一次后循环；不保存到本机或账号。"}第一拍使用较高提示音，其余击拍使用较低提示音；题目由浏览器本地 Web Audio 合成，不读取文件、不调用接口。</p>
+          {!isQuestionReady ? <p className="mt-2 text-sm text-violet-800">正在准备本轮题目…</p> : null}
+          <button type="button" onClick={() => void playQuestion()} disabled={!isQuestionReady || isPlaying} className="mt-4 w-full rounded-xl bg-violet-700 px-4 py-3 font-semibold text-white disabled:cursor-not-allowed disabled:bg-violet-300">
             {playbackState === "准备中" ? "正在准备声音…" : isPlaying ? "正在播放节奏…" : "播放节奏题目"}
           </button>
           <button type="button" onClick={stopPlayback} disabled={!isPlaying} className="mt-2 w-full rounded-xl border border-violet-300 bg-white px-4 py-3 font-semibold text-violet-800 disabled:cursor-not-allowed disabled:opacity-50">
@@ -155,7 +162,7 @@ export function LocalEarTrainingRhythmPanel({
                 onClick={() => {
                   if (answerLock.choose(pattern.id)) resetSaveStatus();
                 }}
-                disabled={isAnswerVisible}
+                disabled={!isQuestionReady || isAnswerVisible}
                 className={`rounded-xl border px-3 py-3 text-left font-semibold transition disabled:cursor-not-allowed disabled:opacity-70 ${selectedPatternId === pattern.id ? "border-violet-600 bg-violet-50 text-violet-900 ring-2 ring-violet-200" : "border-slate-200 bg-white text-slate-800 hover:border-violet-300"}`}
               >
                 {pattern.label}
@@ -168,7 +175,7 @@ export function LocalEarTrainingRhythmPanel({
             </button>
             {isAnswerVisible && !answer.matchesAnswer ? <button type="button" onClick={retryCurrentQuestion} className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-2.5 font-semibold text-amber-900">重新播放并复练本题</button> : null}
             <button type="button" onClick={resetCurrentQuestion} className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 font-semibold text-slate-800">重置本题</button>
-            <button type="button" onClick={nextQuestion} className="rounded-xl border border-violet-300 bg-white px-4 py-2.5 font-semibold text-violet-800">下一题</button>
+            <button type="button" disabled={!isQuestionReady} onClick={nextQuestion} className="rounded-xl border border-violet-300 bg-white px-4 py-2.5 font-semibold text-violet-800 disabled:cursor-not-allowed disabled:opacity-50">下一题</button>
           </div>
           {!answer.hasSelection ? <p className="mt-3 text-sm leading-6 text-slate-500">请先选择一个节奏形状，再查看本题答案。</p> : null}
           {isAnswerVisible ? (

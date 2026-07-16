@@ -71,13 +71,19 @@ export const earTrainingRhythmPatterns: Record<
 export const createLocalEarTrainingRhythmQuestion = ({
   difficulty,
   sequence,
+  questionIndex,
 }: {
   difficulty: EarTrainingRhythmDifficulty;
   sequence: number;
+  /** The APK may supply a shuffled item index. Web courses keep this unset. */
+  questionIndex?: number;
 }): LocalEarTrainingRhythmQuestion => {
-  const safeSequence = Math.max(0, Math.floor(sequence));
+  const safeSequence = Number.isFinite(sequence) ? Math.max(0, Math.floor(sequence)) : 0;
+  const safeQuestionIndex = questionIndex !== undefined && Number.isFinite(questionIndex)
+    ? Math.max(0, Math.floor(questionIndex))
+    : safeSequence;
   const patterns = earTrainingRhythmPatterns[difficulty];
-  const pattern = patterns[safeSequence % patterns.length];
+  const pattern = patterns[safeQuestionIndex % patterns.length];
 
   return {
     id: `${difficulty}-${safeSequence}-${pattern.id}`,
