@@ -13,14 +13,25 @@ import {
   createBrowserAudioChannel,
   type BrowserAudioChannel,
 } from "../../lib/audio/browserAudioEngine";
+import { createRhythmAttemptRpcArgs } from "../../lib/practice/cloudPracticeAttempt";
+import {
+  CourseAttemptSaveNotice,
+  useCourseAttemptPersistence,
+} from "./CourseAttemptPersistence";
 
-export function LocalEarTrainingRhythmPanel() {
+export function LocalEarTrainingRhythmPanel({
+  courseExerciseId,
+}: {
+  courseExerciseId?: string;
+}) {
   const [difficulty, setDifficulty] = useState<EarTrainingRhythmDifficulty>("基础");
   const [sequence, setSequence] = useState(0);
   const [selectedPatternId, setSelectedPatternId] = useState<string | null>(null);
   const [isAnswerVisible, setIsAnswerVisible] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const [audioError, setAudioError] = useState("");
+  const { resetSaveStatus, saveCourseAttempt, saveStatus } =
+    useCourseAttemptPersistence();
   const audioChannelRef = useRef<BrowserAudioChannel | null>(null);
   if (!audioChannelRef.current) audioChannelRef.current = createBrowserAudioChannel();
   const finishTimerRef = useRef<number | null>(null);
@@ -50,6 +61,25 @@ export function LocalEarTrainingRhythmPanel() {
     setSelectedPatternId(null);
     setIsAnswerVisible(false);
     setAudioError("");
+    resetSaveStatus();
+  };
+
+  const revealAnswer = async () => {
+    if (!answer.hasSelection || !selectedPatternId) return;
+    setIsAnswerVisible(true);
+    if (!courseExerciseId) return;
+
+    await saveCourseAttempt(
+      "record_rhythm_attempt",
+      createRhythmAttemptRpcArgs({
+        exerciseId: courseExerciseId,
+        difficulty,
+        sequence,
+        selectedPatternId,
+        targetPatternId: question.pattern.id,
+        matchesAnswer: answer.matchesAnswer,
+      }),
+    );
   };
 
   const playQuestion = () => {
@@ -99,7 +129,7 @@ export function LocalEarTrainingRhythmPanel() {
       <p className="text-sm font-semibold uppercase tracking-wide text-violet-600">P57 Runtime Alpha</p>
       <h2 className="mt-1 text-2xl font-bold text-slate-950">内置节奏听辨练习</h2>
       <p className="mt-2 text-sm leading-6 text-slate-600">
-        先听一个四拍的本地合成击拍题，再选择你听到的节奏形状。本模块只用于当前会话的内置练习，不上传、不保存，也不生成正式成绩。
+        先听一个四拍的本地合成击拍题，再选择你听到的节奏形状。本模块不上传音频，也不生成正式成绩。{courseExerciseId ? "当前题目来自系统课程；登录后查看答案时会保存一条仅本人可见的练习记录。" : "当前入口不会保存练习记录。"}
       </p>
 
       <div className="mt-5 grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)]">
@@ -107,7 +137,8 @@ export function LocalEarTrainingRhythmPanel() {
           <label className="block text-sm font-semibold text-slate-800" htmlFor="ear-training-rhythm-difficulty">练习难度</label>
           <select
             id="ear-training-rhythm-difficulty"
-            className="mt-2 w-full rounded-xl border border-violet-200 bg-white px-3 py-2 text-slate-900"
+            disabled={Boolean(courseExerciseId)}
+            className="mt-2 w-full rounded-xl border border-violet-200 bg-white px-3 py-2 text-slate-900 disabled:cursor-not-allowed disabled:bg-slate-100"
             value={difficulty}
             onChange={(event) => {
               stopPlayback();
@@ -116,11 +147,13 @@ export function LocalEarTrainingRhythmPanel() {
               setSelectedPatternId(null);
               setIsAnswerVisible(false);
               setAudioError("");
+              resetSaveStatus();
             }}
           >
             <option value="基础">基础：三种四拍节奏形状</option>
             <option value="进阶">进阶：增加中间留空的节奏形状</option>
           </select>
+          {courseExerciseId ? <p className="mt-2 text-xs leading-5 text-slate-500">系统课程已固定为基础难度，以保持题目版本一致。</p> : null}
           <p className="mt-4 text-sm leading-6 text-violet-900">当前为内置题目 {sequence + 1}，四四拍，速度约为 {question.bpm} BPM。第一拍使用较高提示音，其余击拍使用较低提示音；题目由浏览器本地 Web Audio 合成，不读取文件、不调用接口。</p>
           <button type="button" onClick={playQuestion} disabled={isPlaying} className="mt-4 w-full rounded-xl bg-violet-700 px-4 py-3 font-semibold text-white disabled:cursor-not-allowed disabled:bg-violet-300">
             {isPlaying ? "正在播放节奏…" : "播放节奏题目"}
@@ -139,7 +172,11 @@ export function LocalEarTrainingRhythmPanel() {
               <button
                 key={pattern.id}
                 type="button"
-                onClick={() => setSelectedPatternId(pattern.id)}
+                onClick={() => {
+                  setSelectedPatternId(pattern.id);
+                  setIsAnswerVisible(false);
+                  resetSaveStatus();
+                }}
                 className={`rounded-xl border px-3 py-3 text-left font-semibold transition ${selectedPatternId === pattern.id ? "border-violet-600 bg-violet-50 text-violet-900 ring-2 ring-violet-200" : "border-slate-200 bg-white text-slate-800 hover:border-violet-300"}`}
               >
                 {pattern.label}
@@ -147,8 +184,8 @@ export function LocalEarTrainingRhythmPanel() {
             ))}
           </div>
           <div className="mt-4 flex flex-wrap gap-2">
-            <button type="button" disabled={!answer.hasSelection} onClick={() => setIsAnswerVisible(true)} className="rounded-xl bg-slate-900 px-4 py-2.5 font-semibold text-white disabled:cursor-not-allowed disabled:bg-slate-300">
-              查看本题答案
+            <button type="button" disabled={!answer.hasSelection || saveStatus === "saving"} onClick={() => void revealAnswer()} className="rounded-xl bg-slate-900 px-4 py-2.5 font-semibold text-white disabled:cursor-not-allowed disabled:bg-slate-300">
+              {saveStatus === "saving" ? "正在保存练习记录…" : "查看本题答案"}
             </button>
             {isAnswerVisible && !answer.matchesAnswer ? <button type="button" onClick={retryCurrentQuestion} className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-2.5 font-semibold text-amber-900">重新播放并复练本题</button> : null}
             <button type="button" onClick={resetCurrentQuestion} className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 font-semibold text-slate-800">重置本题</button>
@@ -163,10 +200,11 @@ export function LocalEarTrainingRhythmPanel() {
               <p className="mt-2 text-slate-500">这是题目答案说明，不是正式分数、准确率、等级、通过或失败判断。</p>
             </div>
           ) : null}
+          {courseExerciseId ? <CourseAttemptSaveNotice status={saveStatus} /> : null}
         </div>
       </div>
 
-      <p className="mt-5 text-sm leading-6 text-slate-500">会话边界：题目序号、选择与答案说明只存在于当前页面内存；刷新后消失，不写入 localStorage、IndexedDB、账号或数据库。</p>
+      <p className="mt-5 text-sm leading-6 text-slate-500">{courseExerciseId ? "课程边界：题目播放与答案仍在浏览器完成，不上传音频。登录用户查看答案时只保存当前题目、选择和答案一致性摘要；未登录用户不保存。" : "会话边界：题目序号、选择与答案说明只存在于当前页面内存；刷新后消失，不写入 localStorage、IndexedDB、账号或数据库。"}</p>
     </section>
   );
 }

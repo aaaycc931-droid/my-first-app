@@ -9,13 +9,14 @@ import {
   type EarTrainingSinglePitchDifficulty,
 } from "../../lib/practice/localEarTrainingSinglePitch";
 import { createSinglePitchAttemptRpcArgs } from "../../lib/practice/cloudPracticeAttempt";
-import { getSupabaseBrowserClient } from "../../lib/platform/supabaseBrowser";
 import {
   createBrowserAudioChannel,
   type BrowserAudioChannel,
 } from "../../lib/audio/browserAudioEngine";
-
-type SaveStatus = "idle" | "saving" | "saved" | "auth-required" | "error";
+import {
+  CourseAttemptSaveNotice,
+  useCourseAttemptPersistence,
+} from "./CourseAttemptPersistence";
 
 export function LocalEarTrainingSinglePitchPanel({
   courseExerciseId,
@@ -28,7 +29,8 @@ export function LocalEarTrainingSinglePitchPanel({
   const [isAnswerVisible, setIsAnswerVisible] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const [audioError, setAudioError] = useState("");
-  const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
+  const { resetSaveStatus, saveCourseAttempt, saveStatus } =
+    useCourseAttemptPersistence();
   const audioChannelRef = useRef<BrowserAudioChannel | null>(null);
   if (!audioChannelRef.current) audioChannelRef.current = createBrowserAudioChannel();
   const finishTimerRef = useRef<number | null>(null);
@@ -49,32 +51,15 @@ export function LocalEarTrainingSinglePitchPanel({
     setSelectedPitchId(null);
     setIsAnswerVisible(false);
     setAudioError("");
-    setSaveStatus("idle");
+    resetSaveStatus();
   };
 
   const revealAnswer = async () => {
     if (!answer.hasSelection || !selectedPitchId) return;
     setIsAnswerVisible(true);
-    if (!courseExerciseId || saveStatus === "saving" || saveStatus === "saved") return;
+    if (!courseExerciseId) return;
 
-    const client = getSupabaseBrowserClient();
-    if (!client) {
-      setSaveStatus("error");
-      return;
-    }
-
-    const { data, error: sessionError } = await client.auth.getSession();
-    if (sessionError) {
-      setSaveStatus("error");
-      return;
-    }
-    if (!data.session) {
-      setSaveStatus("auth-required");
-      return;
-    }
-
-    setSaveStatus("saving");
-    const { error } = await client.rpc(
+    await saveCourseAttempt(
       "record_single_pitch_attempt",
       createSinglePitchAttemptRpcArgs({
         exerciseId: courseExerciseId,
@@ -85,7 +70,6 @@ export function LocalEarTrainingSinglePitchPanel({
         matchesAnswer: answer.matchesAnswer,
       }),
     );
-    setSaveStatus(error ? "error" : "saved");
   };
 
   const playQuestion = () => {
@@ -126,7 +110,7 @@ export function LocalEarTrainingSinglePitchPanel({
       <div className="mt-5 grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)]">
         <div className="rounded-2xl bg-sky-50 p-4 ring-1 ring-sky-100">
           <label className="block text-sm font-semibold text-slate-800" htmlFor="ear-training-single-pitch-difficulty">练习难度</label>
-          <select id="ear-training-single-pitch-difficulty" disabled={Boolean(courseExerciseId)} className="mt-2 w-full rounded-xl border border-sky-200 bg-white px-3 py-2 text-slate-900 disabled:cursor-not-allowed disabled:bg-slate-100" value={difficulty} onChange={(event) => { stopPlayback(); setDifficulty(event.target.value as EarTrainingSinglePitchDifficulty); setSequence(0); setSelectedPitchId(null); setIsAnswerVisible(false); setAudioError(""); setSaveStatus("idle"); }}>
+          <select id="ear-training-single-pitch-difficulty" disabled={Boolean(courseExerciseId)} className="mt-2 w-full rounded-xl border border-sky-200 bg-white px-3 py-2 text-slate-900 disabled:cursor-not-allowed disabled:bg-slate-100" value={difficulty} onChange={(event) => { stopPlayback(); setDifficulty(event.target.value as EarTrainingSinglePitchDifficulty); setSequence(0); setSelectedPitchId(null); setIsAnswerVisible(false); setAudioError(""); resetSaveStatus(); }}>
             <option value="基础">基础：C4、D4、E4、G4</option>
             <option value="进阶">进阶：增加 A4、B4</option>
           </select>
@@ -139,7 +123,7 @@ export function LocalEarTrainingSinglePitchPanel({
         <div className="rounded-2xl border border-slate-200 p-4">
           <p className="text-sm font-semibold text-slate-500">回答本题</p>
           <p className="mt-1 text-lg font-bold text-slate-950">听完后选择你听到的音名</p>
-          <div className="mt-4 grid gap-2 sm:grid-cols-3">{earTrainingSinglePitches[difficulty].map((pitch) => <button key={pitch.id} type="button" onClick={() => { setSelectedPitchId(pitch.id); setIsAnswerVisible(false); setSaveStatus("idle"); }} className={`rounded-xl border px-3 py-3 text-left font-semibold transition ${selectedPitchId === pitch.id ? "border-sky-600 bg-sky-50 text-sky-900 ring-2 ring-sky-200" : "border-slate-200 bg-white text-slate-800 hover:border-sky-300"}`}>{pitch.label}</button>)}</div>
+          <div className="mt-4 grid gap-2 sm:grid-cols-3">{earTrainingSinglePitches[difficulty].map((pitch) => <button key={pitch.id} type="button" onClick={() => { setSelectedPitchId(pitch.id); setIsAnswerVisible(false); resetSaveStatus(); }} className={`rounded-xl border px-3 py-3 text-left font-semibold transition ${selectedPitchId === pitch.id ? "border-sky-600 bg-sky-50 text-sky-900 ring-2 ring-sky-200" : "border-slate-200 bg-white text-slate-800 hover:border-sky-300"}`}>{pitch.label}</button>)}</div>
           <div className="mt-4 flex flex-wrap gap-2">
             <button type="button" disabled={!answer.hasSelection || saveStatus === "saving"} onClick={() => void revealAnswer()} className="rounded-xl bg-slate-900 px-4 py-2.5 font-semibold text-white disabled:cursor-not-allowed disabled:bg-slate-300">{saveStatus === "saving" ? "正在保存练习记录…" : "查看本题答案"}</button>
             {isAnswerVisible && !answer.matchesAnswer ? <button type="button" onClick={retryCurrentQuestion} className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-2.5 font-semibold text-amber-900">重新播放并复练本题</button> : null}
@@ -148,9 +132,7 @@ export function LocalEarTrainingSinglePitchPanel({
           </div>
           {!answer.hasSelection ? <p className="mt-3 text-sm leading-6 text-slate-500">请先选择一个音名，再查看本题答案。</p> : null}
           {isAnswerVisible ? <div className="mt-4 rounded-2xl bg-slate-50 p-4 text-sm leading-6 text-slate-700"><p className="font-bold text-slate-950">本题答案：{answer.answerLabel}</p><p className="mt-1">{answer.explanation}</p><p className="mt-2">你的选择：{earTrainingSinglePitches[difficulty].find((pitch) => pitch.id === selectedPitchId)?.label ?? "未选择"}。{answer.matchesAnswer ? "这次选择与本题答案一致。" : "这次选择与本题答案不同；可以再次播放并重置本题复练。"}</p><p className="mt-2 text-slate-500">这是题目答案说明，不是正式分数、准确率、等级、通过或失败判断。</p></div> : null}
-          {courseExerciseId && saveStatus === "saved" ? <p className="mt-3 rounded-xl bg-emerald-50 p-3 text-sm leading-6 text-emerald-800">练习记录已保存到你的私人账户。它只记录题目与选择摘要，不是正式评分。</p> : null}
-          {courseExerciseId && saveStatus === "auth-required" ? <p className="mt-3 rounded-xl bg-amber-50 p-3 text-sm leading-6 text-amber-900">答案已显示，但当前未登录，因此没有保存练习记录。<a href="/account" className="ml-1 font-semibold underline">前往账户登录</a></p> : null}
-          {courseExerciseId && saveStatus === "error" ? <p className="mt-3 rounded-xl bg-rose-50 p-3 text-sm leading-6 text-rose-800">答案已显示，但练习记录保存失败。请保持当前选择，再次点击“查看本题答案”重试保存。</p> : null}
+          {courseExerciseId ? <CourseAttemptSaveNotice status={saveStatus} /> : null}
         </div>
       </div>
       <p className="mt-5 text-sm leading-6 text-slate-500">{courseExerciseId ? "课程边界：题目播放与答案仍在浏览器完成，不上传音频。登录用户查看答案时只保存当前题目、选择和答案一致性摘要；未登录用户不保存。" : "会话边界：题目序号、选择与答案说明只存在于当前页面内存；刷新后消失，不写入 localStorage、IndexedDB、账号或数据库。"}</p>

@@ -50,6 +50,8 @@ import {
 
 type EarTrainingExerciseMode = "单音" | "音程" | "节奏" | "旋律听写";
 
+type CourseEarTrainingMode = "单音" | "音程" | "节奏";
+
 import { LocalMelodyGuideAudioImportPanel } from "../../components/practice/LocalMelodyGuideAudioImportPanel";
 import { LocalEarTrainingIntervalPanel } from "../../components/practice/LocalEarTrainingIntervalPanel";
 import { LocalEarTrainingRhythmPanel } from "../../components/practice/LocalEarTrainingRhythmPanel";
@@ -416,6 +418,8 @@ export default function PracticePage() {
   const [earTrainingExerciseMode, setEarTrainingExerciseMode] =
     useState<EarTrainingExerciseMode>("单音");
   const [courseExerciseId, setCourseExerciseId] = useState<string | null>(null);
+  const [courseExerciseMode, setCourseExerciseMode] =
+    useState<CourseEarTrainingMode | null>(null);
   const sheetMusicImportInputRef = useRef<HTMLInputElement | null>(null);
   const [sheetMusicSourceId, setSheetMusicSourceId] = useState<string | null>(null);
   const [manualNotationImportNotice, setManualNotationImportNotice] = useState<string | null>(null);
@@ -583,10 +587,17 @@ export default function PracticePage() {
     if (requestedFeature === "ear-training" && mode && requestedEarTrainingMode[mode]) {
       setEarTrainingExerciseMode(requestedEarTrainingMode[mode]);
     }
-    if (requestedFeature === "ear-training" && mode === "single-pitch" && isCourseExerciseId(requestedExerciseId)) {
+    if (
+      requestedFeature === "ear-training" &&
+      (mode === "single-pitch" || mode === "interval" || mode === "rhythm") &&
+      isCourseExerciseId(requestedExerciseId)
+    ) {
+      const requestedCourseMode: CourseEarTrainingMode =
+        mode === "interval" ? "音程" : mode === "rhythm" ? "节奏" : "单音";
       setActiveFeatureView("ear-training");
-      setEarTrainingExerciseMode("单音");
+      setEarTrainingExerciseMode(requestedCourseMode);
       setCourseExerciseId(requestedExerciseId);
+      setCourseExerciseMode(requestedCourseMode);
     }
   }, []);
 
@@ -2424,10 +2435,12 @@ export default function PracticePage() {
               title="浏览器本地内置听辨"
               description="选择单音、音程、节奏或旋律听写题型后，播放题目、选择答案、查看解释并复练。各题型的当前会话状态互不清除，不提供正式成绩。"
             />
-            {courseExerciseId ? (
+            {courseExerciseId && courseExerciseMode === earTrainingExerciseMode ? (
               <section className="rounded-3xl border border-indigo-200 bg-indigo-50 p-5 text-indigo-950 shadow-sm sm:p-6">
                 <p className="text-sm font-semibold text-indigo-700">系统课程练习</p>
-                <h2 className="mt-1 text-xl font-bold">基础单音听辨</h2>
+                <h2 className="mt-1 text-xl font-bold">
+                  {courseExerciseMode === "音程" ? "基础音程听辨" : courseExerciseMode === "节奏" ? "基础节奏听辨" : "基础单音听辨"}
+                </h2>
                 <p className="mt-2 text-sm leading-6">
                   你从系统课程进入了当前题目。登录后查看答案时会保存一条仅本人可见的练习记录；未登录仍可完成题目，但不会保存。记录不是正式分数、等级或通过判断。
                 </p>
@@ -2444,9 +2457,9 @@ export default function PracticePage() {
                 ))}
               </div>
             </section>
-            {earTrainingExerciseMode === "单音" ? <LocalEarTrainingSinglePitchPanel courseExerciseId={courseExerciseId ?? undefined} /> : null}
-            {earTrainingExerciseMode === "音程" ? <LocalEarTrainingIntervalPanel /> : null}
-            {earTrainingExerciseMode === "节奏" ? <LocalEarTrainingRhythmPanel /> : null}
+            {earTrainingExerciseMode === "单音" ? <LocalEarTrainingSinglePitchPanel courseExerciseId={courseExerciseMode === "单音" ? courseExerciseId ?? undefined : undefined} /> : null}
+            {earTrainingExerciseMode === "音程" ? <LocalEarTrainingIntervalPanel courseExerciseId={courseExerciseMode === "音程" ? courseExerciseId ?? undefined : undefined} /> : null}
+            {earTrainingExerciseMode === "节奏" ? <LocalEarTrainingRhythmPanel courseExerciseId={courseExerciseMode === "节奏" ? courseExerciseId ?? undefined : undefined} /> : null}
             {earTrainingExerciseMode === "旋律听写" ? <LocalEarTrainingMelodyDictationPanel /> : null}
           </>
         ) : null}

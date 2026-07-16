@@ -9,6 +9,14 @@ const leastPrivilege = readFileSync(
   "supabase/migrations/0005_least_privilege_practice_writes.sql",
   "utf8",
 );
+const intervalPractice = readFileSync(
+  "supabase/migrations/0006_course_interval_practice.sql",
+  "utf8",
+);
+const rhythmPractice = readFileSync(
+  "supabase/migrations/0007_course_rhythm_practice.sql",
+  "utf8",
+);
 const required = [
   "create table public.profiles",
   "create table public.practice_attempts",
@@ -63,6 +71,48 @@ for (const value of [
   if (!leastPrivilege.includes(value)) {
     throw new Error(`Least-privilege migration is missing: ${value}`);
   }
+}
+
+for (const value of [
+  "'00000000-0000-4000-8000-000000000202'",
+  "create or replace function public.record_interval_attempt",
+  "security definer",
+  "set search_path = public, pg_temp",
+  "e.target -> 'directions' ? p_direction",
+  "e.target -> 'intervals' ? p_selected_interval_id",
+  "p_matches_answer <> (p_selected_interval_id = p_target_interval_id)",
+  "'formal_evaluation', false",
+  "revoke all on function public.record_interval_attempt",
+  "to authenticated",
+]) {
+  if (!intervalPractice.includes(value)) {
+    throw new Error(`Interval course practice migration is missing: ${value}`);
+  }
+}
+
+if (/grant execute[\s\S]*to anon/.test(intervalPractice)) {
+  throw new Error("Anonymous users must not persist interval course attempts.");
+}
+
+for (const value of [
+  "'00000000-0000-4000-8000-000000000203'",
+  "create or replace function public.record_rhythm_attempt",
+  "security definer",
+  "set search_path = public, pg_temp",
+  "e.target -> 'patterns' ? p_selected_pattern_id",
+  "e.target -> 'patterns' ? p_target_pattern_id",
+  "p_matches_answer <> (p_selected_pattern_id = p_target_pattern_id)",
+  "'formal_evaluation', false",
+  "revoke all on function public.record_rhythm_attempt",
+  "to authenticated",
+]) {
+  if (!rhythmPractice.includes(value)) {
+    throw new Error(`Rhythm course practice migration is missing: ${value}`);
+  }
+}
+
+if (/grant execute[\s\S]*to anon/.test(rhythmPractice)) {
+  throw new Error("Anonymous users must not persist rhythm course attempts.");
 }
 
 console.log("final platform schema contract checks passed");

@@ -6,6 +6,7 @@ import {
 } from "../lib/metronome/metronomeGrid";
 import { getNonScoringImportedTargetPitchFeedback } from "../lib/practice/nonScoringImportedTargetPitchFeedback";
 import {
+  alignRhythmTargetsAndTaps,
   createQuarterPulseTargetPattern,
   createRhythmTargetPattern,
   getRhythmTapFeedback,
@@ -146,6 +147,49 @@ const waiting = getRhythmTapFeedback({
   nowMs: 1000,
 });
 assert.equal(waiting.status, "waiting-for-taps");
+
+const ambiguousTap = getRhythmTapFeedback({
+  targets: [eighthTargets[0], eighthTargets[1]],
+  taps: [{ id: 20, timestampMs: 1170, phase: "practice" }],
+  phase: "practice",
+  nowMs: 1500,
+});
+assert.equal(ambiguousTap.alignmentEngineId, "monotonic-dynamic-programming-v1");
+assert.deepEqual(
+  ambiguousTap.feedback.map((item) => [item.targetIndex, item.category]),
+  [
+    [0, "missed"],
+    [1, "close"],
+  ],
+  "global alignment should reserve one ambiguous tap for the closer later target",
+);
+
+const orderPreservingAlignment = alignRhythmTargetsAndTaps({
+  targets: [eighthTargets[0], eighthTargets[1]],
+  taps: [
+    { id: 21, timestampMs: 1210, phase: "practice" },
+    { id: 22, timestampMs: 1040, phase: "practice" },
+  ],
+  matchWindowMs: 180,
+});
+assert.deepEqual(
+  orderPreservingAlignment.pairs.map((pair) => [pair.targetPosition, pair.tapPosition]),
+  [
+    [0, 1],
+    [1, 0],
+  ],
+  "alignment should sort by time while retaining original tap positions in its output",
+);
+assert.equal(orderPreservingAlignment.unmatchedTargetPositions.length, 0);
+assert.equal(orderPreservingAlignment.unmatchedTapPositions.length, 0);
+
+const latencyAwareAlignment = alignRhythmTargetsAndTaps({
+  targets: [targets[0]],
+  taps: [{ id: 23, timestampMs: 1120, phase: "practice" }],
+  matchWindowMs: 180,
+  latencyOffsetMs: 120,
+});
+assert.equal(latencyAwareAlignment.pairs[0]?.offsetMs, 0);
 const missedWithTapElsewhere = getRhythmTapFeedback({
   targets: [targets[0]],
   taps: [{ id: 4, timestampMs: 1500, phase: "practice" }],
