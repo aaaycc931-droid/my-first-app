@@ -9,11 +9,10 @@ import {
   getLocalEarTrainingMelodyAnswer,
   type EarTrainingMelodyDictationDifficulty,
 } from "../../lib/practice/localEarTrainingMelodyDictation";
-
-const stopOscillator = (oscillator: OscillatorNode) => {
-  try { oscillator.stop(); } catch { /* The scheduled oscillator may already have stopped. */ }
-  oscillator.disconnect();
-};
+import {
+  createBrowserAudioChannel,
+  type BrowserAudioChannel,
+} from "../../lib/audio/browserAudioEngine";
 
 export function LocalEarTrainingMelodyDictationPanel() {
   const [difficulty, setDifficulty] = useState<EarTrainingMelodyDictationDifficulty>("基础");
@@ -22,8 +21,8 @@ export function LocalEarTrainingMelodyDictationPanel() {
   const [isAnswerVisible, setIsAnswerVisible] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const [audioError, setAudioError] = useState("");
-  const audioContextRef = useRef<AudioContext | null>(null);
-  const oscillatorsRef = useRef<OscillatorNode[]>([]);
+  const audioChannelRef = useRef<BrowserAudioChannel | null>(null);
+  if (!audioChannelRef.current) audioChannelRef.current = createBrowserAudioChannel();
   const finishTimerRef = useRef<number | null>(null);
   const question = useMemo(() => createLocalEarTrainingMelodyQuestion({ difficulty, sequence }), [difficulty, sequence]);
   const answer = useMemo(() => getLocalEarTrainingMelodyAnswer({ question, selectedNoteIds }), [question, selectedNoteIds]);
@@ -31,10 +30,7 @@ export function LocalEarTrainingMelodyDictationPanel() {
   const stopPlayback = () => {
     if (finishTimerRef.current !== null) window.clearTimeout(finishTimerRef.current);
     finishTimerRef.current = null;
-    oscillatorsRef.current.forEach(stopOscillator);
-    oscillatorsRef.current = [];
-    void audioContextRef.current?.close();
-    audioContextRef.current = null;
+    audioChannelRef.current?.stop();
     setIsPlaying(false);
   };
   useEffect(() => () => stopPlayback(), []);
@@ -42,7 +38,7 @@ export function LocalEarTrainingMelodyDictationPanel() {
   const playQuestion = () => {
     stopPlayback(); setAudioError("");
     try {
-      const audioContext = new AudioContext();
+      const audioContext = audioChannelRef.current!.getContext();
       const startTime = audioContext.currentTime + 0.04;
       const oscillators = question.melody.noteIds.map((noteId, index) => {
         const oscillator = audioContext.createOscillator();
@@ -55,9 +51,9 @@ export function LocalEarTrainingMelodyDictationPanel() {
         gain.gain.exponentialRampToValueAtTime(0.0001, noteStartTime + 0.5);
         oscillator.connect(gain); gain.connect(audioContext.destination);
         oscillator.start(noteStartTime); oscillator.stop(noteStartTime + 0.52);
-        return oscillator;
+        return audioChannelRef.current!.trackSource(oscillator, [gain]);
       });
-      audioContextRef.current = audioContext; oscillatorsRef.current = oscillators; setIsPlaying(true);
+      setIsPlaying(true);
       finishTimerRef.current = window.setTimeout(() => stopPlayback(), 2250);
     } catch { setAudioError("当前浏览器无法播放本地旋律听写题目。请检查音频权限或稍后重试。"); }
   };

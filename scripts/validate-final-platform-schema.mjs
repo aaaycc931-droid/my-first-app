@@ -5,6 +5,10 @@ const coursePractice = readFileSync(
   "supabase/migrations/0004_course_single_pitch_practice.sql",
   "utf8",
 );
+const leastPrivilege = readFileSync(
+  "supabase/migrations/0005_least_privilege_practice_writes.sql",
+  "utf8",
+);
 const required = [
   "create table public.profiles",
   "create table public.practice_attempts",
@@ -48,6 +52,17 @@ if (coursePractice.includes("security definer")) {
 }
 if (/grant execute[\s\S]*to anon/.test(coursePractice)) {
   throw new Error("Anonymous users must not persist course attempts.");
+}
+
+for (const value of [
+  "security definer",
+  "set search_path = public, pg_temp",
+  "revoke insert, update, delete on table public.profiles from authenticated",
+  "revoke all on function public.record_single_pitch_attempt",
+]) {
+  if (!leastPrivilege.includes(value)) {
+    throw new Error(`Least-privilege migration is missing: ${value}`);
+  }
 }
 
 console.log("final platform schema contract checks passed");

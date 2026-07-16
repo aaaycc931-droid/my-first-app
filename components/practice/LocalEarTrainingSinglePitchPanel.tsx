@@ -10,13 +10,12 @@ import {
 } from "../../lib/practice/localEarTrainingSinglePitch";
 import { createSinglePitchAttemptRpcArgs } from "../../lib/practice/cloudPracticeAttempt";
 import { getSupabaseBrowserClient } from "../../lib/platform/supabaseBrowser";
+import {
+  createBrowserAudioChannel,
+  type BrowserAudioChannel,
+} from "../../lib/audio/browserAudioEngine";
 
 type SaveStatus = "idle" | "saving" | "saved" | "auth-required" | "error";
-
-const stopOscillator = (oscillator: OscillatorNode) => {
-  try { oscillator.stop(); } catch { /* The oscillator may already have stopped. */ }
-  oscillator.disconnect();
-};
 
 export function LocalEarTrainingSinglePitchPanel({
   courseExerciseId,
@@ -30,8 +29,8 @@ export function LocalEarTrainingSinglePitchPanel({
   const [isPlaying, setIsPlaying] = useState(false);
   const [audioError, setAudioError] = useState("");
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
-  const audioContextRef = useRef<AudioContext | null>(null);
-  const oscillatorRef = useRef<OscillatorNode | null>(null);
+  const audioChannelRef = useRef<BrowserAudioChannel | null>(null);
+  if (!audioChannelRef.current) audioChannelRef.current = createBrowserAudioChannel();
   const finishTimerRef = useRef<number | null>(null);
   const question = useMemo(() => createLocalEarTrainingSinglePitchQuestion({ difficulty, sequence }), [difficulty, sequence]);
   const answer = useMemo(() => getLocalEarTrainingSinglePitchAnswer({ question, selectedPitchId }), [question, selectedPitchId]);
@@ -39,10 +38,7 @@ export function LocalEarTrainingSinglePitchPanel({
   const stopPlayback = () => {
     if (finishTimerRef.current !== null) window.clearTimeout(finishTimerRef.current);
     finishTimerRef.current = null;
-    if (oscillatorRef.current) stopOscillator(oscillatorRef.current);
-    oscillatorRef.current = null;
-    void audioContextRef.current?.close();
-    audioContextRef.current = null;
+    audioChannelRef.current?.stop();
     setIsPlaying(false);
   };
 
@@ -96,7 +92,7 @@ export function LocalEarTrainingSinglePitchPanel({
     stopPlayback();
     setAudioError("");
     try {
-      const audioContext = new AudioContext();
+      const audioContext = audioChannelRef.current!.getContext();
       const oscillator = audioContext.createOscillator();
       const gain = audioContext.createGain();
       const startTime = audioContext.currentTime + 0.04;
@@ -109,8 +105,7 @@ export function LocalEarTrainingSinglePitchPanel({
       gain.connect(audioContext.destination);
       oscillator.start(startTime);
       oscillator.stop(startTime + 0.8);
-      audioContextRef.current = audioContext;
-      oscillatorRef.current = oscillator;
+      audioChannelRef.current!.trackSource(oscillator, [gain]);
       setIsPlaying(true);
       finishTimerRef.current = window.setTimeout(() => stopPlayback(), 950);
     } catch {

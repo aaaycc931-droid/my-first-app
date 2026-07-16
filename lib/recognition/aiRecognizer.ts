@@ -1,5 +1,13 @@
-import { MockRecognizer } from "./mockRecognizer";
 import type { RecognizeResponse, Recognizer } from "./types";
+
+export class RecognitionProviderUnavailableError extends Error {
+  readonly code = "recognition_provider_unavailable";
+
+  constructor(provider = "AI") {
+    super(`${provider} recognition provider is not configured.`);
+    this.name = "RecognitionProviderUnavailableError";
+  }
+}
 
 /**
  * Placeholder entry layer for a future real AI sheet-music recognizer.
@@ -9,9 +17,7 @@ import type { RecognizeResponse, Recognizer } from "./types";
  * without changing UI or playback code.
  */
 export class AIRecognizer implements Recognizer {
-  private readonly fallbackRecognizer = new MockRecognizer();
-
-  async recognize(image: File): Promise<RecognizeResponse> {
+  async recognize(_image: File): Promise<RecognizeResponse> {
     // Future AI recognition flow:
     // 1. image preprocessing: normalize size, contrast, rotation, and noise.
     // 2. staff line detection: locate staff systems and line spacing.
@@ -19,6 +25,6 @@ export class AIRecognizer implements Recognizer {
     // 4. pitch mapping: map detected notes to staff positions and clefs.
     // 5. rhythm parsing: infer durations, measures, beats, and timing.
 
-    return this.fallbackRecognizer.recognize(image);
+    throw new RecognitionProviderUnavailableError();
   }
 }

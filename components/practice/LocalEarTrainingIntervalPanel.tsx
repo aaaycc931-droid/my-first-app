@@ -11,15 +11,10 @@ import {
   type EarTrainingDifficulty,
   type EarTrainingDirection,
 } from "../../lib/practice/localEarTrainingIntervals";
-
-const stopOscillator = (oscillator: OscillatorNode) => {
-  try {
-    oscillator.stop();
-  } catch {
-    // The scheduled oscillator may already have stopped.
-  }
-  oscillator.disconnect();
-};
+import {
+  createBrowserAudioChannel,
+  type BrowserAudioChannel,
+} from "../../lib/audio/browserAudioEngine";
 
 export function LocalEarTrainingIntervalPanel() {
   const [difficulty, setDifficulty] = useState<EarTrainingDifficulty>("基础");
@@ -29,8 +24,8 @@ export function LocalEarTrainingIntervalPanel() {
   const [isAnswerVisible, setIsAnswerVisible] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const [audioError, setAudioError] = useState("");
-  const audioContextRef = useRef<AudioContext | null>(null);
-  const oscillatorsRef = useRef<OscillatorNode[]>([]);
+  const audioChannelRef = useRef<BrowserAudioChannel | null>(null);
+  if (!audioChannelRef.current) audioChannelRef.current = createBrowserAudioChannel();
   const finishTimerRef = useRef<number | null>(null);
 
   const question = useMemo(
@@ -47,10 +42,7 @@ export function LocalEarTrainingIntervalPanel() {
       window.clearTimeout(finishTimerRef.current);
       finishTimerRef.current = null;
     }
-    oscillatorsRef.current.forEach(stopOscillator);
-    oscillatorsRef.current = [];
-    void audioContextRef.current?.close();
-    audioContextRef.current = null;
+    audioChannelRef.current?.stop();
     setIsPlaying(false);
   };
 
@@ -60,7 +52,7 @@ export function LocalEarTrainingIntervalPanel() {
     stopPlayback();
     setAudioError("");
     try {
-      const audioContext = new AudioContext();
+      const audioContext = audioChannelRef.current!.getContext();
       const startTime = audioContext.currentTime + 0.04;
       const secondStartTime = startTime + 0.78;
       const targetFrequencyHz = getIntervalTargetFrequencyHz(question);
@@ -78,10 +70,8 @@ export function LocalEarTrainingIntervalPanel() {
           gain.connect(audioContext.destination);
           oscillator.start(noteStartTime);
           oscillator.stop(noteStartTime + 0.6);
-          return oscillator;
+          return audioChannelRef.current!.trackSource(oscillator, [gain]);
         });
-      audioContextRef.current = audioContext;
-      oscillatorsRef.current = oscillators;
       setIsPlaying(true);
       finishTimerRef.current = window.setTimeout(() => stopPlayback(), 1500);
     } catch {

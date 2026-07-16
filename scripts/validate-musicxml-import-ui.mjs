@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { access, readFile } from "node:fs/promises";
 
-const pageUrl = new URL("../app/page.tsx", import.meta.url);
+const pageUrl = new URL("../app/recognize/page.tsx", import.meta.url);
 const routeUrl = new URL("../app/api/dev/recognize-musicxml/route.ts", import.meta.url);
 const recognizeRouteUrl = new URL("../app/api/recognize/route.ts", import.meta.url);
 const uiDocsUrl = new URL("../docs/musicxml-import-ui.md", import.meta.url);

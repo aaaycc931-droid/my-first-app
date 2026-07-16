@@ -120,6 +120,8 @@ export function SheetMusicImportPreviewPanel({
       return (
         <div className="grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">
           <div className="overflow-hidden rounded-2xl border border-slate-200 bg-slate-50">
+            {/* The preview is a local object URL and must not be optimized remotely. */}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={previewState.objectUrl}
               alt="本地乐谱图片预览"

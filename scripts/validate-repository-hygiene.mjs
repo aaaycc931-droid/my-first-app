@@ -96,7 +96,7 @@ assertNoKeywords("app/api/recognize/route.ts", [
   'createRecognizer("musicxml")',
 ]);
 
-assertNoKeywords("app/page.tsx", [
+assertNoKeywords("app/recognize/page.tsx", [
   "fflate",
   "unzipSync",
   "extractMusicXMLFromMxl",

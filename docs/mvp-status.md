@@ -1,3 +1,9 @@
+## P80 — Modular Learning Home Default Entry (2026-07-16)
+
+P73–P80 prepare the current platform for a safer production release. The stack upgrades Next.js to 15.5.20 and adds CI quality gates, shares one lazy browser AudioContext across the four hearing panels, removes the runtime Tone.js CDN import, adds an independently configurable learning home for “兴趣入门” and “艺考训练”, fails closed when a configured recognition provider is unavailable, adds a least-privilege database migration, and hardens magic-link login with resend cooldown and localized recovery messages. `/` now opens the modular learning home; the previous recognition laboratory remains available at `/recognize` as an optional module.
+
+The P78 migration is committed but must not be applied to production until the P79-compatible profile update code has been deployed. Static validation cannot replace a real PostgreSQL/RLS cross-user test. The two moderate PostCSS advisories inside Next.js 15 have no 15.x fix; Next.js 16 and ESLint 9 remain a separate compatibility upgrade after this release is stable. QA level recommendation: strict because the stack changes framework, shared audio runtime, account behavior, database privileges, navigation and the default product entry.
+
 ## P72 — System Course Single-Pitch Practice Persistence (2026-07-15)
 
 P72 connects the first published system-course exercise to the existing single-pitch ear-training runtime. The course library now loads published exercises, exposes a Chinese “开始单音听辨” entry, and opens `/practice` directly in the matching listening exercise while preserving the normal `/practice` default as “本地旋律”. Loading, empty and error states remain explicit.

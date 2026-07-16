@@ -70,7 +70,7 @@ export function ManualNotationFragmentDraftPanel({
     setDraft((currentDraft) =>
       reconcileNotationDraftSource(currentDraft, currentSheetMusicSourceId),
     );
-  }, [currentSheetMusicSourceId]);
+  }, [currentSheetMusicSourceId, setDraft]);
 
   useEffect(() => {
     onDraftEventCountChange?.(draft.events.length);
