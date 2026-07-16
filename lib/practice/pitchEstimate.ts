@@ -56,9 +56,11 @@ const estimateFrameFrequency = (
   startIndex: number,
   frameSize: number,
   sampleRate: number,
+  minFrequencyHz = REALTIME_PITCH_MIN_HZ,
+  maxFrequencyHz = REALTIME_PITCH_MAX_HZ,
 ) => {
-  const minLag = Math.floor(sampleRate / 1000);
-  const maxLag = Math.min(Math.ceil(sampleRate / 80), frameSize - 1);
+  const minLag = Math.floor(sampleRate / maxFrequencyHz);
+  const maxLag = Math.min(Math.ceil(sampleRate / minFrequencyHz), frameSize - 1);
   const correlations: number[] = [];
   let bestCorrelation = -Infinity;
 
@@ -119,7 +121,61 @@ const estimateFrameFrequency = (
       : 0;
   const interpolatedLag = selectedLag + interpolatedLagOffset;
 
-  return interpolatedLag > 0 ? sampleRate / interpolatedLag : null;
+  return interpolatedLag > 0
+    ? { frequencyHz: sampleRate / interpolatedLag, confidence: currentCorrelation }
+    : null;
+};
+
+export type RealtimePitchFrameAnalysis = {
+  state: "quiet" | "uncertain" | "out-of-range" | "reliable";
+  rms: number;
+  confidence: number;
+  frequencyHz: number | null;
+  nearestNote: string | null;
+  centsOffset: number | null;
+};
+
+export const REALTIME_PITCH_FRAME_SIZE = 4096;
+export const REALTIME_PITCH_MIN_HZ = 80;
+export const REALTIME_PITCH_MAX_HZ = 1000;
+export const REALTIME_PITCH_MIN_RMS = 0.015;
+export const REALTIME_PITCH_MIN_CONFIDENCE = 0.72;
+
+/**
+ * Analyzes one in-memory microphone frame. This is diagnostic, non-scoring
+ * output and deliberately returns an explicit unreliable state instead of
+ * forcing every frame into a note name.
+ */
+export const analyzeRealtimePitchFrame = (
+  samples: Float32Array,
+  sampleRate: number,
+): RealtimePitchFrameAnalysis => {
+  if (samples.length < REALTIME_PITCH_FRAME_SIZE || !Number.isFinite(sampleRate) || sampleRate <= 0) {
+    return { state: "uncertain", rms: 0, confidence: 0, frequencyHz: null, nearestNote: null, centsOffset: null };
+  }
+  const rms = calculateRms(samples, 0, REALTIME_PITCH_FRAME_SIZE);
+  if (rms < REALTIME_PITCH_MIN_RMS) {
+    return { state: "quiet", rms, confidence: 0, frequencyHz: null, nearestNote: null, centsOffset: null };
+  }
+  const estimate = estimateFrameFrequency(samples, 0, REALTIME_PITCH_FRAME_SIZE, sampleRate, 60, 1200);
+  if (!estimate || !Number.isFinite(estimate.frequencyHz)) {
+    return { state: "uncertain", rms, confidence: 0, frequencyHz: null, nearestNote: null, centsOffset: null };
+  }
+  if (estimate.frequencyHz < REALTIME_PITCH_MIN_HZ || estimate.frequencyHz > REALTIME_PITCH_MAX_HZ) {
+    return { state: "out-of-range", rms, confidence: estimate.confidence, frequencyHz: estimate.frequencyHz, nearestNote: null, centsOffset: null };
+  }
+  if (estimate.confidence < REALTIME_PITCH_MIN_CONFIDENCE) {
+    return { state: "uncertain", rms, confidence: estimate.confidence, frequencyHz: estimate.frequencyHz, nearestNote: null, centsOffset: null };
+  }
+  const note = getNearestPitchNote(estimate.frequencyHz);
+  return {
+    state: "reliable",
+    rms,
+    confidence: estimate.confidence,
+    frequencyHz: estimate.frequencyHz,
+    nearestNote: note.nearestNote,
+    centsOffset: note.centsOffset,
+  };
 };
 
 const calculateMedian = (values: number[]) => {
@@ -248,13 +304,14 @@ export const estimateLocalPitch = (
       continue;
     }
 
-    const frequency = estimateFrameFrequency(
+    const frameEstimate = estimateFrameFrequency(
       monoSamples,
       startIndex,
       frameSize,
       audioBuffer.sampleRate,
     );
 
+    const frequency = frameEstimate?.frequencyHz ?? null;
     if (frequency !== null && frequency >= 80 && frequency <= 1000) {
       frameFrequencies.push(frequency);
     }

@@ -5,6 +5,7 @@ import { LocalEarTrainingIntervalPanel } from "../../components/practice/LocalEa
 import { LocalEarTrainingMelodyDictationPanel } from "../../components/practice/LocalEarTrainingMelodyDictationPanel";
 import { LocalEarTrainingRhythmPanel } from "../../components/practice/LocalEarTrainingRhythmPanel";
 import { LocalEarTrainingSinglePitchPanel } from "../../components/practice/LocalEarTrainingSinglePitchPanel";
+import { RealtimePitchMonitorPanel } from "../../components/practice/RealtimePitchMonitorPanel";
 import { LocalPianoPanel } from "../../components/piano/LocalPianoPanel";
 import {
   stopAllBrowserAudio,
@@ -31,14 +32,19 @@ import {
   saveMobilePracticeReviewQueue,
 } from "./runtime/mobilePracticeReviewStorage";
 
-const screens = ["home", "pitch", "interval", "rhythm", "melody", "piano"] as const;
+const screens = ["home", "monitor", "pitch", "interval", "rhythm", "melody", "piano"] as const;
 type Screen = (typeof screens)[number];
-type PracticeScreenName = Exclude<Screen, "home" | "piano">;
+type PracticeScreenName = Exclude<Screen, "home" | "piano" | "monitor">;
 
 const screenDetails: Record<
   Exclude<Screen, "home">,
   { title: string; summary: string; tone: string }
 > = {
+  monitor: {
+    title: "实时音高反馈",
+    summary: "用麦克风实时观察当前音名、频率与偏移，不录音、不上传。",
+    tone: "bg-cyan-50 text-cyan-950 ring-cyan-200",
+  },
   pitch: {
     title: "单音听辨",
     summary: "听一个本地合成音，辨认它的音名。",
@@ -316,7 +322,7 @@ export function App() {
                 不联网，也能开始练耳
               </h1>
               <p className="mt-3 text-sm leading-7 text-indigo-100">
-                四类核心题目、声音引擎和参考钢琴已经打包在安装包内。无需访问网页、无需登录，也不会上传你的练习或弹奏。
+                三难度听辨题库、实时音高反馈、声音引擎和参考钢琴已经打包在安装包内。无需访问网页、无需登录，也不会上传你的练习、声音或弹奏。
               </p>
             </section>
 
@@ -342,7 +348,7 @@ export function App() {
                         className={`min-h-32 rounded-3xl p-5 text-left ring-1 transition active:scale-[0.99] ${detail.tone}`}
                       >
                         <span className="text-xs font-bold opacity-70">
-                          {screen === "piano" ? "找音辅助" : `练习 ${index + 1}`}
+                          {screen === "piano" ? "找音辅助" : screen === "monitor" ? "练声反馈" : `练习 ${index}`}
                         </span>
                         <span className="mt-2 block text-xl font-black">
                           {detail.title}
@@ -430,6 +436,11 @@ export function App() {
             </a>
             {lifecycle.isForeground ? <LocalPianoPanel /> : null}
           </section>
+        ) : activeScreen === "monitor" ? (
+          <section aria-label={screenDetails.monitor.title}>
+            <a href="#home" onClick={() => setActiveReviewTarget(null)} className="mb-3 inline-flex min-h-11 items-center rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-bold text-slate-800 shadow-sm">返回练习首页</a>
+            {lifecycle.isForeground ? <RealtimePitchMonitorPanel /> : null}
+          </section>
         ) : (
           <section aria-label={screenDetails[activeScreen].title}>
             <a
@@ -455,12 +466,14 @@ export function App() {
         className="mobile-bottom-nav fixed inset-x-0 bottom-0 z-20 border-t border-slate-200 bg-white/95 px-2 pt-2 shadow-[0_-8px_30px_rgba(15,23,42,0.08)] backdrop-blur"
         aria-label="主要练习"
       >
-        <div className="mx-auto grid max-w-3xl grid-cols-6 gap-1">
+        <div className="mx-auto grid max-w-3xl grid-cols-7 gap-1">
           {screens.map((screen) => {
             const label = screen === "home"
               ? "首页"
               : screen === "piano"
                 ? "钢琴"
+                : screen === "monitor"
+                  ? "音高"
                 : screenDetails[screen].title.replace("听辨", "");
             return (
               <a

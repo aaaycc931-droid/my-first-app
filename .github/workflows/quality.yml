@@ -52,6 +52,9 @@ jobs:
           npm run test:local-question-scheduler
           npm run test:local-practice-catalog
           npm run test:expanded-local-practice-catalog
+          npm run test:realtime-pitch-frame
+          npm run test:realtime-pitch-monitor-ui-contract
+          npm run test:realtime-pitch-monitor-behavior
           npm run test:local-ear-training-single-pitch
           npm run test:local-ear-training-intervals
           npm run test:local-ear-training-rhythm

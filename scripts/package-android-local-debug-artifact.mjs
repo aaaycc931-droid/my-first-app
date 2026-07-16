@@ -116,6 +116,9 @@ if (/\bserver\s*:/.test(capacitorConfig) || /https?:\/\//.test(capacitorConfig))
 if (manifest.includes("android.permission.INTERNET")) {
   fail("AndroidManifest.xml 声明了网络权限");
 }
+if (!manifest.includes("android.permission.RECORD_AUDIO")) {
+  fail("AndroidManifest.xml 缺少实时音高反馈所需的麦克风权限");
+}
 
 const aapt = getBuildTool("aapt");
 const apksigner = getBuildTool("apksigner");
@@ -168,7 +171,6 @@ if (
 
 for (const forbiddenPermission of [
   "android.permission.INTERNET",
-  "android.permission.RECORD_AUDIO",
   "android.permission.READ_EXTERNAL_STORAGE",
   "android.permission.WRITE_EXTERNAL_STORAGE",
   "android.permission.MANAGE_EXTERNAL_STORAGE",
@@ -179,6 +181,9 @@ for (const forbiddenPermission of [
   if (permissions.includes(forbiddenPermission)) {
     fail(`APK 包含本地私测范围外的权限：${forbiddenPermission}`);
   }
+}
+if (!permissions.includes("android.permission.RECORD_AUDIO")) {
+  fail("APK 缺少实时音高反馈所需的麦克风权限");
 }
 
 const archiveEntries = run("unzip", ["-Z1", apkPath]).split("\n");
@@ -263,7 +268,7 @@ const report = {
     bundled_local_web_assets: "passed",
     remote_server_configuration: "absent",
     internet_permission: "absent",
-    microphone_permission: "absent",
+    microphone_permission: "present_for_opt_in_realtime_pitch_only",
     broad_storage_permission: "absent",
     production_cloud_identifiers_in_bundle: "absent",
     core_offline_exercises_present: "passed",
@@ -292,7 +297,7 @@ writeFileSync(
     `- 签名：Android Debug，APK Signature Scheme 已验证；不是 release 签名。\n\n` +
     `## 已验证的本地边界\n\n` +
     `- APK 包含本地 Web 资源、四类核心听辨练习及本地参考钢琴；\n` +
-    `- 未声明网络、麦克风或宽泛外部存储权限；\n` +
+    `- 未声明网络或宽泛外部存储权限；麦克风权限仅用于用户主动开始的本地实时音高反馈；\n` +
     `- Capacitor 配置未包含远程 server 或网址，APK bundle 未出现受控生产云端标识；\n` +
     `- 本报告仅在 Gradle 单元测试、debug APK 构建、源码 bundle 校验、APK 签名与结构校验均成功后生成。\n\n` +
     `## 边界与未覆盖项\n\n` +
