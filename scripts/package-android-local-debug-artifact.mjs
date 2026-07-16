@@ -3,6 +3,7 @@ import {
   existsSync,
   mkdirSync,
   readFileSync,
+  rmSync,
   statSync,
   writeFileSync,
 } from "node:fs";
@@ -232,6 +233,7 @@ const checksum = createHash("sha256")
   .update(readFileSync(apkPath))
   .digest("hex");
 
+rmSync(outputDirectory, { recursive: true, force: true });
 mkdirSync(outputDirectory, { recursive: true });
 copyFileSync(apkPath, artifactPath);
 writeFileSync(

@@ -2,6 +2,14 @@
 
 执行日期：2026-07-16
 
+## P90 CI 候选工件
+
+P90 的 Android 本机错题复练切片已经在 PR #341 的 GitHub Actions run `29489428878` 完成自动化构建：`quality` 与 `android-local` 两个 job 均为 PASS。PR 的远端功能 commit 为 `7d80321c03e0136c9213bdb767c870102c022138`，PR merge-test SHA 为 `8e87ae1a0a706652b58752b28a76072fb7804cdd`，合并后的 `main` squash commit 为 `73e65f6ff9fa5fc9664aea910eab5da910dc7b3c`。
+
+该 run 上传了 artifact `8371808955`；GitHub 提供的 artifact ZIP SHA-256 为 `a933369c439a87a72b3195482d30be9fb8f848317af11410d2a41ae7c7b2af4c`。这个摘要只校验 GitHub 下载的 ZIP 容器，**不是 ZIP 内 APK 的 SHA-256**。下载后的 APK 文件名、内部 `.sha256` 和 `android-local-build-report.json` 仍需用独立 verifier 相互核对，核对完成前不得把 ZIP 摘要写成 APK 摘要。
+
+PR #341 的成功证明 P90 源码在对应 merge-test revision 通过自动化质量门禁、Gradle 单元测试、debug APK 构建和打包脚本；它不证明 `main` squash commit 已产生同 commit 的 APK，也不证明真实手机安装、跨重启错题复练、离线音频或后台恢复。P91 将把独立工件 verifier 接入上传前门禁；在 P91 CI 实际成功前，C1 继续保持 `IN_PROGRESS`。
+
 ## 候选包
 
 | 项目 | 结果 |
@@ -37,6 +45,7 @@
 - 没有连接真实 Android 设备，因此未执行安装、飞行模式冷启动、系统 WebView、真实扬声器播放、后台恢复和 20 轮稳定性 QA。
 - Chromium 自动交互环境下载失败，因此没有声称完成模拟手机视口浏览器 QA。
 - 当前为调试证书签名的私测包；专用 release key、覆盖升级和回滚尚未执行。
+- PR #341 artifact 内部的 APK SHA-256 尚未从 `.sha256` 与 JSON 构建报告独立核对；目前只记录了 GitHub artifact ZIP 的摘要。
 
 ## CI 可下载工件规则
 

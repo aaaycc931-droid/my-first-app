@@ -44,6 +44,7 @@ jobs:
           npm run test:local-practice-review-queue
           npm run test:mobile-practice-review-storage
           npm run test:mobile-practice-review-ui-contract
+          npm run test:android-local-artifact-verifier
           npm run test:local-question-scheduler
           npm run test:local-ear-training-single-pitch
           npm run test:local-ear-training-intervals
@@ -98,6 +99,9 @@ jobs:
           GITHUB_RUN_ATTEMPT: ${{ github.run_attempt }}
           GITHUB_EVENT_NAME: ${{ github.event_name }}
         run: node scripts/package-android-local-debug-artifact.mjs
+
+      - name: Independently verify packaged Android debug artifact
+        run: npm run verify:android-local-artifact
 
       - name: Upload verified local Android debug APK
         if: ${{ success() }}
