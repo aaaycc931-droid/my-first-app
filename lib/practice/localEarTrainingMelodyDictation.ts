@@ -45,10 +45,22 @@ export const earTrainingMelodies: Record<EarTrainingMelodyDictationDifficulty, L
   ],
 };
 
-export const createLocalEarTrainingMelodyQuestion = ({ difficulty, sequence }: { difficulty: EarTrainingMelodyDictationDifficulty; sequence: number }): LocalEarTrainingMelodyQuestion => {
-  const safeSequence = Math.max(0, Math.floor(sequence));
+export const createLocalEarTrainingMelodyQuestion = ({
+  difficulty,
+  sequence,
+  questionIndex,
+}: {
+  difficulty: EarTrainingMelodyDictationDifficulty;
+  sequence: number;
+  /** The APK may supply a shuffled item index. */
+  questionIndex?: number;
+}): LocalEarTrainingMelodyQuestion => {
+  const safeSequence = Number.isFinite(sequence) ? Math.max(0, Math.floor(sequence)) : 0;
+  const safeQuestionIndex = questionIndex !== undefined && Number.isFinite(questionIndex)
+    ? Math.max(0, Math.floor(questionIndex))
+    : safeSequence;
   const melodies = earTrainingMelodies[difficulty];
-  const melody = melodies[safeSequence % melodies.length];
+  const melody = melodies[safeQuestionIndex % melodies.length];
   return { id: `${difficulty}-${safeSequence}-${melody.id}`, difficulty, sequence: safeSequence, melody };
 };
 

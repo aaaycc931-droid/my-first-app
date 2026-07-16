@@ -8,6 +8,7 @@ import {
   getIntervalTargetFrequencyHz,
   getLocalEarTrainingDirectionDescription,
   getLocalEarTrainingAnswer,
+  getLocalEarTrainingQuestionVariantCount,
   type EarTrainingDifficulty,
   type EarTrainingDirection,
 } from "../../lib/practice/localEarTrainingIntervals";
@@ -18,6 +19,7 @@ import {
 } from "./CourseAttemptPersistence";
 import { useLocalAudioPlayback } from "./useLocalAudioPlayback";
 import { useLockedPracticeAnswer } from "./useLockedPracticeAnswer";
+import { useLocalQuestionSchedule } from "./useLocalQuestionSchedule";
 
 export function LocalEarTrainingIntervalPanel({
   courseExerciseId,
@@ -27,6 +29,11 @@ export function LocalEarTrainingIntervalPanel({
   const [difficulty, setDifficulty] = useState<EarTrainingDifficulty>("基础");
   const [direction, setDirection] = useState<EarTrainingDirection>("上行");
   const [sequence, setSequence] = useState(0);
+  const { questionIndex, isReady: isQuestionReady } = useLocalQuestionSchedule({
+    itemCount: getLocalEarTrainingQuestionVariantCount(difficulty),
+    sequence,
+    isCourseExercise: Boolean(courseExerciseId),
+  });
   const answerLock = useLockedPracticeAnswer<string | null>(
     null,
     (selection) => selection !== null,
@@ -40,8 +47,8 @@ export function LocalEarTrainingIntervalPanel({
     useLocalAudioPlayback();
 
   const question = useMemo(
-    () => createLocalEarTrainingQuestion({ difficulty, direction, sequence }),
-    [difficulty, direction, sequence],
+    () => createLocalEarTrainingQuestion({ difficulty, direction, sequence, questionIndex }),
+    [difficulty, direction, questionIndex, sequence],
   );
   const answer = useMemo(
     () => getLocalEarTrainingAnswer({ question, selectedIntervalId }),
@@ -163,8 +170,9 @@ export function LocalEarTrainingIntervalPanel({
               ))}
             </div>
           </fieldset>
-          <p className="mt-4 text-sm leading-6 text-emerald-900">当前为内置题目 {sequence + 1}（{direction}）。{getLocalEarTrainingDirectionDescription(direction)} 题目音高由浏览器本地 Web Audio 合成，不读取文件、不调用接口。</p>
-          <button type="button" onClick={() => void playQuestion()} disabled={isPlaying} className="mt-4 w-full rounded-xl bg-emerald-700 px-4 py-3 font-semibold text-white disabled:cursor-not-allowed disabled:bg-emerald-300">
+          <p className="mt-4 text-sm leading-6 text-emerald-900">当前为内置题目 {sequence + 1}（{direction}）。{courseExerciseId ? "系统课程按固定顺序出题。" : "本轮题库会随机排序，全部出现一次后循环；不保存到本机或账号。"}{getLocalEarTrainingDirectionDescription(direction)} 题目音高由浏览器本地 Web Audio 合成，不读取文件、不调用接口。</p>
+          {!isQuestionReady ? <p className="mt-2 text-sm text-emerald-800">正在准备本轮题目…</p> : null}
+          <button type="button" onClick={() => void playQuestion()} disabled={!isQuestionReady || isPlaying} className="mt-4 w-full rounded-xl bg-emerald-700 px-4 py-3 font-semibold text-white disabled:cursor-not-allowed disabled:bg-emerald-300">
             {playbackState === "准备中" ? "正在准备声音…" : isPlaying ? "正在播放两个音…" : "播放题目"}
           </button>
           <button type="button" onClick={stopPlayback} disabled={!isPlaying} className="mt-2 w-full rounded-xl border border-emerald-300 bg-white px-4 py-3 font-semibold text-emerald-800 disabled:cursor-not-allowed disabled:opacity-50">
@@ -181,7 +189,7 @@ export function LocalEarTrainingIntervalPanel({
               <button
                 key={interval.id}
                 type="button"
-                disabled={isAnswerVisible}
+                disabled={!isQuestionReady || isAnswerVisible}
                 onClick={() => { if (answerLock.choose(interval.id)) resetSaveStatus(); }}
                 className={`rounded-xl border px-3 py-3 text-left font-semibold transition disabled:cursor-not-allowed disabled:opacity-70 ${selectedIntervalId === interval.id ? "border-emerald-600 bg-emerald-50 text-emerald-900 ring-2 ring-emerald-200" : "border-slate-200 bg-white text-slate-800 hover:border-emerald-300"}`}
               >
@@ -195,7 +203,7 @@ export function LocalEarTrainingIntervalPanel({
             </button>
             {isAnswerVisible && !answer.matchesAnswer ? <button type="button" onClick={retryCurrentQuestion} className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-2.5 font-semibold text-amber-900">重新播放并复练本题</button> : null}
             <button type="button" onClick={resetCurrentQuestion} className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 font-semibold text-slate-800">重置本题</button>
-            <button type="button" onClick={nextQuestion} className="rounded-xl border border-emerald-300 bg-white px-4 py-2.5 font-semibold text-emerald-800">下一题</button>
+            <button type="button" disabled={!isQuestionReady} onClick={nextQuestion} className="rounded-xl border border-emerald-300 bg-white px-4 py-2.5 font-semibold text-emerald-800 disabled:cursor-not-allowed disabled:opacity-50">下一题</button>
           </div>
           {!answer.hasSelection ? <p className="mt-3 text-sm leading-6 text-slate-500">请先选择一个音程，再查看本题答案。</p> : null}
           {isAnswerVisible ? (

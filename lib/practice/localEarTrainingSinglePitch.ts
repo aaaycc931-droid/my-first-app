@@ -37,13 +37,19 @@ export const earTrainingSinglePitches: Record<
 export const createLocalEarTrainingSinglePitchQuestion = ({
   difficulty,
   sequence,
+  questionIndex,
 }: {
   difficulty: EarTrainingSinglePitchDifficulty;
   sequence: number;
+  /** The APK may supply a shuffled item index. Web courses keep this unset. */
+  questionIndex?: number;
 }): LocalEarTrainingSinglePitchQuestion => {
-  const safeSequence = Math.max(0, Math.floor(sequence));
+  const safeSequence = Number.isFinite(sequence) ? Math.max(0, Math.floor(sequence)) : 0;
+  const safeQuestionIndex = questionIndex !== undefined && Number.isFinite(questionIndex)
+    ? Math.max(0, Math.floor(questionIndex))
+    : safeSequence;
   const pitches = earTrainingSinglePitches[difficulty];
-  const pitch = pitches[safeSequence % pitches.length];
+  const pitch = pitches[safeQuestionIndex % pitches.length];
 
   return { id: `${difficulty}-${safeSequence}-${pitch.id}`, difficulty, sequence: safeSequence, pitch };
 };

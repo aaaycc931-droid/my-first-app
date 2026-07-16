@@ -15,6 +15,7 @@ import {
 } from "./CourseAttemptPersistence";
 import { useLocalAudioPlayback } from "./useLocalAudioPlayback";
 import { useLockedPracticeAnswer } from "./useLockedPracticeAnswer";
+import { useLocalQuestionSchedule } from "./useLocalQuestionSchedule";
 
 export function LocalEarTrainingSinglePitchPanel({
   courseExerciseId,
@@ -23,6 +24,11 @@ export function LocalEarTrainingSinglePitchPanel({
 }) {
   const [difficulty, setDifficulty] = useState<EarTrainingSinglePitchDifficulty>("基础");
   const [sequence, setSequence] = useState(0);
+  const { questionIndex, isReady: isQuestionReady } = useLocalQuestionSchedule({
+    itemCount: earTrainingSinglePitches[difficulty].length,
+    sequence,
+    isCourseExercise: Boolean(courseExerciseId),
+  });
   const answerLock = useLockedPracticeAnswer<string | null>(
     null,
     (selection) => selection !== null,
@@ -34,7 +40,10 @@ export function LocalEarTrainingSinglePitchPanel({
     useCourseAttemptPersistence();
   const { isPlaying, playbackState, play, stop: stopPlayback } =
     useLocalAudioPlayback();
-  const question = useMemo(() => createLocalEarTrainingSinglePitchQuestion({ difficulty, sequence }), [difficulty, sequence]);
+  const question = useMemo(
+    () => createLocalEarTrainingSinglePitchQuestion({ difficulty, sequence, questionIndex }),
+    [difficulty, questionIndex, sequence],
+  );
   const answer = useMemo(() => getLocalEarTrainingSinglePitchAnswer({ question, selectedPitchId }), [question, selectedPitchId]);
 
   const resetCurrentQuestion = () => {
@@ -101,20 +110,21 @@ export function LocalEarTrainingSinglePitchPanel({
             <option value="进阶">进阶：增加 A4、B4</option>
           </select>
           {courseExerciseId ? <p className="mt-2 text-xs leading-5 text-slate-500">系统课程已固定为基础难度，以保持题目版本一致。</p> : null}
-          <p className="mt-4 text-sm leading-6 text-sky-900">当前为内置题目 {sequence + 1}。题目音高由浏览器本地 Web Audio 合成，不读取文件、不调用接口。</p>
-          <button type="button" onClick={() => void playQuestion()} disabled={isPlaying} className="mt-4 w-full rounded-xl bg-sky-700 px-4 py-3 font-semibold text-white disabled:cursor-not-allowed disabled:bg-sky-300">{playbackState === "准备中" ? "正在准备声音…" : isPlaying ? "正在播放单音…" : "播放单音题目"}</button>
+          <p className="mt-4 text-sm leading-6 text-sky-900">当前为内置题目 {sequence + 1}。{courseExerciseId ? "系统课程按固定顺序出题。" : "本轮题库会随机排序，全部出现一次后循环；不保存到本机或账号。"}题目音高由浏览器本地 Web Audio 合成，不读取文件、不调用接口。</p>
+          {!isQuestionReady ? <p className="mt-2 text-sm text-sky-800">正在准备本轮题目…</p> : null}
+          <button type="button" onClick={() => void playQuestion()} disabled={!isQuestionReady || isPlaying} className="mt-4 w-full rounded-xl bg-sky-700 px-4 py-3 font-semibold text-white disabled:cursor-not-allowed disabled:bg-sky-300">{playbackState === "准备中" ? "正在准备声音…" : isPlaying ? "正在播放单音…" : "播放单音题目"}</button>
           <button type="button" onClick={stopPlayback} disabled={!isPlaying} className="mt-2 w-full rounded-xl border border-sky-300 bg-white px-4 py-3 font-semibold text-sky-800 disabled:cursor-not-allowed disabled:opacity-50">停止播放</button>
           {audioError ? <p className="mt-3 rounded-xl bg-rose-50 p-3 text-sm leading-6 text-rose-800">{audioError}</p> : null}
         </div>
         <div className="rounded-2xl border border-slate-200 p-4">
           <p className="text-sm font-semibold text-slate-500">回答本题</p>
           <p className="mt-1 text-lg font-bold text-slate-950">听完后选择你听到的音名</p>
-          <div className="mt-4 grid gap-2 sm:grid-cols-3">{earTrainingSinglePitches[difficulty].map((pitch) => <button key={pitch.id} type="button" disabled={isAnswerVisible} onClick={() => { if (answerLock.choose(pitch.id)) resetSaveStatus(); }} className={`rounded-xl border px-3 py-3 text-left font-semibold transition disabled:cursor-not-allowed disabled:opacity-70 ${selectedPitchId === pitch.id ? "border-sky-600 bg-sky-50 text-sky-900 ring-2 ring-sky-200" : "border-slate-200 bg-white text-slate-800 hover:border-sky-300"}`}>{pitch.label}</button>)}</div>
+          <div className="mt-4 grid gap-2 sm:grid-cols-3">{earTrainingSinglePitches[difficulty].map((pitch) => <button key={pitch.id} type="button" disabled={!isQuestionReady || isAnswerVisible} onClick={() => { if (answerLock.choose(pitch.id)) resetSaveStatus(); }} className={`rounded-xl border px-3 py-3 text-left font-semibold transition disabled:cursor-not-allowed disabled:opacity-70 ${selectedPitchId === pitch.id ? "border-sky-600 bg-sky-50 text-sky-900 ring-2 ring-sky-200" : "border-slate-200 bg-white text-slate-800 hover:border-sky-300"}`}>{pitch.label}</button>)}</div>
           <div className="mt-4 flex flex-wrap gap-2">
             <button type="button" disabled={!answer.hasSelection || saveStatus === "saving"} onClick={() => void revealAnswer()} className="rounded-xl bg-slate-900 px-4 py-2.5 font-semibold text-white disabled:cursor-not-allowed disabled:bg-slate-300">{saveStatus === "saving" ? "正在保存练习记录…" : "查看本题答案"}</button>
             {isAnswerVisible && !answer.matchesAnswer ? <button type="button" onClick={retryCurrentQuestion} className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-2.5 font-semibold text-amber-900">重新播放并复练本题</button> : null}
             <button type="button" onClick={resetCurrentQuestion} className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 font-semibold text-slate-800">重置本题</button>
-            <button type="button" onClick={() => { resetCurrentQuestion(); setSequence((current) => current + 1); }} className="rounded-xl border border-sky-300 bg-white px-4 py-2.5 font-semibold text-sky-800">下一题</button>
+            <button type="button" disabled={!isQuestionReady} onClick={() => { resetCurrentQuestion(); setSequence((current) => current + 1); }} className="rounded-xl border border-sky-300 bg-white px-4 py-2.5 font-semibold text-sky-800 disabled:cursor-not-allowed disabled:opacity-50">下一题</button>
           </div>
           {!answer.hasSelection ? <p className="mt-3 text-sm leading-6 text-slate-500">请先选择一个音名，再查看本题答案。</p> : null}
           {isAnswerVisible ? <div className="mt-4 rounded-2xl bg-slate-50 p-4 text-sm leading-6 text-slate-700"><p className="font-bold text-slate-950">本题答案：{answer.answerLabel}</p><p className="mt-1">{answer.explanation}</p><p className="mt-2">你的选择：{earTrainingSinglePitches[difficulty].find((pitch) => pitch.id === selectedPitchId)?.label ?? "未选择"}。{answer.matchesAnswer ? "这次选择与本题答案一致。" : "这次选择与本题答案不同；可以再次播放并重置本题复练。"}</p><p className="mt-2 text-slate-500">答案说明显示后，本题选择已锁定；请使用复练或下一题开始新的尝试。这不是正式分数、准确率、等级、通过或失败判断。</p></div> : null}

@@ -40,19 +40,28 @@ const questionRoots = [
   { label: "G4", frequencyHz: 392 },
 ];
 
+export const getLocalEarTrainingQuestionVariantCount = (difficulty: EarTrainingDifficulty): number =>
+  earTrainingIntervals[difficulty].length * questionRoots.length;
+
 export const createLocalEarTrainingQuestion = ({
   difficulty,
   direction,
   sequence,
+  questionIndex,
 }: {
   difficulty: EarTrainingDifficulty;
   direction: EarTrainingDirection;
   sequence: number;
+  /** The APK may supply a shuffled root/interval combination index. */
+  questionIndex?: number;
 }): LocalEarTrainingQuestion => {
   const intervals = earTrainingIntervals[difficulty];
-  const safeSequence = Math.max(0, Math.floor(sequence));
-  const interval = intervals[safeSequence % intervals.length];
-  const root = questionRoots[Math.floor(safeSequence / intervals.length) % questionRoots.length];
+  const safeSequence = Number.isFinite(sequence) ? Math.max(0, Math.floor(sequence)) : 0;
+  const safeQuestionIndex = questionIndex !== undefined && Number.isFinite(questionIndex)
+    ? Math.max(0, Math.floor(questionIndex))
+    : safeSequence;
+  const interval = intervals[safeQuestionIndex % intervals.length];
+  const root = questionRoots[Math.floor(safeQuestionIndex / intervals.length) % questionRoots.length];
 
   return {
     id: `${difficulty}-${direction}-${safeSequence}-${interval.id}-${root.label}`,
