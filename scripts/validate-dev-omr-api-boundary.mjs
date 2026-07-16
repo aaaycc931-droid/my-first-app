@@ -3,7 +3,7 @@ import { execSync } from "node:child_process";
 
 const routePath = "app/api/dev/recognize-audiveris/route.ts";
 const mainApiPath = "app/api/recognize/route.ts";
-const pagePath = "app/page.tsx";
+const pagePath = "app/recognize/page.tsx";
 const recognizerFactoryPath = "lib/recognition/recognizerFactory.ts";
 
 const checks = [];

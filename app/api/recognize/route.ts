@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { getRecognizer } from "../../../lib/recognition/recognizerFactory";
+import { RecognitionProviderUnavailableError } from "../../../lib/recognition/aiRecognizer";
 
 const maxImageSize = 10 * 1024 * 1024;
 const allowedImageTypes = new Set(["image/jpeg", "image/png"]);
@@ -21,8 +22,20 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "图片大小不能超过 10MB。" }, { status: 400 });
   }
 
-  const recognizer = getRecognizer();
-  const response = await recognizer.recognize(image);
-
-  return NextResponse.json(response);
+  try {
+    const recognizer = getRecognizer();
+    const response = await recognizer.recognize(image);
+    return NextResponse.json(response);
+  } catch (error) {
+    if (error instanceof RecognitionProviderUnavailableError) {
+      return NextResponse.json(
+        { error: "当前识谱服务尚未配置，无法执行真实识谱。请稍后重试。" },
+        { status: 503 },
+      );
+    }
+    return NextResponse.json(
+      { error: "识谱处理失败，请稍后重试。" },
+      { status: 500 },
+    );
+  }
 }

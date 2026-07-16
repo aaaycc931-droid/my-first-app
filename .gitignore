@@ -3,6 +3,7 @@ node_modules
 out
 .env*.local
 .vercel
+*.tsbuildinfo
 *.log
 
 # Local-only real voice experiments: never commit recordings or local metadata.

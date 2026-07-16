@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 
 import {
   defaultMetronomeConfig,
@@ -566,12 +567,23 @@ export default function PracticePage() {
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
+    const requestedFeature = params.get("feature");
     const requestedExerciseId = params.get("exercise");
-    if (
-      params.get("feature") === "ear-training" &&
-      params.get("mode") === "single-pitch" &&
-      isCourseExerciseId(requestedExerciseId)
-    ) {
+    const availableFeatures: PracticeFeatureView[] = ["sheet-music", "notation-practice", "local-melody", "ear-training", "rhythm", "onset", "feedback"];
+    if (availableFeatures.includes(requestedFeature as PracticeFeatureView)) {
+      setActiveFeatureView(requestedFeature as PracticeFeatureView);
+    }
+    const requestedEarTrainingMode: Record<string, EarTrainingExerciseMode> = {
+      "single-pitch": "单音",
+      interval: "音程",
+      rhythm: "节奏",
+      melody: "旋律听写",
+    };
+    const mode = params.get("mode");
+    if (requestedFeature === "ear-training" && mode && requestedEarTrainingMode[mode]) {
+      setEarTrainingExerciseMode(requestedEarTrainingMode[mode]);
+    }
+    if (requestedFeature === "ear-training" && mode === "single-pitch" && isCourseExerciseId(requestedExerciseId)) {
       setActiveFeatureView("ear-training");
       setEarTrainingExerciseMode("单音");
       setCourseExerciseId(requestedExerciseId);
@@ -778,7 +790,6 @@ export default function PracticePage() {
       latencyCalibrationTargets,
       latencyCalibrationTaps,
       latencyCalibrationPhase,
-      latencyCalibrationNowMs,
     ],
   );
 
@@ -1287,7 +1298,7 @@ export default function PracticePage() {
     }
   };
 
-  const handleRhythmTap = () => {
+  const handleRhythmTap = useCallback(() => {
     const timestampMs = performance.now();
     if (rhythmPhase !== "practice") {
       return;
@@ -1299,7 +1310,7 @@ export default function PracticePage() {
       { id: nextTapId, timestampMs, phase: "practice" },
     ]);
     setRhythmNowMs(timestampMs);
-  };
+  }, [rhythmPhase]);
 
   const handleResetLatencyCalibration = () => {
     stopLatencyCalibrationRuntime();
@@ -1399,7 +1410,7 @@ export default function PracticePage() {
     }
   };
 
-  const handleLatencyCalibrationTap = () => {
+  const handleLatencyCalibrationTap = useCallback(() => {
     const timestampMs = performance.now();
     if (latencyCalibrationPhase !== "practice") return;
     const nextTapId = latencyCalibrationTapIdRef.current + 1;
@@ -1409,7 +1420,7 @@ export default function PracticePage() {
       { id: nextTapId, timestampMs },
     ]);
     setLatencyCalibrationNowMs(timestampMs);
-  };
+  }, [latencyCalibrationPhase]);
 
   const handleStartMetronome = async () => {
     stopMetronome();
@@ -2079,7 +2090,7 @@ export default function PracticePage() {
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [rhythmPhase, latencyCalibrationPhase]);
+  }, [handleLatencyCalibrationTap, handleRhythmTap, latencyCalibrationPhase]);
 
   const isListening = flowState === "listening";
   const isAnyTargetPlaybackActive = isListening || isSelectedTargetNotePlaying;
@@ -2087,6 +2098,7 @@ export default function PracticePage() {
   return (
     <main className="min-h-screen bg-slate-50 px-4 py-10 text-slate-900 sm:px-6">
       <section className="mx-auto max-w-4xl rounded-3xl bg-white p-6 shadow-sm ring-1 ring-slate-200 sm:p-8">
+        <Link href="/home" className="text-sm font-semibold text-indigo-700">← 返回学习首页</Link>
         <div className="border-b border-slate-200 pb-6">
           <p className="text-sm font-semibold text-emerald-600">
             浏览器本地练习模式
