@@ -16,18 +16,22 @@ export const useLocalQuestionSchedule = ({
   itemCount,
   sequence,
   isCourseExercise,
+  replaySeed,
 }: {
   itemCount: number;
   sequence: number;
   isCourseExercise: boolean;
+  replaySeed?: number;
 }) => {
-  const [sessionSeed, setSessionSeed] = useState<number | null>(null);
+  const [generatedSeed, setGeneratedSeed] = useState<number | null>(null);
 
   useEffect(() => {
-    if (isCourseExercise) return undefined;
-    const timer = window.setTimeout(() => setSessionSeed(createLocalQuestionSeed()), 0);
+    if (isCourseExercise || replaySeed !== undefined) return undefined;
+    const timer = window.setTimeout(() => setGeneratedSeed(createLocalQuestionSeed()), 0);
     return () => window.clearTimeout(timer);
-  }, [isCourseExercise]);
+  }, [isCourseExercise, replaySeed]);
+
+  const sessionSeed = isCourseExercise ? null : replaySeed ?? generatedSeed;
 
   const questionIndex = useMemo(() => {
     if (isCourseExercise || sessionSeed === null) return sequence;
@@ -39,6 +43,7 @@ export const useLocalQuestionSchedule = ({
 
   return {
     questionIndex,
+    sessionSeed,
     isReady: isCourseExercise || sessionSeed !== null,
   };
 };

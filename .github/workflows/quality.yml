@@ -41,6 +41,9 @@ jobs:
           npm run test:browser-audio-engine
           npm run test:mobile-lifecycle
           npm run test:local-practice-answer-lock
+          npm run test:local-practice-review-queue
+          npm run test:mobile-practice-review-storage
+          npm run test:mobile-practice-review-ui-contract
           npm run test:local-question-scheduler
           npm run test:local-ear-training-single-pitch
           npm run test:local-ear-training-intervals

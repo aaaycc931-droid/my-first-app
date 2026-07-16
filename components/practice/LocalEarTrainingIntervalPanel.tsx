@@ -13,6 +13,10 @@ import {
   type EarTrainingDirection,
 } from "../../lib/practice/localEarTrainingIntervals";
 import { createIntervalAttemptRpcArgs } from "../../lib/practice/cloudPracticeAttempt";
+import type {
+  LocalPracticeAnswerResult,
+  LocalPracticeReviewTarget,
+} from "../../lib/practice/localPracticeReviewQueue";
 import {
   CourseAttemptSaveNotice,
   useCourseAttemptPersistence,
@@ -23,16 +27,23 @@ import { useLocalQuestionSchedule } from "./useLocalQuestionSchedule";
 
 export function LocalEarTrainingIntervalPanel({
   courseExerciseId,
+  initialReviewTarget,
+  onLocalAnswerResult,
+  onLeaveReviewTarget,
 }: {
   courseExerciseId?: string;
+  initialReviewTarget?: Extract<LocalPracticeReviewTarget, { kind: "interval" }>;
+  onLocalAnswerResult?: (result: LocalPracticeAnswerResult) => void;
+  onLeaveReviewTarget?: () => void;
 }) {
-  const [difficulty, setDifficulty] = useState<EarTrainingDifficulty>("基础");
-  const [direction, setDirection] = useState<EarTrainingDirection>("上行");
-  const [sequence, setSequence] = useState(0);
-  const { questionIndex, isReady: isQuestionReady } = useLocalQuestionSchedule({
+  const [difficulty, setDifficulty] = useState<EarTrainingDifficulty>(initialReviewTarget?.difficulty ?? "基础");
+  const [direction, setDirection] = useState<EarTrainingDirection>(initialReviewTarget?.direction ?? "上行");
+  const [sequence, setSequence] = useState(initialReviewTarget?.sequence ?? 0);
+  const { questionIndex, sessionSeed, isReady: isQuestionReady } = useLocalQuestionSchedule({
     itemCount: getLocalEarTrainingQuestionVariantCount(difficulty),
     sequence,
     isCourseExercise: Boolean(courseExerciseId),
+    replaySeed: initialReviewTarget?.seed,
   });
   const answerLock = useLockedPracticeAnswer<string | null>(
     null,
@@ -92,6 +103,19 @@ export function LocalEarTrainingIntervalPanel({
   const revealAnswer = async () => {
     const submittedIntervalId = answerLock.reveal();
     if (!submittedIntervalId) return;
+    const matchesAnswer = submittedIntervalId === question.interval.id;
+    if (!courseExerciseId && onLocalAnswerResult && sessionSeed !== null) {
+      onLocalAnswerResult({
+        target: {
+          kind: "interval",
+          difficulty,
+          direction,
+          seed: sessionSeed,
+          sequence,
+        },
+        isCorrect: matchesAnswer,
+      });
+    }
     if (!courseExerciseId) return;
 
     await saveCourseAttempt(
@@ -103,14 +127,15 @@ export function LocalEarTrainingIntervalPanel({
         sequence,
         selectedIntervalId: submittedIntervalId,
         targetIntervalId: question.interval.id,
-        matchesAnswer: answer.matchesAnswer,
+        matchesAnswer,
       }),
     );
   };
 
   const nextQuestion = () => {
     resetCurrentQuestion();
-    setSequence((current) => current + 1);
+    if (initialReviewTarget && onLeaveReviewTarget) onLeaveReviewTarget();
+    else setSequence((current) => current + 1);
   };
 
   const retryCurrentQuestion = () => {
@@ -123,7 +148,7 @@ export function LocalEarTrainingIntervalPanel({
       <p className="text-sm font-semibold tracking-wide text-emerald-600">本地练习</p>
       <h2 className="mt-1 text-2xl font-bold text-slate-950">内置音程听辨练习</h2>
       <p className="mt-2 text-sm leading-6 text-slate-600">
-        先听两个依次播放的本地合成音，再选择你听到的音程。本模块不上传音频，也不生成正式成绩。{courseExerciseId ? "当前题目来自系统课程；登录后查看答案时会保存一条仅本人可见的练习记录。" : "当前入口不会保存练习记录。"}
+        先听两个依次播放的本地合成音，再选择你听到的音程。本模块不上传音频，也不生成正式成绩。{courseExerciseId ? "当前题目来自系统课程；登录后查看答案时会保存一条仅本人可见的练习记录。" : onLocalAnswerResult ? "当前作答和声音不保存；答错时仅保存复现本题所需的最小信息。" : "当前入口不会保存练习记录。"}
       </p>
 
       <div className="mt-5 grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)]">
@@ -131,7 +156,7 @@ export function LocalEarTrainingIntervalPanel({
           <label className="block text-sm font-semibold text-slate-800" htmlFor="ear-training-difficulty">练习难度</label>
           <select
             id="ear-training-difficulty"
-            disabled={Boolean(courseExerciseId)}
+            disabled={Boolean(courseExerciseId || initialReviewTarget)}
             className="mt-2 w-full rounded-xl border border-emerald-200 bg-white px-3 py-2 text-slate-900 disabled:cursor-not-allowed disabled:bg-slate-100"
             value={difficulty}
             onChange={(event) => {
@@ -154,6 +179,7 @@ export function LocalEarTrainingIntervalPanel({
                 <button
                   key={option}
                   type="button"
+                  disabled={Boolean(initialReviewTarget)}
                   onClick={() => {
                     stopPlayback();
                     setDirection(option);
@@ -170,7 +196,7 @@ export function LocalEarTrainingIntervalPanel({
               ))}
             </div>
           </fieldset>
-          <p className="mt-4 text-sm leading-6 text-emerald-900">当前为内置题目 {sequence + 1}（{direction}）。{courseExerciseId ? "系统课程按固定顺序出题。" : "本轮题库会随机排序，全部出现一次后循环；不保存到本机或账号。"}{getLocalEarTrainingDirectionDescription(direction)} 题目音高由浏览器本地 Web Audio 合成，不读取文件、不调用接口。</p>
+          <p className="mt-4 text-sm leading-6 text-emerald-900">当前为内置题目 {sequence + 1}（{direction}）。{courseExerciseId ? "系统课程按固定顺序出题。" : "本轮题库会随机排序，全部出现一次后循环；当前作答不保存。"}{getLocalEarTrainingDirectionDescription(direction)} 题目音高由浏览器本地 Web Audio 合成，不读取文件、不调用接口。</p>
           {!isQuestionReady ? <p className="mt-2 text-sm text-emerald-800">正在准备本轮题目…</p> : null}
           <button type="button" onClick={() => void playQuestion()} disabled={!isQuestionReady || isPlaying} className="mt-4 w-full rounded-xl bg-emerald-700 px-4 py-3 font-semibold text-white disabled:cursor-not-allowed disabled:bg-emerald-300">
             {playbackState === "准备中" ? "正在准备声音…" : isPlaying ? "正在播放两个音…" : "播放题目"}
@@ -203,7 +229,7 @@ export function LocalEarTrainingIntervalPanel({
             </button>
             {isAnswerVisible && !answer.matchesAnswer ? <button type="button" onClick={retryCurrentQuestion} className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-2.5 font-semibold text-amber-900">重新播放并复练本题</button> : null}
             <button type="button" onClick={resetCurrentQuestion} className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 font-semibold text-slate-800">重置本题</button>
-            <button type="button" disabled={!isQuestionReady} onClick={nextQuestion} className="rounded-xl border border-emerald-300 bg-white px-4 py-2.5 font-semibold text-emerald-800 disabled:cursor-not-allowed disabled:opacity-50">下一题</button>
+            <button type="button" disabled={!isQuestionReady} onClick={nextQuestion} className="rounded-xl border border-emerald-300 bg-white px-4 py-2.5 font-semibold text-emerald-800 disabled:cursor-not-allowed disabled:opacity-50">{initialReviewTarget ? "返回随机练习" : "下一题"}</button>
           </div>
           {!answer.hasSelection ? <p className="mt-3 text-sm leading-6 text-slate-500">请先选择一个音程，再查看本题答案。</p> : null}
           {isAnswerVisible ? (
@@ -218,7 +244,7 @@ export function LocalEarTrainingIntervalPanel({
         </div>
       </div>
 
-      <p className="mt-5 text-sm leading-6 text-slate-500">{courseExerciseId ? "课程边界：题目播放与答案仍在浏览器完成，不上传音频。登录用户查看答案时只保存当前题目、方向、选择和答案一致性摘要；未登录用户不保存。" : "会话边界：题目序号、选择与答案说明只存在于当前页面内存；刷新后消失，不写入 localStorage、IndexedDB、账号或数据库。"}</p>
+      <p className="mt-5 text-sm leading-6 text-slate-500">{courseExerciseId ? "课程边界：题目播放与答案仍在浏览器完成，不上传音频。登录用户查看答案时只保存当前题目、方向、选择和答案一致性摘要；未登录用户不保存。" : onLocalAnswerResult ? "本机复练只保存复现这道题所需的题型、难度、方向和随机题序，不保存你的选择、声音或正式成绩。" : "会话边界：题目序号、选择与答案说明只存在于当前页面内存；刷新后消失，不写入 localStorage、IndexedDB、账号或数据库。"}</p>
     </section>
   );
 }
