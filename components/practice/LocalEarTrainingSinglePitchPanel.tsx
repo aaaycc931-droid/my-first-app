@@ -14,6 +14,7 @@ import {
   useCourseAttemptPersistence,
 } from "./CourseAttemptPersistence";
 import { useLocalAudioPlayback } from "./useLocalAudioPlayback";
+import { useLockedPracticeAnswer } from "./useLockedPracticeAnswer";
 
 export function LocalEarTrainingSinglePitchPanel({
   courseExerciseId,
@@ -22,8 +23,12 @@ export function LocalEarTrainingSinglePitchPanel({
 }) {
   const [difficulty, setDifficulty] = useState<EarTrainingSinglePitchDifficulty>("基础");
   const [sequence, setSequence] = useState(0);
-  const [selectedPitchId, setSelectedPitchId] = useState<string | null>(null);
-  const [isAnswerVisible, setIsAnswerVisible] = useState(false);
+  const answerLock = useLockedPracticeAnswer<string | null>(
+    null,
+    (selection) => selection !== null,
+  );
+  const selectedPitchId = answerLock.selection;
+  const isAnswerVisible = answerLock.isAnswerVisible;
   const [audioError, setAudioError] = useState("");
   const { resetSaveStatus, saveCourseAttempt, saveStatus } =
     useCourseAttemptPersistence();
@@ -34,15 +39,14 @@ export function LocalEarTrainingSinglePitchPanel({
 
   const resetCurrentQuestion = () => {
     stopPlayback();
-    setSelectedPitchId(null);
-    setIsAnswerVisible(false);
+    answerLock.reset();
     setAudioError("");
     resetSaveStatus();
   };
 
   const revealAnswer = async () => {
-    if (!answer.hasSelection || !selectedPitchId) return;
-    setIsAnswerVisible(true);
+    const submittedPitchId = answerLock.reveal();
+    if (!submittedPitchId) return;
     if (!courseExerciseId) return;
 
     await saveCourseAttempt(
@@ -51,7 +55,7 @@ export function LocalEarTrainingSinglePitchPanel({
         exerciseId: courseExerciseId,
         difficulty,
         sequence,
-        selectedPitchId,
+        selectedPitchId: submittedPitchId,
         targetPitchId: question.pitch.id,
         matchesAnswer: answer.matchesAnswer,
       }),
@@ -92,7 +96,7 @@ export function LocalEarTrainingSinglePitchPanel({
       <div className="mt-5 grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)]">
         <div className="rounded-2xl bg-sky-50 p-4 ring-1 ring-sky-100">
           <label className="block text-sm font-semibold text-slate-800" htmlFor="ear-training-single-pitch-difficulty">练习难度</label>
-          <select id="ear-training-single-pitch-difficulty" disabled={Boolean(courseExerciseId)} className="mt-2 w-full rounded-xl border border-sky-200 bg-white px-3 py-2 text-slate-900 disabled:cursor-not-allowed disabled:bg-slate-100" value={difficulty} onChange={(event) => { stopPlayback(); setDifficulty(event.target.value as EarTrainingSinglePitchDifficulty); setSequence(0); setSelectedPitchId(null); setIsAnswerVisible(false); setAudioError(""); resetSaveStatus(); }}>
+          <select id="ear-training-single-pitch-difficulty" disabled={Boolean(courseExerciseId)} className="mt-2 w-full rounded-xl border border-sky-200 bg-white px-3 py-2 text-slate-900 disabled:cursor-not-allowed disabled:bg-slate-100" value={difficulty} onChange={(event) => { stopPlayback(); setDifficulty(event.target.value as EarTrainingSinglePitchDifficulty); setSequence(0); answerLock.reset(); setAudioError(""); resetSaveStatus(); }}>
             <option value="基础">基础：C4、D4、E4、G4</option>
             <option value="进阶">进阶：增加 A4、B4</option>
           </select>
@@ -105,7 +109,7 @@ export function LocalEarTrainingSinglePitchPanel({
         <div className="rounded-2xl border border-slate-200 p-4">
           <p className="text-sm font-semibold text-slate-500">回答本题</p>
           <p className="mt-1 text-lg font-bold text-slate-950">听完后选择你听到的音名</p>
-          <div className="mt-4 grid gap-2 sm:grid-cols-3">{earTrainingSinglePitches[difficulty].map((pitch) => <button key={pitch.id} type="button" onClick={() => { setSelectedPitchId(pitch.id); setIsAnswerVisible(false); resetSaveStatus(); }} className={`rounded-xl border px-3 py-3 text-left font-semibold transition ${selectedPitchId === pitch.id ? "border-sky-600 bg-sky-50 text-sky-900 ring-2 ring-sky-200" : "border-slate-200 bg-white text-slate-800 hover:border-sky-300"}`}>{pitch.label}</button>)}</div>
+          <div className="mt-4 grid gap-2 sm:grid-cols-3">{earTrainingSinglePitches[difficulty].map((pitch) => <button key={pitch.id} type="button" disabled={isAnswerVisible} onClick={() => { if (answerLock.choose(pitch.id)) resetSaveStatus(); }} className={`rounded-xl border px-3 py-3 text-left font-semibold transition disabled:cursor-not-allowed disabled:opacity-70 ${selectedPitchId === pitch.id ? "border-sky-600 bg-sky-50 text-sky-900 ring-2 ring-sky-200" : "border-slate-200 bg-white text-slate-800 hover:border-sky-300"}`}>{pitch.label}</button>)}</div>
           <div className="mt-4 flex flex-wrap gap-2">
             <button type="button" disabled={!answer.hasSelection || saveStatus === "saving"} onClick={() => void revealAnswer()} className="rounded-xl bg-slate-900 px-4 py-2.5 font-semibold text-white disabled:cursor-not-allowed disabled:bg-slate-300">{saveStatus === "saving" ? "正在保存练习记录…" : "查看本题答案"}</button>
             {isAnswerVisible && !answer.matchesAnswer ? <button type="button" onClick={retryCurrentQuestion} className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-2.5 font-semibold text-amber-900">重新播放并复练本题</button> : null}
@@ -113,7 +117,7 @@ export function LocalEarTrainingSinglePitchPanel({
             <button type="button" onClick={() => { resetCurrentQuestion(); setSequence((current) => current + 1); }} className="rounded-xl border border-sky-300 bg-white px-4 py-2.5 font-semibold text-sky-800">下一题</button>
           </div>
           {!answer.hasSelection ? <p className="mt-3 text-sm leading-6 text-slate-500">请先选择一个音名，再查看本题答案。</p> : null}
-          {isAnswerVisible ? <div className="mt-4 rounded-2xl bg-slate-50 p-4 text-sm leading-6 text-slate-700"><p className="font-bold text-slate-950">本题答案：{answer.answerLabel}</p><p className="mt-1">{answer.explanation}</p><p className="mt-2">你的选择：{earTrainingSinglePitches[difficulty].find((pitch) => pitch.id === selectedPitchId)?.label ?? "未选择"}。{answer.matchesAnswer ? "这次选择与本题答案一致。" : "这次选择与本题答案不同；可以再次播放并重置本题复练。"}</p><p className="mt-2 text-slate-500">这是题目答案说明，不是正式分数、准确率、等级、通过或失败判断。</p></div> : null}
+          {isAnswerVisible ? <div className="mt-4 rounded-2xl bg-slate-50 p-4 text-sm leading-6 text-slate-700"><p className="font-bold text-slate-950">本题答案：{answer.answerLabel}</p><p className="mt-1">{answer.explanation}</p><p className="mt-2">你的选择：{earTrainingSinglePitches[difficulty].find((pitch) => pitch.id === selectedPitchId)?.label ?? "未选择"}。{answer.matchesAnswer ? "这次选择与本题答案一致。" : "这次选择与本题答案不同；可以再次播放并重置本题复练。"}</p><p className="mt-2 text-slate-500">答案说明显示后，本题选择已锁定；请使用复练或下一题开始新的尝试。这不是正式分数、准确率、等级、通过或失败判断。</p></div> : null}
           {courseExerciseId ? <CourseAttemptSaveNotice status={saveStatus} /> : null}
         </div>
       </div>

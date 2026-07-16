@@ -15,6 +15,7 @@ import {
   useCourseAttemptPersistence,
 } from "./CourseAttemptPersistence";
 import { useLocalAudioPlayback } from "./useLocalAudioPlayback";
+import { useLockedPracticeAnswer } from "./useLockedPracticeAnswer";
 
 export function LocalEarTrainingRhythmPanel({
   courseExerciseId,
@@ -23,8 +24,12 @@ export function LocalEarTrainingRhythmPanel({
 }) {
   const [difficulty, setDifficulty] = useState<EarTrainingRhythmDifficulty>("基础");
   const [sequence, setSequence] = useState(0);
-  const [selectedPatternId, setSelectedPatternId] = useState<string | null>(null);
-  const [isAnswerVisible, setIsAnswerVisible] = useState(false);
+  const answerLock = useLockedPracticeAnswer<string | null>(
+    null,
+    (selection) => selection !== null,
+  );
+  const selectedPatternId = answerLock.selection;
+  const isAnswerVisible = answerLock.isAnswerVisible;
   const [audioError, setAudioError] = useState("");
   const { resetSaveStatus, saveCourseAttempt, saveStatus } =
     useCourseAttemptPersistence();
@@ -42,15 +47,14 @@ export function LocalEarTrainingRhythmPanel({
 
   const resetCurrentQuestion = () => {
     stopPlayback();
-    setSelectedPatternId(null);
-    setIsAnswerVisible(false);
+    answerLock.reset();
     setAudioError("");
     resetSaveStatus();
   };
 
   const revealAnswer = async () => {
-    if (!answer.hasSelection || !selectedPatternId) return;
-    setIsAnswerVisible(true);
+    const submittedPatternId = answerLock.reveal();
+    if (!submittedPatternId) return;
     if (!courseExerciseId) return;
 
     await saveCourseAttempt(
@@ -59,7 +63,7 @@ export function LocalEarTrainingRhythmPanel({
         exerciseId: courseExerciseId,
         difficulty,
         sequence,
-        selectedPatternId,
+        selectedPatternId: submittedPatternId,
         targetPatternId: question.pattern.id,
         matchesAnswer: answer.matchesAnswer,
       }),
@@ -121,8 +125,7 @@ export function LocalEarTrainingRhythmPanel({
               stopPlayback();
               setDifficulty(event.target.value as EarTrainingRhythmDifficulty);
               setSequence(0);
-              setSelectedPatternId(null);
-              setIsAnswerVisible(false);
+              answerLock.reset();
               setAudioError("");
               resetSaveStatus();
             }}
@@ -150,11 +153,10 @@ export function LocalEarTrainingRhythmPanel({
                 key={pattern.id}
                 type="button"
                 onClick={() => {
-                  setSelectedPatternId(pattern.id);
-                  setIsAnswerVisible(false);
-                  resetSaveStatus();
+                  if (answerLock.choose(pattern.id)) resetSaveStatus();
                 }}
-                className={`rounded-xl border px-3 py-3 text-left font-semibold transition ${selectedPatternId === pattern.id ? "border-violet-600 bg-violet-50 text-violet-900 ring-2 ring-violet-200" : "border-slate-200 bg-white text-slate-800 hover:border-violet-300"}`}
+                disabled={isAnswerVisible}
+                className={`rounded-xl border px-3 py-3 text-left font-semibold transition disabled:cursor-not-allowed disabled:opacity-70 ${selectedPatternId === pattern.id ? "border-violet-600 bg-violet-50 text-violet-900 ring-2 ring-violet-200" : "border-slate-200 bg-white text-slate-800 hover:border-violet-300"}`}
               >
                 {pattern.label}
               </button>
@@ -174,7 +176,7 @@ export function LocalEarTrainingRhythmPanel({
               <p className="font-bold text-slate-950">本题答案：{answer.answerLabel}</p>
               <p className="mt-1">{answer.explanation}</p>
               <p className="mt-2">你的选择：{earTrainingRhythmPatterns[difficulty].find((pattern) => pattern.id === selectedPatternId)?.label ?? "未选择"}。{answer.matchesAnswer ? "这次选择与本题答案一致。" : "这次选择与本题答案不同；可以再次播放并重置本题复练。"}</p>
-              <p className="mt-2 text-slate-500">这是题目答案说明，不是正式分数、准确率、等级、通过或失败判断。</p>
+              <p className="mt-2 text-slate-500">答案说明显示后，本题选择已锁定；请使用复练或下一题开始新的尝试。这不是正式分数、准确率、等级、通过或失败判断。</p>
             </div>
           ) : null}
           {courseExerciseId ? <CourseAttemptSaveNotice status={saveStatus} /> : null}
