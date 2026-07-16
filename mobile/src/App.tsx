@@ -32,6 +32,7 @@ import {
   loadMobilePracticeReviewQueue,
   saveMobilePracticeReviewQueue,
 } from "./runtime/mobilePracticeReviewStorage";
+import type { GeneratedLocalVocalExercise } from "../../lib/practice/localVocalExercise";
 
 const screens = ["home", "monitor", "pitch", "interval", "rhythm", "melody", "piano"] as const;
 type Screen = (typeof screens)[number];
@@ -119,6 +120,7 @@ function PracticeScreen({
 }
 
 export function App() {
+  const [vocalTarget, setVocalTarget] = useState<GeneratedLocalVocalExercise | null>(null);
   const [activeScreen, setActiveScreen] = useState<Screen>(screenFromHash);
   const [initialReviewStorageResult] = useState(() =>
     loadMobilePracticeReviewQueue(getBrowserPracticeReviewStorage()),
@@ -440,8 +442,8 @@ export function App() {
         ) : activeScreen === "monitor" ? (
           <section aria-label={screenDetails.monitor.title} className="grid gap-4">
             <a href="#home" onClick={() => setActiveReviewTarget(null)} className="mb-3 inline-flex min-h-11 items-center rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-bold text-slate-800 shadow-sm">返回练习首页</a>
-            {lifecycle.isForeground ? <RealtimePitchMonitorPanel /> : null}
-            {lifecycle.isForeground ? <LocalVocalExercisePanel /> : null}
+            {lifecycle.isForeground ? <RealtimePitchMonitorPanel targetExercise={vocalTarget} /> : null}
+            {lifecycle.isForeground ? <LocalVocalExercisePanel onTargetChange={setVocalTarget} /> : null}
           </section>
         ) : (
           <section aria-label={screenDetails[activeScreen].title}>

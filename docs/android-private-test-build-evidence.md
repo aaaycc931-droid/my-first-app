@@ -2,6 +2,10 @@
 
 执行日期：2026-07-16
 
+## P100 版本化练声生成器候选
+
+P100 已在 PR #351 的 GitHub Actions run `29501929393` 完成自动化验证，`quality` 与 `android-local` 两个 job 均为 PASS；合并后的 main squash commit 为 `dadccec70c2a687327c1ec0d60d9b7bb93e6cd0d`。artifact `8376849801` 内 APK SHA-256 为 `0b0d7a467eb82e8fa87d0d685a704fe433d0056b715d31ab679e5656265a77db`，GitHub artifact ZIP digest 为 `8f533a3f656f041ba87164aa393ac62ecd29ccc0167670e692307d0efae8c8cc`。自动证据不证明真机参考音听感、调度精度、长循环发热或扬声器串音，也不包含 P101 目标曲线对照。
+
 ## P99 当前会话录音候选
 
 P99 已在 PR #350 的 GitHub Actions run `29500985893` 完成自动化验证，`quality` 与 `android-local` 两个 job 均为 PASS；合并后的 main squash commit 为 `9dba1bbbec1e1e87cd9775643a6b5d4fad2a451e`。artifact `8376459594` 内 APK SHA-256 为 `d7dbc7b57628593b7421df5fb9f50654b62f357f19fb70f871e26562bef18b43`，GitHub artifact ZIP digest 为 `f08175ba32b723d098240fe02f9570dd74cb676e695e7cd9e275e4067491ae09`。

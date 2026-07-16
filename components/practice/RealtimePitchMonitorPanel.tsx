@@ -3,6 +3,8 @@
 import { useState } from "react";
 
 import { midiToScientificNote } from "../../lib/practice/realtimePitchCurve";
+import type { GeneratedLocalVocalExercise } from "../../lib/practice/localVocalExercise";
+import { getLocalVocalTargetFeedback } from "../../lib/practice/localVocalTargetFeedback";
 import { RealtimePitchCurveChart } from "./RealtimePitchCurveChart";
 import { useRealtimePitchMonitor } from "./useRealtimePitchMonitor";
 
@@ -15,12 +17,14 @@ const frameCopy = {
 
 const displayNote = (note: string | null): string => note?.replace("#", "♯") ?? "—";
 
-export function RealtimePitchMonitorPanel() {
+export function RealtimePitchMonitorPanel({ targetExercise = null }: { targetExercise?: GeneratedLocalVocalExercise | null }) {
   const monitor = useRealtimePitchMonitor();
   const [windowSeconds, setWindowSeconds] = useState(10);
   const [targetMidi, setTargetMidi] = useState(69);
   const isActive = monitor.status === "requesting" || monitor.status === "listening";
   const reliable = monitor.frame?.state === "reliable" ? monitor.frame : null;
+  const targetFeedback = getLocalVocalTargetFeedback(monitor.curvePoints, targetExercise?.events ?? [], monitor.listeningStartedAtMs);
+  const targetFeedbackCopy = targetFeedback.state === "close" ? "接近目标音" : targetFeedback.state === "high" ? "当前偏高" : targetFeedback.state === "low" ? "当前偏低" : targetFeedback.state === "unreliable" ? "当前不足以可靠判断" : "等待目标时段或稳定人声";
 
   return (
     <section className="rounded-3xl border border-cyan-200 bg-white p-5 shadow-sm sm:p-6">
@@ -42,7 +46,8 @@ export function RealtimePitchMonitorPanel() {
         <p className="mt-4 text-sm leading-6 text-slate-300">
           {monitor.frame ? frameCopy[monitor.frame.state] : "开始后请持续唱一个清晰、稳定的单音。"}
         </p>
-        <RealtimePitchCurveChart points={monitor.curvePoints} windowSeconds={windowSeconds} targetMidi={targetMidi} />
+        <RealtimePitchCurveChart points={monitor.curvePoints} windowSeconds={windowSeconds} targetMidi={targetMidi} targetEvents={targetExercise?.events} targetStartedAtMs={monitor.listeningStartedAtMs} />
+        {targetExercise ? <div className="mt-3 rounded-xl border border-lime-700/60 bg-lime-950/40 p-3 text-sm"><p className="font-bold text-lime-200">练声目标对照（非评分）</p><p className="mt-1 text-white">{targetFeedbackCopy}{targetFeedback.cents !== null ? `：${targetFeedback.cents >= 0 ? "+" : ""}${targetFeedback.cents.toFixed(0)} cents` : ""}</p></div> : null}
       </div>
 
       <div className="mt-4 grid gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4 sm:grid-cols-2">

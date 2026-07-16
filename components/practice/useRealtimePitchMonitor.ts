@@ -28,6 +28,7 @@ export function useRealtimePitchMonitor() {
   const [status, setStatus] = useState<RealtimePitchMonitorStatus>("idle");
   const [frame, setFrame] = useState<RealtimePitchFrameAnalysis | null>(null);
   const [curvePoints, setCurvePoints] = useState<RealtimePitchCurvePoint[]>([]);
+  const [listeningStartedAtMs, setListeningStartedAtMs] = useState<number | null>(null);
   const [error, setError] = useState("");
   const [recordingStatus, setRecordingStatus] = useState<RealtimePitchRecordingStatus>("empty");
   const [recordingError, setRecordingError] = useState("");
@@ -104,6 +105,7 @@ export function useRealtimePitchMonitor() {
     stop();
     setFrame(null);
     setCurvePoints([]);
+    setListeningStartedAtMs(null);
     setError("");
     discardRecording();
   }, [discardRecording, stop]);
@@ -162,6 +164,7 @@ export function useRealtimePitchMonitor() {
       }
 
       const samples = new Float32Array(REALTIME_PITCH_FRAME_SIZE);
+      setListeningStartedAtMs(performance.now());
       const analyze = () => {
         if (!mountedRef.current || generation !== generationRef.current) return;
         analyser.getFloatTimeDomainData(samples);
@@ -312,6 +315,7 @@ export function useRealtimePitchMonitor() {
     status,
     frame,
     curvePoints,
+    listeningStartedAtMs,
     error,
     start,
     stop,

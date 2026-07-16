@@ -12,6 +12,7 @@ import {
   generateLocalVocalExercise,
   localVocalExerciseManifest,
   type LocalVocalExerciseConfig,
+  type GeneratedLocalVocalExercise,
 } from "../../lib/practice/localVocalExercise";
 import { midiToScientificNote } from "../../lib/practice/realtimePitchCurve";
 
@@ -21,11 +22,14 @@ const rootOptions = Array.from({ length: 25 }, (_, index) => 48 + index);
 
 export function LocalVocalExercisePanel({
   createChannel = createBrowserAudioChannel,
+  onTargetChange,
 }: {
   createChannel?: () => VocalAudioChannel;
+  onTargetChange?: (exercise: GeneratedLocalVocalExercise | null) => void;
 }) {
   const [config, setConfig] = useState<LocalVocalExerciseConfig>(DEFAULT_LOCAL_VOCAL_EXERCISE_CONFIG);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [selectedEventIndex, setSelectedEventIndex] = useState(0);
   const [error, setError] = useState("");
   const channelRef = useRef<VocalAudioChannel | null>(null);
   const completionTimerRef = useRef<number | null>(null);
@@ -49,7 +53,7 @@ export function LocalVocalExercisePanel({
     if (mountedRef.current) setIsPlaying(false);
   }, []);
 
-  const play = useCallback(async () => {
+  const play = useCallback(async (selectedOnly = false) => {
     if (!generated.exercise) {
       setError(`无法播放：${generated.configError}。请调整根音、方向或八度。`);
       return;
@@ -68,7 +72,11 @@ export function LocalVocalExercisePanel({
         return;
       }
       const startAt = context.currentTime + 0.04;
-      generated.exercise.playbackEvents.forEach((event) => {
+      const selected = generated.exercise.events.find((event) => event.index === selectedEventIndex) ?? generated.exercise.events[0];
+      const playbackEvents = selectedOnly && selected
+        ? Array.from({ length: 3 }, (_, index) => ({ ...selected, index, startSeconds: index * (selected.durationSeconds + 0.25) }))
+        : generated.exercise.playbackEvents;
+      playbackEvents.forEach((event) => {
         const oscillator = context.createOscillator();
         const gain = context.createGain();
         const noteStart = startAt + event.startSeconds;
@@ -85,7 +93,7 @@ export function LocalVocalExercisePanel({
         oscillator.start(noteStart);
         oscillator.stop(noteEnd + 0.01);
       });
-      const playbackEnd = generated.exercise.playbackEvents.reduce((maximum, event) => Math.max(maximum, event.startSeconds + event.durationSeconds), 0);
+      const playbackEnd = playbackEvents.reduce((maximum, event) => Math.max(maximum, event.startSeconds + event.durationSeconds), 0);
       setIsPlaying(true);
       completionTimerRef.current = window.setTimeout(() => {
         if (request === requestRef.current) stop();
@@ -98,7 +106,7 @@ export function LocalVocalExercisePanel({
         setError("当前手机无法播放练声参考音。请检查媒体音量后重试，实时曲线仍可单独使用。");
       }
     }
-  }, [createChannel, generated, stop]);
+  }, [createChannel, generated, selectedEventIndex, stop]);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -111,8 +119,13 @@ export function LocalVocalExercisePanel({
     };
   }, []);
 
+  useEffect(() => {
+    onTargetChange?.(generated.exercise);
+  }, [generated.exercise, onTargetChange]);
+
   const update = <K extends keyof LocalVocalExerciseConfig>(key: K, value: LocalVocalExerciseConfig[K]) => {
     stop();
+    setSelectedEventIndex(0);
     setConfig((current) => ({ ...current, [key]: value }));
   };
 
@@ -138,6 +151,8 @@ export function LocalVocalExercisePanel({
       <div className="mt-5 rounded-2xl bg-emerald-50 p-4 text-sm text-emerald-950">
         {generated.exercise ? <><p className="font-bold">目标预览（{generated.exercise.events.length} 音 / {generated.exercise.config.loops} 组）</p><p className="mt-2 break-words font-mono leading-7">{generated.exercise.events.slice(0, Math.min(generated.exercise.events.length, 24)).map((event) => midiToScientificNote(event.midi)).join(" · ")}{generated.exercise.events.length > 24 ? " …" : ""}</p></> : <p className="font-bold text-amber-900">当前配置不可用：{generated.configError}。请调整根音、方向或八度。</p>}
       </div>
+
+      {generated.exercise ? <div className="mt-4 rounded-2xl border border-emerald-200 p-4"><p className="text-sm font-bold text-slate-900">选择片段复练（当前音型第一组）</p><div className="mt-2 flex flex-wrap gap-2">{generated.exercise.events.filter((event) => event.loop === 0).map((event) => <button key={event.index} type="button" aria-pressed={selectedEventIndex === event.index} onClick={() => { stop(); setSelectedEventIndex(event.index); }} className={`min-h-11 min-w-12 rounded-xl px-3 font-bold ${selectedEventIndex === event.index ? "bg-emerald-700 text-white" : "border border-emerald-300 bg-white text-emerald-950"}`}>{midiToScientificNote(event.midi)}</button>)}</div><button type="button" onClick={() => void play(true)} disabled={isPlaying} className="mt-3 min-h-11 rounded-xl border border-emerald-400 bg-emerald-50 px-4 text-sm font-bold text-emerald-950 disabled:opacity-50">重复所选片段 3 次</button></div> : null}
 
       {error ? <p className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950" role="alert">{error}</p> : null}
       <div className="mt-4 flex flex-wrap gap-2">
