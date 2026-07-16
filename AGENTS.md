@@ -23,6 +23,8 @@
 每次涉及 `/practice`、五线谱识别、视唱练耳、练习反馈、产品路线或功能规划任务时，开始实现前必须先读取：
 
 - `docs/mvp-status.md`
+- `docs/final-release-definition-of-done.md`
+- `docs/final-release-status-matrix.md`
 - `docs/sight-singing-ear-training-feature-detail-map.md`
 - `docs/private-cloud-song-practice-pipeline-plan.md`
 
@@ -82,57 +84,34 @@
 
 后续新增功能不得继续加入英文用户可见 copy，除非用户明确要求。
 
-## 当前 MVP 边界
+## 当前运行时边界（P84 之后）
 
-“最终产品”计划已由用户正式授权，但当前已合并 runtime 仍是下列 MVP。任何首次打开账号、云端、上传、持久化、正式评测或生产 OMR 的实现，必须先遵守 `docs/final-product-shape-and-feature-map.md` 和 `docs/final-product-implementation-blueprint.md` 的数据所有权、隐私、删除、版本化和验收要求；不得把未接入的外部服务宣称为已上线能力。
+项目已经进入从 browser-local 研究原型向私有正式学习平台迁移的阶段。当前生产运行时已经真实具备：
 
-当前 MVP 仍保持：
+- Supabase 邮箱 magic-link 登录和私人资料；
+- 已发布系统课程与三节基础课程；
+- 单音、音程和节奏课程尝试的 owner-bound 持久化；
+- Postgres RLS、最小权限 RPC 和生产跨用户隔离 smoke QA；
+- 仍以浏览器本地完成的音频播放、录音、音高/节奏诊断和草稿检查能力。
 
-- browser-local；
-- session-only；
-- non-scoring；
-- diagnostic；
-- no account；
-- no database；
-- no cloud；
-- no upload；
-- no persistent private library；
-- no final target；
-- no official transcription；
-- no source separation；
-- no full-song extraction；
-- no formal scoring；
-- no public sharing；
-- no community。
+不得继续用“no account / no database”描述当前生产事实。每项能力的实时状态以 `docs/mvp-status.md` 和 `docs/final-release-status-matrix.md` 为准；正式版是否完成只由 `docs/final-release-definition-of-done.md` 判定。
 
-未来允许账号、私有云、私人曲库，不代表现在可以实现。
+尚未正式完成的私有上传、对象存储、worker、数据导出/删除、正式评分和生产 OMR，必须先满足最终 DoD 对所有权、隐私、删除、版本化、安全和验收的门槛，不能因为已有数据模型或 mock 就宣称上线。
 
 ## 当前阶段禁止事项
 
-当前阶段禁止越界实现：
+当前阶段禁止：
 
-- 登录；
-- 账号系统；
-- 数据库；
-- 云端；
-- 上传；
-- 支付；
-- 会员；
-- 正式评分；
-- final target；
-- official transcription；
-- source separation；
-- full-song vocal extraction；
-- 社区；
-- 公开主页；
-- 用户互相关注；
-- 评论区；
-- 私信；
-- 公开上传；
-- 公开音乐分享；
-- 公开资源库。
+- 把 service role、数据库密码或第三方密钥放进客户端、日志或仓库；
+- 让浏览器直接写敏感练习、评测、任务或私有资产表；
+- 在没有 RLS、保留期、删除链路和失败恢复时接入私有上传或云端处理；
+- 在没有真实基准、置信度校准和教育审核时提供正式分数、等级或通过/失败；
+- 把自动识别草稿冒充 final target、official transcription 或正式评测目标；
+- 未经迁移验证和回滚设计执行破坏性生产数据变更；
+- 未经单独产品与安全决策实现支付或会员；
+- 社区、公开主页、用户互相关注、评论、私信、公开上传、公开音乐分享、公开资源库或用户间资源交换。
 
-不要默认当前可以实现账号、数据库、云端、上传、正式评分或 final target。若未来任务涉及这些方向，必须先确认它属于单独设计阶段，而不是当前 MVP 默认能力。
+账号、数据库、私有云、上传和正式目标不再被一概禁止；它们必须作为 `docs/final-release-definition-of-done.md` 中边界明确、可测试、可回滚的正式能力推进。
 
 ## QA 分级规则
 
