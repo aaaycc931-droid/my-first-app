@@ -63,6 +63,44 @@ assertTargetContract({
   kind: "rhythm",
 });
 
+for (const path of [
+  "components/practice/LocalEarTrainingSinglePitchPanel.tsx",
+  "components/practice/LocalEarTrainingIntervalPanel.tsx",
+  "components/practice/LocalEarTrainingRhythmPanel.tsx",
+  "components/practice/LocalEarTrainingMelodyDictationPanel.tsx",
+]) {
+  const source = readSource(path);
+  for (const expected of [
+    'import { LocalPianoPanel } from "../piano/LocalPianoPanel"',
+    "showLocalPiano = false",
+    "showLocalPiano?: boolean",
+    "{showLocalPiano ? (",
+    "aria-expanded={isLocalPianoOpen}",
+    "setIsLocalPianoOpen((current) => !current)",
+    "{isLocalPianoOpen ? <div",
+    "<LocalPianoPanel />",
+    "弹奏不保存、不上传，也不生成分数或正式评分。",
+  ]) {
+    assertContains(source, expected, `${path} Android 参考钢琴 disclosure`);
+  }
+}
+
+const localAudioPlaybackSource = readSource(
+  "components/practice/useLocalAudioPlayback.ts",
+);
+for (const expected of [
+  "stopAllBrowserAudio",
+  "subscribeBrowserAudioStopAll",
+  "stopAllBrowserAudio();",
+  "subscribeBrowserAudioStopAll(stop)",
+]) {
+  assertContains(
+    localAudioPlaybackSource,
+    expected,
+    "题目声音与本地参考钢琴必须双向互斥",
+  );
+}
+
 const melodySource = readSource(
   "components/practice/LocalEarTrainingMelodyDictationPanel.tsx",
 );

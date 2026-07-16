@@ -45,6 +45,7 @@ jobs:
           npm run test:mobile-practice-review-storage
           npm run test:mobile-practice-review-ui-contract
           npm run test:mobile-practice-review-behavior
+          npm run test:mobile-piano-behavior
           npm run test:android-local-artifact-verifier
           npm run test:android-version
           npm run test:ci-supply-chain-policy
@@ -53,6 +54,7 @@ jobs:
           npm run test:local-ear-training-intervals
           npm run test:local-ear-training-rhythm
           npm run test:local-ear-training-melody-dictation
+          npm run test:local-piano-keyboard
 
       - name: Validate local Android bundle
         run: npm run validate:android-version && npm run android:sync && npm run validate:android-local

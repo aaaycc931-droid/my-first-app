@@ -133,11 +133,28 @@ export class SharedBrowserAudioEngine {
 }
 
 const sharedBrowserAudioEngine = new SharedBrowserAudioEngine();
+const stopAllListeners = new Set<() => void>();
 
 export const createBrowserAudioChannel = () =>
   sharedBrowserAudioEngine.createChannel();
 
-export const stopAllBrowserAudio = () => sharedBrowserAudioEngine.stopAll();
+export const subscribeBrowserAudioStopAll = (listener: () => void) => {
+  stopAllListeners.add(listener);
+  return () => {
+    stopAllListeners.delete(listener);
+  };
+};
+
+export const stopAllBrowserAudio = () => {
+  sharedBrowserAudioEngine.stopAll();
+  Array.from(stopAllListeners).forEach((listener) => {
+    try {
+      listener();
+    } catch {
+      // One UI subscriber must not prevent other audio owners from resetting.
+    }
+  });
+};
 
 export const suspendAllBrowserAudio = () =>
   sharedBrowserAudioEngine.suspendAll();
