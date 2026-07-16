@@ -49,6 +49,7 @@ jobs:
           npm run test:android-local-artifact-verifier
           npm run test:android-version
           npm run test:ci-supply-chain-policy
+          npm run test:android-p104-evidence
           npm run test:local-question-scheduler
           npm run test:local-practice-catalog
           npm run test:expanded-local-practice-catalog
