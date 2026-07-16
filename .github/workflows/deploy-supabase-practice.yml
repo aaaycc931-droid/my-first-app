@@ -1,4 +1,5 @@
 name: Deploy Supabase Practice Migrations
+# Production deployment is intentionally triggered only by an explicit commit marker.
 
 on:
   push:
