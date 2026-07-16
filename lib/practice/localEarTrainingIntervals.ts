@@ -1,4 +1,10 @@
-export type EarTrainingDifficulty = "基础" | "进阶";
+import type {
+  LegacyLocalPracticeDifficulty,
+  LocalPracticeCatalogMode,
+  LocalPracticeDifficulty,
+} from "./localPracticeCatalog";
+
+export type EarTrainingDifficulty = LocalPracticeDifficulty;
 export type EarTrainingDirection = "上行" | "下行";
 
 export type LocalEarTrainingInterval = {
@@ -7,6 +13,9 @@ export type LocalEarTrainingInterval = {
   semitones: number;
   explanation: string;
 };
+
+type QuestionRoot = { id: string; label: string; frequencyHz: number };
+type IntervalVariant = { variantId: string; root: QuestionRoot; interval: LocalEarTrainingInterval };
 
 export type LocalEarTrainingQuestion = {
   id: string;
@@ -18,43 +27,106 @@ export type LocalEarTrainingQuestion = {
   interval: LocalEarTrainingInterval;
 };
 
-export const earTrainingIntervals: Record<EarTrainingDifficulty, LocalEarTrainingInterval[]> = {
+const interval = (id: string, label: string, semitones: number): LocalEarTrainingInterval => ({
+  id,
+  label,
+  semitones,
+  explanation: `两个音相差 ${semitones} 个半音。`,
+});
+
+const intervalLibrary = {
+  "minor-second": interval("minor-second", "小二度", 1),
+  "major-second": interval("major-second", "大二度", 2),
+  "minor-third": interval("minor-third", "小三度", 3),
+  "major-third": interval("major-third", "大三度", 4),
+  "perfect-fourth": interval("perfect-fourth", "纯四度", 5),
+  tritone: interval("tritone", "三全音", 6),
+  "perfect-fifth": interval("perfect-fifth", "纯五度", 7),
+  "minor-sixth": interval("minor-sixth", "小六度", 8),
+  "major-sixth": interval("major-sixth", "大六度", 9),
+  "minor-seventh": interval("minor-seventh", "小七度", 10),
+  "major-seventh": interval("major-seventh", "大七度", 11),
+  "perfect-octave": interval("perfect-octave", "纯八度", 12),
+} as const;
+
+export const earTrainingIntervals: Record<LegacyLocalPracticeDifficulty, LocalEarTrainingInterval[]> = {
   基础: [
-    { id: "major-third", label: "大三度", semitones: 4, explanation: "两个音相差 4 个半音。" },
-    { id: "perfect-fourth", label: "纯四度", semitones: 5, explanation: "两个音相差 5 个半音。" },
-    { id: "perfect-fifth", label: "纯五度", semitones: 7, explanation: "两个音相差 7 个半音。" },
+    intervalLibrary["major-third"],
+    intervalLibrary["perfect-fourth"],
+    intervalLibrary["perfect-fifth"],
   ],
   进阶: [
-    { id: "minor-second", label: "小二度", semitones: 1, explanation: "两个音相差 1 个半音。" },
-    { id: "major-second", label: "大二度", semitones: 2, explanation: "两个音相差 2 个半音。" },
-    { id: "minor-third", label: "小三度", semitones: 3, explanation: "两个音相差 3 个半音。" },
-    { id: "major-third", label: "大三度", semitones: 4, explanation: "两个音相差 4 个半音。" },
-    { id: "perfect-fourth", label: "纯四度", semitones: 5, explanation: "两个音相差 5 个半音。" },
-    { id: "perfect-fifth", label: "纯五度", semitones: 7, explanation: "两个音相差 7 个半音。" },
+    intervalLibrary["minor-second"],
+    intervalLibrary["major-second"],
+    intervalLibrary["minor-third"],
+    intervalLibrary["major-third"],
+    intervalLibrary["perfect-fourth"],
+    intervalLibrary["perfect-fifth"],
   ],
 };
 
-const questionRoots = [
-  { id: "c4", label: "C4", frequencyHz: 261.63 },
-  { id: "d4", label: "D4", frequencyHz: 293.66 },
-  { id: "e4", label: "E4", frequencyHz: 329.63 },
-  { id: "g4", label: "G4", frequencyHz: 392 },
-];
+const rootLibrary = {
+  c4: { id: "c4", label: "C4", frequencyHz: 261.63 },
+  d4: { id: "d4", label: "D4", frequencyHz: 293.66 },
+  e4: { id: "e4", label: "E4", frequencyHz: 329.63 },
+  f4: { id: "f4", label: "F4", frequencyHz: 349.23 },
+  g4: { id: "g4", label: "G4", frequencyHz: 392 },
+  a4: { id: "a4", label: "A4", frequencyHz: 440 },
+  b4: { id: "b4", label: "B4", frequencyHz: 493.88 },
+} as const;
 
+const legacyRoots = [rootLibrary.c4, rootLibrary.d4, rootLibrary.e4, rootLibrary.g4];
 const getIntervalVariantId = (rootId: string, intervalId: string): string =>
   `interval:${rootId}:${intervalId}`;
+const buildVariants = (
+  roots: readonly QuestionRoot[],
+  intervals: readonly LocalEarTrainingInterval[],
+): IntervalVariant[] => roots.flatMap((root) => intervals.map((candidate) => ({
+  variantId: getIntervalVariantId(root.id, candidate.id),
+  root,
+  interval: candidate,
+})));
+
+const legacyVariants: Record<LegacyLocalPracticeDifficulty, IntervalVariant[]> = {
+  基础: buildVariants(legacyRoots, earTrainingIntervals.基础),
+  进阶: buildVariants(legacyRoots, earTrainingIntervals.进阶),
+};
+
+const expandedVariants: Record<LocalPracticeDifficulty, IntervalVariant[]> = {
+  基础: buildVariants(
+    Object.values(rootLibrary),
+    earTrainingIntervals.基础,
+  ),
+  进阶: legacyVariants.进阶,
+  挑战: buildVariants(
+    [rootLibrary.c4, rootLibrary.e4],
+    Object.values(intervalLibrary),
+  ),
+};
+
+const getVariants = (
+  difficulty: EarTrainingDifficulty,
+  catalogMode: LocalPracticeCatalogMode,
+): IntervalVariant[] => catalogMode === "legacy-v1"
+  ? (difficulty === "挑战" ? [] : legacyVariants[difficulty])
+  : expandedVariants[difficulty];
+
+export const getLocalEarTrainingIntervals = (
+  difficulty: EarTrainingDifficulty,
+  catalogMode: LocalPracticeCatalogMode,
+): LocalEarTrainingInterval[] => Array.from(
+  new Map(getVariants(difficulty, catalogMode).map((item) => [item.interval.id, item.interval])).values(),
+);
 
 export const isLocalEarTrainingIntervalVariantId = (
   difficulty: EarTrainingDifficulty,
   variantId: string,
-): boolean => questionRoots.some((root) =>
-  earTrainingIntervals[difficulty].some(
-    (interval) => getIntervalVariantId(root.id, interval.id) === variantId,
-  ),
-);
+): boolean => expandedVariants[difficulty].some((candidate) => candidate.variantId === variantId);
 
-export const getLocalEarTrainingQuestionVariantCount = (difficulty: EarTrainingDifficulty): number =>
-  earTrainingIntervals[difficulty].length * questionRoots.length;
+export const getLocalEarTrainingQuestionVariantCount = (
+  difficulty: EarTrainingDifficulty,
+  catalogMode: LocalPracticeCatalogMode = "legacy-v1",
+): number => getVariants(difficulty, catalogMode).length;
 
 export const createLocalEarTrainingQuestion = ({
   difficulty,
@@ -62,48 +134,45 @@ export const createLocalEarTrainingQuestion = ({
   sequence,
   questionIndex,
   variantId,
+  catalogMode = "legacy-v1",
 }: {
   difficulty: EarTrainingDifficulty;
   direction: EarTrainingDirection;
   sequence: number;
-  /** The APK may supply a shuffled root/interval combination index. */
   questionIndex?: number;
-  /** A persisted local review target uses this stable root/interval identity. */
   variantId?: string;
+  catalogMode?: LocalPracticeCatalogMode;
 }): LocalEarTrainingQuestion => {
-  const intervals = earTrainingIntervals[difficulty];
   const safeSequence = Number.isFinite(sequence) ? Math.max(0, Math.floor(sequence)) : 0;
   const safeQuestionIndex = questionIndex !== undefined && Number.isFinite(questionIndex)
     ? Math.max(0, Math.floor(questionIndex))
     : safeSequence;
-  const scheduledInterval = intervals[safeQuestionIndex % intervals.length];
-  const scheduledRoot = questionRoots[Math.floor(safeQuestionIndex / intervals.length) % questionRoots.length];
+  const variants = getVariants(difficulty, catalogMode);
   const resolved = variantId === undefined
-    ? { interval: scheduledInterval, root: scheduledRoot }
-    : questionRoots.flatMap((root) => intervals.map((interval) => ({ root, interval }))).find(
-      ({ root, interval }) => getIntervalVariantId(root.id, interval.id) === variantId,
-    );
+    ? variants[safeQuestionIndex % variants.length]
+    : expandedVariants[difficulty].find((candidate) => candidate.variantId === variantId);
   if (!resolved) throw new Error("Invalid local interval variant id.");
-  const { interval, root } = resolved;
 
   return {
-    id: `${difficulty}-${direction}-${safeSequence}-${interval.id}-${root.label}`,
-    variantId: getIntervalVariantId(root.id, interval.id),
+    id: `${difficulty}-${direction}-${safeSequence}-${resolved.interval.id}-${resolved.root.label}`,
+    variantId: resolved.variantId,
     difficulty,
     direction,
-    rootLabel: root.label,
-    rootFrequencyHz: root.frequencyHz,
-    interval,
+    rootLabel: resolved.root.label,
+    rootFrequencyHz: resolved.root.frequencyHz,
+    interval: resolved.interval,
   };
 };
 
 export const getIntervalTargetFrequencyHz = (question: LocalEarTrainingQuestion): number =>
-  question.rootFrequencyHz *
-  2 ** ((question.direction === "上行" ? 1 : -1) * question.interval.semitones / 12);
+  question.rootFrequencyHz
+  * 2 ** ((question.direction === "上行" ? 1 : -1) * question.interval.semitones / 12);
 
 export const getLocalEarTrainingDirectionDescription = (
   direction: EarTrainingDirection,
-): string => (direction === "上行" ? "第一个音较低，第二个音较高。" : "第一个音较高，第二个音较低。");
+): string => direction === "上行"
+  ? "第一个音较低，第二个音较高。"
+  : "第一个音较高，第二个音较低。";
 
 export const getLocalEarTrainingAnswer = ({
   question,

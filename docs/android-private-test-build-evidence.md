@@ -2,11 +2,17 @@
 
 执行日期：2026-07-16
 
+## P95 稳定复练目标候选
+
+P95 已在 PR #346 的 GitHub Actions run `29496649623` 完成自动化验证，`quality` 与 `android-local` 两个 job 均为 PASS；合并后的 `main` squash commit 为 `701330bfed64ad6b17487cc6bdb7f72b7b2dd0a5`。artifact `8374699870` 内 `solfeggio-local-test-v0.2.0-debug.apk` 的 SHA-256 为 `9a902fd2e6dfa2acd02665d6a74f8729e1d3deaa453f9860a4ebe256f7eedd93`，GitHub artifact ZIP digest 为 `5c3dc2448b5e5807c5206bdbcd21ff6105b6d597d5c13e4d84d7d11ed54d2a9a`。
+
+上传前 verifier 已核对版本、commit、摘要、字节数和精确四文件结构。该自动证据包含稳定 `variantId` 与旧复练队列迁移，不包含尚未发布的 P96 三难度题库，也不证明真实 Android 跨版本升级、跨重启、音频或 System WebView 行为。
+
 ## P94 本地参考钢琴候选
 
 P94 已在 main commit `bcee6cda2b065716b81d1dc6bc6733f655965177` 的 GitHub Actions run `29494421135` 完成自动化验证，`quality` 与 `android-local` 两个 job 均为 PASS。artifact `8373799745` 内 `solfeggio-local-test-v0.2.0-debug.apk` 的 SHA-256 为 `1a3268298da6c69cc2d0575231c1a4b6a523470873fd6a1c3c33814b6d956062`，GitHub artifact ZIP digest 为 `6e4acddd3e745410bfdfe98b0397cfa6155673f955daa9d740f44969b7d8076d`。
 
-上传前 verifier 已核对版本、commit、摘要、字节数与精确四文件结构；该自动证据不证明真实手机多指、延音、扬声器、旋转、后台残音或 System WebView 行为，也不包含尚未发布的 P95 复练队列迁移代码。
+上传前 verifier 已核对版本、commit、摘要、字节数与精确四文件结构；该自动证据不证明真实手机多指、延音、扬声器、旋转、后台残音或 System WebView 行为，也不包含 P95 及后续代码。
 
 ## P93 React 行为回归候选
 

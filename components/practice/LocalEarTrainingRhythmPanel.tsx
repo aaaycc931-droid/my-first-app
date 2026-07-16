@@ -5,9 +5,10 @@ import { useMemo, useState } from "react";
 import { LocalPianoPanel } from "../piano/LocalPianoPanel";
 import {
   createLocalEarTrainingRhythmQuestion,
-  earTrainingRhythmPatterns,
   getLocalEarTrainingRhythmAnswer,
   getLocalEarTrainingRhythmDurationMs,
+  getLocalEarTrainingRhythmPatterns,
+  getLocalEarTrainingRhythmVariantCount,
   type EarTrainingRhythmDifficulty,
 } from "../../lib/practice/localEarTrainingRhythm";
 import { createRhythmAttemptRpcArgs } from "../../lib/practice/cloudPracticeAttempt";
@@ -29,18 +30,25 @@ export function LocalEarTrainingRhythmPanel({
   onLocalAnswerResult,
   onLeaveReviewTarget,
   showLocalPiano = false,
+  expandedLocalCatalog = false,
 }: {
   courseExerciseId?: string;
   initialReviewTarget?: Extract<LocalPracticeReviewTarget, { kind: "rhythm" }>;
   onLocalAnswerResult?: (result: LocalPracticeAnswerResult) => void;
   onLeaveReviewTarget?: () => void;
   showLocalPiano?: boolean;
+  expandedLocalCatalog?: boolean;
 }) {
+  const catalogMode = courseExerciseId || !expandedLocalCatalog
+    ? "legacy-v1"
+    : "expanded-local-v2";
   const [isLocalPianoOpen, setIsLocalPianoOpen] = useState(false);
   const [difficulty, setDifficulty] = useState<EarTrainingRhythmDifficulty>(initialReviewTarget?.difficulty ?? "基础");
   const [sequence, setSequence] = useState(initialReviewTarget?.sequence ?? 0);
+  const answerPatterns = getLocalEarTrainingRhythmPatterns(difficulty, catalogMode);
+  const variantCount = getLocalEarTrainingRhythmVariantCount(difficulty, catalogMode);
   const { questionIndex, sessionSeed, isReady: isQuestionReady } = useLocalQuestionSchedule({
-    itemCount: earTrainingRhythmPatterns[difficulty].length,
+    itemCount: variantCount,
     sequence,
     isCourseExercise: Boolean(courseExerciseId),
     replaySeed: initialReviewTarget?.seed,
@@ -63,8 +71,9 @@ export function LocalEarTrainingRhythmPanel({
       sequence,
       questionIndex,
       variantId: initialReviewTarget?.variantId,
+      catalogMode,
     }),
-    [difficulty, initialReviewTarget?.variantId, questionIndex, sequence],
+    [catalogMode, difficulty, initialReviewTarget?.variantId, questionIndex, sequence],
   );
   const answer = useMemo(
     () => getLocalEarTrainingRhythmAnswer({ question, selectedPatternId }),
@@ -100,7 +109,7 @@ export function LocalEarTrainingRhythmPanel({
       "record_rhythm_attempt",
       createRhythmAttemptRpcArgs({
         exerciseId: courseExerciseId,
-        difficulty,
+        difficulty: "基础",
         sequence,
         selectedPatternId: submittedPatternId,
         targetPatternId: question.pattern.id,
@@ -170,11 +179,12 @@ export function LocalEarTrainingRhythmPanel({
               resetSaveStatus();
             }}
           >
-            <option value="基础">基础：三种四拍节奏形状</option>
-            <option value="进阶">进阶：增加中间留空的节奏形状</option>
+            <option value="基础">基础：常见四拍与八分组合</option>
+            {!courseExerciseId ? <option value="进阶">进阶：留空、切分与错落八分</option> : null}
+            {catalogMode === "expanded-local-v2" ? <option value="挑战">挑战：十六分与三连音组合</option> : null}
           </select>
           {courseExerciseId ? <p className="mt-2 text-xs leading-5 text-slate-500">系统课程已固定为基础难度，以保持题目版本一致。</p> : null}
-          <p className="mt-4 text-sm leading-6 text-violet-900">当前为内置题目 {sequence + 1}，四四拍，速度约为 {question.bpm} BPM。{courseExerciseId ? "系统课程按固定顺序出题。" : "本轮题库会随机排序，全部出现一次后循环；当前作答不保存。"}第一拍使用较高提示音，其余击拍使用较低提示音；题目由浏览器本地 Web Audio 合成，不读取文件、不调用接口。</p>
+          <p className="mt-4 text-sm leading-6 text-violet-900">当前为内置题目 {sequence + 1}，四四拍，速度约为 {question.bpm} BPM。{courseExerciseId ? "系统课程按固定顺序出题。" : `本难度共 ${variantCount} 个版本化组合，随机排序并在全部出现后循环；当前作答不保存。`}第一拍使用较高提示音，其余击拍使用较低提示音；题目由浏览器本地 Web Audio 合成，不读取文件、不调用接口。</p>
           {!isQuestionReady ? <p className="mt-2 text-sm text-violet-800">正在准备本轮题目…</p> : null}
           <button type="button" onClick={() => void playQuestion()} disabled={!isQuestionReady || isPlaying} className="mt-4 w-full rounded-xl bg-violet-700 px-4 py-3 font-semibold text-white disabled:cursor-not-allowed disabled:bg-violet-300">
             {playbackState === "准备中" ? "正在准备声音…" : isPlaying ? "正在播放节奏…" : "播放节奏题目"}
@@ -189,7 +199,7 @@ export function LocalEarTrainingRhythmPanel({
           <p className="text-sm font-semibold text-slate-500">回答本题</p>
           <p className="mt-1 text-lg font-bold text-slate-950">听完后选择最符合的节奏形状</p>
           <div className="mt-4 grid gap-2 sm:grid-cols-2">
-            {earTrainingRhythmPatterns[difficulty].map((pattern) => (
+            {answerPatterns.map((pattern) => (
               <button
                 key={pattern.id}
                 type="button"
@@ -216,7 +226,7 @@ export function LocalEarTrainingRhythmPanel({
             <div className="mt-4 rounded-2xl bg-slate-50 p-4 text-sm leading-6 text-slate-700">
               <p className="font-bold text-slate-950">本题答案：{answer.answerLabel}</p>
               <p className="mt-1">{answer.explanation}</p>
-              <p className="mt-2">你的选择：{earTrainingRhythmPatterns[difficulty].find((pattern) => pattern.id === selectedPatternId)?.label ?? "未选择"}。{answer.matchesAnswer ? "这次选择与本题答案一致。" : "这次选择与本题答案不同；可以再次播放并重置本题复练。"}</p>
+              <p className="mt-2">你的选择：{answerPatterns.find((pattern) => pattern.id === selectedPatternId)?.label ?? "未选择"}。{answer.matchesAnswer ? "这次选择与本题答案一致。" : "这次选择与本题答案不同；可以再次播放并重置本题复练。"}</p>
               <p className="mt-2 text-slate-500">答案说明显示后，本题选择已锁定；请使用复练或下一题开始新的尝试。这不是正式分数、准确率、等级、通过或失败判断。</p>
             </div>
           ) : null}

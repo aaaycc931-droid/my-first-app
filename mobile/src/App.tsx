@@ -97,18 +97,18 @@ function PracticeScreen({
   const sharedProps = { onLocalAnswerResult, onLeaveReviewTarget };
   if (screen === "pitch") {
     const target = reviewTarget?.kind === "single-pitch" ? reviewTarget : undefined;
-    return <LocalEarTrainingSinglePitchPanel key={target ? getLocalPracticeReviewTargetKey(target) : "random-pitch"} initialReviewTarget={target} showLocalPiano {...sharedProps} />;
+    return <LocalEarTrainingSinglePitchPanel key={target ? getLocalPracticeReviewTargetKey(target) : "random-pitch"} initialReviewTarget={target} showLocalPiano expandedLocalCatalog {...sharedProps} />;
   }
   if (screen === "interval") {
     const target = reviewTarget?.kind === "interval" ? reviewTarget : undefined;
-    return <LocalEarTrainingIntervalPanel key={target ? getLocalPracticeReviewTargetKey(target) : "random-interval"} initialReviewTarget={target} showLocalPiano {...sharedProps} />;
+    return <LocalEarTrainingIntervalPanel key={target ? getLocalPracticeReviewTargetKey(target) : "random-interval"} initialReviewTarget={target} showLocalPiano expandedLocalCatalog {...sharedProps} />;
   }
   if (screen === "rhythm") {
     const target = reviewTarget?.kind === "rhythm" ? reviewTarget : undefined;
-    return <LocalEarTrainingRhythmPanel key={target ? getLocalPracticeReviewTargetKey(target) : "random-rhythm"} initialReviewTarget={target} showLocalPiano {...sharedProps} />;
+    return <LocalEarTrainingRhythmPanel key={target ? getLocalPracticeReviewTargetKey(target) : "random-rhythm"} initialReviewTarget={target} showLocalPiano expandedLocalCatalog {...sharedProps} />;
   }
   const target = reviewTarget?.kind === "melody-dictation" ? reviewTarget : undefined;
-  return <LocalEarTrainingMelodyDictationPanel key={target ? getLocalPracticeReviewTargetKey(target) : "random-melody"} initialReviewTarget={target} showLocalPiano {...sharedProps} />;
+  return <LocalEarTrainingMelodyDictationPanel key={target ? getLocalPracticeReviewTargetKey(target) : "random-melody"} initialReviewTarget={target} showLocalPiano expandedLocalCatalog {...sharedProps} />;
 }
 
 export function App() {

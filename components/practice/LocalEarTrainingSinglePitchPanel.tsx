@@ -5,8 +5,9 @@ import { useMemo, useState } from "react";
 import { LocalPianoPanel } from "../piano/LocalPianoPanel";
 import {
   createLocalEarTrainingSinglePitchQuestion,
-  earTrainingSinglePitches,
+  getLocalEarTrainingSinglePitchAnswerPitches,
   getLocalEarTrainingSinglePitchAnswer,
+  getLocalEarTrainingSinglePitchVariantCount,
   type EarTrainingSinglePitchDifficulty,
 } from "../../lib/practice/localEarTrainingSinglePitch";
 import { createSinglePitchAttemptRpcArgs } from "../../lib/practice/cloudPracticeAttempt";
@@ -28,20 +29,27 @@ export function LocalEarTrainingSinglePitchPanel({
   onLocalAnswerResult,
   onLeaveReviewTarget,
   showLocalPiano = false,
+  expandedLocalCatalog = false,
 }: {
   courseExerciseId?: string;
   initialReviewTarget?: Extract<LocalPracticeReviewTarget, { kind: "single-pitch" }>;
   onLocalAnswerResult?: (result: LocalPracticeAnswerResult) => void;
   onLeaveReviewTarget?: () => void;
   showLocalPiano?: boolean;
+  expandedLocalCatalog?: boolean;
 }) {
+  const catalogMode = courseExerciseId || !expandedLocalCatalog
+    ? "legacy-v1"
+    : "expanded-local-v2";
   const [isLocalPianoOpen, setIsLocalPianoOpen] = useState(false);
   const [difficulty, setDifficulty] = useState<EarTrainingSinglePitchDifficulty>(
     initialReviewTarget?.difficulty ?? "基础",
   );
   const [sequence, setSequence] = useState(initialReviewTarget?.sequence ?? 0);
+  const answerPitches = getLocalEarTrainingSinglePitchAnswerPitches(difficulty, catalogMode);
+  const variantCount = getLocalEarTrainingSinglePitchVariantCount(difficulty, catalogMode);
   const { questionIndex, sessionSeed, isReady: isQuestionReady } = useLocalQuestionSchedule({
-    itemCount: earTrainingSinglePitches[difficulty].length,
+    itemCount: variantCount,
     sequence,
     isCourseExercise: Boolean(courseExerciseId),
     replaySeed: initialReviewTarget?.seed,
@@ -63,8 +71,9 @@ export function LocalEarTrainingSinglePitchPanel({
       sequence,
       questionIndex,
       variantId: initialReviewTarget?.variantId,
+      catalogMode,
     }),
-    [difficulty, initialReviewTarget?.variantId, questionIndex, sequence],
+    [catalogMode, difficulty, initialReviewTarget?.variantId, questionIndex, sequence],
   );
   const answer = useMemo(() => getLocalEarTrainingSinglePitchAnswer({ question, selectedPitchId }), [question, selectedPitchId]);
 
@@ -97,7 +106,7 @@ export function LocalEarTrainingSinglePitchPanel({
       "record_single_pitch_attempt",
       createSinglePitchAttemptRpcArgs({
         exerciseId: courseExerciseId,
-        difficulty,
+        difficulty: "基础",
         sequence,
         selectedPitchId: submittedPitchId,
         targetPitchId: question.pitch.id,
@@ -116,13 +125,13 @@ export function LocalEarTrainingSinglePitchPanel({
       oscillator.frequency.value = question.pitch.frequencyHz;
       gain.gain.setValueAtTime(0.0001, startTime);
       gain.gain.exponentialRampToValueAtTime(0.16, startTime + 0.015);
-      gain.gain.exponentialRampToValueAtTime(0.0001, startTime + 0.78);
+      gain.gain.exponentialRampToValueAtTime(0.0001, startTime + question.durationMs / 1000 - 0.02);
       oscillator.connect(gain);
       gain.connect(audioContext.destination);
       oscillator.start(startTime);
-      oscillator.stop(startTime + 0.8);
+      oscillator.stop(startTime + question.durationMs / 1000);
       channel.trackSource(oscillator, [gain]);
-      return 950;
+      return question.durationMs + 150;
     });
     if (playbackError) setAudioError(playbackError);
   };
@@ -141,11 +150,12 @@ export function LocalEarTrainingSinglePitchPanel({
         <div className="rounded-2xl bg-sky-50 p-4 ring-1 ring-sky-100">
           <label className="block text-sm font-semibold text-slate-800" htmlFor="ear-training-single-pitch-difficulty">练习难度</label>
           <select id="ear-training-single-pitch-difficulty" disabled={Boolean(courseExerciseId || initialReviewTarget)} className="mt-2 w-full rounded-xl border border-sky-200 bg-white px-3 py-2 text-slate-900 disabled:cursor-not-allowed disabled:bg-slate-100" value={difficulty} onChange={(event) => { stopPlayback(); setDifficulty(event.target.value as EarTrainingSinglePitchDifficulty); setSequence(0); answerLock.reset(); setAudioError(""); resetSaveStatus(); }}>
-            <option value="基础">基础：C4、D4、E4、G4</option>
-            <option value="进阶">进阶：增加 A4、B4</option>
+            <option value="基础">基础：自然音与不同时值</option>
+            {!courseExerciseId ? <option value="进阶">进阶：扩展自然音与时值</option> : null}
+            {catalogMode === "expanded-local-v2" ? <option value="挑战">挑战：十二平均律半音</option> : null}
           </select>
           {courseExerciseId ? <p className="mt-2 text-xs leading-5 text-slate-500">系统课程已固定为基础难度，以保持题目版本一致。</p> : null}
-          <p className="mt-4 text-sm leading-6 text-sky-900">当前为内置题目 {sequence + 1}。{courseExerciseId ? "系统课程按固定顺序出题。" : "本轮题库会随机排序，全部出现一次后循环；当前作答不保存。"}题目音高由浏览器本地 Web Audio 合成，不读取文件、不调用接口。</p>
+          <p className="mt-4 text-sm leading-6 text-sky-900">当前为内置题目 {sequence + 1}。{courseExerciseId ? "系统课程按固定顺序出题。" : `本难度共 ${variantCount} 个版本化组合，随机排序并在全部出现后循环；当前作答不保存。`}题目音高由浏览器本地 Web Audio 合成，不读取文件、不调用接口。</p>
           {!isQuestionReady ? <p className="mt-2 text-sm text-sky-800">正在准备本轮题目…</p> : null}
           <button type="button" onClick={() => void playQuestion()} disabled={!isQuestionReady || isPlaying} className="mt-4 w-full rounded-xl bg-sky-700 px-4 py-3 font-semibold text-white disabled:cursor-not-allowed disabled:bg-sky-300">{playbackState === "准备中" ? "正在准备声音…" : isPlaying ? "正在播放单音…" : "播放单音题目"}</button>
           <button type="button" onClick={stopPlayback} disabled={!isPlaying} className="mt-2 w-full rounded-xl border border-sky-300 bg-white px-4 py-3 font-semibold text-sky-800 disabled:cursor-not-allowed disabled:opacity-50">停止播放</button>
@@ -154,7 +164,7 @@ export function LocalEarTrainingSinglePitchPanel({
         <div className="rounded-2xl border border-slate-200 p-4">
           <p className="text-sm font-semibold text-slate-500">回答本题</p>
           <p className="mt-1 text-lg font-bold text-slate-950">听完后选择你听到的音名</p>
-          <div className="mt-4 grid gap-2 sm:grid-cols-3">{earTrainingSinglePitches[difficulty].map((pitch) => <button key={pitch.id} type="button" disabled={!isQuestionReady || isAnswerVisible} onClick={() => { if (answerLock.choose(pitch.id)) resetSaveStatus(); }} className={`rounded-xl border px-3 py-3 text-left font-semibold transition disabled:cursor-not-allowed disabled:opacity-70 ${selectedPitchId === pitch.id ? "border-sky-600 bg-sky-50 text-sky-900 ring-2 ring-sky-200" : "border-slate-200 bg-white text-slate-800 hover:border-sky-300"}`}>{pitch.label}</button>)}</div>
+          <div className="mt-4 grid gap-2 sm:grid-cols-3">{answerPitches.map((pitch) => <button key={pitch.id} type="button" disabled={!isQuestionReady || isAnswerVisible} onClick={() => { if (answerLock.choose(pitch.id)) resetSaveStatus(); }} className={`rounded-xl border px-3 py-3 text-left font-semibold transition disabled:cursor-not-allowed disabled:opacity-70 ${selectedPitchId === pitch.id ? "border-sky-600 bg-sky-50 text-sky-900 ring-2 ring-sky-200" : "border-slate-200 bg-white text-slate-800 hover:border-sky-300"}`}>{pitch.label}</button>)}</div>
           <div className="mt-4 flex flex-wrap gap-2">
             <button type="button" disabled={!answer.hasSelection || saveStatus === "saving"} onClick={() => void revealAnswer()} className="rounded-xl bg-slate-900 px-4 py-2.5 font-semibold text-white disabled:cursor-not-allowed disabled:bg-slate-300">{saveStatus === "saving" ? "正在保存练习记录…" : "查看本题答案"}</button>
             {isAnswerVisible && !answer.matchesAnswer ? <button type="button" onClick={retryCurrentQuestion} className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-2.5 font-semibold text-amber-900">重新播放并复练本题</button> : null}
@@ -162,7 +172,7 @@ export function LocalEarTrainingSinglePitchPanel({
             <button type="button" disabled={!isQuestionReady} onClick={() => { resetCurrentQuestion(); if (initialReviewTarget && onLeaveReviewTarget) onLeaveReviewTarget(); else setSequence((current) => current + 1); }} className="rounded-xl border border-sky-300 bg-white px-4 py-2.5 font-semibold text-sky-800 disabled:cursor-not-allowed disabled:opacity-50">{initialReviewTarget ? "返回随机练习" : "下一题"}</button>
           </div>
           {!answer.hasSelection ? <p className="mt-3 text-sm leading-6 text-slate-500">请先选择一个音名，再查看本题答案。</p> : null}
-          {isAnswerVisible ? <div className="mt-4 rounded-2xl bg-slate-50 p-4 text-sm leading-6 text-slate-700"><p className="font-bold text-slate-950">本题答案：{answer.answerLabel}</p><p className="mt-1">{answer.explanation}</p><p className="mt-2">你的选择：{earTrainingSinglePitches[difficulty].find((pitch) => pitch.id === selectedPitchId)?.label ?? "未选择"}。{answer.matchesAnswer ? "这次选择与本题答案一致。" : "这次选择与本题答案不同；可以再次播放并重置本题复练。"}</p><p className="mt-2 text-slate-500">答案说明显示后，本题选择已锁定；请使用复练或下一题开始新的尝试。这不是正式分数、准确率、等级、通过或失败判断。</p></div> : null}
+          {isAnswerVisible ? <div className="mt-4 rounded-2xl bg-slate-50 p-4 text-sm leading-6 text-slate-700"><p className="font-bold text-slate-950">本题答案：{answer.answerLabel}</p><p className="mt-1">{answer.explanation}</p><p className="mt-2">你的选择：{answerPitches.find((pitch) => pitch.id === selectedPitchId)?.label ?? "未选择"}。{answer.matchesAnswer ? "这次选择与本题答案一致。" : "这次选择与本题答案不同；可以再次播放并重置本题复练。"}</p><p className="mt-2 text-slate-500">答案说明显示后，本题选择已锁定；请使用复练或下一题开始新的尝试。这不是正式分数、准确率、等级、通过或失败判断。</p></div> : null}
           {courseExerciseId ? <CourseAttemptSaveNotice status={saveStatus} /> : null}
         </div>
       </div>

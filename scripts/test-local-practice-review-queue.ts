@@ -85,6 +85,19 @@ assert.equal(sanitized.includes("answer"), false);
 assert.equal(sanitized.includes("score"), false);
 assert.equal(sanitized.includes("audio"), false);
 
+const challengePitch: LocalPracticeReviewTarget = {
+  kind: "single-pitch",
+  difficulty: "挑战",
+  seed: 9600,
+  sequence: 1,
+  variantId: "pitch:c-sharp-4:brief",
+};
+assert.deepEqual(
+  parseLocalPracticeReviewQueue(serializeLocalPracticeReviewQueue([challengePitch])),
+  [challengePitch],
+  "catalog v2 challenge targets round-trip with a stable variant id",
+);
+
 const validEnvelope = JSON.parse(serialized) as {
   schemaVersion: number;
   catalogVersion: number;
@@ -158,6 +171,10 @@ assert.equal(parseLocalPracticeReviewQueue(JSON.stringify({
   ...legacyEnvelope,
   targets: [legacyEnvelope.targets[0], { kind: "single-pitch", difficulty: "未知", seed: 0, sequence: 0 }],
 })), null, "one invalid legacy target rejects the whole queue");
+assert.equal(parseLocalPracticeReviewQueue(JSON.stringify({
+  ...legacyEnvelope,
+  targets: [{ kind: "single-pitch", difficulty: "挑战", seed: 0, sequence: 0 }],
+})), null, "catalog v1 rejects challenge targets that never existed in that namespace");
 
 const oppositeDirections = deserializeLocalPracticeReviewQueue(JSON.stringify({
   schemaVersion: 1,

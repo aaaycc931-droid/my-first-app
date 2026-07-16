@@ -14,6 +14,7 @@ import {
   parseLocalPracticeReviewQueue,
   type LocalPracticeReviewTarget,
 } from "../../lib/practice/localPracticeReviewQueue";
+import type { LegacyLocalPracticeDifficulty } from "../../lib/practice/localPracticeCatalog";
 import { App } from "./App";
 import { MOBILE_PRACTICE_REVIEW_STORAGE_KEY } from "./runtime/mobilePracticeReviewStorage";
 
@@ -96,8 +97,8 @@ const getStoredQueue = () => {
 
 type LegacySinglePitchReviewTarget = Omit<
   Extract<LocalPracticeReviewTarget, { kind: "single-pitch" }>,
-  "variantId"
->;
+  "variantId" | "difficulty"
+> & { difficulty: LegacyLocalPracticeDifficulty };
 
 const seedQueue = (target: LegacySinglePitchReviewTarget) => {
   window.localStorage.setItem(
@@ -142,15 +143,15 @@ describe("Android 本机复练行为", () => {
     await click(findLink(container, "单音听辨"));
     await waitFor(() => !findButton(container, "C4").disabled, "单音题目可回答");
 
-    // Seed 0 schedules G4 first, so C4 is deterministically wrong.
+    // Expanded catalog seed 0 schedules the short E4 variant first, so C4 is deterministically wrong.
     await click(findButton(container, "C4"));
     await click(findButton(container, "查看本题答案"));
-    expect(container.textContent?.match(/本题答案：[A-G][0-9]/)?.[0]).toBe("本题答案：G4");
+    expect(container.textContent?.match(/本题答案：[A-G][0-9]/)?.[0]).toBe("本题答案：E4");
 
     const queue = getStoredQueue();
     expect(queue).toHaveLength(1);
     expect(queue[0]).toMatchObject({ kind: "single-pitch", difficulty: "基础" });
-    expect(queue[0]?.variantId).toBe("pitch:g4");
+    expect(queue[0]?.variantId).toBe("pitch:e4:short");
     const serialized = window.localStorage.getItem(MOBILE_PRACTICE_REVIEW_STORAGE_KEY) ?? "";
     expect(serialized).not.toMatch(/selected|answer|audio|score|accuracy|pass|fail/i);
     expect(container.textContent).toContain("已加入本机复练");
@@ -335,6 +336,27 @@ describe("Android 本机复练行为", () => {
     await traverseHistory("forward");
     expect(container.querySelectorAll("[data-piano-key]")).toHaveLength(13);
   });
+
+  for (const [practiceLabel, selectId] of [
+    ["单音听辨", "ear-training-single-pitch-difficulty"],
+    ["音程听辨", "ear-training-difficulty"],
+    ["节奏听辨", "ear-training-rhythm-difficulty"],
+    ["旋律听写", "ear-training-melody-difficulty"],
+  ] as const) {
+    it(`${practiceLabel}在 Android 入口提供基础、进阶、挑战三档`, async () => {
+      const container = await renderApp();
+      await click(findLink(container, practiceLabel));
+
+      const difficultySelect = container.querySelector<HTMLSelectElement>(`#${selectId}`);
+      expect(difficultySelect).not.toBeNull();
+      expect(Array.from(difficultySelect?.options ?? []).map((option) => option.value)).toEqual([
+        "基础",
+        "进阶",
+        "挑战",
+      ]);
+      expect(container.textContent).toContain("本难度共");
+    });
+  }
 
   for (const practiceLabel of ["单音听辨", "音程听辨", "节奏听辨", "旋律听写"]) {
     it(`${practiceLabel}的参考钢琴默认收起，展开后可再次收起卸载`, async () => {

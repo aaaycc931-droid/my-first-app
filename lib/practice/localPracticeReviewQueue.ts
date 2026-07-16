@@ -5,6 +5,7 @@ import { isLocalEarTrainingSinglePitchVariantId } from "./localEarTrainingSingle
 import {
   getLegacyLocalPracticeVariantId,
   LOCAL_PRACTICE_CATALOG_VERSION,
+  type LegacyLocalPracticeDifficulty,
   type LocalPracticeDifficulty,
 } from "./localPracticeCatalog";
 
@@ -58,6 +59,9 @@ const hasExactKeys = (value: Record<string, unknown>, expectedKeys: string[]): b
 };
 
 const isDifficulty = (value: unknown): value is LocalPracticeDifficulty =>
+  value === "基础" || value === "进阶" || value === "挑战";
+
+const isLegacyDifficulty = (value: unknown): value is LegacyLocalPracticeDifficulty =>
   value === "基础" || value === "进阶";
 
 const isSeed = (value: unknown): value is number =>
@@ -130,7 +134,7 @@ const parseTarget = (value: unknown): LocalPracticeReviewTarget | null => {
 
 const parseLegacyTarget = (value: unknown): LocalPracticeReviewTarget | null => {
   if (!isRecord(value)) return null;
-  if (!isDifficulty(value.difficulty) || !isSeed(value.seed) || !isSequence(value.sequence)) return null;
+  if (!isLegacyDifficulty(value.difficulty) || !isSeed(value.seed) || !isSequence(value.sequence)) return null;
   const difficulty = value.difficulty;
   const seed = value.seed;
   const sequence = value.sequence;
