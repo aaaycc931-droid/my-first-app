@@ -37,7 +37,7 @@ jobs:
         run: npm run test:browser-audio-engine && npm run test:mobile-lifecycle
 
       - name: Validate local Android bundle
-        run: npm run mobile:build && npm run validate:android-local
+        run: npm run android:sync && npm run validate:android-local
 
       - name: Build
         run: npm run build
