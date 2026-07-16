@@ -56,7 +56,6 @@ export function NotationTemporaryPracticePanel({ target, onGoToSheetMusic, onCle
   useEffect(() => {
     setEventIndex(0);
     stopReferenceTone();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [target?.id]);
 
   useEffect(() => () => stopReferenceTone(), []);

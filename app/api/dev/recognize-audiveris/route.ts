@@ -61,11 +61,14 @@ function runAudiveris(
 
 async function findGeneratedMxl(dir: string): Promise<string | undefined> {
   const entries = await import("node:fs/promises").then(({ readdir }) =>
-    readdir(dir, { withFileTypes: true }),
+    readdir(/* turbopackIgnore: true */ dir, { withFileTypes: true }),
   );
 
   for (const entry of entries) {
-    const entryPath = path.join(dir, entry.name);
+    const entryPath = path.join(
+      /* turbopackIgnore: true */ dir,
+      entry.name,
+    );
     if (entry.isFile() && entry.name.toLowerCase().endsWith(".mxl")) {
       return entryPath;
     }
@@ -148,7 +151,9 @@ export async function POST(request: Request) {
     }
 
     const musicXml = extractMusicXMLFromMxl(
-      new Uint8Array(await readFile(generatedMxlPath)),
+      new Uint8Array(
+        await readFile(/* turbopackIgnore: true */ generatedMxlPath),
+      ),
     );
     const parsedScore = parseMusicXML(musicXml);
 
