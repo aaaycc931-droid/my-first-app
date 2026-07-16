@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" role="img" aria-labelledby="title desc">
+  <title id="title">视唱练耳应用图标</title>
+  <desc id="desc">靛蓝色圆角方形中的白色五线谱、音符和青绿色音高轨迹。</desc>
+  <rect width="1024" height="1024" rx="224" fill="#312e81"/>
+  <circle cx="512" cy="512" r="330" fill="#4338ca"/>
+  <g fill="none" stroke="#c7d2fe" stroke-linecap="round" stroke-width="24">
+    <path d="M252 388h520"/>
+    <path d="M252 452h520"/>
+    <path d="M252 516h520"/>
+    <path d="M252 580h520"/>
+    <path d="M252 644h520"/>
+  </g>
+  <path d="M622 318v302c0 71-58 128-130 128s-130-47-130-106 58-106 130-106c27 0 51 6 72 17V366l180-48v89l-122 33v-122Z" fill="#fff"/>
+  <path d="M270 702c84-78 150-76 218-24 72 55 142 54 266-52" fill="none" stroke="#5eead4" stroke-linecap="round" stroke-linejoin="round" stroke-width="38"/>
+</svg>

@@ -25,6 +25,7 @@
 - `docs/mvp-status.md`
 - `docs/final-release-definition-of-done.md`
 - `docs/final-release-status-matrix.md`
+- `docs/android-apk-release-plan.md`
 - `docs/sight-singing-ear-training-feature-detail-map.md`
 - `docs/private-cloud-song-practice-pipeline-plan.md`
 
@@ -97,6 +98,8 @@
 不得继续用“no account / no database”描述当前生产事实。每项能力的实时状态以 `docs/mvp-status.md` 和 `docs/final-release-status-matrix.md` 为准；正式版是否完成只由 `docs/final-release-definition-of-done.md` 判定。
 
 尚未正式完成的私有上传、对象存储、worker、数据导出/删除、正式评分和生产 OMR，必须先满足最终 DoD 对所有权、隐私、删除、版本化、安全和验收的门槛，不能因为已有数据模型或 mock 就宣称上线。
+
+Android APK 已由产品所有者提升为正式版优先交付物。所有认证、导航、音频、录音、文件选择、离线提示和发布任务必须同时判断 Android TWA / 打包运行时行为；桌面浏览器或普通 Android Chrome 通过不能单独证明 APK 就绪。当前选定路线和验收分层见 `docs/android-apk-release-plan.md`。
 
 ## 当前阶段禁止事项
 

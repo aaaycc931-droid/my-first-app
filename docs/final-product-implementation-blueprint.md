@@ -6,6 +6,8 @@
 
 现有 browser-local 练习能力必须继续可用，并逐步迁移，不以一次重写取代正在工作的练习流程。每个正式功能先建立数据契约、权限边界和删除语义，再接入 UI。不能在没有真实基准与教育验证前把诊断反馈改称正式评分。
 
+Android 正式版采用 PWA + Trusted Web Activity，共用生产 Next.js 与 Supabase，不另建一套业务客户端。详细构建、签名、App Links、权限和真机门槛见 `docs/android-apk-release-plan.md`。后续每个核心功能必须在普通 Web 与已安装 Android APK 两条路径回归，不能把 Android 适配集中拖到项目末尾。
+
 ## 1. 数据契约
 
 第一批正式实体：
@@ -56,6 +58,7 @@
 - 音频：Chrome、Safari iOS、Android Chrome、常见麦克风/MIDI 设备测试。
 - 质量：真实音频/乐谱基准、worker 失败注入、长任务取消、低网速恢复。
 - 体验：中文主流程、键盘与屏幕阅读器、移动端、空状态、加载、错误、隐私说明。
+- Android：签名 APK/AAB、Digital Asset Links、magic-link App Links、升级/回滚、三档真机上的音频/麦克风/录音/文件选择和断网恢复。
 
 ## 6. 外部接入清单
 

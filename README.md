@@ -1,8 +1,8 @@
 # 视唱练耳学习平台
 
-面向中文学习者的私有视唱练耳 Web 平台。当前生产版本已经包含模块化学习首页、Supabase 账户与系统课程、单音/音程/节奏课程尝试持久化，以及浏览器本地音高、节奏、录音和乐谱草稿研究能力。
+面向中文学习者、以 Android APK 为正式版优先载体并保留完整 Web 入口的私有视唱练耳平台。当前生产版本已经包含模块化学习首页、Supabase 账户与系统课程、单音/音程/节奏课程尝试持久化，以及浏览器本地音高、节奏、录音和乐谱草稿研究能力。
 
-正式版 V1 的唯一范围与完成标准见 [`docs/final-release-definition-of-done.md`](docs/final-release-definition-of-done.md)，实时状态见 [`docs/final-release-status-matrix.md`](docs/final-release-status-matrix.md)，已经真实交付的阶段事实见 [`docs/mvp-status.md`](docs/mvp-status.md)。
+正式版 V1 的唯一范围与完成标准见 [`docs/final-release-definition-of-done.md`](docs/final-release-definition-of-done.md)，实时状态见 [`docs/final-release-status-matrix.md`](docs/final-release-status-matrix.md)，Android 路线见 [`docs/android-apk-release-plan.md`](docs/android-apk-release-plan.md)，已经真实交付的阶段事实见 [`docs/mvp-status.md`](docs/mvp-status.md)。
 
 下方“五线谱识别 MVP”章节保留早期项目背景；其中对“当前能力”的描述不应替代上述实时状态文件。
 
