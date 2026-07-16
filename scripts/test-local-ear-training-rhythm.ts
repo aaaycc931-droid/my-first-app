@@ -19,6 +19,19 @@ assert.deepEqual(
   "未指定 seed 时，节奏题目工厂仍必须是确定性的",
 );
 assert.equal(defaultQuestion.bpm, 84);
+assert.equal(defaultQuestion.id, "基础-0-even-quarters", "course-v1 question id must remain unchanged");
+assert.equal(defaultQuestion.variantId, "rhythm:even-quarters");
+assert.equal(createLocalEarTrainingRhythmQuestion({
+  difficulty: "进阶",
+  sequence: 99,
+  questionIndex: 0,
+  variantId: "rhythm:middle-gap",
+}).pattern.id, "middle-gap");
+assert.throws(() => createLocalEarTrainingRhythmQuestion({
+  difficulty: "基础",
+  sequence: 0,
+  variantId: "rhythm:middle-gap",
+}), /Invalid local rhythm variant id/);
 assert.ok(getLocalEarTrainingRhythmDurationMs(defaultQuestion) > 3_000);
 
 const seed = 20_260_716;

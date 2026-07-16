@@ -46,7 +46,12 @@ export function LocalEarTrainingMelodyDictationPanel({
   const isAnswerVisible = answerLock.isAnswerVisible;
   const [audioError, setAudioError] = useState("");
   const { isPlaying, playbackState, play, stop: stopPlayback } = useLocalAudioPlayback();
-  const question = useMemo(() => createLocalEarTrainingMelodyQuestion({ difficulty, sequence, questionIndex }), [difficulty, questionIndex, sequence]);
+  const question = useMemo(() => createLocalEarTrainingMelodyQuestion({
+    difficulty,
+    sequence,
+    questionIndex,
+    variantId: initialReviewTarget?.variantId,
+  }), [difficulty, initialReviewTarget?.variantId, questionIndex, sequence]);
   const answer = useMemo(() => getLocalEarTrainingMelodyAnswer({ question, selectedNoteIds }), [question, selectedNoteIds]);
 
   const resetCurrentQuestion = () => { stopPlayback(); answerLock.reset(); setAudioError(""); };
@@ -84,6 +89,7 @@ export function LocalEarTrainingMelodyDictationPanel({
         difficulty,
         seed: sessionSeed,
         sequence,
+        variantId: question.variantId,
       },
       isCorrect: submittedNoteIds.every(
         (noteId, index) => noteId === question.melody.noteIds[index],

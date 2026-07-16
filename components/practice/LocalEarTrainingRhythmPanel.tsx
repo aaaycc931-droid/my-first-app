@@ -58,8 +58,13 @@ export function LocalEarTrainingRhythmPanel({
     useLocalAudioPlayback();
 
   const question = useMemo(
-    () => createLocalEarTrainingRhythmQuestion({ difficulty, sequence, questionIndex }),
-    [difficulty, questionIndex, sequence],
+    () => createLocalEarTrainingRhythmQuestion({
+      difficulty,
+      sequence,
+      questionIndex,
+      variantId: initialReviewTarget?.variantId,
+    }),
+    [difficulty, initialReviewTarget?.variantId, questionIndex, sequence],
   );
   const answer = useMemo(
     () => getLocalEarTrainingRhythmAnswer({ question, selectedPatternId }),
@@ -84,6 +89,7 @@ export function LocalEarTrainingRhythmPanel({
           difficulty,
           seed: sessionSeed,
           sequence,
+          variantId: question.variantId,
         },
         isCorrect: matchesAnswer,
       });

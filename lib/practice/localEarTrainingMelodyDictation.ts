@@ -9,10 +9,20 @@ export type LocalEarTrainingMelody = {
 
 export type LocalEarTrainingMelodyQuestion = {
   id: string;
+  variantId: string;
   difficulty: EarTrainingMelodyDictationDifficulty;
   sequence: number;
   melody: LocalEarTrainingMelody;
 };
+
+const getMelodyVariantId = (melodyId: string): string => `melody:${melodyId}`;
+
+export const isLocalEarTrainingMelodyVariantId = (
+  difficulty: EarTrainingMelodyDictationDifficulty,
+  variantId: string,
+): boolean => earTrainingMelodies[difficulty].some(
+  (melody) => getMelodyVariantId(melody.id) === variantId,
+);
 
 export const earTrainingMelodyNotes = {
   c4: { id: "c4", label: "C4", frequencyHz: 261.63 },
@@ -49,19 +59,31 @@ export const createLocalEarTrainingMelodyQuestion = ({
   difficulty,
   sequence,
   questionIndex,
+  variantId,
 }: {
   difficulty: EarTrainingMelodyDictationDifficulty;
   sequence: number;
   /** The APK may supply a shuffled item index. */
   questionIndex?: number;
+  /** A persisted local review target uses this stable identity. */
+  variantId?: string;
 }): LocalEarTrainingMelodyQuestion => {
   const safeSequence = Number.isFinite(sequence) ? Math.max(0, Math.floor(sequence)) : 0;
   const safeQuestionIndex = questionIndex !== undefined && Number.isFinite(questionIndex)
     ? Math.max(0, Math.floor(questionIndex))
     : safeSequence;
   const melodies = earTrainingMelodies[difficulty];
-  const melody = melodies[safeQuestionIndex % melodies.length];
-  return { id: `${difficulty}-${safeSequence}-${melody.id}`, difficulty, sequence: safeSequence, melody };
+  const melody = variantId === undefined
+    ? melodies[safeQuestionIndex % melodies.length]
+    : melodies.find((candidate) => getMelodyVariantId(candidate.id) === variantId);
+  if (!melody) throw new Error("Invalid local melody variant id.");
+  return {
+    id: `${difficulty}-${safeSequence}-${melody.id}`,
+    variantId: getMelodyVariantId(melody.id),
+    difficulty,
+    sequence: safeSequence,
+    melody,
+  };
 };
 
 export const getLocalEarTrainingMelodyAnswer = ({ question, selectedNoteIds }: { question: LocalEarTrainingMelodyQuestion; selectedNoteIds: Array<string | null> }) => {

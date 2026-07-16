@@ -42,6 +42,7 @@ const assertTargetContract = ({
   assertContains(target, `kind: "${kind}"`, `${kind}复练目标`);
   assertContains(target, "seed: sessionSeed", `${kind}复练目标`);
   assertContains(target, "sequence", `${kind}复练目标`);
+  assertContains(target, "variantId: question.variantId", `${kind}复练目标`);
   assertContains(reveal, "isCorrect:", `${kind}答题结果`);
   for (const expected of includes) {
     assertContains(target, expected, `${kind}复练目标`);
@@ -121,6 +122,7 @@ for (const expected of [
   'kind: "melody-dictation"',
   "seed: sessionSeed",
   "sequence",
+  "variantId: question.variantId",
 ]) {
   assertContains(melodyTarget, expected, "melody-dictation复练目标");
 }

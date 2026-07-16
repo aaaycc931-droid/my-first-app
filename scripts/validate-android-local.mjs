@@ -68,9 +68,11 @@ if (
   !reviewQueueSource.includes("LOCAL_PRACTICE_REVIEW_QUEUE_MAX_ITEMS = 12")
   || !reviewQueueSource.includes("schemaVersion")
   || !reviewQueueSource.includes("catalogVersion")
+  || !reviewQueueSource.includes("variantId")
+  || !reviewQueueSource.includes("parseLegacyTarget")
   || !reviewQueueSource.includes("isCorrect")
 ) {
-  throw new Error("本机复练队列缺少容量、版本或答题更新边界");
+  throw new Error("本机复练队列缺少容量、版本、稳定题目标识、旧记录迁移或答题更新边界");
 }
 if (
   !reviewStorageSource.includes("solfeggio.mobile.practice-review-queue.v1")

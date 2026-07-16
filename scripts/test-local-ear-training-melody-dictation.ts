@@ -19,6 +19,18 @@ assert.deepEqual(
   "未指定 seed 时，旋律题目工厂仍必须是确定性的",
 );
 assert.deepEqual(getEarTrainingMelodyNoteIds("基础"), ["c4", "d4", "e4", "g4"]);
+assert.equal(defaultQuestion.variantId, "melody:up-step");
+assert.equal(createLocalEarTrainingMelodyQuestion({
+  difficulty: "进阶",
+  sequence: 99,
+  questionIndex: 0,
+  variantId: "melody:open-fifth",
+}).melody.id, "open-fifth");
+assert.throws(() => createLocalEarTrainingMelodyQuestion({
+  difficulty: "基础",
+  sequence: 0,
+  variantId: "melody:open-fifth",
+}), /Invalid local melody variant id/);
 assert.ok(getEarTrainingMelodyNoteIds("进阶").includes("a4"));
 
 const seed = 20_260_716;
