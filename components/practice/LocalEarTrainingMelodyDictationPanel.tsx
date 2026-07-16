@@ -61,7 +61,7 @@ export function LocalEarTrainingMelodyDictationPanel() {
   const chooseNote = (index: number, noteId: string) => setSelectedNoteIds((current) => current.map((value, valueIndex) => valueIndex === index ? noteId : value));
 
   return <section className="mt-5 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
-    <p className="text-sm font-semibold uppercase tracking-wide text-violet-600">P61 Runtime Alpha</p>
+    <p className="text-sm font-semibold tracking-wide text-violet-600">本地练习</p>
     <h2 className="mt-1 text-2xl font-bold text-slate-950">内置旋律听写练习</h2>
     <p className="mt-2 text-sm leading-6 text-slate-600">先听三音短旋律，再按听到的顺序选择音名。本模块只用于当前会话的内置练习，不上传、不保存，也不生成正式成绩。</p>
     <div className="mt-5 grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)]">

@@ -129,7 +129,7 @@ export function LocalEarTrainingIntervalPanel({
 
   return (
     <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
-      <p className="text-sm font-semibold uppercase tracking-wide text-emerald-600">P55 Runtime Alpha</p>
+      <p className="text-sm font-semibold tracking-wide text-emerald-600">本地练习</p>
       <h2 className="mt-1 text-2xl font-bold text-slate-950">内置音程听辨练习</h2>
       <p className="mt-2 text-sm leading-6 text-slate-600">
         先听两个依次播放的本地合成音，再选择你听到的音程。本模块不上传音频，也不生成正式成绩。{courseExerciseId ? "当前题目来自系统课程；登录后查看答案时会保存一条仅本人可见的练习记录。" : "当前入口不会保存练习记录。"}

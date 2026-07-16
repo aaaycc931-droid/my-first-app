@@ -1,6 +1,8 @@
 node_modules
 .next
 out
+mobile-dist
+artifacts
 .env*.local
 .vercel
 *.tsbuildinfo

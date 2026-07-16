@@ -1,0 +1,30 @@
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  overscroll-behavior-y: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+button,
+select {
+  touch-action: manipulation;
+}
+
+.mobile-topbar {
+  padding-top: env(safe-area-inset-top);
+}
+
+.mobile-bottom-nav {
+  padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
+}
+
+@media (max-width: 430px) {
+  .mobile-shell section.rounded-3xl {
+    border-radius: 1.25rem;
+  }
+}
