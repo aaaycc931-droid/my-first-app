@@ -2,6 +2,10 @@
 
 执行日期：2026-07-16
 
+## P101 目标曲线与分段反馈候选
+
+P101 已在 PR #352 的 GitHub Actions run `29502638657` 完成自动化验证，两个 job 均 PASS；合并后的 main commit 为 `84c329732f7e6a5498667027fd1ba731362c017e`。artifact `8377144432` 内 APK SHA-256 为 `e136f40a7a146d17537646016601c360bfbe24848c43aada7c3a4f595f0d7b63`，ZIP digest 为 `326a6da87a63702d015dbc39f525bbaaecf180d2bbe7a19bf1aa50b4834d16fb`。自动证据不证明真机目标同步或教学阈值，也不包含 P102 本机记录。
+
 ## P100 版本化练声生成器候选
 
 P100 已在 PR #351 的 GitHub Actions run `29501929393` 完成自动化验证，`quality` 与 `android-local` 两个 job 均为 PASS；合并后的 main squash commit 为 `dadccec70c2a687327c1ec0d60d9b7bb93e6cd0d`。artifact `8376849801` 内 APK SHA-256 为 `0b0d7a467eb82e8fa87d0d685a704fe433d0056b715d31ab679e5656265a77db`，GitHub artifact ZIP digest 为 `8f533a3f656f041ba87164aa393ac62ecd29ccc0167670e692307d0efae8c8cc`。自动证据不证明真机参考音听感、调度精度、长循环发热或扬声器串音，也不包含 P101 目标曲线对照。

@@ -1,5 +1,7 @@
 "use client";
 
+import { useId } from "react";
+
 import {
   midiToScientificNote,
   splitReliablePitchCurveSegments,
@@ -27,6 +29,7 @@ type Props = {
 };
 
 export function RealtimePitchCurveChart({ points, windowSeconds, targetMidi, targetEvents = [], targetStartedAtMs = null }: Props) {
+  const titleId = useId();
   const latestTimestamp = points.at(-1)?.timestampMs ?? 0;
   const windowMs = windowSeconds * 1_000;
   const windowEnd = Math.max(windowMs, latestTimestamp);
@@ -37,8 +40,8 @@ export function RealtimePitchCurveChart({ points, windowSeconds, targetMidi, tar
   const targetY = yForMidi(targetMidi);
 
   return (
-    <figure className="mt-4 overflow-hidden rounded-2xl border border-slate-700 bg-slate-950" aria-labelledby="pitch-curve-title">
-      <figcaption id="pitch-curve-title" className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800 px-4 py-3 text-xs text-slate-300">
+    <figure className="mt-4 overflow-hidden rounded-2xl border border-slate-700 bg-slate-950" aria-labelledby={titleId}>
+      <figcaption id={titleId} className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800 px-4 py-3 text-xs text-slate-300">
         <span className="font-bold text-white">最近 {windowSeconds} 秒音高曲线</span>
         <span>实线：可靠人声　断线：不足以判断　虚线：目标音</span>
       </figcaption>

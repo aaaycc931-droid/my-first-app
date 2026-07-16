@@ -58,6 +58,9 @@ jobs:
           npm run test:mobile-vocal-exercise-behavior
           npm run test:local-vocal-exercise-ui-contract
           npm run test:local-vocal-target-feedback
+          npm run test:local-vocal-practice-record
+          npm run test:local-vocal-practice-indexeddb
+          npm run test:local-vocal-practice-storage-ui-contract
           npm run test:realtime-pitch-monitor-ui-contract
           npm run test:realtime-pitch-monitor-behavior
           npm run test:local-ear-training-single-pitch
