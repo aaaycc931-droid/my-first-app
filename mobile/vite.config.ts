@@ -21,6 +21,7 @@ export default defineConfig({
     ],
   },
   build: {
+    target: "chrome74",
     outDir: fileURLToPath(new URL("../mobile-dist", import.meta.url)),
     emptyOutDir: true,
     sourcemap: false,

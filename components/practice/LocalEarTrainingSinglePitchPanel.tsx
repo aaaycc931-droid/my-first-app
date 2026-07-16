@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 
 import {
   createLocalEarTrainingSinglePitchQuestion,
@@ -10,13 +10,10 @@ import {
 } from "../../lib/practice/localEarTrainingSinglePitch";
 import { createSinglePitchAttemptRpcArgs } from "../../lib/practice/cloudPracticeAttempt";
 import {
-  createBrowserAudioChannel,
-  type BrowserAudioChannel,
-} from "../../lib/audio/browserAudioEngine";
-import {
   CourseAttemptSaveNotice,
   useCourseAttemptPersistence,
 } from "./CourseAttemptPersistence";
+import { useLocalAudioPlayback } from "./useLocalAudioPlayback";
 
 export function LocalEarTrainingSinglePitchPanel({
   courseExerciseId,
@@ -27,24 +24,13 @@ export function LocalEarTrainingSinglePitchPanel({
   const [sequence, setSequence] = useState(0);
   const [selectedPitchId, setSelectedPitchId] = useState<string | null>(null);
   const [isAnswerVisible, setIsAnswerVisible] = useState(false);
-  const [isPlaying, setIsPlaying] = useState(false);
   const [audioError, setAudioError] = useState("");
   const { resetSaveStatus, saveCourseAttempt, saveStatus } =
     useCourseAttemptPersistence();
-  const audioChannelRef = useRef<BrowserAudioChannel | null>(null);
-  if (!audioChannelRef.current) audioChannelRef.current = createBrowserAudioChannel();
-  const finishTimerRef = useRef<number | null>(null);
+  const { isPlaying, playbackState, play, stop: stopPlayback } =
+    useLocalAudioPlayback();
   const question = useMemo(() => createLocalEarTrainingSinglePitchQuestion({ difficulty, sequence }), [difficulty, sequence]);
   const answer = useMemo(() => getLocalEarTrainingSinglePitchAnswer({ question, selectedPitchId }), [question, selectedPitchId]);
-
-  const stopPlayback = () => {
-    if (finishTimerRef.current !== null) window.clearTimeout(finishTimerRef.current);
-    finishTimerRef.current = null;
-    audioChannelRef.current?.stop();
-    setIsPlaying(false);
-  };
-
-  useEffect(() => () => stopPlayback(), []);
 
   const resetCurrentQuestion = () => {
     stopPlayback();
@@ -72,11 +58,9 @@ export function LocalEarTrainingSinglePitchPanel({
     );
   };
 
-  const playQuestion = () => {
-    stopPlayback();
+  const playQuestion = async () => {
     setAudioError("");
-    try {
-      const audioContext = audioChannelRef.current!.getContext();
+    const playbackError = await play((audioContext, channel) => {
       const oscillator = audioContext.createOscillator();
       const gain = audioContext.createGain();
       const startTime = audioContext.currentTime + 0.04;
@@ -89,17 +73,15 @@ export function LocalEarTrainingSinglePitchPanel({
       gain.connect(audioContext.destination);
       oscillator.start(startTime);
       oscillator.stop(startTime + 0.8);
-      audioChannelRef.current!.trackSource(oscillator, [gain]);
-      setIsPlaying(true);
-      finishTimerRef.current = window.setTimeout(() => stopPlayback(), 950);
-    } catch {
-      setAudioError("当前浏览器无法播放本地单音题目。请检查音频权限或稍后重试。");
-    }
+      channel.trackSource(oscillator, [gain]);
+      return 950;
+    });
+    if (playbackError) setAudioError(playbackError);
   };
 
   const retryCurrentQuestion = () => {
     resetCurrentQuestion();
-    playQuestion();
+    void playQuestion();
   };
 
   return (
@@ -116,7 +98,7 @@ export function LocalEarTrainingSinglePitchPanel({
           </select>
           {courseExerciseId ? <p className="mt-2 text-xs leading-5 text-slate-500">系统课程已固定为基础难度，以保持题目版本一致。</p> : null}
           <p className="mt-4 text-sm leading-6 text-sky-900">当前为内置题目 {sequence + 1}。题目音高由浏览器本地 Web Audio 合成，不读取文件、不调用接口。</p>
-          <button type="button" onClick={playQuestion} disabled={isPlaying} className="mt-4 w-full rounded-xl bg-sky-700 px-4 py-3 font-semibold text-white disabled:cursor-not-allowed disabled:bg-sky-300">{isPlaying ? "正在播放单音…" : "播放单音题目"}</button>
+          <button type="button" onClick={() => void playQuestion()} disabled={isPlaying} className="mt-4 w-full rounded-xl bg-sky-700 px-4 py-3 font-semibold text-white disabled:cursor-not-allowed disabled:bg-sky-300">{playbackState === "准备中" ? "正在准备声音…" : isPlaying ? "正在播放单音…" : "播放单音题目"}</button>
           <button type="button" onClick={stopPlayback} disabled={!isPlaying} className="mt-2 w-full rounded-xl border border-sky-300 bg-white px-4 py-3 font-semibold text-sky-800 disabled:cursor-not-allowed disabled:opacity-50">停止播放</button>
           {audioError ? <p className="mt-3 rounded-xl bg-rose-50 p-3 text-sm leading-6 text-rose-800">{audioError}</p> : null}
         </div>
