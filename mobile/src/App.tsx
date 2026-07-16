@@ -5,6 +5,7 @@ import { LocalEarTrainingIntervalPanel } from "../../components/practice/LocalEa
 import { LocalEarTrainingMelodyDictationPanel } from "../../components/practice/LocalEarTrainingMelodyDictationPanel";
 import { LocalEarTrainingRhythmPanel } from "../../components/practice/LocalEarTrainingRhythmPanel";
 import { LocalEarTrainingSinglePitchPanel } from "../../components/practice/LocalEarTrainingSinglePitchPanel";
+import { LocalVocalExercisePanel } from "../../components/practice/LocalVocalExercisePanel";
 import { RealtimePitchMonitorPanel } from "../../components/practice/RealtimePitchMonitorPanel";
 import { LocalPianoPanel } from "../../components/piano/LocalPianoPanel";
 import {
@@ -437,9 +438,10 @@ export function App() {
             {lifecycle.isForeground ? <LocalPianoPanel /> : null}
           </section>
         ) : activeScreen === "monitor" ? (
-          <section aria-label={screenDetails.monitor.title}>
+          <section aria-label={screenDetails.monitor.title} className="grid gap-4">
             <a href="#home" onClick={() => setActiveReviewTarget(null)} className="mb-3 inline-flex min-h-11 items-center rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-bold text-slate-800 shadow-sm">返回练习首页</a>
             {lifecycle.isForeground ? <RealtimePitchMonitorPanel /> : null}
+            {lifecycle.isForeground ? <LocalVocalExercisePanel /> : null}
           </section>
         ) : (
           <section aria-label={screenDetails[activeScreen].title}>

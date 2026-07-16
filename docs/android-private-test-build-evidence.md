@@ -2,6 +2,12 @@
 
 执行日期：2026-07-16
 
+## P99 当前会话录音候选
+
+P99 已在 PR #350 的 GitHub Actions run `29500985893` 完成自动化验证，`quality` 与 `android-local` 两个 job 均为 PASS；合并后的 main squash commit 为 `9dba1bbbec1e1e87cd9775643a6b5d4fad2a451e`。artifact `8376459594` 内 APK SHA-256 为 `d7dbc7b57628593b7421df5fb9f50654b62f357f19fb70f871e26562bef18b43`，GitHub artifact ZIP digest 为 `f08175ba32b723d098240fe02f9570dd74cb676e695e7cd9e275e4067491ae09`。
+
+工件报告确认麦克风权限用于用户主动实时反馈和当前会话录音，仍无网络和宽泛存储权限。该自动证据不证明真机 MediaRecorder 编码、录音音质、回放、长时内存、来电打断或后台回收，也不包含 P100 练声生成器。
+
 ## P98 专业滚动曲线候选
 
 P98 已在 PR #349 的 GitHub Actions run `29500174037` 完成自动化验证，`quality` 与 `android-local` 两个 job 均为 PASS；合并后的 main squash commit 为 `a85e4ba769c6fb7724d7b2075faf7f8b9cb7989d`。artifact `8376148510` 内 APK SHA-256 为 `52c9669d0bd42f3bec94df72c57d985728a11557d73c849a395998cb1764996a`，GitHub artifact ZIP digest 为 `e18142a77247b56e59d384b44b72c47133135bf7a3c872500691fc1e75b1f6e3`。

@@ -11,6 +11,7 @@ import {
   appendRealtimePitchCurvePoint,
   type RealtimePitchCurvePoint,
 } from "../../lib/practice/realtimePitchCurve";
+import { subscribeBrowserAudioStopAll } from "../../lib/audio/browserAudioEngine";
 
 export type RealtimePitchMonitorStatus = "idle" | "requesting" | "listening" | "error";
 export type RealtimePitchRecordingStatus = "empty" | "recording" | "ready" | "playing" | "error";
@@ -279,6 +280,8 @@ export function useRealtimePitchMonitor() {
       }
     }
   }, [stop, stopPlayback]);
+
+  useEffect(() => subscribeBrowserAudioStopAll(stop), [stop]);
 
   useEffect(() => {
     // React StrictMode intentionally replays effects during development. Mark
