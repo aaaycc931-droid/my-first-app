@@ -14,6 +14,9 @@ const requiredSources = [
   "lib/piano/localPianoKeyboard.ts",
   "components/piano/LocalPianoPanel.tsx",
   "components/piano/useLocalPianoAudio.ts",
+  "components/practice/RealtimePitchMonitorPanel.tsx",
+  "components/practice/useRealtimePitchMonitor.ts",
+  "lib/practice/pitchEstimate.ts",
 ];
 
 for (const relativePath of requiredSources) {
@@ -151,6 +154,8 @@ for (const expectedCopy of [
   "本地模式",
   "本机复练",
   "本地参考钢琴",
+  "实时音高反馈",
+  "开始实时反馈",
   "挑战：",
   "本难度共",
   "solfeggio.mobile.practice-review-queue.v1",
@@ -171,6 +176,9 @@ if (existsSync(manifestPath)) {
   if (manifest.includes("android.permission.INTERNET")) {
     throw new Error("本地私测 APK 不应声明网络权限");
   }
+  if (!manifest.includes("android.permission.RECORD_AUDIO")) {
+    throw new Error("实时音高反馈缺少 Android 麦克风权限");
+  }
 }
 
 const syncedIndex = join(root, "android/app/src/main/assets/public/index.html");
@@ -178,4 +186,4 @@ if (existsSync(manifestPath) && !existsSync(syncedIndex)) {
   throw new Error("Android 工程存在，但本地 Web 资源尚未同步");
 }
 
-console.log("Android 本地模式校验通过：固定包名、本地资源、四类练习、本机复练、本地参考钢琴、无远程运行时配置与生命周期保护。 ");
+console.log("Android 本地模式校验通过：固定包名、本地资源、四类练习、实时音高反馈、本机复练、本地参考钢琴、无远程运行时配置与生命周期保护。 ");
