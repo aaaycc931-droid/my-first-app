@@ -33,6 +33,7 @@ export function useRealtimePitchMonitor() {
   const [recordingStatus, setRecordingStatus] = useState<RealtimePitchRecordingStatus>("empty");
   const [recordingError, setRecordingError] = useState("");
   const [hasRecording, setHasRecording] = useState(false);
+  const [recordingBlob, setRecordingBlob] = useState<Blob | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const contextRef = useRef<AudioContext | null>(null);
   const sourceRef = useRef<MediaStreamAudioSourceNode | null>(null);
@@ -75,6 +76,7 @@ export function useRealtimePitchMonitor() {
       setRecordingStatus("empty");
       setRecordingError("");
       setHasRecording(false);
+      setRecordingBlob(null);
     }
   }, [stopPlayback]);
 
@@ -228,6 +230,7 @@ export function useRealtimePitchMonitor() {
           return;
         }
         const blob = new Blob(chunks, { type: recorder.mimeType || "audio/webm" });
+        setRecordingBlob(blob);
         try {
           if (recordingUrlRef.current) URL.revokeObjectURL(recordingUrlRef.current);
           recordingUrlRef.current = URL.createObjectURL(blob);
@@ -322,6 +325,7 @@ export function useRealtimePitchMonitor() {
     clear,
     recordingStatus,
     hasRecording,
+    recordingBlob,
     recordingError,
     startRecording,
     stopRecording: finishRecording,

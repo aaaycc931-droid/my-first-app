@@ -1,12 +1,22 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { midiToScientificNote } from "../../lib/practice/realtimePitchCurve";
-import type { GeneratedLocalVocalExercise } from "../../lib/practice/localVocalExercise";
+import { localVocalExerciseManifest, type GeneratedLocalVocalExercise } from "../../lib/practice/localVocalExercise";
 import { getLocalVocalTargetFeedback } from "../../lib/practice/localVocalTargetFeedback";
 import { RealtimePitchCurveChart } from "./RealtimePitchCurveChart";
 import { useRealtimePitchMonitor } from "./useRealtimePitchMonitor";
+import { stopAllBrowserAudio, subscribeBrowserAudioStopAll } from "../../lib/audio/browserAudioEngine";
+import {
+  clearLocalVocalPracticeRecords,
+  createLocalVocalPracticeRecord,
+  deleteLocalVocalPracticeRecord,
+  listLocalVocalPracticeRecords,
+  saveLocalVocalPracticeRecord,
+  serializeLocalVocalPracticeRecord,
+  type LocalVocalPracticeRecord,
+} from "../../mobile/src/runtime/localVocalPracticeStorage";
 
 const frameCopy = {
   quiet: "声音太轻，正在等待较稳定的单音。",
@@ -21,10 +31,106 @@ export function RealtimePitchMonitorPanel({ targetExercise = null }: { targetExe
   const monitor = useRealtimePitchMonitor();
   const [windowSeconds, setWindowSeconds] = useState(10);
   const [targetMidi, setTargetMidi] = useState(69);
+  const [recordNote, setRecordNote] = useState("");
+  const [records, setRecords] = useState<LocalVocalPracticeRecord[]>([]);
+  const [selectedRecord, setSelectedRecord] = useState<LocalVocalPracticeRecord | null>(null);
+  const [storageNotice, setStorageNotice] = useState("");
+  const [confirmClearRecords, setConfirmClearRecords] = useState(false);
+  const [isStorageLoading, setIsStorageLoading] = useState(true);
+  const [storageBusy, setStorageBusy] = useState(false);
+  const [playingSavedRecordId, setPlayingSavedRecordId] = useState<string | null>(null);
+  const savedPlaybackRef = useRef<HTMLAudioElement | null>(null);
+  const savedPlaybackUrlRef = useRef<string | null>(null);
   const isActive = monitor.status === "requesting" || monitor.status === "listening";
   const reliable = monitor.frame?.state === "reliable" ? monitor.frame : null;
   const targetFeedback = getLocalVocalTargetFeedback(monitor.curvePoints, targetExercise?.events ?? [], monitor.listeningStartedAtMs);
+  const targetLabel = localVocalExerciseManifest.find((pattern) => pattern.id === targetExercise?.config.patternId)?.title ?? "自由练唱";
   const targetFeedbackCopy = targetFeedback.state === "close" ? "接近目标音" : targetFeedback.state === "high" ? "当前偏高" : targetFeedback.state === "low" ? "当前偏低" : targetFeedback.state === "unreliable" ? "当前不足以可靠判断" : "等待目标时段或稳定人声";
+
+  const stopSavedPlayback = useCallback(() => {
+    savedPlaybackRef.current?.pause();
+    savedPlaybackRef.current = null;
+    if (savedPlaybackUrlRef.current) URL.revokeObjectURL(savedPlaybackUrlRef.current);
+    savedPlaybackUrlRef.current = null;
+    setPlayingSavedRecordId(null);
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    void listLocalVocalPracticeRecords().then((items) => { if (active) setRecords(items); }).catch(() => { if (active) setStorageNotice("本机记录暂时不可用；实时练习不受影响。"); }).finally(() => { if (active) setIsStorageLoading(false); });
+    return () => { active = false; stopSavedPlayback(); };
+  }, [stopSavedPlayback]);
+
+  useEffect(() => subscribeBrowserAudioStopAll(stopSavedPlayback), [stopSavedPlayback]);
+
+  const saveSession = async () => {
+    if (storageBusy || isStorageLoading) return;
+    setStorageBusy(true);
+    try {
+      const record = createLocalVocalPracticeRecord({ note: recordNote, targetLabel, targetMidi, curvePoints: monitor.curvePoints, recording: monitor.recordingBlob });
+      await saveLocalVocalPracticeRecord(record);
+      setRecords((items) => [record, ...items.filter((item) => item.id !== record.id)]);
+      setSelectedRecord(record);
+      setRecordNote("");
+      setStorageNotice("已保存到本机应用私有记录。卸载或清除应用数据会删除记录。");
+    } catch (caught) { setStorageNotice(caught instanceof Error ? caught.message : "无法保存本机记录"); }
+    finally { setStorageBusy(false); }
+  };
+
+  const playSavedRecording = async (record: LocalVocalPracticeRecord) => {
+    if (!record.recording) return;
+    stopAllBrowserAudio();
+    stopSavedPlayback();
+    try {
+      const url = URL.createObjectURL(record.recording);
+      const audio = new Audio(url);
+      savedPlaybackUrlRef.current = url;
+      savedPlaybackRef.current = audio;
+      setPlayingSavedRecordId(record.id);
+      audio.onended = stopSavedPlayback;
+      audio.onerror = () => { stopSavedPlayback(); setStorageNotice("无法回放这条本机录音。"); };
+      await audio.play();
+    } catch { stopSavedPlayback(); setStorageNotice("系统阻止了本机录音回放，请重试。"); }
+  };
+
+  const exportRecord = (record: LocalVocalPracticeRecord) => {
+    const url = URL.createObjectURL(new Blob([serializeLocalVocalPracticeRecord(record)], { type: "application/json" }));
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = `视唱练耳-${record.createdAt.slice(0, 10)}-${record.id.slice(0, 8)}.json`;
+    document.body.append(anchor);
+    anchor.click();
+    anchor.remove();
+    window.setTimeout(() => URL.revokeObjectURL(url), 0);
+  };
+
+  const startMonitoring = () => { stopSavedPlayback(); void monitor.start(); };
+  const playCurrentRecording = () => { stopSavedPlayback(); void monitor.playRecording(); };
+
+  const deleteRecord = async (record: LocalVocalPracticeRecord) => {
+    if (storageBusy) return;
+    setStorageBusy(true);
+    stopSavedPlayback();
+    try {
+      await deleteLocalVocalPracticeRecord(record.id);
+      setRecords((items) => items.filter((item) => item.id !== record.id));
+      if (selectedRecord?.id === record.id) setSelectedRecord(null);
+    } catch { setStorageNotice("删除失败，请重试。"); }
+    finally { setStorageBusy(false); }
+  };
+
+  const clearRecords = async () => {
+    if (storageBusy) return;
+    setStorageBusy(true);
+    stopSavedPlayback();
+    try {
+      await clearLocalVocalPracticeRecords();
+      setRecords([]);
+      setSelectedRecord(null);
+      setConfirmClearRecords(false);
+    } catch { setStorageNotice("清除失败，请重试。"); }
+    finally { setStorageBusy(false); }
+  };
 
   return (
     <section className="rounded-3xl border border-cyan-200 bg-white p-5 shadow-sm sm:p-6">
@@ -77,14 +183,14 @@ export function RealtimePitchMonitorPanel({ targetExercise = null }: { targetExe
         <div className="mt-3 flex flex-wrap gap-2">
           <button type="button" onClick={monitor.startRecording} disabled={monitor.status !== "listening" || monitor.recordingStatus === "recording" || monitor.recordingStatus === "playing"} className="min-h-11 rounded-xl bg-violet-700 px-4 py-2 text-sm font-bold text-white disabled:cursor-not-allowed disabled:bg-violet-300">开始会话录音</button>
           <button type="button" onClick={monitor.stopRecording} disabled={monitor.recordingStatus !== "recording"} className="min-h-11 rounded-xl border border-violet-300 bg-white px-4 py-2 text-sm font-bold text-violet-950 disabled:cursor-not-allowed disabled:opacity-50">停止录音</button>
-          <button type="button" onClick={() => void monitor.playRecording()} disabled={!monitor.hasRecording || monitor.recordingStatus === "playing" || monitor.recordingStatus === "recording"} className="min-h-11 rounded-xl border border-violet-300 bg-white px-4 py-2 text-sm font-bold text-violet-950 disabled:cursor-not-allowed disabled:opacity-50">播放本次录音</button>
+          <button type="button" onClick={playCurrentRecording} disabled={!monitor.hasRecording || monitor.recordingStatus === "playing" || monitor.recordingStatus === "recording"} className="min-h-11 rounded-xl border border-violet-300 bg-white px-4 py-2 text-sm font-bold text-violet-950 disabled:cursor-not-allowed disabled:opacity-50">播放本次录音</button>
           <button type="button" onClick={monitor.stopPlayback} disabled={monitor.recordingStatus !== "playing"} className="min-h-11 rounded-xl border border-violet-300 bg-white px-4 py-2 text-sm font-bold text-violet-950 disabled:cursor-not-allowed disabled:opacity-50">停止回放</button>
           <button type="button" onClick={monitor.discardRecording} disabled={monitor.recordingStatus === "empty"} className="min-h-11 rounded-xl border border-rose-300 bg-white px-4 py-2 text-sm font-bold text-rose-800 disabled:cursor-not-allowed disabled:opacity-50">丢弃本次录音</button>
         </div>
       </section>
 
       <div className="mt-5 flex flex-wrap gap-2">
-        <button type="button" onClick={() => void monitor.start()} disabled={isActive} className="min-h-12 rounded-xl bg-cyan-700 px-5 py-3 font-bold text-white disabled:cursor-not-allowed disabled:bg-cyan-300">{monitor.status === "requesting" ? "正在请求权限…" : monitor.status === "listening" ? "正在监听" : "开始实时反馈"}</button>
+        <button type="button" onClick={startMonitoring} disabled={isActive} className="min-h-12 rounded-xl bg-cyan-700 px-5 py-3 font-bold text-white disabled:cursor-not-allowed disabled:bg-cyan-300">{monitor.status === "requesting" ? "正在请求权限…" : monitor.status === "listening" ? "正在监听" : "开始实时反馈"}</button>
         <button type="button" onClick={monitor.stop} disabled={!isActive} className="min-h-12 rounded-xl border border-cyan-300 bg-white px-5 py-3 font-bold text-cyan-900 disabled:cursor-not-allowed disabled:opacity-50">停止监听</button>
         <button type="button" onClick={monitor.clear} disabled={!monitor.frame && monitor.curvePoints.length === 0 && !monitor.error && monitor.status === "idle"} className="min-h-12 rounded-xl border border-slate-300 bg-white px-5 py-3 font-bold text-slate-800 disabled:cursor-not-allowed disabled:opacity-50">停止并清空曲线</button>
       </div>
@@ -93,6 +199,17 @@ export function RealtimePitchMonitorPanel({ targetExercise = null }: { targetExe
         <p className="font-bold">使用提示</p>
         <ul className="mt-2 grid gap-1"><li>• 手机距离嘴部约 20–40 厘米，尽量避开风声和伴奏。</li><li>• 扬声器播放参考音时先停止监听，避免把参考音当作你的声音。</li><li>• “不足以判断”是正常保护状态，不会强行显示一个可能错误的音名。</li></ul>
       </div>
+
+      <section className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 p-4" aria-labelledby="local-records-title">
+        <h2 id="local-records-title" className="font-black text-slate-950">本机练声记录</h2>
+        <p className="mt-1 text-sm leading-6 text-slate-600">只有点击保存才写入应用私有 IndexedDB；不上传。最多 20 条，单条录音最多 5 MB。导出 JSON 包含曲线和目标摘要，不包含录音文件。</p>
+        <label className="mt-3 block text-sm font-bold text-slate-900">本次备注（最多 200 字）<textarea value={recordNote} maxLength={200} onChange={(event) => setRecordNote(event.target.value)} className="mt-1 min-h-20 w-full rounded-xl border border-slate-300 bg-white p-3 font-normal" /></label>
+        <button type="button" onClick={() => void saveSession()} disabled={isStorageLoading || storageBusy || (monitor.curvePoints.length === 0 && !monitor.recordingBlob)} className="mt-3 min-h-11 rounded-xl bg-slate-900 px-4 font-bold text-white disabled:bg-slate-300">{storageBusy ? "正在处理…" : "保存当前曲线与录音"}</button>
+        {storageNotice ? <p className="mt-2 text-sm text-slate-700" role="status">{storageNotice}</p> : null}
+        <div className="mt-4 grid gap-2">{records.map((record) => { const accessibleName = `${new Date(record.createdAt).toLocaleString("zh-CN")} ${record.targetLabel}`; return <article key={record.id} className="rounded-xl border border-slate-200 bg-white p-3"><p className="font-bold text-slate-950">{accessibleName}</p><p className="mt-1 text-sm text-slate-600">{record.curvePoints.length} 帧 · {record.recording ? "含录音" : "仅曲线"}{record.note ? ` · ${record.note}` : ""}</p><div className="mt-2 flex flex-wrap gap-2"><button type="button" aria-label={`回看曲线：${accessibleName}`} aria-pressed={selectedRecord?.id === record.id} onClick={() => setSelectedRecord(record)} className="min-h-10 rounded-lg border border-slate-300 px-3 text-sm font-bold">回看曲线</button>{record.recording ? <button type="button" aria-label={`${playingSavedRecordId === record.id ? "停止" : "回放"}录音：${accessibleName}`} onClick={() => playingSavedRecordId === record.id ? stopSavedPlayback() : void playSavedRecording(record)} className="min-h-10 rounded-lg border border-slate-300 px-3 text-sm font-bold">{playingSavedRecordId === record.id ? "停止回放" : "回放录音"}</button> : null}<button type="button" aria-label={`导出 JSON：${accessibleName}`} onClick={() => exportRecord(record)} className="min-h-10 rounded-lg border border-slate-300 px-3 text-sm font-bold">导出 JSON</button><button type="button" aria-label={`删除：${accessibleName}`} disabled={storageBusy} onClick={() => void deleteRecord(record)} className="min-h-10 rounded-lg border border-rose-300 px-3 text-sm font-bold text-rose-800 disabled:opacity-50">删除</button></div></article>; })}</div>
+        {selectedRecord ? <div className="mt-4"><RealtimePitchCurveChart points={selectedRecord.curvePoints} windowSeconds={Math.min(15, Math.max(5, Math.ceil((((selectedRecord.curvePoints[selectedRecord.curvePoints.length - 1]?.timestampMs) ?? 0) - (selectedRecord.curvePoints[0]?.timestampMs ?? 0)) / 1_000)))} targetMidi={selectedRecord.targetMidi} /></div> : null}
+        {records.length > 0 ? <div className="mt-4">{confirmClearRecords ? <div className="flex flex-wrap items-center gap-2" role="alert" aria-live="assertive"><span className="text-sm font-bold text-rose-900">确认清除全部本机练声记录？</span><button type="button" disabled={storageBusy} onClick={() => void clearRecords()} className="min-h-10 rounded-lg bg-rose-700 px-3 text-sm font-bold text-white disabled:opacity-50">确认全部清除</button><button type="button" onClick={() => setConfirmClearRecords(false)} className="min-h-10 rounded-lg border border-slate-300 px-3 text-sm font-bold">取消</button></div> : <button type="button" onClick={() => setConfirmClearRecords(true)} className="min-h-10 rounded-lg border border-rose-300 px-3 text-sm font-bold text-rose-800">清除全部记录</button>}</div> : null}
+      </section>
     </section>
   );
 }
