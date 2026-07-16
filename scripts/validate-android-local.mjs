@@ -15,8 +15,10 @@ const requiredSources = [
   "components/piano/LocalPianoPanel.tsx",
   "components/piano/useLocalPianoAudio.ts",
   "components/practice/RealtimePitchMonitorPanel.tsx",
+  "components/practice/RealtimePitchCurveChart.tsx",
   "components/practice/useRealtimePitchMonitor.ts",
   "lib/practice/pitchEstimate.ts",
+  "lib/practice/realtimePitchCurve.ts",
 ];
 
 for (const relativePath of requiredSources) {
@@ -156,6 +158,7 @@ for (const expectedCopy of [
   "本地参考钢琴",
   "实时音高反馈",
   "开始实时反馈",
+  "曲线时间缩放",
   "挑战：",
   "本难度共",
   "solfeggio.mobile.practice-review-queue.v1",

@@ -1,5 +1,9 @@
 "use client";
 
+import { useState } from "react";
+
+import { midiToScientificNote } from "../../lib/practice/realtimePitchCurve";
+import { RealtimePitchCurveChart } from "./RealtimePitchCurveChart";
 import { useRealtimePitchMonitor } from "./useRealtimePitchMonitor";
 
 const frameCopy = {
@@ -13,6 +17,8 @@ const displayNote = (note: string | null): string => note?.replace("#", "♯") ?
 
 export function RealtimePitchMonitorPanel() {
   const monitor = useRealtimePitchMonitor();
+  const [windowSeconds, setWindowSeconds] = useState(10);
+  const [targetMidi, setTargetMidi] = useState(69);
   const isActive = monitor.status === "requesting" || monitor.status === "listening";
   const reliable = monitor.frame?.state === "reliable" ? monitor.frame : null;
 
@@ -36,6 +42,24 @@ export function RealtimePitchMonitorPanel() {
         <p className="mt-4 text-sm leading-6 text-slate-300">
           {monitor.frame ? frameCopy[monitor.frame.state] : "开始后请持续唱一个清晰、稳定的单音。"}
         </p>
+        <RealtimePitchCurveChart points={monitor.curvePoints} windowSeconds={windowSeconds} targetMidi={targetMidi} />
+      </div>
+
+      <div className="mt-4 grid gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4 sm:grid-cols-2">
+        <fieldset>
+          <legend className="text-sm font-bold text-slate-900">时间窗口</legend>
+          <div className="mt-2 flex gap-2" aria-label="曲线时间缩放">
+            {[5, 10, 15].map((seconds) => <button key={seconds} type="button" aria-pressed={windowSeconds === seconds} onClick={() => setWindowSeconds(seconds)} className={`min-h-11 flex-1 rounded-xl px-3 py-2 text-sm font-bold ${windowSeconds === seconds ? "bg-slate-900 text-white" : "border border-slate-300 bg-white text-slate-800"}`}>{seconds} 秒</button>)}
+          </div>
+        </fieldset>
+        <fieldset>
+          <legend className="text-sm font-bold text-slate-900">目标参考线（不计分）</legend>
+          <div className="mt-2 grid grid-cols-[44px_1fr_44px] items-center gap-2">
+            <button type="button" aria-label="目标音降低半音" onClick={() => setTargetMidi((value) => Math.max(48, value - 1))} className="min-h-11 rounded-xl border border-slate-300 bg-white text-xl font-black">−</button>
+            <output className="text-center text-lg font-black text-slate-950" aria-live="polite">{midiToScientificNote(targetMidi)}</output>
+            <button type="button" aria-label="目标音升高半音" onClick={() => setTargetMidi((value) => Math.min(84, value + 1))} className="min-h-11 rounded-xl border border-slate-300 bg-white text-xl font-black">＋</button>
+          </div>
+        </fieldset>
       </div>
 
       {monitor.error ? <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-950" role="alert"><p className="font-bold">无法使用麦克风</p><p className="mt-1">{monitor.error}</p></div> : null}
@@ -43,7 +67,7 @@ export function RealtimePitchMonitorPanel() {
       <div className="mt-5 flex flex-wrap gap-2">
         <button type="button" onClick={() => void monitor.start()} disabled={isActive} className="min-h-12 rounded-xl bg-cyan-700 px-5 py-3 font-bold text-white disabled:cursor-not-allowed disabled:bg-cyan-300">{monitor.status === "requesting" ? "正在请求权限…" : monitor.status === "listening" ? "正在监听" : "开始实时反馈"}</button>
         <button type="button" onClick={monitor.stop} disabled={!isActive} className="min-h-12 rounded-xl border border-cyan-300 bg-white px-5 py-3 font-bold text-cyan-900 disabled:cursor-not-allowed disabled:opacity-50">停止监听</button>
-        <button type="button" onClick={monitor.clear} disabled={!monitor.frame && !monitor.error && monitor.status === "idle"} className="min-h-12 rounded-xl border border-slate-300 bg-white px-5 py-3 font-bold text-slate-800 disabled:cursor-not-allowed disabled:opacity-50">停止并清空</button>
+        <button type="button" onClick={monitor.clear} disabled={!monitor.frame && monitor.curvePoints.length === 0 && !monitor.error && monitor.status === "idle"} className="min-h-12 rounded-xl border border-slate-300 bg-white px-5 py-3 font-bold text-slate-800 disabled:cursor-not-allowed disabled:opacity-50">停止并清空曲线</button>
       </div>
 
       <div className="mt-5 rounded-2xl bg-cyan-50 p-4 text-sm leading-6 text-cyan-950">

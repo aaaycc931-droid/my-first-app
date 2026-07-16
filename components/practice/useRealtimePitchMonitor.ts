@@ -7,6 +7,10 @@ import {
   REALTIME_PITCH_FRAME_SIZE,
   type RealtimePitchFrameAnalysis,
 } from "../../lib/practice/pitchEstimate";
+import {
+  appendRealtimePitchCurvePoint,
+  type RealtimePitchCurvePoint,
+} from "../../lib/practice/realtimePitchCurve";
 
 export type RealtimePitchMonitorStatus = "idle" | "requesting" | "listening" | "error";
 
@@ -21,6 +25,7 @@ const describeMicrophoneError = (error: unknown): string => {
 export function useRealtimePitchMonitor() {
   const [status, setStatus] = useState<RealtimePitchMonitorStatus>("idle");
   const [frame, setFrame] = useState<RealtimePitchFrameAnalysis | null>(null);
+  const [curvePoints, setCurvePoints] = useState<RealtimePitchCurvePoint[]>([]);
   const [error, setError] = useState("");
   const streamRef = useRef<MediaStream | null>(null);
   const contextRef = useRef<AudioContext | null>(null);
@@ -50,6 +55,7 @@ export function useRealtimePitchMonitor() {
   const clear = useCallback(() => {
     stop();
     setFrame(null);
+    setCurvePoints([]);
     setError("");
   }, [stop]);
 
@@ -109,7 +115,10 @@ export function useRealtimePitchMonitor() {
       const analyze = () => {
         if (!mountedRef.current || generation !== generationRef.current) return;
         analyser.getFloatTimeDomainData(samples);
-        setFrame(analyzeRealtimePitchFrame(samples, context.sampleRate));
+        const analysis = analyzeRealtimePitchFrame(samples, context.sampleRate);
+        const timestampMs = performance.now();
+        setFrame(analysis);
+        setCurvePoints((points) => appendRealtimePitchCurvePoint(points, analysis, timestampMs));
         timerRef.current = window.setTimeout(analyze, 50);
       };
       setStatus("listening");
@@ -134,5 +143,5 @@ export function useRealtimePitchMonitor() {
     };
   }, [releaseResources]);
 
-  return { status, frame, error, start, stop, clear };
+  return { status, frame, curvePoints, error, start, stop, clear };
 }
