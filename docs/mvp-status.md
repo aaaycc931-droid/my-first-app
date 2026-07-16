@@ -1,3 +1,9 @@
+## P105R — 专业竞争力路线重定标与主动暂停（docs-only，2026-07-16）
+
+产品所有者要求钢琴功能的功能性与专业性至少以 Perfect Piano 一类成熟移动钢琴的核心演奏能力为参照，录音停止/提交后的本地音准识别以及视唱、练耳、节奏、声乐、课程、定制、统计和自适应能力域以 EarMaster 一类完整训练系统为参照。本阶段新增 `docs/professional-competitive-roadmap-perfect-piano-earmaster.md`，把 88 键、专业采样音色、复音、移动交互、录制/节拍器/循环、多音色、USB MIDI/MusicXML、录音后多引擎分析、音符分段/目标对齐、14 活动族、中文课程和教育验收拆为恢复后的 P106–P120 路线；对标不允许复制竞品 UI、资产、曲库、课程或品牌。
+
+同时新增 `docs/project-handoff-paused-professional-rebaseline-2026-07-16.md`，记录远端功能截止点 `main@bd5f7a372cca4d45f487f160f58af6d51ddedcbf` / PR #355、0.2.0 Debug APK 证据、当前真实能力与缺口、恢复入口、必读顺序和用户的 Fast Track + Strict Complete Mode、多代理、持续执行、简体中文、诚实 QA 与外部硬阻塞习惯。本阶段只修改文档；没有 P106 运行时实现，没有 UI、音频、钢琴、音准算法、练习题库、Android 工程、依赖、版本、签名或 APK 变化。项目在文档合并后保持主动暂停。QA level recommendation：**none**。
+
 ## P104a — Android 算法与真机证据硬门禁（自动测试通过，真实证据仍阻塞，2026-07-16）
 
 P104a 新增纯证据评估器和本地、被 Git 忽略的填写模板，将正式 DoD 中分散的样本量、真实人声音高误差、授权与隔离验收集、声区/强弱/颤音/噪声覆盖、三档 Android 真机、冷启动、视觉延迟、核心功能矩阵、20 轮稳定性和双教育审核统一为 13 项可解释门禁。缺少文件或任一门槛未达到时只输出 `BLOCKED` 并禁止把 P104 标记完成；示例模板默认全部阻塞。

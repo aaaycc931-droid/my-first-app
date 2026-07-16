@@ -26,6 +26,9 @@
 - `docs/final-release-definition-of-done.md`
 - `docs/final-release-status-matrix.md`
 - `docs/android-apk-release-plan.md`
+- `docs/android-offline-professional-product-roadmap.md`
+- `docs/professional-competitive-roadmap-perfect-piano-earmaster.md`
+- `docs/project-handoff-paused-professional-rebaseline-2026-07-16.md`
 - `docs/sight-singing-ear-training-feature-detail-map.md`
 - `docs/private-cloud-song-practice-pipeline-plan.md`
 
@@ -35,6 +38,8 @@
 - `docs/final-product-shape-and-feature-map.md`
 
 如果某个文件不存在，必须先说明，不要凭空假设其内容。
+
+截至 2026-07-16，产品所有者已在专业竞争力路线重定标后明确暂停运行时开发。若新请求只是询问状态、复盘或规划，不得自行开始 P106；只有用户明确要求恢复开发时，才从远端最新 `main` 和交接文档继续。
 
 凡涉及五线谱、乐谱预览、notation draft、识谱、OCR / OMR、乐谱到练习目标、Stage A–F 的任务，除上述通用必读文档外，还必须读取：
 

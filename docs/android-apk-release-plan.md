@@ -9,6 +9,8 @@
 
 当前只交付可直接安装、可由产品所有者私下传递的 Android APK，不进行应用商店上架准备。中国用户无法稳定访问 Web 入口，因此 APK 的核心练习必须随安装包一起提供，启动和使用不能依赖 Vercel、Supabase、生产域名或其他远程网页。
 
+2026-07-16 专业竞争力范围已重新冻结：当前 0.2.0 Debug APK 只可作为技术样机；原 P105 最终候选暂停。恢复开发后须先执行 `docs/professional-competitive-roadmap-perfect-piano-earmaster.md` 的 P106–P119，再由 P120 重新生成专业私测候选。当前项目由产品所有者主动暂停，不得把路线规划误报为正在开发。
+
 当前明确不做：
 
 - Google Play、国内应用商店或其他商店上架；
