@@ -15,7 +15,7 @@
 | V1-04 | 系统课程与题库 | IN_PROGRESS | 基础课程；单音、音程、节奏持久化；旋律听写本地运行时 | 基础视唱、3 难度、题量、课程进度、教育审核 |
 | V1-05 | 视唱与录音闭环 | IN_PROGRESS | 本地目标播放、录音、回放、音高诊断、临时目标 | 正式课程接入、分句复练、版本化云端记录、设备矩阵 |
 | V1-06 | 节奏练习与反馈 | IN_PROGRESS | 节拍器、tap/onset、延迟校准、DP 对齐、课程节奏听辨 | 真实数据基准、录音闭环、长期记录与复练 |
-| V1-07 | 钢琴辅助 | NOT_STARTED | 有参考音和 Web Audio 基础 | 内嵌钢琴、独立钢琴页、触控/延音/音域、移动端 QA |
+| V1-07 | 钢琴辅助 | IN_PROGRESS | Android 独立本地参考钢琴页与四类练习内嵌入口；三档音域、多指、音量、延音、全停、错误重试与行为测试 | P94 CI；真实 Android 多指、扬声器、旋转、后台残音与 System WebView QA |
 | V1-08 | MusicXML/MXL | IN_PROGRESS | parser、fixture、dev import、草稿与临时目标链路 | 正式用户入口、编辑确认、错误恢复、私有持久化 |
 | V1-09 | 图片/PDF OMR | IN_PROGRESS | mock flow、Audiveris fixture/runner 研究基础 | 隔离 worker、私有上传、真实 OMR、草稿编辑、失败恢复 |
 | V1-10 | 私有音频素材 | IN_PROGRESS | 浏览器本地导入、decode、音高曲线草稿、检查与临时目标 | 私有上传、worker、保留/删除、任务恢复、版权说明 |
@@ -31,8 +31,8 @@
 | V1-20 | 观测与事故响应 | NOT_STARTED | GitHub Actions、Vercel 状态 | 错误追踪、指标、隐私日志、告警接收人和故障手册 |
 | V1-21 | 内容与教学审核 | NOT_STARTED | 中文题目、答案解释和难度草案 | 2 名教育审核者、题量/正确率/难度递进验收 |
 | V1-22 | 用户可用性验收 | NOT_STARTED | 开发与所有者 QA | 5 名目标用户、核心任务成功率和误解检查 |
-| V1-23 | 发布证据包 | IN_PROGRESS | PR、CI、Vercel、Supabase/RLS 证据已开始记录；P92 PR #343 run `29490844673` 两个 job PASS，0.2.0 artifact `8372367371` 的内部 APK SHA-256 与 ZIP digest 已分别核对，C1 已 PASS | 汇总全部基准、设备、删除/恢复、教育和用户验收证据；P93 React 行为回归须取得 CI 证据 |
-| V1-24 | Android 本地 APK | IN_PROGRESS | Capacitor 工程、本地四类练习、会话内可复现随机题序、Android-only 本机错题复练队列（最小目标、最多 12 项、答错置顶/答对移除、二次确认清除）、无网络权限、V2 调试签名 APK、SHA-256 与结构校验已通过；P92 PR #343 run `29490844673` 的 `quality` / `android-local` 均 PASS，artifact `8372367371` 中 0.2.0 APK 的 SHA-256 为 `c64e7220fd4ae1919ebe63583194010d31f7ea062cf4bcbd9680bdf119914949`。P93 新增真实挂载 React App 的本机复练行为回归。见 `docs/android-private-test-build-evidence.md`。 | P93 CI；首台真机安装、跨重启复练、音频、后台恢复与存储异常；三档设备；专用 release 签名、升级与回滚 |
+| V1-23 | 发布证据包 | IN_PROGRESS | PR、CI、Vercel、Supabase/RLS 证据已开始记录；P93 PR #344 run `29492560135` 两个 job PASS，artifact `8373062993` 的内部 APK SHA-256 与 ZIP digest 已核对，C1 已 PASS | 汇总全部基准、设备、删除/恢复、教育和用户验收证据；P94 钢琴切片须取得 CI 证据 |
+| V1-24 | Android 本地 APK | IN_PROGRESS | Capacitor 工程、本地四类练习、会话内可复现随机题序、Android-only 本机错题复练、离线本地参考钢琴、无网络权限、V2 调试签名 APK、SHA-256 与结构校验已通过；P93 PR #344 run `29492560135` 的两个 job 均 PASS，artifact `8373062993` 内 APK SHA-256 为 `6864b4649ba9937a2e563fb95a11099424035c0fc7b24e9d4205125bd3684c33`。见 `docs/android-private-test-build-evidence.md`。 | P94 CI；首台真机安装、跨重启复练、钢琴多指/延音、音频、后台恢复与存储异常；三档设备；专用 release 签名、升级与回滚 |
 | V1-25 | 最终生产发布 | BLOCKED | 当前 P84 生产 Web 版本已部署 | V1-02 至 V1-24 的全部 MUST 门槛尚未通过 |
 
 ## 2. 已确认不阻塞 V1 的能力
@@ -50,12 +50,12 @@
 
 按依赖关系推进：
 
-1. V1-24 Android 本地 APK：完成 P93 React 行为回归 CI 后，继续扩充离线核心练习与自动回归；随后执行首台真机安装、四类练习音频、本机错题队列跨重启/清除、后台恢复、存储异常和断网回归，并根据私测反馈迭代；当前不做 AAB、商店、TWA、域名关联或认证回跳。
+1. V1-24 Android 本地 APK：完成 P94 本地参考钢琴 CI 后，继续扩充三难度题库与自动回归；随后执行首台真机安装、四类练习音频、钢琴多指/延音、本机错题队列跨重启/清除、后台恢复、存储异常和断网回归，并根据私测反馈迭代；当前不做 AAB、商店、TWA、域名关联或认证回跳。
 2. V1-03 / V1-02 / V1-15 Web 数据生命周期、账户与权限：闭合已经上线的账户/数据库责任；它们不阻塞当前本地 APK 启动。
 3. V1-12 学习历史与复习：把已有 attempts 转化为可见学习闭环。
 4. V1-04 系统课程：补齐视唱、题量、难度与课程进度。
 5. V1-13 / V1-14 算法基准：冻结数据集和量化证据，并把 Android 本地 APK 真机纳入样本。
-6. V1-07 钢琴辅助：建立练习页与独立页最小正式闭环，并完成 Android 触控验证。
+6. V1-07 钢琴辅助：P94 已建立练习内嵌与独立页最小闭环；完成本切片 CI 后执行 Android 多指、扬声器、延音、旋转和后台残音真机验证。
 7. V1-08 至 V1-11 私有素材与 worker：继续作为 Web 私有能力推进；APK 如需接入必须另做网络范围决策。
 8. V1-16 至 V1-23 完成发布工程、真实设备、教育和用户验收。
 

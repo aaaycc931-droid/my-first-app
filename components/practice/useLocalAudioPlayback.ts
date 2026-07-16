@@ -4,6 +4,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import {
   createBrowserAudioChannel,
+  stopAllBrowserAudio,
+  subscribeBrowserAudioStopAll,
   type BrowserAudioChannel,
 } from "../../lib/audio/browserAudioEngine";
 
@@ -38,7 +40,7 @@ export function useLocalAudioPlayback() {
 
   const play = useCallback(
     async (schedule: SchedulePlayback): Promise<string | null> => {
-      stop();
+      stopAllBrowserAudio();
       const request = requestRef.current + 1;
       requestRef.current = request;
       setState("准备中");
@@ -73,7 +75,9 @@ export function useLocalAudioPlayback() {
 
   useEffect(() => {
     mountedRef.current = true;
+    const unsubscribe = subscribeBrowserAudioStopAll(stop);
     return () => {
+      unsubscribe();
       mountedRef.current = false;
       stop();
     };

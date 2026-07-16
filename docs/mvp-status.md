@@ -1,6 +1,12 @@
-## P93 — Android 本机复练 React 行为回归（本地验证通过，待 CI，2026-07-16）
+## P94 — Android 离线本地参考钢琴（本地验证通过，待 CI 与真机 QA，2026-07-16）
 
-P93 为 Android 移动入口新增真实挂载 React `App` 的 DOM 行为回归，而不是继续只依赖源码字符串契约。测试在 `happy-dom` 中通过 React 19 `createRoot` 驱动用户可见按钮和浏览历史，覆盖答错写入最小复练目标、首页进入复练后答对移除、清除取消与确认、前进/后退不恢复陈旧复练状态，以及 `localStorage` 保存/清除异常时中文降级提示且练习不中断。该测试加入 `quality` 工作流；它证明组件行为与存储边界的自动化回归，不等于真实 Android System WebView、触控、跨应用重启、音频或真机 QA。QA level recommendation：**strict**。
+P94 在 Android 本地入口新增独立“本地参考钢琴”页，并让单音、音程、节奏和旋律听写面板在 Android 显式开启时提供默认收起的同一钢琴组件；共享 Web 与课程入口默认不显示。钢琴提供 C3–C4、C4–C5、C5–C6 三档 13 键半音音域，支持多指、键盘 Enter/空格、音量、延音、停止全部和 8 声部上限。声音由 APK 内 Web Audio 本地合成，不联网、不使用采样、不申请新权限、不保存弹奏，也不生成成绩或正式评分。
+
+领域状态机覆盖同键多 pointer、延音锁存/释放、音量边界、声部上限与幂等重置；真实挂载 React 行为测试覆盖发声/释放、异步准备竞态、切音域、失败重试、触控取消、失焦/卸载清理、10 秒残音看门狗和导航/内嵌展开。题目声音与钢琴通过全局 stop 通知互斥，后台、切页、收起或卸载均清理声源。自动 DOM/Web Audio fake 证据不等于真实手机多点触控、扬声器延迟、旋转、System WebView 或后台残音 QA。QA level recommendation：**strict**。
+
+## P93 — Android 本机复练 React 行为回归（自动 CI 通过，2026-07-16）
+
+P93 为 Android 移动入口新增真实挂载 React `App` 的 DOM 行为回归，而不是继续只依赖源码字符串契约。测试在 `happy-dom` 中通过 React 19 `createRoot` 驱动用户可见按钮和浏览历史，覆盖答错写入最小复练目标、首页进入复练后答对移除、清除取消与确认、前进/后退不恢复陈旧复练状态，以及 `localStorage` 保存/清除异常时中文降级提示且练习不中断。PR #344 的 GitHub Actions run `29492560135` 已让 `quality` 与 `android-local` 两个 job 均 PASS；artifact `8373062993` 内 APK SHA-256 为 `6864b4649ba9937a2e563fb95a11099424035c0fc7b24e9d4205125bd3684c33`，ZIP digest 为 `41834bb3cf2eb5c7375c7fcaaa4b4f86a746ac71b017386c39b1e746f0022926`。它证明组件行为与存储边界的自动化回归，不等于真实 Android System WebView、触控、跨应用重启、音频或真机 QA。QA level recommendation：**strict**。
 
 ## P92 — Android 0.2.0 可追溯候选与供应链锁定（自动 CI 通过，2026-07-16）
 

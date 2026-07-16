@@ -11,6 +11,9 @@ const requiredSources = [
   "mobile/src/runtime/mobilePracticeReviewStorage.ts",
   "mobile/src/stubs/supabaseBrowser.ts",
   "lib/practice/localPracticeReviewQueue.ts",
+  "lib/piano/localPianoKeyboard.ts",
+  "components/piano/LocalPianoPanel.tsx",
+  "components/piano/useLocalPianoAudio.ts",
 ];
 
 for (const relativePath of requiredSources) {
@@ -28,6 +31,18 @@ const reviewQueueSource = readFileSync(
 );
 const reviewStorageSource = readFileSync(
   join(root, "mobile/src/runtime/mobilePracticeReviewStorage.ts"),
+  "utf8",
+);
+const pianoModelSource = readFileSync(
+  join(root, "lib/piano/localPianoKeyboard.ts"),
+  "utf8",
+);
+const pianoPanelSource = readFileSync(
+  join(root, "components/piano/LocalPianoPanel.tsx"),
+  "utf8",
+);
+const pianoAudioSource = readFileSync(
+  join(root, "components/piano/useLocalPianoAudio.ts"),
   "utf8",
 );
 const mainActivityPath = join(
@@ -64,6 +79,17 @@ if (
   || !reviewStorageSource.includes("clearMobilePracticeReviewQueue")
 ) {
   throw new Error("移动端缺少本机复练的读取、保存或清除边界");
+}
+if (
+  !pianoModelSource.includes('DEFAULT_LOCAL_PIANO_RANGE_ID: LocalPianoRangeId = "C4-C5"')
+  || !pianoModelSource.includes("MAX_LOCAL_PIANO_ACTIVE_KEYS = 8")
+  || !pianoModelSource.includes("setLocalPianoSustain")
+  || !pianoPanelSource.includes("本地参考钢琴")
+  || !pianoPanelSource.includes("aria-pressed={keyboardState.sustainEnabled}")
+  || !pianoAudioSource.includes("subscribeBrowserAudioStopAll")
+  || !pianoAudioSource.includes("LOCAL_PIANO_VOICE_WATCHDOG_MS")
+) {
+  throw new Error("Android 本地参考钢琴缺少音域、多指、延音或残音清理边界");
 }
 for (const forbiddenReviewField of [
   "selectedPitchId",
@@ -122,6 +148,7 @@ for (const expectedCopy of [
   "旋律听写",
   "本地模式",
   "本机复练",
+  "本地参考钢琴",
   "solfeggio.mobile.practice-review-queue.v1",
 ]) {
   if (!bundledText.includes(expectedCopy)) {
@@ -147,4 +174,4 @@ if (existsSync(manifestPath) && !existsSync(syncedIndex)) {
   throw new Error("Android 工程存在，但本地 Web 资源尚未同步");
 }
 
-console.log("Android 本地模式校验通过：固定包名、本地资源、四类练习、本机复练、无远程运行时配置与生命周期保护。 ");
+console.log("Android 本地模式校验通过：固定包名、本地资源、四类练习、本机复练、本地参考钢琴、无远程运行时配置与生命周期保护。 ");

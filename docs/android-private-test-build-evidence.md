@@ -2,6 +2,12 @@
 
 执行日期：2026-07-16
 
+## P93 React 行为回归候选
+
+P93 已在 PR #344 的 GitHub Actions run `29492560135` 完成自动化验证，`quality` 与 `android-local` 两个 job 均为 PASS。对应 PR merge-test SHA 为 `17ba814e577b8db93a13d0e17a2f7f5799784fd4`，合并后的 `main` squash commit 为 `fed5c96c75ad8cb786251a9aff8fb7bf242e82b7`。
+
+artifact `8373062993` 内 `solfeggio-local-test-v0.2.0-debug.apk` 的 SHA-256 为 `6864b4649ba9937a2e563fb95a11099424035c0fc7b24e9d4205125bd3684c33`，GitHub artifact ZIP digest 为 `41834bb3cf2eb5c7375c7fcaaa4b4f86a746ac71b017386c39b1e746f0022926`。上传前 verifier 确认精确四文件、版本、commit、字节数与摘要一致。该证据不包含 P94 钢琴代码，也不证明真实手机行为。
+
 ## P92 0.2.0 可追溯候选
 
 P92 已在 PR #343 的 GitHub Actions run `29490844673` 完成自动化验证：`quality` 与 `android-local` 两个 job 均为 PASS。对应 PR merge-test SHA 为 `559bbaada2564618b3501c48223a47fa2cde017e`，合并后的 `main` squash commit 为 `4eb473289f0075a7e7a8c776f0d873f7981c84dc`。

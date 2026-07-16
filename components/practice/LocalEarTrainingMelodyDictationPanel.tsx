@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 
+import { LocalPianoPanel } from "../piano/LocalPianoPanel";
 import {
   createLocalEarTrainingMelodyQuestion,
   earTrainingMelodyNotes,
@@ -21,11 +22,14 @@ export function LocalEarTrainingMelodyDictationPanel({
   initialReviewTarget,
   onLocalAnswerResult,
   onLeaveReviewTarget,
+  showLocalPiano = false,
 }: {
   initialReviewTarget?: Extract<LocalPracticeReviewTarget, { kind: "melody-dictation" }>;
   onLocalAnswerResult?: (result: LocalPracticeAnswerResult) => void;
   onLeaveReviewTarget?: () => void;
+  showLocalPiano?: boolean;
 }) {
+  const [isLocalPianoOpen, setIsLocalPianoOpen] = useState(false);
   const [difficulty, setDifficulty] = useState<EarTrainingMelodyDictationDifficulty>(initialReviewTarget?.difficulty ?? "基础");
   const [sequence, setSequence] = useState(initialReviewTarget?.sequence ?? 0);
   const { questionIndex, sessionSeed, isReady: isQuestionReady } = useLocalQuestionSchedule({
@@ -116,6 +120,15 @@ export function LocalEarTrainingMelodyDictationPanel({
         {isAnswerVisible ? <div className="mt-4 rounded-2xl bg-slate-50 p-4 text-sm leading-6 text-slate-700"><p className="font-bold text-slate-950">本题答案：{answer.answerLabel}</p><p className="mt-1">{answer.explanation}</p><p className="mt-2">你的填写：{answer.selectedNoteIds.map((noteId) => noteId ? earTrainingMelodyNotes[noteId as keyof typeof earTrainingMelodyNotes].label : "未选择").join(" → ")}。{answer.matchesAnswer ? "这次填写与本题答案一致。" : "这次填写与本题答案不同；可以再次播放并重置本题复练。"}</p><p className="mt-2 text-slate-500">答案说明显示后，本题填写已锁定；请使用复练或下一题开始新的尝试。这不是正式分数、准确率、等级、通过或失败判断。</p></div> : null}
       </div>
     </div>
+    {showLocalPiano ? (
+      <section className="mt-5 rounded-2xl border border-rose-200 bg-rose-50 p-4" aria-label="旋律听写参考钢琴">
+        <button type="button" aria-expanded={isLocalPianoOpen} aria-controls="melody-reference-piano" onClick={() => setIsLocalPianoOpen((current) => !current)} className="flex min-h-11 w-full items-center justify-between gap-3 rounded-xl bg-white px-4 py-3 text-left font-bold text-rose-950 ring-1 ring-rose-200">
+          <span>参考钢琴</span><span className="text-sm">{isLocalPianoOpen ? "收起" : "展开"}</span>
+        </button>
+        <p className="mt-2 text-sm leading-6 text-rose-900">仅用于本地找音。弹奏不保存、不上传，也不生成分数或正式评分。</p>
+        {isLocalPianoOpen ? <div id="melody-reference-piano" className="mt-4"><LocalPianoPanel /></div> : null}
+      </section>
+    ) : null}
     <p className="mt-5 text-sm leading-6 text-slate-500">{onLocalAnswerResult ? "本机复练只保存复现这道题所需的题型、难度和随机题序，不保存你的填写、声音或正式成绩。" : "会话边界：题目序号、填写与答案说明只存在于当前页面内存；刷新后消失，不写入 localStorage、IndexedDB、账号或数据库。"}</p>
   </section>;
 }

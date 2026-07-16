@@ -1,4 +1,8 @@
-import { SharedBrowserAudioEngine } from "../lib/audio/browserAudioEngine.js";
+import {
+  SharedBrowserAudioEngine,
+  stopAllBrowserAudio,
+  subscribeBrowserAudioStopAll,
+} from "../lib/audio/browserAudioEngine.js";
 
 const assert = (condition: unknown, message: string) => {
   if (!condition) throw new Error(message);
@@ -77,6 +81,20 @@ assert(globalSecondSource.stopped, "global stop must stop the second active chan
 await engine.suspendAll();
 assert(context.state === "suspended", "suspend must release the running audio context");
 assert(suspendCalls === 1, "suspend should only run for a running context");
+
+let globalStopNotices = 0;
+const unsubscribeThrowing = subscribeBrowserAudioStopAll(() => {
+  throw new Error("subscriber failure");
+});
+const unsubscribe = subscribeBrowserAudioStopAll(() => {
+  globalStopNotices += 1;
+});
+stopAllBrowserAudio();
+assert(globalStopNotices === 1, "global stop subscribers must reset their UI state");
+unsubscribe();
+unsubscribeThrowing();
+stopAllBrowserAudio();
+assert(globalStopNotices === 1, "unsubscribed listeners must not be called");
 
 console.log("browser audio engine tests passed");
 };

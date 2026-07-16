@@ -208,6 +208,7 @@ for (const expectedCopy of [
   "音程听辨",
   "节奏听辨",
   "旋律听写",
+  "本地参考钢琴",
   "本地模式",
 ]) {
   if (!bundledText.includes(expectedCopy)) {
@@ -290,7 +291,7 @@ writeFileSync(
     `- 包名：\`${packagedApplicationId}\`；minSdk / targetSdk：${packagedMinSdk} / ${packagedTargetSdk}\n` +
     `- 签名：Android Debug，APK Signature Scheme 已验证；不是 release 签名。\n\n` +
     `## 已验证的本地边界\n\n` +
-    `- APK 包含本地 Web 资源及四类核心听辨练习；\n` +
+    `- APK 包含本地 Web 资源、四类核心听辨练习及本地参考钢琴；\n` +
     `- 未声明网络、麦克风或宽泛外部存储权限；\n` +
     `- Capacitor 配置未包含远程 server 或网址，APK bundle 未出现受控生产云端标识；\n` +
     `- 本报告仅在 Gradle 单元测试、debug APK 构建、源码 bundle 校验、APK 签名与结构校验均成功后生成。\n\n` +

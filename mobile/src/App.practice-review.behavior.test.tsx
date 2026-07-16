@@ -1,4 +1,4 @@
-import { act } from "react";
+import { StrictMode, act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -42,7 +42,7 @@ const renderApp = async () => {
   const container = document.createElement("div");
   document.body.append(container);
   root = createRoot(container);
-  await act(async () => root?.render(<App />));
+  await act(async () => root?.render(<StrictMode><App /></StrictMode>));
   await flushReact();
   return container;
 };
@@ -52,6 +52,14 @@ const findButton = (container: ParentNode, label: string): HTMLButtonElement => 
     (candidate) => candidate.textContent?.trim() === label,
   );
   if (!button) throw new Error(`找不到按钮：${label}`);
+  return button;
+};
+
+const findButtonContaining = (container: ParentNode, label: string): HTMLButtonElement => {
+  const button = Array.from(container.querySelectorAll("button")).find(
+    (candidate) => candidate.textContent?.includes(label),
+  );
+  if (!button) throw new Error(`找不到包含文字的按钮：${label}`);
   return button;
 };
 
@@ -223,4 +231,33 @@ describe("Android 本机复练行为", () => {
     expect(container.textContent).toContain("本机复练记录清除失败，本次练习仍可继续");
     expect(container.textContent).toContain("本机复练（1）");
   });
+
+  it("可进入独立本地参考钢琴页，浏览历史前进后退仍保持正确页面", async () => {
+    const container = await renderApp();
+    await click(findLink(container, "本地参考钢琴"));
+
+    expect(container.textContent).toContain("本地合成参考音");
+    expect(container.querySelectorAll("[data-piano-key]")).toHaveLength(13);
+    await traverseHistory("back");
+    expect(container.textContent).toContain("选择练习");
+    await traverseHistory("forward");
+    expect(container.querySelectorAll("[data-piano-key]")).toHaveLength(13);
+  });
+
+  for (const practiceLabel of ["单音听辨", "音程听辨", "节奏听辨", "旋律听写"]) {
+    it(`${practiceLabel}的参考钢琴默认收起，展开后可再次收起卸载`, async () => {
+      const container = await renderApp();
+      await click(findLink(container, practiceLabel));
+
+      expect(container.querySelectorAll("[data-piano-key]")).toHaveLength(0);
+      const disclosure = findButtonContaining(container, "参考钢琴");
+      expect(disclosure.getAttribute("aria-expanded")).toBe("false");
+      await click(disclosure);
+      expect(container.querySelectorAll("[data-piano-key]")).toHaveLength(13);
+      expect(disclosure.getAttribute("aria-expanded")).toBe("true");
+      await click(disclosure);
+      expect(container.querySelectorAll("[data-piano-key]")).toHaveLength(0);
+      expect(disclosure.getAttribute("aria-expanded")).toBe("false");
+    });
+  }
 });

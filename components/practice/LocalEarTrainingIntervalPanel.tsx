@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 
+import { LocalPianoPanel } from "../piano/LocalPianoPanel";
 import {
   createLocalEarTrainingQuestion,
   earTrainingIntervals,
@@ -30,12 +31,15 @@ export function LocalEarTrainingIntervalPanel({
   initialReviewTarget,
   onLocalAnswerResult,
   onLeaveReviewTarget,
+  showLocalPiano = false,
 }: {
   courseExerciseId?: string;
   initialReviewTarget?: Extract<LocalPracticeReviewTarget, { kind: "interval" }>;
   onLocalAnswerResult?: (result: LocalPracticeAnswerResult) => void;
   onLeaveReviewTarget?: () => void;
+  showLocalPiano?: boolean;
 }) {
+  const [isLocalPianoOpen, setIsLocalPianoOpen] = useState(false);
   const [difficulty, setDifficulty] = useState<EarTrainingDifficulty>(initialReviewTarget?.difficulty ?? "基础");
   const [direction, setDirection] = useState<EarTrainingDirection>(initialReviewTarget?.direction ?? "上行");
   const [sequence, setSequence] = useState(initialReviewTarget?.sequence ?? 0);
@@ -244,6 +248,15 @@ export function LocalEarTrainingIntervalPanel({
         </div>
       </div>
 
+      {showLocalPiano ? (
+        <section className="mt-5 rounded-2xl border border-rose-200 bg-rose-50 p-4" aria-label="音程听辨参考钢琴">
+          <button type="button" aria-expanded={isLocalPianoOpen} aria-controls="interval-reference-piano" onClick={() => setIsLocalPianoOpen((current) => !current)} className="flex min-h-11 w-full items-center justify-between gap-3 rounded-xl bg-white px-4 py-3 text-left font-bold text-rose-950 ring-1 ring-rose-200">
+            <span>参考钢琴</span><span className="text-sm">{isLocalPianoOpen ? "收起" : "展开"}</span>
+          </button>
+          <p className="mt-2 text-sm leading-6 text-rose-900">仅用于本地找音。弹奏不保存、不上传，也不生成分数或正式评分。</p>
+          {isLocalPianoOpen ? <div id="interval-reference-piano" className="mt-4"><LocalPianoPanel /></div> : null}
+        </section>
+      ) : null}
       <p className="mt-5 text-sm leading-6 text-slate-500">{courseExerciseId ? "课程边界：题目播放与答案仍在浏览器完成，不上传音频。登录用户查看答案时只保存当前题目、方向、选择和答案一致性摘要；未登录用户不保存。" : onLocalAnswerResult ? "本机复练只保存复现这道题所需的题型、难度、方向和随机题序，不保存你的选择、声音或正式成绩。" : "会话边界：题目序号、选择与答案说明只存在于当前页面内存；刷新后消失，不写入 localStorage、IndexedDB、账号或数据库。"}</p>
     </section>
   );

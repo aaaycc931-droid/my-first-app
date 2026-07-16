@@ -5,6 +5,7 @@ import { LocalEarTrainingIntervalPanel } from "../../components/practice/LocalEa
 import { LocalEarTrainingMelodyDictationPanel } from "../../components/practice/LocalEarTrainingMelodyDictationPanel";
 import { LocalEarTrainingRhythmPanel } from "../../components/practice/LocalEarTrainingRhythmPanel";
 import { LocalEarTrainingSinglePitchPanel } from "../../components/practice/LocalEarTrainingSinglePitchPanel";
+import { LocalPianoPanel } from "../../components/piano/LocalPianoPanel";
 import {
   stopAllBrowserAudio,
   suspendAllBrowserAudio,
@@ -30,8 +31,9 @@ import {
   saveMobilePracticeReviewQueue,
 } from "./runtime/mobilePracticeReviewStorage";
 
-const screens = ["home", "pitch", "interval", "rhythm", "melody"] as const;
+const screens = ["home", "pitch", "interval", "rhythm", "melody", "piano"] as const;
 type Screen = (typeof screens)[number];
+type PracticeScreenName = Exclude<Screen, "home" | "piano">;
 
 const screenDetails: Record<
   Exclude<Screen, "home">,
@@ -57,6 +59,11 @@ const screenDetails: Record<
     summary: "听三个音组成的短旋律，按顺序填写音名。",
     tone: "bg-amber-50 text-amber-950 ring-amber-200",
   },
+  piano: {
+    title: "本地参考钢琴",
+    summary: "使用手机本地合成参考音辅助找音，不保存弹奏，也不生成成绩。",
+    tone: "bg-rose-50 text-rose-950 ring-rose-200",
+  },
 };
 
 function screenFromHash(): Screen {
@@ -64,7 +71,7 @@ function screenFromHash(): Screen {
   return screens.includes(candidate as Screen) ? (candidate as Screen) : "home";
 }
 
-const screenForReviewTarget = (target: LocalPracticeReviewTarget): Exclude<Screen, "home"> => {
+const screenForReviewTarget = (target: LocalPracticeReviewTarget): PracticeScreenName => {
   if (target.kind === "single-pitch") return "pitch";
   if (target.kind === "melody-dictation") return "melody";
   return target.kind;
@@ -82,7 +89,7 @@ function PracticeScreen({
   onLocalAnswerResult,
   onLeaveReviewTarget,
 }: {
-  screen: Exclude<Screen, "home">;
+  screen: PracticeScreenName;
   reviewTarget: LocalPracticeReviewTarget | null;
   onLocalAnswerResult: (result: LocalPracticeAnswerResult) => void;
   onLeaveReviewTarget: () => void;
@@ -90,18 +97,18 @@ function PracticeScreen({
   const sharedProps = { onLocalAnswerResult, onLeaveReviewTarget };
   if (screen === "pitch") {
     const target = reviewTarget?.kind === "single-pitch" ? reviewTarget : undefined;
-    return <LocalEarTrainingSinglePitchPanel key={target ? getLocalPracticeReviewTargetKey(target) : "random-pitch"} initialReviewTarget={target} {...sharedProps} />;
+    return <LocalEarTrainingSinglePitchPanel key={target ? getLocalPracticeReviewTargetKey(target) : "random-pitch"} initialReviewTarget={target} showLocalPiano {...sharedProps} />;
   }
   if (screen === "interval") {
     const target = reviewTarget?.kind === "interval" ? reviewTarget : undefined;
-    return <LocalEarTrainingIntervalPanel key={target ? getLocalPracticeReviewTargetKey(target) : "random-interval"} initialReviewTarget={target} {...sharedProps} />;
+    return <LocalEarTrainingIntervalPanel key={target ? getLocalPracticeReviewTargetKey(target) : "random-interval"} initialReviewTarget={target} showLocalPiano {...sharedProps} />;
   }
   if (screen === "rhythm") {
     const target = reviewTarget?.kind === "rhythm" ? reviewTarget : undefined;
-    return <LocalEarTrainingRhythmPanel key={target ? getLocalPracticeReviewTargetKey(target) : "random-rhythm"} initialReviewTarget={target} {...sharedProps} />;
+    return <LocalEarTrainingRhythmPanel key={target ? getLocalPracticeReviewTargetKey(target) : "random-rhythm"} initialReviewTarget={target} showLocalPiano {...sharedProps} />;
   }
   const target = reviewTarget?.kind === "melody-dictation" ? reviewTarget : undefined;
-  return <LocalEarTrainingMelodyDictationPanel key={target ? getLocalPracticeReviewTargetKey(target) : "random-melody"} initialReviewTarget={target} {...sharedProps} />;
+  return <LocalEarTrainingMelodyDictationPanel key={target ? getLocalPracticeReviewTargetKey(target) : "random-melody"} initialReviewTarget={target} showLocalPiano {...sharedProps} />;
 }
 
 export function App() {
@@ -123,7 +130,7 @@ export function App() {
     createMobileLifecycleState(!document.hidden),
   );
   const activeScreenRef = useRef(activeScreen);
-  const pendingReviewNavigationRef = useRef<Exclude<Screen, "home"> | null>(null);
+  const pendingReviewNavigationRef = useRef<PracticeScreenName | null>(null);
 
   useEffect(() => {
     activeScreenRef.current = activeScreen;
@@ -274,7 +281,7 @@ export function App() {
             className="mb-4 flex items-start justify-between gap-3 rounded-2xl bg-amber-50 p-3 text-sm leading-6 text-amber-950 ring-1 ring-amber-200"
             role="status"
           >
-            <p>应用从后台恢复后已停止声音并重置当前题目，避免残留播放。</p>
+            <p>应用从后台恢复后已停止声音并重置当前练习状态，避免残留播放。</p>
             <button
               type="button"
               onClick={() => setLifecycle(dismissMobileResetNotice)}
@@ -309,7 +316,7 @@ export function App() {
                 不联网，也能开始练耳
               </h1>
               <p className="mt-3 text-sm leading-7 text-indigo-100">
-                四类核心题目和声音引擎已经打包在安装包内。无需访问网页、无需登录，也不会上传你的练习。
+                四类核心题目、声音引擎和参考钢琴已经打包在安装包内。无需访问网页、无需登录，也不会上传你的练习或弹奏。
               </p>
             </section>
 
@@ -335,7 +342,7 @@ export function App() {
                         className={`min-h-32 rounded-3xl p-5 text-left ring-1 transition active:scale-[0.99] ${detail.tone}`}
                       >
                         <span className="text-xs font-bold opacity-70">
-                          练习 {index + 1}
+                          {screen === "piano" ? "找音辅助" : `练习 ${index + 1}`}
                         </span>
                         <span className="mt-2 block text-xl font-black">
                           {detail.title}
@@ -412,6 +419,17 @@ export function App() {
               </ul>
             </section>
           </>
+        ) : activeScreen === "piano" ? (
+          <section aria-label={screenDetails.piano.title}>
+            <a
+              href="#home"
+              onClick={() => setActiveReviewTarget(null)}
+              className="mb-3 inline-flex min-h-11 items-center rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-bold text-slate-800 shadow-sm"
+            >
+              返回练习首页
+            </a>
+            {lifecycle.isForeground ? <LocalPianoPanel /> : null}
+          </section>
         ) : (
           <section aria-label={screenDetails[activeScreen].title}>
             <a
@@ -437,11 +455,12 @@ export function App() {
         className="mobile-bottom-nav fixed inset-x-0 bottom-0 z-20 border-t border-slate-200 bg-white/95 px-2 pt-2 shadow-[0_-8px_30px_rgba(15,23,42,0.08)] backdrop-blur"
         aria-label="主要练习"
       >
-        <div className="mx-auto grid max-w-3xl grid-cols-5 gap-1">
+        <div className="mx-auto grid max-w-3xl grid-cols-6 gap-1">
           {screens.map((screen) => {
-            const label =
-              screen === "home"
-                ? "首页"
+            const label = screen === "home"
+              ? "首页"
+              : screen === "piano"
+                ? "钢琴"
                 : screenDetails[screen].title.replace("听辨", "");
             return (
               <a
