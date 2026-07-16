@@ -17,7 +17,12 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     env:
-      DATABASE_URL: ${{ secrets.SUPABASE_DATABASE_URL }}
+      PGHOST: aws-0-ap-southeast-1.pooler.supabase.com
+      PGPORT: "5432"
+      PGDATABASE: postgres
+      PGUSER: postgres.dpluqcflynztlpophvzq
+      PGPASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+      PGSSLMODE: require
 
     steps:
       - name: Checkout
@@ -26,23 +31,22 @@ jobs:
       - name: Require database deployment secret
         shell: bash
         run: |
-          if [ -z "$DATABASE_URL" ]; then
-            echo "::error::SUPABASE_DATABASE_URL is not configured."
+          if [ -z "$PGPASSWORD" ]; then
+            echo "::error::SUPABASE_DB_PASSWORD is not configured."
             exit 1
           fi
 
       - name: Apply interval and rhythm practice migrations
         shell: bash
         run: |
-          psql "$DATABASE_URL" \
-            --set ON_ERROR_STOP=on \
+          psql --set ON_ERROR_STOP=on \
             --file supabase/migrations/0006_course_interval_practice.sql \
             --file supabase/migrations/0007_course_rhythm_practice.sql
 
       - name: Verify exercises, RPC security and role grants
         shell: bash
         run: |
-          psql "$DATABASE_URL" --set ON_ERROR_STOP=on <<'SQL'
+          psql --set ON_ERROR_STOP=on <<'SQL'
           do $$
           begin
             if not exists (
