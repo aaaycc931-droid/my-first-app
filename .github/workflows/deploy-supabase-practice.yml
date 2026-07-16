@@ -4,7 +4,7 @@ name: Deploy Supabase Practice Migrations
 on:
   push:
     branches:
-      - agent/p84-practice-upgrade
+      - "agent/**"
   workflow_dispatch:
 
 permissions:
