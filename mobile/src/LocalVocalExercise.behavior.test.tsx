@@ -84,4 +84,11 @@ describe("Android 本地练声目标生成器", () => {
     root = null;
     expect(channelStop).toHaveBeenCalled();
   });
+
+  it("可手动选择片段并循环三次参考音", async () => {
+    const container = await renderPanel();
+    await click(button(container, "重复所选片段 3 次"));
+    expect(oscillatorStart).toHaveBeenCalledTimes(3);
+    expect(container.textContent).toContain("正在播放参考音型");
+  });
 });

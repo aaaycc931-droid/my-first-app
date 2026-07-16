@@ -21,6 +21,7 @@ const requiredSources = [
   "lib/practice/pitchEstimate.ts",
   "lib/practice/realtimePitchCurve.ts",
   "lib/practice/localVocalExercise.ts",
+  "lib/practice/localVocalTargetFeedback.ts",
 ];
 
 for (const relativePath of requiredSources) {
@@ -164,6 +165,7 @@ for (const expectedCopy of [
   "丢弃本次录音",
   "练声目标生成器",
   "播放参考音型",
+  "练声目标对照（非评分）",
   "曲线时间缩放",
   "挑战：",
   "本难度共",

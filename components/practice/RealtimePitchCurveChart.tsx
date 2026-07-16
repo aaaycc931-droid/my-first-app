@@ -5,6 +5,7 @@ import {
   splitReliablePitchCurveSegments,
   type RealtimePitchCurvePoint,
 } from "../../lib/practice/realtimePitchCurve";
+import type { LocalVocalExerciseEvent } from "../../lib/practice/localVocalExercise";
 
 const WIDTH = 720;
 const HEIGHT = 340;
@@ -21,9 +22,11 @@ type Props = {
   points: RealtimePitchCurvePoint[];
   windowSeconds: number;
   targetMidi: number;
+  targetEvents?: LocalVocalExerciseEvent[];
+  targetStartedAtMs?: number | null;
 };
 
-export function RealtimePitchCurveChart({ points, windowSeconds, targetMidi }: Props) {
+export function RealtimePitchCurveChart({ points, windowSeconds, targetMidi, targetEvents = [], targetStartedAtMs = null }: Props) {
   const latestTimestamp = points.at(-1)?.timestampMs ?? 0;
   const windowMs = windowSeconds * 1_000;
   const windowEnd = Math.max(windowMs, latestTimestamp);
@@ -53,6 +56,14 @@ export function RealtimePitchCurveChart({ points, windowSeconds, targetMidi }: P
         })}
         <line x1={LEFT} x2={WIDTH - RIGHT} y1={targetY} y2={targetY} stroke="#f59e0b" strokeWidth="2" strokeDasharray="8 6" />
         <text x={WIDTH - RIGHT - 4} y={targetY - 6} textAnchor="end" fill="#fbbf24" fontSize="12" fontWeight="700">目标 {midiToScientificNote(targetMidi)}</text>
+        {targetStartedAtMs !== null ? targetEvents.map((event) => {
+          const start = targetStartedAtMs + event.startSeconds * 1_000;
+          const end = start + event.durationSeconds * 1_000;
+          if (end < windowStart || start > windowEnd || event.midi < MIN_MIDI || event.midi > MAX_MIDI) return null;
+          const x = Math.max(LEFT, xForTime(start));
+          const right = Math.min(WIDTH - RIGHT, xForTime(end));
+          return <rect key={`target-${event.index}`} x={x} y={yForMidi(event.midi) - 5} width={Math.max(2, right - x)} height="10" rx="5" fill="#a3e635" opacity="0.75" />;
+        }) : null}
         {segments.map((segment, index) => {
           const pointsValue = segment.map((point) => `${xForTime(point.timestampMs).toFixed(1)},${yForMidi(point.midi).toFixed(1)}`).join(" ");
           return <polyline key={`${segment[0]?.timestampMs ?? index}-${index}`} points={pointsValue} fill="none" stroke="#22d3ee" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" />;

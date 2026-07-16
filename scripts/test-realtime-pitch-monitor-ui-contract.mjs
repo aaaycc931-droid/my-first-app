@@ -47,7 +47,7 @@ for (const expected of [
 ]) requireCopy(chart, expected, "实时音高曲线界面");
 
 requireCopy(app, '"monitor"', "Android 实时音高入口");
-requireCopy(app, "<RealtimePitchMonitorPanel />", "Android 实时音高入口");
+requireCopy(app, "<RealtimePitchMonitorPanel targetExercise={vocalTarget} />", "Android 实时音高入口");
 requireCopy(manifest, "android.permission.RECORD_AUDIO", "Android 麦克风权限");
 if (manifest.includes("android.permission.INTERNET")) throw new Error("实时音高切片不得加入网络权限");
 

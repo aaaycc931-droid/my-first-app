@@ -95,3 +95,5 @@ export const generateLocalVocalExercise = (config: LocalVocalExerciseConfig) => 
     durationSeconds: events.at(-1) ? events.at(-1)!.startSeconds + events.at(-1)!.durationSeconds : 0,
   };
 };
+
+export type GeneratedLocalVocalExercise = ReturnType<typeof generateLocalVocalExercise>;
