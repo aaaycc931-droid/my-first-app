@@ -24,7 +24,7 @@ type SheetMusicPreviewState =
   | { status: "unsupported" | "decode-failed"; message: string };
 
 type SheetMusicImportPreviewPanelProps = {
-  inputRef: RefObject<HTMLInputElement>;
+  inputRef: RefObject<HTMLInputElement | null>;
   onSourceChange?: (sourceId: string | null) => void;
 };
 

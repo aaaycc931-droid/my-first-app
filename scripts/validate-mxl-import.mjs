@@ -11,9 +11,14 @@ const source = await readFile(extractorUrl, "utf8");
 const { outputText } = ts.transpileModule(source, {
   compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 },
 });
-const module = { exports: {} };
-vm.runInNewContext(outputText, { require, module, exports: module.exports, console });
-const { extractMusicXMLFromMxl } = module.exports;
+const compiledModule = { exports: {} };
+vm.runInNewContext(outputText, {
+  require,
+  module: compiledModule,
+  exports: compiledModule.exports,
+  console,
+});
+const { extractMusicXMLFromMxl } = compiledModule.exports;
 
 const scoreXml = `<?xml version="1.0"?><score-partwise version="4.0"><part-list /></score-partwise>`;
 const containerXml = `<?xml version="1.0"?><container><rootfiles><rootfile full-path="score.xml" /></rootfiles></container>`;

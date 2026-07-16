@@ -56,16 +56,16 @@ async function loadTypeScriptModule(relativePath) {
       target: ts.ScriptTarget.ES2020,
     },
   });
-  const module = { exports: {} };
+  const compiledModule = { exports: {} };
 
   vm.runInNewContext(outputText, {
     require,
-    module,
-    exports: module.exports,
+    module: compiledModule,
+    exports: compiledModule.exports,
     console,
   });
 
-  return module.exports;
+  return compiledModule.exports;
 }
 
 function formatNote(note, index) {
