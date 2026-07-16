@@ -5,17 +5,25 @@ import {
 
 export const LOCAL_PRACTICE_CATALOG_VERSION = 2 as const;
 
+/**
+ * Catalog 2 is an append-only semantic namespace. New local variants may be
+ * added without changing the meaning of an existing variantId.
+ */
+export const LOCAL_PRACTICE_CATALOG_MODES = ["legacy-v1", "expanded-local-v2"] as const;
+export type LocalPracticeCatalogMode = (typeof LOCAL_PRACTICE_CATALOG_MODES)[number];
+
 export type LocalPracticeKind =
   | "single-pitch"
   | "interval"
   | "rhythm"
   | "melody-dictation";
 
-export type LocalPracticeDifficulty = "基础" | "进阶";
+export type LegacyLocalPracticeDifficulty = "基础" | "进阶";
+export type LocalPracticeDifficulty = LegacyLocalPracticeDifficulty | "挑战";
 
 type LegacyCatalogTarget = {
   kind: LocalPracticeKind;
-  difficulty: LocalPracticeDifficulty;
+  difficulty: LegacyLocalPracticeDifficulty;
   seed: number;
   sequence: number;
 };
@@ -37,7 +45,7 @@ const legacyIntervalIds = {
   ],
 } as const;
 
-const legacyIntervalVariantIds = (difficulty: LocalPracticeDifficulty): string[] =>
+const legacyIntervalVariantIds = (difficulty: LegacyLocalPracticeDifficulty): string[] =>
   ["c4", "d4", "e4", "g4"].flatMap((rootId) =>
     legacyIntervalIds[difficulty].map(
       (intervalId) => `interval:${rootId}:${intervalId}`,

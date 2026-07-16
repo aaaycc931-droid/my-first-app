@@ -81,6 +81,10 @@ for (const path of [
     "{isLocalPianoOpen ? <div",
     "<LocalPianoPanel />",
     "弹奏不保存、不上传，也不生成分数或正式评分。",
+    "expandedLocalCatalog = false",
+    "expandedLocalCatalog?: boolean",
+    '"expanded-local-v2"',
+    '<option value="挑战">挑战：',
   ]) {
     assertContains(source, expected, `${path} Android 参考钢琴 disclosure`);
   }
@@ -129,6 +133,10 @@ for (const expected of [
 assertContains(melodyReveal, "isCorrect:", "melody-dictation答题结果");
 
 const appSource = readSource("mobile/src/App.tsx");
+assert(
+  (appSource.match(/expandedLocalCatalog/g) ?? []).length === 4,
+  "Android 四类练习必须显式启用扩展本地题库",
+);
 const hashHandler = extractBetween(
   appSource,
   "const handleHashChange = () => {",

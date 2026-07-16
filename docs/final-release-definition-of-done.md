@@ -14,7 +14,8 @@
 2. `docs/final-release-status-matrix.md`：每项门槛的实时状态、证据和下一步。
 3. `docs/mvp-status.md`：已经真实交付的运行时事实和历史阶段记录。
 4. `docs/final-product-shape-and-feature-map.md`：完整产品方向与长期功能地图。
-5. 其他 Pxx 文档：阶段设计、研究或历史决策，不单独构成正式发布证明。
+5. `docs/android-offline-professional-product-roadmap.md`：当前 Android 离线私测版的产品主轴、竞争力原则与滚动实施顺序。
+6. 其他 Pxx 文档：阶段设计、研究或历史决策，不单独构成正式发布证明。
 
 不得因为页面存在、演示可运行、测试使用 mock、代码已经提交或某个 Pxx 阶段完成，就把对应能力标记为正式完成。
 

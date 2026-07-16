@@ -151,6 +151,8 @@ for (const expectedCopy of [
   "本地模式",
   "本机复练",
   "本地参考钢琴",
+  "挑战：",
+  "本难度共",
   "solfeggio.mobile.practice-review-queue.v1",
 ]) {
   if (!bundledText.includes(expectedCopy)) {

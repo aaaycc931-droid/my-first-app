@@ -18,7 +18,7 @@ import {
 } from "../lib/practice/localEarTrainingSinglePitch";
 import {
   getLegacyLocalPracticeVariantId,
-  type LocalPracticeDifficulty,
+  type LegacyLocalPracticeDifficulty,
   type LocalPracticeKind,
 } from "../lib/practice/localPracticeCatalog";
 import {
@@ -26,10 +26,10 @@ import {
   getScheduledQuestionIndex,
 } from "../lib/practice/localQuestionScheduler";
 
-const difficulties: LocalPracticeDifficulty[] = ["基础", "进阶"];
+const difficulties: LegacyLocalPracticeDifficulty[] = ["基础", "进阶"];
 const seeds = [0, 1, 123, 0xffffffff];
 
-const getItemCount = (kind: LocalPracticeKind, difficulty: LocalPracticeDifficulty): number => {
+const getItemCount = (kind: LocalPracticeKind, difficulty: LegacyLocalPracticeDifficulty): number => {
   if (kind === "single-pitch") return earTrainingSinglePitches[difficulty].length;
   if (kind === "interval") return getLocalEarTrainingQuestionVariantCount(difficulty);
   if (kind === "rhythm") return earTrainingRhythmPatterns[difficulty].length;
@@ -38,7 +38,7 @@ const getItemCount = (kind: LocalPracticeKind, difficulty: LocalPracticeDifficul
 
 const getCurrentVariantId = (
   kind: LocalPracticeKind,
-  difficulty: LocalPracticeDifficulty,
+  difficulty: LegacyLocalPracticeDifficulty,
   sequence: number,
   questionIndex: number,
 ): string => {
