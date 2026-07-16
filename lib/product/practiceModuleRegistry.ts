@@ -65,10 +65,9 @@ export const reconcileModulePreferences = (
   return {
     version: 1,
     mode,
-    visibleModuleIds:
-      visibleModuleIds.length > 0
-        ? visibleModuleIds
-        : createDefaultModulePreferences(mode).visibleModuleIds,
+    visibleModuleIds: Array.isArray(candidate.visibleModuleIds)
+      ? visibleModuleIds
+      : createDefaultModulePreferences(mode).visibleModuleIds,
   };
 };
 

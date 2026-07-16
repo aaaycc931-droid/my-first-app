@@ -27,5 +27,6 @@ assert(moved.visibleModuleIds[0] === hobby.visibleModuleIds[1], "visible modules
 const reconciled = reconcileModulePreferences({ version: 99, mode: "exam", visibleModuleIds: ["courses", "unknown", "courses"] });
 assert(reconciled.version === 1, "stored preferences should migrate to the current version");
 assert(reconciled.visibleModuleIds.join(",") === "courses", "unknown and duplicate module ids should be removed");
+assert(reconcileModulePreferences({ mode: "hobby", visibleModuleIds: [] }).visibleModuleIds.length === 0, "an intentionally empty home should remain empty after refresh");
 
 console.log("practice module registry tests passed");
