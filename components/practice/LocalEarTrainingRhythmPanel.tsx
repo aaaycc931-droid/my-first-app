@@ -126,7 +126,7 @@ export function LocalEarTrainingRhythmPanel({
 
   return (
     <section className="mt-5 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
-      <p className="text-sm font-semibold uppercase tracking-wide text-violet-600">P57 Runtime Alpha</p>
+      <p className="text-sm font-semibold tracking-wide text-violet-600">本地练习</p>
       <h2 className="mt-1 text-2xl font-bold text-slate-950">内置节奏听辨练习</h2>
       <p className="mt-2 text-sm leading-6 text-slate-600">
         先听一个四拍的本地合成击拍题，再选择你听到的节奏形状。本模块不上传音频，也不生成正式成绩。{courseExerciseId ? "当前题目来自系统课程；登录后查看答案时会保存一条仅本人可见的练习记录。" : "当前入口不会保存练习记录。"}

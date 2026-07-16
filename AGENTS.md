@@ -99,7 +99,7 @@
 
 尚未正式完成的私有上传、对象存储、worker、数据导出/删除、正式评分和生产 OMR，必须先满足最终 DoD 对所有权、隐私、删除、版本化、安全和验收的门槛，不能因为已有数据模型或 mock 就宣称上线。
 
-Android APK 已由产品所有者提升为正式版优先交付物。所有认证、导航、音频、录音、文件选择、离线提示和发布任务必须同时判断 Android TWA / 打包运行时行为；桌面浏览器或普通 Android Chrome 通过不能单独证明 APK 就绪。当前选定路线和验收分层见 `docs/android-apk-release-plan.md`。
+Android 本地 APK 已由产品所有者提升为当前最高优先级，并只用于私下分发测试；应用商店、AAB 和上架材料暂缓。APK 使用 Capacitor 打包本地静态资源，不得配置远程 `server.url`，核心练习不得依赖生产网站、Supabase 或网络。所有导航、音频、录音、文件选择、权限和生命周期任务必须同时判断已安装 Android APK 行为；桌面浏览器或普通 Android Chrome 通过不能单独证明 APK 就绪。当前路线和验收分层见 `docs/android-apk-release-plan.md`。
 
 ## 当前阶段禁止事项
 

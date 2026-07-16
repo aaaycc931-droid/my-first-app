@@ -1,10 +1,25 @@
 # 视唱练耳学习平台
 
-面向中文学习者、以 Android APK 为正式版优先载体并保留完整 Web 入口的私有视唱练耳平台。当前生产版本已经包含模块化学习首页、Supabase 账户与系统课程、单音/音程/节奏课程尝试持久化，以及浏览器本地音高、节奏、录音和乐谱草稿研究能力。
+面向中文学习者的视唱练耳平台。当前最高优先级是可私下分发、无需访问生产网站即可运行的 Android 本地 APK；Web 入口及其 Supabase 账户、课程和私人记录能力继续保留，但不作为 APK 启动依赖。
 
 正式版 V1 的唯一范围与完成标准见 [`docs/final-release-definition-of-done.md`](docs/final-release-definition-of-done.md)，实时状态见 [`docs/final-release-status-matrix.md`](docs/final-release-status-matrix.md)，Android 路线见 [`docs/android-apk-release-plan.md`](docs/android-apk-release-plan.md)，已经真实交付的阶段事实见 [`docs/mvp-status.md`](docs/mvp-status.md)。
 
 下方“五线谱识别 MVP”章节保留早期项目背景；其中对“当前能力”的描述不应替代上述实时状态文件。
+
+## Android 本地私测包
+
+Android 客户端使用 Vite + Capacitor，将本地首页、单音、音程、节奏和旋律听写练习直接打入 APK。移动构建不配置远程服务器、不包含生产 Supabase 配置，Android 清单不声明网络权限。
+
+开发构建要求 Node.js 22.12+、JDK 21、Android SDK 36 和 Build Tools 35：
+
+```bash
+npm run mobile:build
+npm run validate:android-local
+npm run android:sync
+npm run android:build:debug
+```
+
+调试 APK 默认位于 `android/app/build/outputs/apk/debug/app-debug.apk`。私测和最终私下正式包的验收边界见 [`docs/android-apk-release-plan.md`](docs/android-apk-release-plan.md)。
 
 ## 早期 OMR MVP 背景（历史）
 

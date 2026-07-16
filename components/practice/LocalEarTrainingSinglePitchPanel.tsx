@@ -104,7 +104,7 @@ export function LocalEarTrainingSinglePitchPanel({
 
   return (
     <section className="mt-5 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
-      <p className="text-sm font-semibold uppercase tracking-wide text-sky-600">P58 Runtime Alpha</p>
+      <p className="text-sm font-semibold tracking-wide text-sky-600">本地练习</p>
       <h2 className="mt-1 text-2xl font-bold text-slate-950">内置单音听辨练习</h2>
       <p className="mt-2 text-sm leading-6 text-slate-600">先听一个浏览器本地合成单音，再选择它的音名。本模块不上传音频，也不生成正式成绩。{courseExerciseId ? "当前题目来自系统课程；登录后查看答案时会保存一条仅本人可见的练习记录。" : "当前入口不会保存练习记录。"}</p>
       <div className="mt-5 grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)]">
