@@ -23,11 +23,22 @@ class FakeSource {
   }
 }
 
+const run = async () => {
 let contextCreations = 0;
-const context = {
-  state: "running",
-  resume: async () => undefined,
-} as unknown as AudioContext;
+let resumeCalls = 0;
+let suspendCalls = 0;
+const fakeContext = {
+  state: "suspended",
+  resume: async () => {
+    resumeCalls += 1;
+    fakeContext.state = "running";
+  },
+  suspend: async () => {
+    suspendCalls += 1;
+    fakeContext.state = "suspended";
+  },
+};
+const context = fakeContext as unknown as AudioContext;
 const engine = new SharedBrowserAudioEngine(() => {
   contextCreations += 1;
   return context;
@@ -37,6 +48,11 @@ const second = engine.createChannel();
 
 assert(first.getContext() === second.getContext(), "channels should share one context");
 assert(contextCreations === 1, "the context must be created lazily once");
+assert(context.state === "suspended", "reading a context must not resume audio");
+
+await first.prepareForUserGesture();
+assert(context.state === "running", "a user gesture must resume audio before playback");
+assert(resumeCalls === 1, "audio should resume once for a shared context");
 
 const firstSource = new FakeSource();
 const secondSource = new FakeSource();
@@ -50,4 +66,22 @@ assert(!secondSource.stopped, "one channel must not stop another channel");
 second.stop();
 assert(secondSource.stopped, "the second channel should remain independently stoppable");
 
+const globalFirstSource = new FakeSource();
+const globalSecondSource = new FakeSource();
+first.trackSource(globalFirstSource as unknown as AudioScheduledSourceNode);
+second.trackSource(globalSecondSource as unknown as AudioScheduledSourceNode);
+engine.stopAll();
+assert(globalFirstSource.stopped, "global stop must stop the first active channel");
+assert(globalSecondSource.stopped, "global stop must stop the second active channel");
+
+await engine.suspendAll();
+assert(context.state === "suspended", "suspend must release the running audio context");
+assert(suspendCalls === 1, "suspend should only run for a running context");
+
 console.log("browser audio engine tests passed");
+};
+
+void run().catch((error: unknown) => {
+  console.error(error);
+  process.exitCode = 1;
+});

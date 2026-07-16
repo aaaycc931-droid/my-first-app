@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 
 import {
   createLocalEarTrainingRhythmQuestion,
@@ -9,15 +9,12 @@ import {
   getLocalEarTrainingRhythmDurationMs,
   type EarTrainingRhythmDifficulty,
 } from "../../lib/practice/localEarTrainingRhythm";
-import {
-  createBrowserAudioChannel,
-  type BrowserAudioChannel,
-} from "../../lib/audio/browserAudioEngine";
 import { createRhythmAttemptRpcArgs } from "../../lib/practice/cloudPracticeAttempt";
 import {
   CourseAttemptSaveNotice,
   useCourseAttemptPersistence,
 } from "./CourseAttemptPersistence";
+import { useLocalAudioPlayback } from "./useLocalAudioPlayback";
 
 export function LocalEarTrainingRhythmPanel({
   courseExerciseId,
@@ -28,13 +25,11 @@ export function LocalEarTrainingRhythmPanel({
   const [sequence, setSequence] = useState(0);
   const [selectedPatternId, setSelectedPatternId] = useState<string | null>(null);
   const [isAnswerVisible, setIsAnswerVisible] = useState(false);
-  const [isPlaying, setIsPlaying] = useState(false);
   const [audioError, setAudioError] = useState("");
   const { resetSaveStatus, saveCourseAttempt, saveStatus } =
     useCourseAttemptPersistence();
-  const audioChannelRef = useRef<BrowserAudioChannel | null>(null);
-  if (!audioChannelRef.current) audioChannelRef.current = createBrowserAudioChannel();
-  const finishTimerRef = useRef<number | null>(null);
+  const { isPlaying, playbackState, play, stop: stopPlayback } =
+    useLocalAudioPlayback();
 
   const question = useMemo(
     () => createLocalEarTrainingRhythmQuestion({ difficulty, sequence }),
@@ -44,17 +39,6 @@ export function LocalEarTrainingRhythmPanel({
     () => getLocalEarTrainingRhythmAnswer({ question, selectedPatternId }),
     [question, selectedPatternId],
   );
-
-  const stopPlayback = () => {
-    if (finishTimerRef.current !== null) {
-      window.clearTimeout(finishTimerRef.current);
-      finishTimerRef.current = null;
-    }
-    audioChannelRef.current?.stop();
-    setIsPlaying(false);
-  };
-
-  useEffect(() => () => stopPlayback(), []);
 
   const resetCurrentQuestion = () => {
     stopPlayback();
@@ -82,11 +66,9 @@ export function LocalEarTrainingRhythmPanel({
     );
   };
 
-  const playQuestion = () => {
-    stopPlayback();
+  const playQuestion = async () => {
     setAudioError("");
-    try {
-      const audioContext = audioChannelRef.current!.getContext();
+    const playbackError = await play((audioContext, channel) => {
       const startTime = audioContext.currentTime + 0.05;
       const secondsPerBeat = 60 / question.bpm;
       const oscillators = question.pattern.onsetBeats.map((onsetBeat) => {
@@ -102,16 +84,11 @@ export function LocalEarTrainingRhythmPanel({
         gain.connect(audioContext.destination);
         oscillator.start(clickStartTime);
         oscillator.stop(clickStartTime + 0.08);
-        return audioChannelRef.current!.trackSource(oscillator, [gain]);
+        return channel.trackSource(oscillator, [gain]);
       });
-      setIsPlaying(true);
-      finishTimerRef.current = window.setTimeout(
-        () => stopPlayback(),
-        getLocalEarTrainingRhythmDurationMs(question),
-      );
-    } catch {
-      setAudioError("当前浏览器无法播放本地节奏题目。请检查音频权限或稍后重试。");
-    }
+      return getLocalEarTrainingRhythmDurationMs(question);
+    });
+    if (playbackError) setAudioError(playbackError);
   };
 
   const nextQuestion = () => {
@@ -121,7 +98,7 @@ export function LocalEarTrainingRhythmPanel({
 
   const retryCurrentQuestion = () => {
     resetCurrentQuestion();
-    playQuestion();
+    void playQuestion();
   };
 
   return (
@@ -155,8 +132,8 @@ export function LocalEarTrainingRhythmPanel({
           </select>
           {courseExerciseId ? <p className="mt-2 text-xs leading-5 text-slate-500">系统课程已固定为基础难度，以保持题目版本一致。</p> : null}
           <p className="mt-4 text-sm leading-6 text-violet-900">当前为内置题目 {sequence + 1}，四四拍，速度约为 {question.bpm} BPM。第一拍使用较高提示音，其余击拍使用较低提示音；题目由浏览器本地 Web Audio 合成，不读取文件、不调用接口。</p>
-          <button type="button" onClick={playQuestion} disabled={isPlaying} className="mt-4 w-full rounded-xl bg-violet-700 px-4 py-3 font-semibold text-white disabled:cursor-not-allowed disabled:bg-violet-300">
-            {isPlaying ? "正在播放节奏…" : "播放节奏题目"}
+          <button type="button" onClick={() => void playQuestion()} disabled={isPlaying} className="mt-4 w-full rounded-xl bg-violet-700 px-4 py-3 font-semibold text-white disabled:cursor-not-allowed disabled:bg-violet-300">
+            {playbackState === "准备中" ? "正在准备声音…" : isPlaying ? "正在播放节奏…" : "播放节奏题目"}
           </button>
           <button type="button" onClick={stopPlayback} disabled={!isPlaying} className="mt-2 w-full rounded-xl border border-violet-300 bg-white px-4 py-3 font-semibold text-violet-800 disabled:cursor-not-allowed disabled:opacity-50">
             停止播放

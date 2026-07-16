@@ -6,6 +6,8 @@ const requiredSources = [
   "capacitor.config.ts",
   "mobile/index.html",
   "mobile/src/App.tsx",
+  "mobile/src/MobileErrorBoundary.tsx",
+  "mobile/src/runtime/mobileLifecycle.ts",
   "mobile/src/stubs/supabaseBrowser.ts",
 ];
 
@@ -16,6 +18,12 @@ for (const relativePath of requiredSources) {
 }
 
 const capacitorConfig = readFileSync(join(root, "capacitor.config.ts"), "utf8");
+const viteConfig = readFileSync(join(root, "mobile/vite.config.ts"), "utf8");
+const mobileApp = readFileSync(join(root, "mobile/src/App.tsx"), "utf8");
+const mainActivityPath = join(
+  root,
+  "android/app/src/main/java/com/aaaycc931/solfeggio/MainActivity.java",
+);
 if (!capacitorConfig.includes('appId: "com.aaaycc931.solfeggio"')) {
   throw new Error("Android applicationId 未固定");
 }
@@ -24,6 +32,18 @@ if (!capacitorConfig.includes('webDir: "mobile-dist"')) {
 }
 if (/\bserver\s*:/.test(capacitorConfig) || /https?:\/\//.test(capacitorConfig)) {
   throw new Error("Capacitor 配置不得包含远程 server 或网址");
+}
+if (!viteConfig.includes('target: "chrome74"')) {
+  throw new Error("移动构建必须固定兼容 Android System WebView 的 Chrome 74 目标");
+}
+if (!mobileApp.includes("stopAllBrowserAudio") || !mobileApp.includes("pagehide")) {
+  throw new Error("移动端缺少音频全局停止或后台生命周期处理");
+}
+if (existsSync(mainActivityPath)) {
+  const mainActivity = readFileSync(mainActivityPath, "utf8");
+  if (!mainActivity.includes("solfeggio:native-lifecycle")) {
+    throw new Error("Android 原生层缺少本地生命周期事件桥接");
+  }
 }
 
 const distRoot = join(root, "mobile-dist");
@@ -80,4 +100,4 @@ if (existsSync(manifestPath) && !existsSync(syncedIndex)) {
   throw new Error("Android 工程存在，但本地 Web 资源尚未同步");
 }
 
-console.log("Android 本地模式校验通过：固定包名、本地资源、四类练习、无远程运行时配置。 ");
+console.log("Android 本地模式校验通过：固定包名、本地资源、四类练习、无远程运行时配置与生命周期保护。 ");

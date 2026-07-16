@@ -1,10 +1,20 @@
 /* eslint-disable @next/next/no-img-element -- Capacitor loads this bundled local SVG without Next.js. */
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { LocalEarTrainingIntervalPanel } from "../../components/practice/LocalEarTrainingIntervalPanel";
 import { LocalEarTrainingMelodyDictationPanel } from "../../components/practice/LocalEarTrainingMelodyDictationPanel";
 import { LocalEarTrainingRhythmPanel } from "../../components/practice/LocalEarTrainingRhythmPanel";
 import { LocalEarTrainingSinglePitchPanel } from "../../components/practice/LocalEarTrainingSinglePitchPanel";
+import {
+  stopAllBrowserAudio,
+  suspendAllBrowserAudio,
+} from "../../lib/audio/browserAudioEngine";
+import {
+  createMobileLifecycleState,
+  dismissMobileResetNotice,
+  enterMobileBackground,
+  enterMobileForeground,
+} from "./runtime/mobileLifecycle";
 
 const screens = ["home", "pitch", "interval", "rhythm", "melody"] as const;
 type Screen = (typeof screens)[number];
@@ -49,28 +59,62 @@ function PracticeScreen({ screen }: { screen: Exclude<Screen, "home"> }) {
 
 export function App() {
   const [activeScreen, setActiveScreen] = useState<Screen>(screenFromHash);
-  const [isForeground, setIsForeground] = useState(!document.hidden);
-  const [resumeNotice, setResumeNotice] = useState(false);
+  const [lifecycle, setLifecycle] = useState(() =>
+    createMobileLifecycleState(!document.hidden),
+  );
+  const activeScreenRef = useRef(activeScreen);
 
   useEffect(() => {
-    const handleHashChange = () => setActiveScreen(screenFromHash());
+    activeScreenRef.current = activeScreen;
+  }, [activeScreen]);
+
+  const stopActiveAudio = useCallback(() => {
+    stopAllBrowserAudio();
+    void suspendAllBrowserAudio();
+  }, []);
+
+  useEffect(() => {
+    const handleHashChange = () => {
+      stopActiveAudio();
+      setActiveScreen(screenFromHash());
+      window.scrollTo({ top: 0, behavior: "auto" });
+    };
     window.addEventListener("hashchange", handleHashChange);
     return () => window.removeEventListener("hashchange", handleHashChange);
-  }, []);
+  }, [stopActiveAudio]);
 
   useEffect(() => {
+    const enterBackground = () => {
+      stopActiveAudio();
+      setLifecycle((current) =>
+        enterMobileBackground(current, activeScreenRef.current !== "home"),
+      );
+    };
+    const enterForeground = () => {
+      if (document.hidden) return;
+      setLifecycle(enterMobileForeground);
+    };
     const handleVisibilityChange = () => {
-      if (document.hidden) {
-        setIsForeground(false);
-        return;
-      }
-      setResumeNotice(true);
-      setIsForeground(true);
+      if (document.hidden) enterBackground();
+      else enterForeground();
+    };
+    const handleNativeLifecycle = (event: Event) => {
+      const state = (event as CustomEvent<{ state?: unknown }>).detail?.state;
+      if (state === "pause") enterBackground();
+      if (state === "resume") enterForeground();
     };
     document.addEventListener("visibilitychange", handleVisibilityChange);
-    return () =>
+    window.addEventListener("pagehide", enterBackground);
+    window.addEventListener("freeze", enterBackground);
+    window.addEventListener("solfeggio:native-lifecycle", handleNativeLifecycle);
+    return () => {
       document.removeEventListener("visibilitychange", handleVisibilityChange);
-  }, []);
+      window.removeEventListener("pagehide", enterBackground);
+      window.removeEventListener("freeze", enterBackground);
+      window.removeEventListener("solfeggio:native-lifecycle", handleNativeLifecycle);
+      stopActiveAudio();
+    };
+  }, [stopActiveAudio]);
 
   const activeTitle = useMemo(
     () =>
@@ -100,7 +144,7 @@ export function App() {
       </header>
 
       <main className="mx-auto max-w-3xl px-4 pb-28 pt-4">
-        {resumeNotice ? (
+        {lifecycle.shouldShowResetNotice ? (
           <div
             className="mb-4 flex items-start justify-between gap-3 rounded-2xl bg-amber-50 p-3 text-sm leading-6 text-amber-950 ring-1 ring-amber-200"
             role="status"
@@ -108,7 +152,7 @@ export function App() {
             <p>应用从后台恢复后已停止声音并重置当前题目，避免残留播放。</p>
             <button
               type="button"
-              onClick={() => setResumeNotice(false)}
+              onClick={() => setLifecycle(dismissMobileResetNotice)}
               className="shrink-0 rounded-lg px-2 py-1 font-semibold underline"
             >
               知道了
@@ -181,7 +225,7 @@ export function App() {
             >
               返回练习首页
             </a>
-            {isForeground ? <PracticeScreen screen={activeScreen} /> : null}
+            {lifecycle.isForeground ? <PracticeScreen screen={activeScreen} /> : null}
           </section>
         )}
       </main>
