@@ -268,7 +268,7 @@ const report = {
     bundled_local_web_assets: "passed",
     remote_server_configuration: "absent",
     internet_permission: "absent",
-    microphone_permission: "present_for_opt_in_realtime_pitch_only",
+    microphone_permission: "present_for_opt_in_realtime_pitch_and_session_recording",
     broad_storage_permission: "absent",
     production_cloud_identifiers_in_bundle: "absent",
     core_offline_exercises_present: "passed",
@@ -297,7 +297,7 @@ writeFileSync(
     `- 签名：Android Debug，APK Signature Scheme 已验证；不是 release 签名。\n\n` +
     `## 已验证的本地边界\n\n` +
     `- APK 包含本地 Web 资源、四类核心听辨练习及本地参考钢琴；\n` +
-    `- 未声明网络或宽泛外部存储权限；麦克风权限仅用于用户主动开始的本地实时音高反馈；\n` +
+    `- 未声明网络或宽泛外部存储权限；麦克风权限仅用于用户主动开始的本地实时音高反馈和当前会话录音；\n` +
     `- Capacitor 配置未包含远程 server 或网址，APK bundle 未出现受控生产云端标识；\n` +
     `- 本报告仅在 Gradle 单元测试、debug APK 构建、源码 bundle 校验、APK 签名与结构校验均成功后生成。\n\n` +
     `## 边界与未覆盖项\n\n` +

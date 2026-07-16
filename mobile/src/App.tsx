@@ -42,7 +42,7 @@ const screenDetails: Record<
 > = {
   monitor: {
     title: "实时音高反馈",
-    summary: "用麦克风实时观察当前音名、频率与偏移，不录音、不上传。",
+    summary: "实时观察音高曲线；录音需再次主动开始，只留在当前会话且不上传。",
     tone: "bg-cyan-50 text-cyan-950 ring-cyan-200",
   },
   pitch: {

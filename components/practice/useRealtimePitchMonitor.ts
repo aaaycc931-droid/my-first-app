@@ -13,6 +13,7 @@ import {
 } from "../../lib/practice/realtimePitchCurve";
 
 export type RealtimePitchMonitorStatus = "idle" | "requesting" | "listening" | "error";
+export type RealtimePitchRecordingStatus = "empty" | "recording" | "ready" | "playing" | "error";
 
 const describeMicrophoneError = (error: unknown): string => {
   const name = error instanceof DOMException ? error.name : "";
@@ -27,12 +28,57 @@ export function useRealtimePitchMonitor() {
   const [frame, setFrame] = useState<RealtimePitchFrameAnalysis | null>(null);
   const [curvePoints, setCurvePoints] = useState<RealtimePitchCurvePoint[]>([]);
   const [error, setError] = useState("");
+  const [recordingStatus, setRecordingStatus] = useState<RealtimePitchRecordingStatus>("empty");
+  const [recordingError, setRecordingError] = useState("");
+  const [hasRecording, setHasRecording] = useState(false);
   const streamRef = useRef<MediaStream | null>(null);
   const contextRef = useRef<AudioContext | null>(null);
   const sourceRef = useRef<MediaStreamAudioSourceNode | null>(null);
   const timerRef = useRef<number | null>(null);
   const generationRef = useRef(0);
+  const recordingGenerationRef = useRef(0);
+  const recorderRef = useRef<MediaRecorder | null>(null);
+  const recordingChunksRef = useRef<Blob[]>([]);
+  const recordingUrlRef = useRef<string | null>(null);
+  const playbackRef = useRef<HTMLAudioElement | null>(null);
   const mountedRef = useRef(true);
+
+  const stopPlayback = useCallback(() => {
+    const playback = playbackRef.current;
+    playbackRef.current = null;
+    if (playback) {
+      playback.onended = null;
+      playback.onerror = null;
+      playback.pause();
+      playback.currentTime = 0;
+    }
+    if (mountedRef.current) setRecordingStatus((current) => current === "playing" ? "ready" : current);
+  }, []);
+
+  const discardRecording = useCallback(() => {
+    recordingGenerationRef.current += 1;
+    const recorder = recorderRef.current;
+    recorderRef.current = null;
+    if (recorder) {
+      recorder.ondataavailable = null;
+      recorder.onstop = null;
+      recorder.onerror = null;
+      if (recorder.state === "recording") recorder.stop();
+    }
+    recordingChunksRef.current = [];
+    stopPlayback();
+    if (recordingUrlRef.current) URL.revokeObjectURL(recordingUrlRef.current);
+    recordingUrlRef.current = null;
+    if (mountedRef.current) {
+      setRecordingStatus("empty");
+      setRecordingError("");
+      setHasRecording(false);
+    }
+  }, [stopPlayback]);
+
+  const finishRecording = useCallback(() => {
+    if (recorderRef.current?.state === "recording") recorderRef.current.stop();
+  }, []);
 
   const releaseResources = useCallback(() => {
     if (timerRef.current !== null) window.clearTimeout(timerRef.current);
@@ -47,21 +93,24 @@ export function useRealtimePitchMonitor() {
   }, []);
 
   const stop = useCallback(() => {
+    finishRecording();
     generationRef.current += 1;
     releaseResources();
     if (mountedRef.current) setStatus("idle");
-  }, [releaseResources]);
+  }, [finishRecording, releaseResources]);
 
   const clear = useCallback(() => {
     stop();
     setFrame(null);
     setCurvePoints([]);
     setError("");
-  }, [stop]);
+    discardRecording();
+  }, [discardRecording, stop]);
 
   const start = useCallback(async () => {
     const generation = generationRef.current + 1;
     generationRef.current = generation;
+    stopPlayback();
     releaseResources();
     setFrame(null);
     setError("");
@@ -129,7 +178,107 @@ export function useRealtimePitchMonitor() {
       setStatus("error");
       setError(describeMicrophoneError(caught));
     }
-  }, [releaseResources]);
+  }, [releaseResources, stopPlayback]);
+
+  const startRecording = useCallback(() => {
+    const stream = streamRef.current;
+    if (!stream || status !== "listening") {
+      setRecordingStatus("error");
+      setRecordingError("请先开始实时反馈，再开始本次会话录音。");
+      return;
+    }
+    if (typeof MediaRecorder === "undefined") {
+      setRecordingStatus("error");
+      setRecordingError("当前设备不支持会话内录音。实时曲线仍可继续使用。");
+      return;
+    }
+    discardRecording();
+    const generation = recordingGenerationRef.current + 1;
+    recordingGenerationRef.current = generation;
+    setRecordingError("");
+    try {
+      const supportedMimeType = ["audio/webm;codecs=opus", "audio/webm", "audio/mp4"]
+        .find((mimeType) => typeof MediaRecorder.isTypeSupported !== "function" || MediaRecorder.isTypeSupported(mimeType));
+      const recorder = supportedMimeType ? new MediaRecorder(stream, { mimeType: supportedMimeType }) : new MediaRecorder(stream);
+      recorderRef.current = recorder;
+      recordingChunksRef.current = [];
+      recorder.ondataavailable = (event) => {
+        if (generation === recordingGenerationRef.current && event.data.size > 0) recordingChunksRef.current.push(event.data);
+      };
+      recorder.onerror = () => {
+        if (!mountedRef.current || generation !== recordingGenerationRef.current) return;
+        setRecordingStatus("error");
+        setRecordingError("本次录音发生错误，已停止。你可以继续使用实时曲线或重试录音。");
+      };
+      recorder.onstop = () => {
+        if (!mountedRef.current || generation !== recordingGenerationRef.current) {
+          recordingChunksRef.current = [];
+          return;
+        }
+        recorderRef.current = null;
+        const chunks = recordingChunksRef.current;
+        recordingChunksRef.current = [];
+        if (chunks.length === 0) {
+          setRecordingStatus("error");
+          setRecordingError("没有获得可回放的录音数据，请重试。");
+          return;
+        }
+        const blob = new Blob(chunks, { type: recorder.mimeType || "audio/webm" });
+        try {
+          if (recordingUrlRef.current) URL.revokeObjectURL(recordingUrlRef.current);
+          recordingUrlRef.current = URL.createObjectURL(blob);
+          setHasRecording(true);
+          setRecordingStatus("ready");
+        } catch {
+          recordingUrlRef.current = null;
+          setHasRecording(false);
+          setRecordingStatus("error");
+          setRecordingError("无法在当前会话中准备录音回放，请重新录制。");
+        }
+      };
+      recorder.start(250);
+      setRecordingStatus("recording");
+    } catch {
+      recorderRef.current = null;
+      recordingChunksRef.current = [];
+      setRecordingStatus("error");
+      setRecordingError("无法开始会话内录音。实时曲线仍可继续使用。");
+    }
+  }, [discardRecording, status]);
+
+  const playRecording = useCallback(async () => {
+    const url = recordingUrlRef.current;
+    if (!url) {
+      setRecordingStatus("error");
+      setRecordingError("当前没有可回放的录音，请先完成一次录音。");
+      return;
+    }
+    stop();
+    stopPlayback();
+    try {
+      const playback = new Audio(url);
+      playbackRef.current = playback;
+      playback.onended = () => {
+        if (playbackRef.current === playback) playbackRef.current = null;
+        if (mountedRef.current) setRecordingStatus("ready");
+      };
+      playback.onerror = () => {
+        if (playbackRef.current === playback) playbackRef.current = null;
+        if (mountedRef.current) {
+          setRecordingStatus("error");
+          setRecordingError("无法回放本次录音。你可以丢弃后重新录制。");
+        }
+      };
+      await playback.play();
+      if (playbackRef.current === playback && mountedRef.current) setRecordingStatus("playing");
+    } catch {
+      playbackRef.current = null;
+      if (mountedRef.current) {
+        setRecordingStatus("error");
+        setRecordingError("系统阻止了录音回放，请再次点击播放或重新录制。");
+      }
+    }
+  }, [stop, stopPlayback]);
 
   useEffect(() => {
     // React StrictMode intentionally replays effects during development. Mark
@@ -139,9 +288,38 @@ export function useRealtimePitchMonitor() {
     return () => {
       mountedRef.current = false;
       generationRef.current += 1;
+      recordingGenerationRef.current += 1;
+      const recorder = recorderRef.current;
+      recorderRef.current = null;
+      if (recorder) {
+        recorder.ondataavailable = null;
+        recorder.onstop = null;
+        recorder.onerror = null;
+        if (recorder.state === "recording") recorder.stop();
+      }
+      recordingChunksRef.current = [];
+      stopPlayback();
+      if (recordingUrlRef.current) URL.revokeObjectURL(recordingUrlRef.current);
+      recordingUrlRef.current = null;
       releaseResources();
     };
-  }, [releaseResources]);
+  }, [releaseResources, stopPlayback]);
 
-  return { status, frame, curvePoints, error, start, stop, clear };
+  return {
+    status,
+    frame,
+    curvePoints,
+    error,
+    start,
+    stop,
+    clear,
+    recordingStatus,
+    hasRecording,
+    recordingError,
+    startRecording,
+    stopRecording: finishRecording,
+    playRecording,
+    stopPlayback,
+    discardRecording,
+  };
 }

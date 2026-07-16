@@ -27,7 +27,7 @@ export function RealtimePitchMonitorPanel() {
       <p className="text-sm font-semibold tracking-wide text-cyan-700">本地麦克风</p>
       <h1 className="mt-1 text-2xl font-black text-slate-950">实时音高反馈</h1>
       <p className="mt-2 text-sm leading-6 text-slate-600">
-        点击开始后，应用只在手机内存中读取麦克风帧并显示当前音名、频率和偏移趋势；不录音、不保存、不上传，也不生成分数、等级或通过判断。
+        点击开始后，应用只在手机内存中读取麦克风帧并显示当前音名、频率和偏移趋势。录音也必须再次主动开始，默认只留在本次页面会话；不自动保存、不上传，也不生成分数、等级或通过判断。
       </p>
 
       <div className="mt-5 rounded-3xl bg-slate-950 p-5 text-white" aria-live="polite">
@@ -63,6 +63,20 @@ export function RealtimePitchMonitorPanel() {
       </div>
 
       {monitor.error ? <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-950" role="alert"><p className="font-bold">无法使用麦克风</p><p className="mt-1">{monitor.error}</p></div> : null}
+
+      <section className="mt-4 rounded-2xl border border-violet-200 bg-violet-50 p-4" aria-labelledby="session-recording-title">
+        <h2 id="session-recording-title" className="font-black text-violet-950">本次会话录音与回放</h2>
+        <p className="mt-1 text-sm leading-6 text-violet-900">录音只保存在当前页面内存，离开页面或点击丢弃后不可恢复。回放前会停止麦克风监听，避免扬声器声音被当作你的演唱。</p>
+        <p className="mt-2 text-sm font-bold text-violet-950" aria-live="polite">状态：{monitor.recordingStatus === "recording" ? "正在录音" : monitor.recordingStatus === "ready" ? "可以回放" : monitor.recordingStatus === "playing" ? "正在回放" : monitor.recordingStatus === "error" ? "录音或回放失败" : "尚未录音"}</p>
+        {monitor.recordingError ? <p className="mt-2 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950" role="alert">{monitor.recordingError}</p> : null}
+        <div className="mt-3 flex flex-wrap gap-2">
+          <button type="button" onClick={monitor.startRecording} disabled={monitor.status !== "listening" || monitor.recordingStatus === "recording" || monitor.recordingStatus === "playing"} className="min-h-11 rounded-xl bg-violet-700 px-4 py-2 text-sm font-bold text-white disabled:cursor-not-allowed disabled:bg-violet-300">开始会话录音</button>
+          <button type="button" onClick={monitor.stopRecording} disabled={monitor.recordingStatus !== "recording"} className="min-h-11 rounded-xl border border-violet-300 bg-white px-4 py-2 text-sm font-bold text-violet-950 disabled:cursor-not-allowed disabled:opacity-50">停止录音</button>
+          <button type="button" onClick={() => void monitor.playRecording()} disabled={!monitor.hasRecording || monitor.recordingStatus === "playing" || monitor.recordingStatus === "recording"} className="min-h-11 rounded-xl border border-violet-300 bg-white px-4 py-2 text-sm font-bold text-violet-950 disabled:cursor-not-allowed disabled:opacity-50">播放本次录音</button>
+          <button type="button" onClick={monitor.stopPlayback} disabled={monitor.recordingStatus !== "playing"} className="min-h-11 rounded-xl border border-violet-300 bg-white px-4 py-2 text-sm font-bold text-violet-950 disabled:cursor-not-allowed disabled:opacity-50">停止回放</button>
+          <button type="button" onClick={monitor.discardRecording} disabled={monitor.recordingStatus === "empty"} className="min-h-11 rounded-xl border border-rose-300 bg-white px-4 py-2 text-sm font-bold text-rose-800 disabled:cursor-not-allowed disabled:opacity-50">丢弃本次录音</button>
+        </div>
+      </section>
 
       <div className="mt-5 flex flex-wrap gap-2">
         <button type="button" onClick={() => void monitor.start()} disabled={isActive} className="min-h-12 rounded-xl bg-cyan-700 px-5 py-3 font-bold text-white disabled:cursor-not-allowed disabled:bg-cyan-300">{monitor.status === "requesting" ? "正在请求权限…" : monitor.status === "listening" ? "正在监听" : "开始实时反馈"}</button>
