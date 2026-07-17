@@ -25,6 +25,7 @@ import {
   type PianoVoiceProvider,
 } from "../../lib/piano/pianoAudioProvider";
 import { SPLENDID_GRAND_PIANO_PROVIDER } from "../../lib/piano/splendidGrandPiano";
+import type { PianoPerformanceEventInput } from "../../lib/piano/pianoPerformance";
 
 export type LocalPianoAudioChannel = Pick<
   BrowserAudioChannel,
@@ -57,10 +58,14 @@ export function useLocalPianoAudio({
   keys,
   createChannel = createBrowserAudioChannel,
   voiceProvider = SPLENDID_GRAND_PIANO_PROVIDER,
+  onPerformanceEvent,
+  onExternalAudioStop,
 }: {
   keys: readonly LocalPianoKey[];
   createChannel?: LocalPianoAudioChannelFactory;
   voiceProvider?: PianoVoiceProvider;
+  onPerformanceEvent?: (event: PianoPerformanceEventInput) => void;
+  onExternalAudioStop?: () => void;
 }) {
   const [keyboardState, setKeyboardState] = useState<LocalPianoKeyboardState>(
     () => createLocalPianoKeyboardState(),
@@ -264,6 +269,15 @@ export function useLocalPianoAudio({
         return false;
       }
       velocityRef.current.set(keyId, Math.max(0.05, Math.min(1, velocity)));
+      if (!previous.activeKeyIds.includes(keyId) && next.activeKeyIds.includes(keyId)) {
+        const key = keysById.get(keyId);
+        if (key) onPerformanceEvent?.({
+          type: "note-on",
+          keyId,
+          note: key.midi,
+          velocity: Math.max(0.05, Math.min(1, velocity)),
+        });
+      }
       commitState(next);
       if (previous.latchedKeyIds.includes(keyId) && !next.latchedKeyIds.includes(keyId)) {
         stopVoice(keyId, true);
@@ -273,7 +287,7 @@ export function useLocalPianoAudio({
       }
       return true;
     },
-    [commitState, reconcileVoices, startVoice, stopVoice],
+    [commitState, keysById, onPerformanceEvent, reconcileVoices, startVoice, stopVoice],
   );
 
   const releasePointer = useCallback(
@@ -281,20 +295,28 @@ export function useLocalPianoAudio({
       const previous = stateRef.current;
       const next = releaseLocalPianoPointer(previous, pointerId);
       if (next === previous) return;
+      const releasedKeyIds = Object.values(previous.pointers).filter(
+        (keyId) => !Object.values(next.pointers).includes(keyId),
+      );
+      releasedKeyIds.forEach((keyId) => {
+        const key = keysById.get(keyId);
+        if (key) onPerformanceEvent?.({ type: "note-off", keyId, note: key.midi });
+      });
       commitState(next);
       reconcileVoices(previous, next);
     },
-    [commitState, reconcileVoices],
+    [commitState, keysById, onPerformanceEvent, reconcileVoices],
   );
 
   const setSustainEnabled = useCallback(
     (enabled: boolean) => {
       const previous = stateRef.current;
       const next = setLocalPianoSustain(previous, enabled);
+      if (next !== previous) onPerformanceEvent?.({ type: "pedal", down: enabled });
       commitState(next);
       reconcileVoices(previous, next);
     },
-    [commitState, reconcileVoices],
+    [commitState, onPerformanceEvent, reconcileVoices],
   );
 
   const changeVolume = useCallback(
@@ -313,6 +335,9 @@ export function useLocalPianoAudio({
   );
 
   const stopAll = useCallback(() => {
+    if (stateRef.current.activeKeyIds.length > 0) {
+      onPerformanceEvent?.({ type: "all-notes-off" });
+    }
     requestRef.current += 1;
     pendingRef.current.forEach(({ channel, timeoutTimer }) => {
       window.clearTimeout(timeoutTimer);
@@ -337,7 +362,7 @@ export function useLocalPianoAudio({
     });
     releasingRef.current.clear();
     commitState(resetLocalPianoKeyboard(stateRef.current));
-  }, [commitState]);
+  }, [commitState, onPerformanceEvent]);
 
   const retryAudio = useCallback(async () => {
     setNotice(null);
@@ -398,9 +423,12 @@ export function useLocalPianoAudio({
 
   useEffect(
     () => subscribeBrowserAudioStopAll(() => {
-      if (!isStartingOwnAudioRef.current) stopAll();
+      if (!isStartingOwnAudioRef.current) {
+        stopAll();
+        onExternalAudioStop?.();
+      }
     }),
-    [stopAll],
+    [onExternalAudioStop, stopAll],
   );
 
   useEffect(() => {

@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  useCallback,
   useEffect,
   useMemo,
   useRef,
@@ -30,6 +31,20 @@ import {
 } from "../../lib/piano/pianoInteraction";
 import type { PianoVoiceProvider } from "../../lib/piano/pianoAudioProvider";
 import {
+  appendPianoPerformanceEvent,
+  createPianoPerformanceRecorder,
+  createPianoPlaybackSchedule,
+  finalizePianoPerformance,
+  parsePianoPerformanceLibrary,
+  serializePianoPerformanceLibrary,
+  type PianoPerformance,
+  type PianoPerformanceEventInput,
+  type PianoPerformanceRecorder,
+  type PianoPlaybackRate,
+  type PianoPlaybackVoiceFilter,
+} from "../../lib/piano/pianoPerformance";
+import { BrowserMetronomeScheduler } from "../../lib/metronome/metronomeScheduler";
+import {
   useLocalPianoAudio,
   type LocalPianoAudioChannelFactory,
 } from "./useLocalPianoAudio";
@@ -48,6 +63,29 @@ const labelModeNames: Record<PianoLabelMode, string> = {
 
 const locatorNotes = ["a0", "c2", "c3", "c4", "c5", "c6", "c7", "c8"] as const;
 const keyboardToken = (keyId: string) => `key-${keyId}`;
+const PIANO_PERFORMANCE_STORAGE_KEY = "solfeggio.piano.performances.v1";
+
+const loadInitialPianoPerformances = (): {
+  items: PianoPerformance[];
+  notice: string | null;
+} => {
+  if (typeof window === "undefined") return { items: [], notice: null };
+  try {
+    const raw = window.localStorage.getItem(PIANO_PERFORMANCE_STORAGE_KEY);
+    const items = parsePianoPerformanceLibrary(raw);
+    return {
+      items,
+      notice: raw && raw !== "[]" && items.length === 0
+        ? "本机演奏记录格式无效，已隔离；钢琴仍可正常使用。"
+        : null,
+    };
+  } catch {
+    return {
+      items: [],
+      notice: "当前设备无法读取本机演奏记录；本次仍可弹奏和临时录制。",
+    };
+  }
+};
 
 export function LocalPianoPanel({
   createAudioChannel,
@@ -64,12 +102,55 @@ export function LocalPianoPanel({
   const [transpose, setTranspose] = useState(0);
   const [stressRunning, setStressRunning] = useState(false);
   const stressTimerRef = useRef<number | null>(null);
+  const [initialPerformanceLibrary] = useState(loadInitialPianoPerformances);
+  const [performances, setPerformances] = useState<PianoPerformance[]>(initialPerformanceLibrary.items);
+  const [selectedPerformanceId, setSelectedPerformanceId] = useState<string | null>(initialPerformanceLibrary.items[0]?.id ?? null);
+  const [isRecording, setIsRecording] = useState(false);
+  const recorderRef = useRef<PianoPerformanceRecorder | null>(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const playbackTimersRef = useRef<number[]>([]);
+  const [playbackRate, setPlaybackRate] = useState<PianoPlaybackRate>(1);
+  const [voiceFilter, setVoiceFilter] = useState<PianoPlaybackVoiceFilter>("all");
+  const [loopEnabled, setLoopEnabled] = useState(false);
+  const [loopFromSeconds, setLoopFromSeconds] = useState(0);
+  const [loopToSeconds, setLoopToSeconds] = useState(0);
+  const [performanceNotice, setPerformanceNotice] = useState<string | null>(initialPerformanceLibrary.notice);
+  const [deleteConfirm, setDeleteConfirm] = useState(false);
+  const [metronomeBpm, setMetronomeBpm] = useState(72);
+  const [metronomeRunning, setMetronomeRunning] = useState(false);
+  const [metronomeBeat, setMetronomeBeat] = useState(0);
+  const metronomeRef = useRef<BrowserMetronomeScheduler | null>(null);
+
+  const handleExternalAudioStop = useCallback(() => {
+    playbackTimersRef.current.forEach((timer) => window.clearTimeout(timer));
+    playbackTimersRef.current = [];
+    setIsPlaying(false);
+    metronomeRef.current?.stop();
+    metronomeRef.current = null;
+    setMetronomeRunning(false);
+    setMetronomeBeat(0);
+    if (recorderRef.current) {
+      recorderRef.current = null;
+      setIsRecording(false);
+      setPerformanceNotice("应用进入后台或切换页面，本次未保存的演奏录制已取消。");
+    }
+  }, []);
+
+  const recordPerformanceEvent = useCallback((event: PianoPerformanceEventInput) => {
+    const recorder = recorderRef.current;
+    if (!recorder) return;
+    recorderRef.current = appendPianoPerformanceEvent(recorder, event, performance.now());
+  }, []);
 
   const baseKeys = useMemo(
     () => viewMode === "full" ? getFullPianoKeys() : getLocalPianoKeys(rangeId),
     [rangeId, viewMode],
   );
   const keys = useMemo(() => transposePianoKeys(baseKeys, transpose), [baseKeys, transpose]);
+  const audioKeys = useMemo(
+    () => transposePianoKeys(getFullPianoKeys(), transpose),
+    [transpose],
+  );
   const rows = useMemo(
     () => viewMode === "full" ? splitFullPianoRows(keys, rowMode) : [keys],
     [keys, rowMode, viewMode],
@@ -84,19 +165,205 @@ export function LocalPianoPanel({
     changeVolume,
     stopAll,
     retryAudio,
-  } = useLocalPianoAudio({ keys, createChannel: createAudioChannel, voiceProvider });
+  } = useLocalPianoAudio({
+    keys: audioKeys,
+    createChannel: createAudioChannel,
+    voiceProvider,
+    onPerformanceEvent: recordPerformanceEvent,
+    onExternalAudioStop: handleExternalAudioStop,
+  });
   const activeKeyIds = new Set(keyboardState.activeKeyIds);
   const canRetryAudio = notice?.includes("无法播放") || notice?.includes("准备超时");
+  const selectedPerformance = performances.find((item) => item.id === selectedPerformanceId) ?? null;
+  const pressKeyRef = useRef(pressKey);
+  const releasePointerRef = useRef(releasePointer);
+  const sustainRef = useRef(setSustainEnabled);
+  const stopAllRef = useRef(stopAll);
+  useEffect(() => {
+    pressKeyRef.current = pressKey;
+    releasePointerRef.current = releasePointer;
+    sustainRef.current = setSustainEnabled;
+    stopAllRef.current = stopAll;
+  }, [pressKey, releasePointer, setSustainEnabled, stopAll]);
+
+  useEffect(() => {
+    metronomeRef.current?.updateConfig({ bpm: metronomeBpm, meter: "4/4" });
+  }, [metronomeBpm]);
+
+  const persistPerformances = (next: PianoPerformance[]) => {
+    setPerformances(next);
+    try {
+      window.localStorage.setItem(
+        PIANO_PERFORMANCE_STORAGE_KEY,
+        serializePianoPerformanceLibrary(next),
+      );
+      return true;
+    } catch {
+      setPerformanceNotice("本机空间不足或存储不可用；记录仅保留到本页关闭前。");
+      return false;
+    }
+  };
+
+  const stopPlayback = useCallback(() => {
+    playbackTimersRef.current.forEach((timer) => window.clearTimeout(timer));
+    playbackTimersRef.current = [];
+    setIsPlaying(false);
+    stopAllRef.current();
+  }, []);
+
+  const startPlayback = (performanceItem: PianoPerformance) => {
+    stopPlayback();
+    if (transpose !== performanceItem.transpose) setTranspose(performanceItem.transpose);
+    const fromMs = loopEnabled ? loopFromSeconds * 1_000 : 0;
+    const toMs = loopEnabled ? loopToSeconds * 1_000 : performanceItem.durationMs;
+    if (loopEnabled && (
+      !Number.isFinite(fromMs)
+      || !Number.isFinite(toMs)
+      || fromMs < 0
+      || toMs > performanceItem.durationMs
+      || toMs - fromMs < 100
+    )) {
+      setPerformanceNotice("A–B 循环必须位于记录时长内，且区间至少为 0.1 秒。");
+      return;
+    }
+    const schedule = createPianoPlaybackSchedule({
+      performance: performanceItem,
+      fromMs,
+      toMs,
+      rate: playbackRate,
+      voiceFilter,
+    });
+    const baseDelay = transpose === performanceItem.transpose ? 0 : 60;
+    setIsPlaying(true);
+    let cycleIndex = 0;
+    const runCycle = () => {
+      const cycleBaseDelay = cycleIndex === 0 ? baseDelay : 0;
+      cycleIndex += 1;
+      playbackTimersRef.current = [];
+      schedule.forEach((event, index) => {
+        const timer = window.setTimeout(() => {
+          if (event.type === "note-on") {
+            pressKeyRef.current(`playback-${event.keyId}`, event.keyId, event.velocity ?? 0.65);
+          } else if (event.type === "note-off") {
+            releasePointerRef.current(`playback-${event.keyId}`);
+          } else if (event.type === "pedal") {
+            sustainRef.current(event.down);
+          } else {
+            stopAllRef.current();
+          }
+        }, cycleBaseDelay + event.delayMs);
+        playbackTimersRef.current[index] = timer;
+      });
+      const duration = cycleBaseDelay + (schedule.at(-1)?.delayMs ?? 0) + 30;
+      const finishTimer = window.setTimeout(() => {
+        stopAllRef.current();
+        if (loopEnabled) runCycle();
+        else {
+          playbackTimersRef.current = [];
+          setIsPlaying(false);
+        }
+      }, duration);
+      playbackTimersRef.current.push(finishTimer);
+    };
+    runCycle();
+  };
+
+  const startRecording = () => {
+    stopPlayback();
+    recorderRef.current = createPianoPerformanceRecorder(performance.now());
+    setIsRecording(true);
+    setPerformanceNotice("正在录制本机演奏事件；不录制麦克风或音频文件。");
+  };
+
+  const stopRecording = () => {
+    const recorder = recorderRef.current;
+    if (!recorder) return;
+    stopAll();
+    recorderRef.current = null;
+    setIsRecording(false);
+    const now = new Date();
+    const performanceItem = finalizePianoPerformance({
+      recorder,
+      id: `take-${now.getTime()}`,
+      name: `演奏 ${now.toLocaleString("zh-CN")}`,
+      createdAt: now.toISOString(),
+      nowMs: performance.now(),
+      transpose,
+    });
+    if (!performanceItem) {
+      setPerformanceNotice("本次没有录到音符，未创建记录。");
+      return;
+    }
+    const next = [performanceItem, ...performances].slice(0, 12);
+    const persisted = persistPerformances(next);
+    setSelectedPerformanceId(performanceItem.id);
+    setLoopFromSeconds(0);
+    setLoopToSeconds(performanceItem.durationMs / 1_000);
+    if (persisted) {
+      setPerformanceNotice("演奏事件已保存在本机；不会上传或生成成绩。");
+    }
+  };
+
+  const deleteSelectedPerformance = () => {
+    if (!selectedPerformance) return;
+    stopPlayback();
+    const next = performances.filter((item) => item.id !== selectedPerformance.id);
+    persistPerformances(next);
+    setSelectedPerformanceId(next[0]?.id ?? null);
+    setDeleteConfirm(false);
+    setPerformanceNotice("所选演奏记录已从本机删除。");
+  };
+
+  const exportSelectedPerformance = () => {
+    if (!selectedPerformance) return;
+    try {
+      const blob = new Blob([JSON.stringify(selectedPerformance, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = `${selectedPerformance.id}.json`;
+      anchor.click();
+      URL.revokeObjectURL(url);
+      setPerformanceNotice("演奏事件 JSON 已导出；文件不包含录音音频。");
+    } catch {
+      setPerformanceNotice("当前设备无法导出演奏事件；本机记录未被删除。");
+    }
+  };
+
+  const toggleMetronome = async () => {
+    if (metronomeRef.current) {
+      metronomeRef.current.stop();
+      metronomeRef.current = null;
+      setMetronomeRunning(false);
+      setMetronomeBeat(0);
+      return;
+    }
+    const scheduler = new BrowserMetronomeScheduler({
+      config: { bpm: metronomeBpm, meter: "4/4" },
+      onBeat: (beat) => setMetronomeBeat(beat.beatNumber),
+    });
+    metronomeRef.current = scheduler;
+    try {
+      await scheduler.start();
+      setMetronomeRunning(true);
+    } catch {
+      scheduler.stop();
+      metronomeRef.current = null;
+      setPerformanceNotice("当前手机无法启动节拍器，请确认媒体音量后重试。");
+    }
+  };
 
   const stopStress = () => {
     if (stressTimerRef.current !== null) window.clearTimeout(stressTimerRef.current);
     stressTimerRef.current = null;
     setStressRunning(false);
-    stopAll();
+    stopPlayback();
   };
 
   useEffect(() => () => {
     if (stressTimerRef.current !== null) window.clearTimeout(stressTimerRef.current);
+    playbackTimersRef.current.forEach((timer) => window.clearTimeout(timer));
+    metronomeRef.current?.stop();
   }, []);
 
   const changeKeyboard = (change: () => void) => {
@@ -106,7 +373,7 @@ export function LocalPianoPanel({
 
   const runStressTest = () => {
     stopStress();
-    const stressKeys = getPianoStressTestKeyIds(keys);
+    const stressKeys = getPianoStressTestKeyIds(audioKeys);
     if (stressKeys.length !== 32) return;
     stressKeys.forEach((keyId, index) => pressKey(`stress-${index}`, keyId, 0.72));
     setStressRunning(true);
@@ -259,12 +526,62 @@ export function LocalPianoPanel({
       </div>
 
       {notice ? <div className="mt-4 rounded-xl bg-rose-50 p-3 text-sm leading-6 text-rose-800" role="alert"><p>{notice}</p>{canRetryAudio ? <button type="button" onClick={() => void retryAudio()} className="mt-2 min-h-10 rounded-lg border border-rose-300 bg-white px-3 py-1.5 font-bold text-rose-900">重新启用声音</button> : null}</div> : null}
-      <p className="mt-4 text-sm text-slate-600" role="status">当前发声：{keyboardState.activeKeyIds.length > 0 ? keyboardState.activeKeyIds.map((keyId) => keys.find((key) => key.id === keyId)?.soundingNoteName ?? keys.find((key) => key.id === keyId)?.noteName).filter(Boolean).join("、") : "无"}</p>
+      <p className="mt-4 text-sm text-slate-600" role="status">当前发声：{keyboardState.activeKeyIds.length > 0 ? keyboardState.activeKeyIds.map((keyId) => audioKeys.find((key) => key.id === keyId)?.soundingNoteName ?? audioKeys.find((key) => key.id === keyId)?.noteName).filter(Boolean).join("、") : "无"}</p>
 
       {viewMode === "full" ? <div className="mt-3 flex flex-wrap gap-2" aria-label="快速定位音区">{locatorNotes.map((note) => <button key={note} type="button" onClick={() => scrollToKey(note)} className="min-h-10 rounded-lg border border-slate-300 px-3 text-sm font-bold text-slate-700">定位 {note.toUpperCase()}</button>)}</div> : null}
       <div className={`mt-4 grid gap-3 ${rowMode === "double" && viewMode === "full" ? "local-piano-double-rows" : ""}`}>{rows.map(renderRow)}</div>
 
-      {viewMode === "full" ? <div className="mt-4 rounded-xl bg-slate-50 p-3"><button type="button" disabled={stressRunning} onClick={runStressTest} className="min-h-11 rounded-xl bg-slate-900 px-4 py-2 text-sm font-bold text-white disabled:opacity-50">{stressRunning ? "32 音压力测试进行中…" : "运行 32 音压力测试（2 秒）"}</button><p className="mt-2 text-xs leading-5 text-slate-600">会同时播放 32 个中音区音符并自动全停；请用于检查爆音、性能下降和残音，测试前降低媒体音量。</p></div> : null}
+      <section className="mt-5 rounded-2xl border border-indigo-200 bg-indigo-50 p-4" aria-labelledby="piano-performance-heading">
+        <h3 id="piano-performance-heading" className="text-lg font-bold text-indigo-950">节拍器与演奏记录</h3>
+        <p className="mt-1 text-xs leading-5 text-indigo-900">只保存按键、力度、踏板和时间事件到本机；不录制麦克风、不上传，也不生成成绩。</p>
+        <div className="mt-3 grid gap-3 sm:grid-cols-3">
+          <label className="text-sm font-semibold text-indigo-950">节拍器：{metronomeBpm} BPM
+            <input aria-label="钢琴节拍器速度" type="range" min="30" max="240" step="1" value={metronomeBpm} onChange={(event) => setMetronomeBpm(Number(event.target.value))} className="mt-2 w-full accent-indigo-700" />
+          </label>
+          <button type="button" aria-pressed={metronomeRunning} onClick={() => void toggleMetronome()} className="min-h-11 rounded-xl border border-indigo-300 bg-white px-3 py-2 text-sm font-bold text-indigo-900">{metronomeRunning ? `停止节拍器（第 ${metronomeBeat || 1} 拍）` : "启动 4/4 节拍器"}</button>
+          <button type="button" disabled={isPlaying || stressRunning} onClick={isRecording ? stopRecording : startRecording} className={`min-h-11 rounded-xl px-3 py-2 text-sm font-bold text-white disabled:opacity-50 ${isRecording ? "bg-rose-700" : "bg-indigo-700"}`}>{isRecording ? "停止并保存事件" : "开始录制演奏事件"}</button>
+        </div>
+
+        <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <label className="text-sm font-semibold text-indigo-950">本机记录
+            <select aria-label="钢琴演奏记录" value={selectedPerformanceId ?? ""} onChange={(event) => {
+              stopPlayback();
+              setDeleteConfirm(false);
+              const next = performances.find((item) => item.id === event.target.value) ?? null;
+              setSelectedPerformanceId(next?.id ?? null);
+              setLoopFromSeconds(0);
+              setLoopToSeconds(next ? next.durationMs / 1_000 : 0);
+            }} className="mt-1 w-full rounded-xl border border-indigo-300 bg-white px-3 py-2 text-slate-900">
+              <option value="">暂无记录</option>
+              {performances.map((item) => <option key={item.id} value={item.id}>{item.name}（{(item.durationMs / 1_000).toFixed(1)} 秒）</option>)}
+            </select>
+          </label>
+          <label className="text-sm font-semibold text-indigo-950">回放速度
+            <select aria-label="钢琴回放速度" value={playbackRate} onChange={(event) => setPlaybackRate(Number(event.target.value) as PianoPlaybackRate)} className="mt-1 w-full rounded-xl border border-indigo-300 bg-white px-3 py-2 text-slate-900">
+              {[0.5, 0.75, 1, 1.25, 1.5].map((rate) => <option key={rate} value={rate}>{Math.round(rate * 100)}%</option>)}
+            </select>
+          </label>
+          <label className="text-sm font-semibold text-indigo-950">声部过滤
+            <select aria-label="钢琴回放声部" value={voiceFilter} onChange={(event) => setVoiceFilter(event.target.value as PianoPlaybackVoiceFilter)} className="mt-1 w-full rounded-xl border border-indigo-300 bg-white px-3 py-2 text-slate-900">
+              <option value="all">全部</option><option value="lower">低声部（C4 以下）</option><option value="upper">高声部（C4 及以上）</option>
+            </select>
+          </label>
+          <label className="flex min-h-11 items-center gap-2 self-end text-sm font-semibold text-indigo-950"><input type="checkbox" checked={loopEnabled} onChange={(event) => setLoopEnabled(event.target.checked)} className="h-5 w-5 accent-indigo-700" />A–B 循环</label>
+        </div>
+
+        {loopEnabled && selectedPerformance ? <div className="mt-3 grid gap-3 sm:grid-cols-2"><label className="text-sm font-semibold text-indigo-950">A 点（秒）<input aria-label="钢琴循环 A 点" type="number" min="0" max={selectedPerformance.durationMs / 1_000} step="0.1" value={loopFromSeconds} onChange={(event) => { const value = Number(event.target.value); setLoopFromSeconds(Number.isFinite(value) ? Math.max(0, Math.min(selectedPerformance.durationMs / 1_000, value)) : 0); }} className="mt-1 w-full rounded-xl border border-indigo-300 bg-white px-3 py-2" /></label><label className="text-sm font-semibold text-indigo-950">B 点（秒）<input aria-label="钢琴循环 B 点" type="number" min="0" max={selectedPerformance.durationMs / 1_000} step="0.1" value={loopToSeconds} onChange={(event) => { const value = Number(event.target.value); setLoopToSeconds(Number.isFinite(value) ? Math.max(0, Math.min(selectedPerformance.durationMs / 1_000, value)) : 0); }} className="mt-1 w-full rounded-xl border border-indigo-300 bg-white px-3 py-2" /></label></div> : null}
+
+        <div className="mt-3 flex flex-wrap gap-2">
+          <button type="button" disabled={!selectedPerformance || isRecording} onClick={() => selectedPerformance && startPlayback(selectedPerformance)} className="min-h-11 rounded-xl bg-indigo-800 px-4 py-2 text-sm font-bold text-white disabled:opacity-50">{isPlaying ? "重新开始回放" : "回放所选记录"}</button>
+          <button type="button" disabled={!isPlaying} onClick={stopPlayback} className="min-h-11 rounded-xl border border-indigo-300 bg-white px-4 py-2 text-sm font-bold text-indigo-900 disabled:opacity-50">停止回放</button>
+          <button type="button" disabled={!selectedPerformance || isRecording || isPlaying} onClick={exportSelectedPerformance} className="min-h-11 rounded-xl border border-indigo-300 bg-white px-4 py-2 text-sm font-bold text-indigo-900 disabled:opacity-50">导出事件 JSON</button>
+          <button type="button" disabled={!selectedPerformance || isRecording || isPlaying} onClick={() => deleteConfirm ? deleteSelectedPerformance() : setDeleteConfirm(true)} className="min-h-11 rounded-xl border border-rose-300 bg-white px-4 py-2 text-sm font-bold text-rose-800 disabled:opacity-50">{deleteConfirm ? "确认删除所选记录" : "删除所选记录"}</button>
+          {deleteConfirm ? <button type="button" onClick={() => setDeleteConfirm(false)} className="min-h-11 rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-bold text-slate-700">取消删除</button> : null}
+        </div>
+        {performanceNotice ? <p className="mt-3 rounded-xl bg-white p-3 text-sm leading-6 text-indigo-950" role="status">{performanceNotice}</p> : null}
+      </section>
+
+      {viewMode === "full" ? <div className="mt-4 rounded-xl bg-slate-50 p-3"><button type="button" disabled={stressRunning || isRecording || isPlaying} onClick={runStressTest} className="min-h-11 rounded-xl bg-slate-900 px-4 py-2 text-sm font-bold text-white disabled:opacity-50">{stressRunning ? "32 音压力测试进行中…" : "运行 32 音压力测试（2 秒）"}</button><p className="mt-2 text-xs leading-5 text-slate-600">会同时播放 32 个中音区音符并自动全停；请用于检查爆音、性能下降和残音，测试前降低媒体音量。</p></div> : null}
       <p className="mt-4 text-xs leading-5 text-slate-500">支持完整 88 键逻辑音域、最多 32 个并发音符和至少 10 指状态。切换视图、排布、键宽、移调、离开页面或应用进入后台时会停止声音。</p>
     </section>
   );
