@@ -15,6 +15,7 @@ export type PianoVoiceTrackingChannel = {
 };
 
 export type PianoVoiceHandle = {
+  timbre: PianoTimbreDescriptor;
   setVolume(volume: number): void;
   release(immediately?: boolean): void;
 };
@@ -60,6 +61,7 @@ export const COMPATIBILITY_PIANO_VOICE_PROVIDER: PianoVoiceProvider = {
     oscillator.start(startTime);
     let released = false;
     return {
+      timbre: COMPATIBILITY_PIANO_TIMBRE,
       setVolume(nextVolume) {
         if (released) return;
         gain.gain.setTargetAtTime(
@@ -191,6 +193,7 @@ export const createSamplePianoVoiceProvider = ({
       source.start(context.currentTime + 0.005);
       let released = false;
       return {
+        timbre: descriptor,
         setVolume(nextVolume) {
           if (!released) gain.gain.setTargetAtTime(nextVolume * event.velocity * zone.gain, context.currentTime, 0.015);
         },
@@ -211,3 +214,18 @@ export const createSamplePianoVoiceProvider = ({
     },
   };
 };
+
+export const createFallbackPianoVoiceProvider = (
+  primary: PianoVoiceProvider,
+  fallback: PianoVoiceProvider,
+): PianoVoiceProvider => ({
+  descriptor: primary.descriptor,
+  async startVoice(input) {
+    try {
+      return await primary.startVoice(input);
+    } catch (error) {
+      if (input.isCancelled()) throw error;
+      return fallback.startVoice(input);
+    }
+  },
+});

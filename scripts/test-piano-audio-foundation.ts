@@ -12,6 +12,10 @@ import {
   normalizePianoNoteEvent,
   reducePianoNoteEvent,
 } from "../lib/piano/pianoNoteEvents";
+import {
+  SPLENDID_GRAND_PIANO_TIMBRE,
+  SPLENDID_GRAND_PIANO_ZONES,
+} from "../lib/piano/splendidGrandPiano";
 
 assert.equal(PIANO_NOTE_EVENT_PROTOCOL_VERSION, "piano-note-events-v1");
 assert.equal(DEFAULT_PIANO_POLYPHONY, 32);
@@ -60,5 +64,15 @@ const zones: PianoSampleZone[] = [
 assert.equal(selectPianoSampleZone(zones, 61, 0.2)?.id, "c4-soft");
 assert.equal(selectPianoSampleZone(zones, 61, 0.8)?.id, "c4-loud");
 assert.equal(selectPianoSampleZone(zones, 80, 0.8), null);
+
+assert.equal(SPLENDID_GRAND_PIANO_TIMBRE.license, "Public Domain");
+assert.equal(SPLENDID_GRAND_PIANO_ZONES.length, 36);
+for (const midi of [21, 60, 108]) {
+  for (const velocity of [0.2, 0.5, 0.9]) {
+    const zone = selectPianoSampleZone(SPLENDID_GRAND_PIANO_ZONES, midi, velocity);
+    assert.ok(zone, `missing zone for MIDI ${midi}, velocity ${velocity}`);
+    assert.ok(zone.assetPath.endsWith(".ogg"));
+  }
+}
 
 console.log("Piano audio provider and note-event foundation tests passed.");

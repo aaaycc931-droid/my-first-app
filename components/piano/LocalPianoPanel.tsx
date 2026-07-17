@@ -13,6 +13,7 @@ import {
   useLocalPianoAudio,
   type LocalPianoAudioChannelFactory,
 } from "./useLocalPianoAudio";
+import type { PianoVoiceProvider } from "../../lib/piano/pianoAudioProvider";
 
 const rangeLabels: Record<LocalPianoRangeId, string> = {
   "C3-C4": "低音区：C3 到 C4",
@@ -24,8 +25,10 @@ const keyboardToken = (keyId: string) => `key-${keyId}`;
 
 export function LocalPianoPanel({
   createAudioChannel,
+  voiceProvider,
 }: {
   createAudioChannel?: LocalPianoAudioChannelFactory;
+  voiceProvider?: PianoVoiceProvider;
 }) {
   const [rangeId, setRangeId] = useState<LocalPianoRangeId>(
     DEFAULT_LOCAL_PIANO_RANGE_ID,
@@ -41,7 +44,7 @@ export function LocalPianoPanel({
     changeVolume,
     stopAll,
     retryAudio,
-  } = useLocalPianoAudio({ keys, createChannel: createAudioChannel });
+  } = useLocalPianoAudio({ keys, createChannel: createAudioChannel, voiceProvider });
   const activeKeyIds = new Set(keyboardState.activeKeyIds);
   const canRetryAudio = notice?.includes("无法播放") || notice?.includes("准备超时");
 
@@ -61,7 +64,13 @@ export function LocalPianoPanel({
     } catch {
       // The window-level pointer handlers remain as a release fallback.
     }
-    pressKey(event.pointerId, key.id);
+    const contactArea = event.width * event.height;
+    const velocity = event.pressure > 0
+      ? event.pressure
+      : contactArea >= 16
+        ? Math.min(1, Math.max(0.25, contactArea / 900))
+        : 0.65;
+    pressKey(event.pointerId, key.id, velocity);
   };
 
   const renderKey = (key: LocalPianoKey) => {
@@ -163,7 +172,7 @@ export function LocalPianoPanel({
           <div className="local-piano-keys">{keys.map(renderKey)}</div>
         </div>
       </div>
-      <p className="mt-4 text-xs leading-5 text-slate-500">最多可同时发出 8 个音。切换音域、离开页面、应用进入后台或关闭延音时，会停止相应声音，避免残留播放。</p>
+      <p className="mt-4 text-xs leading-5 text-slate-500">音频引擎支持最多 32 个并发音符；当前单排音域可同时按下全部 13 键。切换音域、离开页面、应用进入后台或关闭延音时，会停止相应声音，避免残留播放。</p>
     </section>
   );
 }

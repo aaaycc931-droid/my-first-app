@@ -20,10 +20,11 @@ import {
   type LocalPianoPointerId,
 } from "../../lib/piano/localPianoKeyboard";
 import {
-  COMPATIBILITY_PIANO_VOICE_PROVIDER,
+  type PianoTimbreDescriptor,
   type PianoVoiceHandle,
   type PianoVoiceProvider,
 } from "../../lib/piano/pianoAudioProvider";
+import { SPLENDID_GRAND_PIANO_PROVIDER } from "../../lib/piano/splendidGrandPiano";
 
 export type LocalPianoAudioChannel = Pick<
   BrowserAudioChannel,
@@ -55,7 +56,7 @@ export const LOCAL_PIANO_PREPARE_TIMEOUT_MS = 5_000;
 export function useLocalPianoAudio({
   keys,
   createChannel = createBrowserAudioChannel,
-  voiceProvider = COMPATIBILITY_PIANO_VOICE_PROVIDER,
+  voiceProvider = SPLENDID_GRAND_PIANO_PROVIDER,
 }: {
   keys: readonly LocalPianoKey[];
   createChannel?: LocalPianoAudioChannelFactory;
@@ -65,6 +66,7 @@ export function useLocalPianoAudio({
     () => createLocalPianoKeyboardState(),
   );
   const [notice, setNotice] = useState<string | null>(null);
+  const [timbre, setTimbre] = useState<PianoTimbreDescriptor>(voiceProvider.descriptor);
   const stateRef = useRef(keyboardState);
   const keysById = useMemo(() => new Map(keys.map((key) => [key.id, key])), [keys]);
   const voicesRef = useRef(new Map<string, ActiveVoice>());
@@ -72,6 +74,7 @@ export function useLocalPianoAudio({
   const releasingRef = useRef(new Set<ReleasingVoice>());
   const retryPreparationRef = useRef<PendingVoice | null>(null);
   const requestRef = useRef(0);
+  const velocityRef = useRef(new Map<string, number>());
   const mountedRef = useRef(true);
   const isStartingOwnAudioRef = useRef(false);
 
@@ -105,7 +108,7 @@ export function useLocalPianoAudio({
       releasing.timer = window.setTimeout(() => {
         voice.channel.stop();
         releasingRef.current.delete(releasing);
-      }, 70);
+      }, 150);
       releasingRef.current.add(releasing);
     } catch {
       voice.channel.stop();
@@ -169,7 +172,7 @@ export function useLocalPianoAudio({
             event: {
               type: "note-on",
               note: key.midi,
-              velocity: 1,
+              velocity: velocityRef.current.get(keyId) ?? 0.65,
               channel: 0,
               atMs: performance.now(),
             },
@@ -196,6 +199,12 @@ export function useLocalPianoAudio({
           return;
         }
         pendingRef.current.delete(keyId);
+        if (mountedRef.current) {
+          setTimbre(voice.timbre);
+          if (voiceProvider.descriptor.kind === "sampled" && voice.timbre.kind === "compatibility-synth") {
+            setNotice("本地钢琴采样暂不可用，已自动切换到兼容降级音色。");
+          }
+        }
         const watchdogTimer = window.setTimeout(() => {
           const previous = stateRef.current;
           const pointers = Object.fromEntries(
@@ -247,13 +256,14 @@ export function useLocalPianoAudio({
   );
 
   const pressKey = useCallback(
-    (pointerId: LocalPianoPointerId, keyId: string) => {
+    (pointerId: LocalPianoPointerId, keyId: string, velocity = 0.65) => {
       const previous = stateRef.current;
       const next = pressLocalPianoKey(previous, pointerId, keyId);
       if (next === previous && !previous.activeKeyIds.includes(keyId)) {
-        if (mountedRef.current) setNotice("最多可同时弹奏 8 个音，请先松开一个琴键。");
+        if (mountedRef.current) setNotice("最多可同时弹奏 32 个音，请先松开一个琴键。");
         return false;
       }
+      velocityRef.current.set(keyId, Math.max(0.05, Math.min(1, velocity)));
       commitState(next);
       if (previous.latchedKeyIds.includes(keyId) && !next.latchedKeyIds.includes(keyId)) {
         stopVoice(keyId, true);
@@ -320,6 +330,7 @@ export function useLocalPianoAudio({
       voice.channel.stop();
     });
     voicesRef.current.clear();
+    velocityRef.current.clear();
     releasingRef.current.forEach(({ channel, timer }) => {
       window.clearTimeout(timer);
       channel.stop();
@@ -426,7 +437,7 @@ export function useLocalPianoAudio({
 
   return {
     keyboardState,
-    timbre: voiceProvider.descriptor,
+    timbre,
     notice,
     pressKey,
     releasePointer,

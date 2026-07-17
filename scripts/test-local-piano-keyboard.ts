@@ -6,6 +6,7 @@ import {
   MAX_LOCAL_PIANO_ACTIVE_KEYS,
   clampLocalPianoVolume,
   createLocalPianoKeyboardState,
+  getFullPianoKeys,
   getLocalPianoKeys,
   pressLocalPianoKey,
   releaseLocalPianoPointer,
@@ -33,6 +34,14 @@ for (const rangeId of LOCAL_PIANO_RANGE_IDS) {
     assert.match(key.accessibleLabel, /[黑白]键/);
   });
 }
+
+const fullKeyboard = getFullPianoKeys();
+assert.equal(fullKeyboard.length, 88);
+assert.equal(fullKeyboard[0].noteName, "A0");
+assert.equal(fullKeyboard[0].midi, 21);
+assert.equal(fullKeyboard[87].noteName, "C8");
+assert.equal(fullKeyboard[87].midi, 108);
+assert.equal(new Set(fullKeyboard.map((key) => key.midi)).size, 88);
 
 const middleRange = getLocalPianoKeys("C4-C5");
 assert.equal(middleRange[0].midi, 60);
@@ -82,8 +91,8 @@ for (let index = 0; index < MAX_LOCAL_PIANO_ACTIVE_KEYS; index += 1) {
 }
 assert.equal(state.activeKeyIds.length, MAX_LOCAL_PIANO_ACTIVE_KEYS);
 const fullState = state;
-state = pressLocalPianoKey(state, 99, "ninth-key");
-assert.equal(state, fullState, "the ninth unique active key should be rejected");
+state = pressLocalPianoKey(state, 99, "thirty-third-key");
+assert.equal(state, fullState, "the thirty-third unique active key should be rejected");
 assert.equal(state.pointers["pointer:99"], undefined);
 state = pressLocalPianoKey(state, 100, "key-0");
 assert.equal(state.activeKeyIds.length, MAX_LOCAL_PIANO_ACTIVE_KEYS);

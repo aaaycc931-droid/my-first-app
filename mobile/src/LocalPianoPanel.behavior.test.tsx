@@ -11,6 +11,7 @@ import type {
   LocalPianoAudioChannel,
   LocalPianoAudioChannelFactory,
 } from "../../components/piano/useLocalPianoAudio";
+import { COMPATIBILITY_PIANO_VOICE_PROVIDER } from "../../lib/piano/pianoAudioProvider";
 import {
   LOCAL_PIANO_PREPARE_TIMEOUT_MS,
   LOCAL_PIANO_VOICE_WATCHDOG_MS,
@@ -119,7 +120,7 @@ const renderPanel = async (factory: LocalPianoAudioChannelFactory) => {
   document.body.append(container);
   root = createRoot(container);
   await act(async () => root?.render(
-    <StrictMode><LocalPianoPanel createAudioChannel={factory} /></StrictMode>,
+    <StrictMode><LocalPianoPanel createAudioChannel={factory} voiceProvider={COMPATIBILITY_PIANO_VOICE_PROVIDER} /></StrictMode>,
   ));
   await flush();
   return container;
@@ -305,18 +306,18 @@ describe("本地钢琴面板行为", () => {
     expect(c4.getAttribute("aria-pressed")).toBe("false");
   });
 
-  it("最多同时接受 8 个不同音，第 9 个显示中文提示", async () => {
+  it("当前单排 13 键均可同时按下，音频状态不再被旧 8 音上限截断", async () => {
     const audio = createAudioHarness();
     const container = await renderPanel(audio.factory);
     const keys = Array.from(container.querySelectorAll<HTMLButtonElement>("[data-piano-key]"));
 
-    for (let index = 0; index < 9; index += 1) {
+    for (let index = 0; index < 13; index += 1) {
       await pointer(keys[index] as HTMLButtonElement, "pointerdown", 100 + index);
     }
 
-    expect(container.querySelectorAll('[data-piano-key][aria-pressed="true"]')).toHaveLength(8);
-    expect(audio.oscillators).toHaveLength(8);
-    expect(container.querySelector('[role="alert"]')?.textContent).toContain("最多可同时弹奏 8 个音");
+    expect(container.querySelectorAll('[data-piano-key][aria-pressed="true"]')).toHaveLength(13);
+    expect(audio.oscillators).toHaveLength(13);
+    expect(container.textContent).toContain("最多 32 个并发音符");
   });
 
   it("0% 音量创建真正静音 voice，运行中切到 0% 也写入零增益", async () => {
@@ -352,7 +353,7 @@ describe("本地钢琴面板行为", () => {
       valueSetter?.call(volume, "0.4");
       volume.dispatchEvent(new Event("input", { bubbles: true }));
     });
-    expect(audio.gains[0]?.gain.targets.at(-1)).toBeCloseTo(0.03, 5);
+    expect(audio.gains[0]?.gain.targets.at(-1)).toBeCloseTo(0.0195, 5);
 
     const range = container.querySelector<HTMLSelectElement>('select[aria-label="钢琴音域"]');
     if (!range) throw new Error("找不到钢琴音域");

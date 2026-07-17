@@ -7,7 +7,7 @@ export const LOCAL_PIANO_RANGE_IDS = ["C3-C4", "C4-C5", "C5-C6"] as const;
 export type LocalPianoRangeId = (typeof LOCAL_PIANO_RANGE_IDS)[number];
 
 export const DEFAULT_LOCAL_PIANO_RANGE_ID: LocalPianoRangeId = "C4-C5";
-export const MAX_LOCAL_PIANO_ACTIVE_KEYS = 8;
+export const MAX_LOCAL_PIANO_ACTIVE_KEYS = 32;
 
 export type LocalPianoKey = {
   id: string;
@@ -73,6 +73,30 @@ export const getLocalPianoKeys = (rangeId: LocalPianoRangeId): LocalPianoKey[] =
       accessibleLabel: createAccessibleLabel({ noteName, midi, keyType }),
     };
   });
+};
+
+export const getFullPianoKeys = (): LocalPianoKey[] => {
+  const keys: LocalPianoKey[] = [];
+  let whiteKeyIndex = 0;
+  for (let midi = 21; midi <= 108; midi += 1) {
+    const pitchClass = midi % 12;
+    const octave = Math.floor(midi / 12) - 1;
+    const names = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+    const name = names[pitchClass];
+    const keyType = name.includes("#") ? "black" as const : "white" as const;
+    const noteName = `${name}${octave}`;
+    keys.push({
+      id: noteName.toLowerCase().replace("#", "-sharp-"),
+      noteName,
+      midi,
+      frequencyHz: midiToFrequencyHz(midi),
+      keyType,
+      whiteKeyIndex: keyType === "white" ? whiteKeyIndex : Math.max(0, whiteKeyIndex - 1),
+      accessibleLabel: createAccessibleLabel({ noteName, midi, keyType }),
+    });
+    if (keyType === "white") whiteKeyIndex += 1;
+  }
+  return keys;
 };
 
 export type LocalPianoPointerId = number | string;

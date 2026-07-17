@@ -1,8 +1,14 @@
-## P106 — 专业钢琴音频与音色提供器基础（本地实现，待 CI，2026-07-17）
+## P107 — 三层离线采样钢琴与 88 键音频映射（本地验证通过，待 CI/真机，2026-07-17）
+
+P107 将 Public Domain 的 Splendid Grand Piano 浏览器 OGG 转换版固定到上游 commit `eae8c5c7a10f4b0e06281211e704c36c30e25342`，从 PP、Mp、Mf 三档力度各选 12 个根音，共 36 个本地资产、约 2 MB。版本化 zone map 覆盖 MIDI 21–108（A0–C8），触控压力或接触面积用于选择力度层，无压力能力时使用稳定默认力度；解码采用按需加载、24-buffer LRU 和 in-flight 去重。任何 fetch/decode 失败都会明确提示并自动回退到 P106 兼容合成音，不伪装成采样音色。
+
+逻辑键盘新增完整 88 键连续映射，活动音状态上限从 8 提升到 32；当前 P94 单排界面可同时按下全部 13 键，完整滚动/缩放 88 键交互留给 P108。许可、来源、版本、力度层、映射音域、归一化、释放策略与缓存预算记录在 timbre manifest 和资产 README。focused provider/键盘测试、16 项钢琴挂载行为、18 项移动 App 行为、ESLint、TypeScript、Vite/Next 构建和 Android 离线校验均已在本地通过；自动测试不证明真机 OGG 解码、扬声器听感、首次可弹 P95、32 音 DSP 负载、触控压力质量或无残音，P107 在 CI 与三档 Android 真机证据前不得标记最终完成。QA level recommendation：**strict**。
+
+## P106 — 专业钢琴音频与音色提供器基础（PR #357 已合并，CI 通过，2026-07-17）
 
 项目已按产品所有者的恢复指令从专业竞争力路线继续开发。P106 将钢琴发声从 React hook 内写死的三角波迁移到版本化 `PianoVoiceProvider`，并冻结 `piano-note-events-v1` 的 note-on、note-off、pedal 和 all-notes-off 标准事件。纯状态 voice allocator 支持确定性的 32 音复音上限、同音重触发、延音锁存/释放和优先回收已松键旧 voice；采样提供器基础支持根音/音域/力度层选择、音高移调、可取消异步装载和有界 LRU 缓存。
 
-当前 APK 尚未加入真实钢琴样本，默认仍明确显示“兼容合成音”，并通过 `mobile/public/piano/timbres.manifest.json` 记录来源、许可、版本、归一化、循环策略和构建摘要；它不得被称为专业采样钢琴。现有真实挂载 React 行为继续覆盖多指、延音、音量、切换音域、全停、失败重试、后台/卸载和残音看门狗，并新增音色降级身份断言；P106 focused 纯状态测试覆盖事件归一化、32 音分配、voice stealing、延音、all-notes-off、LRU 和采样区域选择。P107 仍负责合法离线三角钢琴样本、至少三力度层、88 键映射、听感/内存/首次可弹和真机门槛。QA level recommendation：**strict**。
+P106 合并时 APK 尚未加入真实钢琴样本，默认明确显示“兼容合成音”，并通过 `mobile/public/piano/timbres.manifest.json` 记录来源、许可、版本、归一化、循环策略和构建摘要。现有真实挂载 React 行为覆盖多指、延音、音量、切换音域、全停、失败重试、后台/卸载和残音看门狗；focused 纯状态测试覆盖事件归一化、32 音分配、voice stealing、延音、all-notes-off、LRU 和采样区域选择。PR #357 的 GitHub Actions run `29577615827` 两个 job 均 PASS，合并后的 main commit 为 `889e60d2b273446fb167f6acfa1bd8cb7195d706`。QA level recommendation：**strict**。
 
 ## P105R — 专业竞争力路线重定标与主动暂停（docs-only，2026-07-16）
 
