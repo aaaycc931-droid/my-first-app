@@ -14,6 +14,7 @@ const requiredSources = [
   "lib/piano/localPianoKeyboard.ts",
   "lib/piano/pianoNoteEvents.ts",
   "lib/piano/pianoAudioProvider.ts",
+  "lib/piano/splendidGrandPiano.ts",
   "mobile/public/piano/timbres.manifest.json",
   "components/piano/LocalPianoPanel.tsx",
   "components/piano/useLocalPianoAudio.ts",
@@ -59,6 +60,7 @@ const pianoAudioSource = readFileSync(
 );
 const pianoProviderSource = readFileSync(join(root, "lib/piano/pianoAudioProvider.ts"), "utf8");
 const pianoEventSource = readFileSync(join(root, "lib/piano/pianoNoteEvents.ts"), "utf8");
+const sampledPianoSource = readFileSync(join(root, "lib/piano/splendidGrandPiano.ts"), "utf8");
 const pianoTimbreManifest = JSON.parse(readFileSync(
   join(root, "mobile/public/piano/timbres.manifest.json"),
   "utf8",
@@ -102,7 +104,8 @@ if (
 }
 if (
   !pianoModelSource.includes('DEFAULT_LOCAL_PIANO_RANGE_ID: LocalPianoRangeId = "C4-C5"')
-  || !pianoModelSource.includes("MAX_LOCAL_PIANO_ACTIVE_KEYS = 8")
+  || !pianoModelSource.includes("MAX_LOCAL_PIANO_ACTIVE_KEYS = 32")
+  || !pianoModelSource.includes("getFullPianoKeys")
   || !pianoModelSource.includes("setLocalPianoSustain")
   || !pianoPanelSource.includes("本地参考钢琴")
   || !pianoPanelSource.includes("aria-pressed={keyboardState.sustainEnabled}")
@@ -112,9 +115,17 @@ if (
   || !pianoProviderSource.includes("BoundedPianoSampleCache")
   || !pianoEventSource.includes('PIANO_NOTE_EVENT_PROTOCOL_VERSION = "piano-note-events-v1"')
   || !pianoEventSource.includes("DEFAULT_PIANO_POLYPHONY = 32")
-  || pianoTimbreManifest.timbres?.[0]?.id !== "compatibility-triangle-v1"
+  || !sampledPianoSource.includes("SPLENDID_GRAND_PIANO_ZONES")
+  || pianoTimbreManifest.timbres?.[0]?.id !== "splendid-grand-piano-mobile-v1"
+  || pianoTimbreManifest.timbres?.[0]?.velocityLayers !== 3
 ) {
   throw new Error("Android 本地参考钢琴缺少音域、多指、延音或残音清理边界");
+}
+const pianoAssetDirectory = join(root, "mobile/public/piano/splendid-grand-v1");
+const pianoAssets = readdirSync(pianoAssetDirectory).filter((name) => name.endsWith(".ogg"));
+const pianoAssetBytes = pianoAssets.reduce((total, name) => total + statSync(join(pianoAssetDirectory, name)).size, 0);
+if (pianoAssets.length !== 36 || pianoAssetBytes > 3 * 1024 * 1024) {
+  throw new Error(`钢琴采样资产数量或包体预算异常：${pianoAssets.length} files / ${pianoAssetBytes} bytes`);
 }
 for (const forbiddenReviewField of [
   "selectedPitchId",

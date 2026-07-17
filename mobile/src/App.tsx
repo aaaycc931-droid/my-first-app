@@ -69,7 +69,7 @@ const screenDetails: Record<
   },
   piano: {
     title: "本地参考钢琴",
-    summary: "使用手机本地合成参考音辅助找音，不保存弹奏，也不生成成绩。",
+    summary: "使用安装包内的三层钢琴采样辅助找音；不可用时明确降级，不保存弹奏，也不生成成绩。",
     tone: "bg-rose-50 text-rose-950 ring-rose-200",
   },
 };

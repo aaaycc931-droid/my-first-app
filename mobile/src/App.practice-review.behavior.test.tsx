@@ -329,7 +329,7 @@ describe("Android 本机复练行为", () => {
     const container = await renderApp();
     await click(findLink(container, "本地参考钢琴"));
 
-    expect(container.textContent).toContain("兼容降级音色");
+    expect(container.textContent).toContain("Splendid Grand Piano 三层采样");
     expect(container.querySelectorAll("[data-piano-key]")).toHaveLength(13);
     await traverseHistory("back");
     expect(container.textContent).toContain("选择练习");

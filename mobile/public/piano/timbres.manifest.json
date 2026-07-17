@@ -3,6 +3,22 @@
   "generatedAt": "2026-07-17",
   "timbres": [
     {
+      "id": "splendid-grand-piano-mobile-v1",
+      "version": "1.0.0",
+      "displayName": "Splendid Grand Piano 三层采样",
+      "kind": "sampled",
+      "default": true,
+      "source": "danigb/samples@eae8c5c7a10f4b0e06281211e704c36c30e25342",
+      "license": "Public Domain",
+      "sampleRate": "asset-native; Web Audio decodeAudioData",
+      "velocityLayers": 3,
+      "rootSamplesPerLayer": 12,
+      "mappedMidiRange": "21-108 (A0-C8)",
+      "normalization": "per-layer runtime gain",
+      "loopStrategy": "one-shot natural decay with 80ms release",
+      "buildDigest": "36 pinned OGG assets; bounded 24-buffer LRU"
+    },
+    {
       "id": "compatibility-triangle-v1",
       "version": "1.0.0",
       "displayName": "兼容合成音",
@@ -17,5 +33,5 @@
       "buildDigest": "code-generated-p106-v1"
     }
   ],
-  "notes": "P106 仅登记兼容降级音色。P107 的默认离线采样三角钢琴必须在合法样本及其独立许可记录进入仓库后追加。"
+  "notes": "P107 默认使用离线三层公共领域采样；解码失败时明确回退到 P106 兼容合成音。"
 }
