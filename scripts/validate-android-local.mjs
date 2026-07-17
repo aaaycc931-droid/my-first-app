@@ -16,6 +16,7 @@ const requiredSources = [
   "lib/piano/pianoAudioProvider.ts",
   "lib/piano/splendidGrandPiano.ts",
   "lib/piano/pianoInteraction.ts",
+  "lib/piano/pianoPerformance.ts",
   "mobile/public/piano/timbres.manifest.json",
   "components/piano/LocalPianoPanel.tsx",
   "components/piano/useLocalPianoAudio.ts",
@@ -63,6 +64,7 @@ const pianoProviderSource = readFileSync(join(root, "lib/piano/pianoAudioProvide
 const pianoEventSource = readFileSync(join(root, "lib/piano/pianoNoteEvents.ts"), "utf8");
 const sampledPianoSource = readFileSync(join(root, "lib/piano/splendidGrandPiano.ts"), "utf8");
 const pianoInteractionSource = readFileSync(join(root, "lib/piano/pianoInteraction.ts"), "utf8");
+const pianoPerformanceSource = readFileSync(join(root, "lib/piano/pianoPerformance.ts"), "utf8");
 const pianoTimbreManifest = JSON.parse(readFileSync(
   join(root, "mobile/public/piano/timbres.manifest.json"),
   "utf8",
@@ -121,6 +123,10 @@ if (
   || !pianoInteractionSource.includes("transposePianoKeys")
   || !pianoInteractionSource.includes("splitFullPianoRows")
   || !pianoPanelSource.includes("运行 32 音压力测试")
+  || !pianoPanelSource.includes("节拍器与演奏记录")
+  || !pianoPanelSource.includes("solfeggio.piano.performances.v1")
+  || !pianoPerformanceSource.includes("MAX_PIANO_PERFORMANCE_EVENTS = 2_000")
+  || !pianoPerformanceSource.includes("createPianoPlaybackSchedule")
   || pianoTimbreManifest.timbres?.[0]?.id !== "splendid-grand-piano-mobile-v1"
   || pianoTimbreManifest.timbres?.[0]?.velocityLayers !== 3
 ) {
@@ -190,6 +196,7 @@ for (const expectedCopy of [
   "本地模式",
   "本机复练",
   "本地参考钢琴",
+  "节拍器与演奏记录",
   "实时音高反馈",
   "开始实时反馈",
   "开始会话录音",

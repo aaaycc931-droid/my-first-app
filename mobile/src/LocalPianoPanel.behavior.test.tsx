@@ -165,6 +165,7 @@ const click = async (element: HTMLElement) => {
 
 beforeEach(() => {
   document.body.replaceChildren();
+  window.localStorage.clear();
 });
 
 afterEach(async () => {
@@ -548,9 +549,133 @@ describe("本地钢琴面板行为", () => {
     });
     expect(container.querySelectorAll('[data-piano-key][aria-pressed="true"]')).toHaveLength(32);
     expect(audio.oscillators).toHaveLength(32);
-    await act(async () => vi.advanceTimersByTime(2_000));
+    await act(async () => vi.advanceTimersByTimeAsync(2_000));
     expect(container.querySelectorAll('[data-piano-key][aria-pressed="true"]')).toHaveLength(0);
     expect(audio.channels.every((channel) => channel.stopped)).toBe(true);
     vi.useRealTimers();
+  });
+
+  it("录制按键事件后可本机保存、回放、导出和删除", async () => {
+    const audio = createAudioHarness();
+    const createObjectUrl = vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:piano-take");
+    const revokeObjectUrl = vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => undefined);
+    const anchorClick = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => undefined);
+    const container = await renderPanel(audio.factory);
+
+    await click(buttonWithText(container, "开始录制演奏事件"));
+    await pointer(pianoKey(container, "c4"), "pointerdown", 200);
+    await act(async () => new Promise((resolve) => window.setTimeout(resolve, 25)));
+    await pointer(pianoKey(container, "c4"), "pointerup", 200);
+    await click(buttonWithText(container, "停止并保存事件"));
+
+    const stored = JSON.parse(window.localStorage.getItem("solfeggio.piano.performances.v1") ?? "[]") as Array<{ events: Array<{ type: string }> }>;
+    expect(stored).toHaveLength(1);
+    expect(stored[0]?.events.map((event) => event.type)).toEqual(["note-on", "note-off", "all-notes-off"]);
+    expect(container.querySelectorAll('select[aria-label="钢琴演奏记录"] option')).toHaveLength(2);
+
+    vi.useFakeTimers();
+    await act(async () => {
+      buttonWithText(container, "回放所选记录").dispatchEvent(new MouseEvent("click", { bubbles: true }));
+      await Promise.resolve();
+    });
+    await act(async () => vi.advanceTimersByTimeAsync(2_000));
+    expect(audio.oscillators.length).toBeGreaterThanOrEqual(2);
+    expect(container.textContent).toContain("回放所选记录");
+    vi.useRealTimers();
+
+    await click(buttonWithText(container, "导出事件 JSON"));
+    expect(createObjectUrl).toHaveBeenCalledOnce();
+    expect(anchorClick).toHaveBeenCalledOnce();
+    expect(revokeObjectUrl).toHaveBeenCalledWith("blob:piano-take");
+    await click(buttonWithText(container, "删除所选记录"));
+    expect(window.localStorage.getItem("solfeggio.piano.performances.v1")).not.toBe("[]");
+    await click(buttonWithText(container, "确认删除所选记录"));
+    expect(JSON.parse(window.localStorage.getItem("solfeggio.piano.performances.v1") ?? "[]")).toEqual([]);
+  });
+
+  it("本机演奏记录写入失败时保留内存记录并显示中文恢复边界", async () => {
+    const setItem = vi.spyOn(window.localStorage, "setItem").mockImplementation(() => {
+      throw new Error("quota");
+    });
+    const audio = createAudioHarness();
+    const container = await renderPanel(audio.factory);
+    await click(buttonWithText(container, "开始录制演奏事件"));
+    await pointer(pianoKey(container, "c4"), "pointerdown", 201);
+    await pointer(pianoKey(container, "c4"), "pointerup", 201);
+    await click(buttonWithText(container, "停止并保存事件"));
+    setItem.mockRestore();
+    expect(container.querySelector('[role="status"]')?.textContent).toContain("当前发声");
+    expect(container.textContent).toContain("记录仅保留到本页关闭前");
+    expect(container.querySelectorAll('select[aria-label="钢琴演奏记录"] option')).toHaveLength(2);
+  });
+
+  it("全局停止会取消未保存录制，并清除尚未触发的回放定时器", async () => {
+    window.localStorage.setItem("solfeggio.piano.performances.v1", JSON.stringify([{
+      schemaVersion: 1,
+      id: "lifecycle-take",
+      name: "生命周期测试",
+      createdAt: "2026-07-17T00:00:00.000Z",
+      durationMs: 5_000,
+      transpose: 0,
+      events: [
+        { type: "note-on", atMs: 1_000, keyId: "c4", note: 60, velocity: 0.7 },
+        { type: "note-off", atMs: 2_000, keyId: "c4", note: 60 },
+        { type: "all-notes-off", atMs: 5_000 },
+      ],
+    }]));
+    const audio = createAudioHarness();
+    const container = await renderPanel(audio.factory);
+    vi.useFakeTimers();
+
+    await act(async () => {
+      buttonWithText(container, "回放所选记录").click();
+      await Promise.resolve();
+    });
+    expect(container.textContent).toContain("停止回放");
+    await act(async () => stopAllBrowserAudio());
+    await act(async () => vi.advanceTimersByTimeAsync(6_000));
+    expect(audio.oscillators).toHaveLength(0);
+    expect(buttonWithText(container, "停止回放").disabled).toBe(true);
+
+    vi.useRealTimers();
+    await click(buttonWithText(container, "开始录制演奏事件"));
+    await act(async () => stopAllBrowserAudio());
+    expect(container.textContent).toContain("本次未保存的演奏录制已取消");
+    expect(container.textContent).toContain("开始录制演奏事件");
+  });
+
+  it("拒绝小于 0.1 秒或反向的 A–B 循环区间", async () => {
+    window.localStorage.setItem("solfeggio.piano.performances.v1", JSON.stringify([{
+      schemaVersion: 1,
+      id: "loop-take",
+      name: "循环测试",
+      createdAt: "2026-07-17T00:00:00.000Z",
+      durationMs: 2_000,
+      transpose: 0,
+      events: [
+        { type: "note-on", atMs: 0, keyId: "c4", note: 60, velocity: 0.7 },
+        { type: "note-off", atMs: 1_000, keyId: "c4", note: 60 },
+        { type: "all-notes-off", atMs: 2_000 },
+      ],
+    }]));
+    const audio = createAudioHarness();
+    const container = await renderPanel(audio.factory);
+    const loop = container.querySelector<HTMLInputElement>('input[type="checkbox"]');
+    if (!loop) throw new Error("找不到 A–B 循环开关");
+    await click(loop);
+    const a = container.querySelector<HTMLInputElement>('input[aria-label="钢琴循环 A 点"]');
+    const b = container.querySelector<HTMLInputElement>('input[aria-label="钢琴循环 B 点"]');
+    if (!a || !b) throw new Error("找不到 A–B 输入");
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set?.call(a, "1.5");
+      a.dispatchEvent(new Event("input", { bubbles: true }));
+      a.dispatchEvent(new Event("change", { bubbles: true }));
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set?.call(b, "1.4");
+      b.dispatchEvent(new Event("input", { bubbles: true }));
+      b.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    await click(buttonWithText(container, "回放所选记录"));
+    expect(container.textContent).toContain("区间至少为 0.1 秒");
+    expect(audio.oscillators).toHaveLength(0);
   });
 });
