@@ -182,6 +182,10 @@ describe("本地钢琴面板行为", () => {
     const container = await renderPanel(audio.factory);
     const c4 = pianoKey(container, "c4");
 
+    expect(container.querySelector("[data-piano-timbre]")?.getAttribute("data-piano-timbre"))
+      .toBe("compatibility-triangle-v1");
+    expect(container.querySelector("[data-piano-timbre]")?.textContent).toContain("兼容降级音色");
+
     await pointer(c4, "pointerdown", 1);
     expect(c4.getAttribute("aria-pressed")).toBe("true");
     expect(audio.channels).toHaveLength(1);

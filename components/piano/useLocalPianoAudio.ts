@@ -19,6 +19,11 @@ import {
   type LocalPianoKeyboardState,
   type LocalPianoPointerId,
 } from "../../lib/piano/localPianoKeyboard";
+import {
+  COMPATIBILITY_PIANO_VOICE_PROVIDER,
+  type PianoVoiceHandle,
+  type PianoVoiceProvider,
+} from "../../lib/piano/pianoAudioProvider";
 
 export type LocalPianoAudioChannel = Pick<
   BrowserAudioChannel,
@@ -29,8 +34,7 @@ export type LocalPianoAudioChannelFactory = () => LocalPianoAudioChannel;
 
 type ActiveVoice = {
   channel: LocalPianoAudioChannel;
-  oscillator: OscillatorNode;
-  gain: GainNode;
+  voice: PianoVoiceHandle;
   watchdogTimer: number;
 };
 
@@ -45,16 +49,17 @@ type ReleasingVoice = {
   timer: number;
 };
 
-const voiceGain = (volume: number) => volume * 0.075;
 export const LOCAL_PIANO_VOICE_WATCHDOG_MS = 10_000;
 export const LOCAL_PIANO_PREPARE_TIMEOUT_MS = 5_000;
 
 export function useLocalPianoAudio({
   keys,
   createChannel = createBrowserAudioChannel,
+  voiceProvider = COMPATIBILITY_PIANO_VOICE_PROVIDER,
 }: {
   keys: readonly LocalPianoKey[];
   createChannel?: LocalPianoAudioChannelFactory;
+  voiceProvider?: PianoVoiceProvider;
 }) {
   const [keyboardState, setKeyboardState] = useState<LocalPianoKeyboardState>(
     () => createLocalPianoKeyboardState(),
@@ -88,19 +93,13 @@ export function useLocalPianoAudio({
     voicesRef.current.delete(keyId);
     window.clearTimeout(voice.watchdogTimer);
     if (immediately) {
+      voice.voice.release(true);
       voice.channel.stop();
       return;
     }
 
     try {
-      const now = voice.oscillator.context.currentTime;
-      voice.gain.gain.cancelScheduledValues(now);
-      const currentGain = voice.gain.gain.value;
-      voice.gain.gain.setValueAtTime(Math.max(0, currentGain), now);
-      if (currentGain > 0) {
-        voice.gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.035);
-      }
-      voice.oscillator.stop(now + 0.045);
+      voice.voice.release();
       const releasing = {} as ReleasingVoice;
       releasing.channel = voice.channel;
       releasing.timer = window.setTimeout(() => {
@@ -148,7 +147,6 @@ export function useLocalPianoAudio({
           channel.prepareForUserGesture(),
           timeoutPromise,
         ]);
-        window.clearTimeout(pending.timeoutTimer);
         if (
           pendingRef.current.get(keyId) !== pending
           || pending.request !== requestRef.current
@@ -158,28 +156,46 @@ export function useLocalPianoAudio({
           channel.stop();
           return;
         }
-        pendingRef.current.delete(keyId);
         if (voicesRef.current.has(keyId)) {
+          pendingRef.current.delete(keyId);
           channel.stop();
           return;
         }
 
-        const oscillator = context.createOscillator();
-        const gain = context.createGain();
-        const startTime = context.currentTime + 0.005;
-        oscillator.type = "triangle";
-        oscillator.frequency.value = key.frequencyHz;
-        const targetGain = voiceGain(stateRef.current.volume);
-        if (targetGain === 0) {
-          gain.gain.setValueAtTime(0, startTime);
-        } else {
-          gain.gain.setValueAtTime(0.0001, startTime);
-          gain.gain.exponentialRampToValueAtTime(targetGain, startTime + 0.012);
+        const voice = await Promise.race([
+          voiceProvider.startVoice({
+            context,
+            channel,
+            event: {
+              type: "note-on",
+              note: key.midi,
+              velocity: 1,
+              channel: 0,
+              atMs: performance.now(),
+            },
+            frequencyHz: key.frequencyHz,
+            volume: stateRef.current.volume,
+            isCancelled: () => (
+              pendingRef.current.get(keyId) !== pending
+              || pending.request !== requestRef.current
+              || !stateRef.current.activeKeyIds.includes(keyId)
+              || !mountedRef.current
+            ),
+          }),
+          timeoutPromise,
+        ]);
+        window.clearTimeout(pending.timeoutTimer);
+        if (
+          pendingRef.current.get(keyId) !== pending
+          || pending.request !== requestRef.current
+          || !stateRef.current.activeKeyIds.includes(keyId)
+          || !mountedRef.current
+        ) {
+          voice.release(true);
+          channel.stop();
+          return;
         }
-        oscillator.connect(gain);
-        gain.connect(context.destination);
-        channel.trackSource(oscillator, [gain]);
-        oscillator.start(startTime);
+        pendingRef.current.delete(keyId);
         const watchdogTimer = window.setTimeout(() => {
           const previous = stateRef.current;
           const pointers = Object.fromEntries(
@@ -199,8 +215,7 @@ export function useLocalPianoAudio({
         }, LOCAL_PIANO_VOICE_WATCHDOG_MS);
         voicesRef.current.set(keyId, {
           channel,
-          oscillator,
-          gain,
+          voice,
           watchdogTimer,
         });
       } catch {
@@ -214,7 +229,7 @@ export function useLocalPianoAudio({
         }
       }
     },
-    [commitState, createChannel, keysById, stopVoice],
+    [commitState, createChannel, keysById, stopVoice, voiceProvider],
   );
 
   const reconcileVoices = useCallback(
@@ -278,11 +293,7 @@ export function useLocalPianoAudio({
       commitState(next);
       voicesRef.current.forEach((voice) => {
         try {
-          voice.gain.gain.setTargetAtTime(
-            voiceGain(next.volume),
-            voice.oscillator.context.currentTime,
-            0.015,
-          );
+          voice.voice.setVolume(next.volume);
         } catch {
           // A voice may finish between the input event and this update.
         }
@@ -415,6 +426,7 @@ export function useLocalPianoAudio({
 
   return {
     keyboardState,
+    timbre: voiceProvider.descriptor,
     notice,
     pressKey,
     releasePointer,

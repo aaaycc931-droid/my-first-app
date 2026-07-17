@@ -12,6 +12,9 @@ const requiredSources = [
   "mobile/src/stubs/supabaseBrowser.ts",
   "lib/practice/localPracticeReviewQueue.ts",
   "lib/piano/localPianoKeyboard.ts",
+  "lib/piano/pianoNoteEvents.ts",
+  "lib/piano/pianoAudioProvider.ts",
+  "mobile/public/piano/timbres.manifest.json",
   "components/piano/LocalPianoPanel.tsx",
   "components/piano/useLocalPianoAudio.ts",
   "components/practice/RealtimePitchMonitorPanel.tsx",
@@ -54,6 +57,12 @@ const pianoAudioSource = readFileSync(
   join(root, "components/piano/useLocalPianoAudio.ts"),
   "utf8",
 );
+const pianoProviderSource = readFileSync(join(root, "lib/piano/pianoAudioProvider.ts"), "utf8");
+const pianoEventSource = readFileSync(join(root, "lib/piano/pianoNoteEvents.ts"), "utf8");
+const pianoTimbreManifest = JSON.parse(readFileSync(
+  join(root, "mobile/public/piano/timbres.manifest.json"),
+  "utf8",
+));
 const mainActivityPath = join(
   root,
   "android/app/src/main/java/com/aaaycc931/solfeggio/MainActivity.java",
@@ -99,6 +108,11 @@ if (
   || !pianoPanelSource.includes("aria-pressed={keyboardState.sustainEnabled}")
   || !pianoAudioSource.includes("subscribeBrowserAudioStopAll")
   || !pianoAudioSource.includes("LOCAL_PIANO_VOICE_WATCHDOG_MS")
+  || !pianoProviderSource.includes("COMPATIBILITY_PIANO_VOICE_PROVIDER")
+  || !pianoProviderSource.includes("BoundedPianoSampleCache")
+  || !pianoEventSource.includes('PIANO_NOTE_EVENT_PROTOCOL_VERSION = "piano-note-events-v1"')
+  || !pianoEventSource.includes("DEFAULT_PIANO_POLYPHONY = 32")
+  || pianoTimbreManifest.timbres?.[0]?.id !== "compatibility-triangle-v1"
 ) {
   throw new Error("Android 本地参考钢琴缺少音域、多指、延音或残音清理边界");
 }
