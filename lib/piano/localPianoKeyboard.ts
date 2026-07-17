@@ -12,6 +12,7 @@ export const MAX_LOCAL_PIANO_ACTIVE_KEYS = 32;
 export type LocalPianoKey = {
   id: string;
   noteName: string;
+  soundingNoteName?: string;
   midi: number;
   frequencyHz: number;
   keyType: "white" | "black";

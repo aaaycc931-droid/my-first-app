@@ -86,6 +86,11 @@ assert.deepEqual(state.activeKeyIds, []);
 assert.deepEqual(state.latchedKeyIds, []);
 
 state = createLocalPianoKeyboardState();
+for (let index = 0; index < 10; index += 1) {
+  state = pressLocalPianoKey(state, `finger-${index}`, `touch-key-${index}`);
+}
+assert.equal(state.activeKeyIds.length, 10, "ten simultaneous touch identities remain active");
+state = resetLocalPianoKeyboard(state);
 for (let index = 0; index < MAX_LOCAL_PIANO_ACTIVE_KEYS; index += 1) {
   state = pressLocalPianoKey(state, index, `key-${index}`);
 }
