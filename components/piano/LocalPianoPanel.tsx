@@ -33,6 +33,7 @@ export function LocalPianoPanel({
   const keys = useMemo(() => getLocalPianoKeys(rangeId), [rangeId]);
   const {
     keyboardState,
+    timbre,
     notice,
     pressKey,
     releasePointer,
@@ -106,7 +107,10 @@ export function LocalPianoPanel({
     <section className="mt-5 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6" aria-labelledby="local-piano-heading">
       <p className="text-sm font-semibold tracking-wide text-fuchsia-700">离线练习辅助</p>
       <h2 id="local-piano-heading" className="mt-1 text-2xl font-bold text-slate-950">本地参考钢琴</h2>
-      <p className="mt-2 text-sm leading-6 text-slate-600">按住琴键即可播放安装包内的本地合成参考音，松开后停止。它不是真实钢琴采样，不录音、不联网，也不生成正式成绩。</p>
+      <p className="mt-2 text-sm leading-6 text-slate-600">按住琴键即可播放安装包内的本地参考音，松开后停止。不录音、不联网，也不生成正式成绩。</p>
+      <p className="mt-2 rounded-xl bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-900" data-piano-timbre={timbre.id}>
+        当前音色：{timbre.displayName}。{timbre.kind === "compatibility-synth" ? "这只是兼容降级音色，不是真实钢琴采样。" : `采样版本：${timbre.version}。`}
+      </p>
 
       <div className="mt-5 grid gap-4 sm:grid-cols-3">
         <label className="text-sm font-semibold text-slate-800">

@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-07-17",
+  "timbres": [
+    {
+      "id": "compatibility-triangle-v1",
+      "version": "1.0.0",
+      "displayName": "兼容合成音",
+      "kind": "compatibility-synth",
+      "default": false,
+      "source": "项目内 Web Audio OscillatorNode triangle waveform",
+      "license": "项目源代码许可；不包含外部音频资产",
+      "sampleRate": null,
+      "velocityLayers": 1,
+      "normalization": "运行时增益包络",
+      "loopStrategy": "持续振荡，松键后短释放",
+      "buildDigest": "code-generated-p106-v1"
+    }
+  ],
+  "notes": "P106 仅登记兼容降级音色。P107 的默认离线采样三角钢琴必须在合法样本及其独立许可记录进入仓库后追加。"
+}

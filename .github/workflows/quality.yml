@@ -46,6 +46,7 @@ jobs:
           npm run test:mobile-practice-review-ui-contract
           npm run test:mobile-practice-review-behavior
           npm run test:mobile-piano-behavior
+          npm run test:piano-audio-foundation
           npm run test:android-local-artifact-verifier
           npm run test:android-version
           npm run test:ci-supply-chain-policy

@@ -1,3 +1,9 @@
+## P106 — 专业钢琴音频与音色提供器基础（本地实现，待 CI，2026-07-17）
+
+项目已按产品所有者的恢复指令从专业竞争力路线继续开发。P106 将钢琴发声从 React hook 内写死的三角波迁移到版本化 `PianoVoiceProvider`，并冻结 `piano-note-events-v1` 的 note-on、note-off、pedal 和 all-notes-off 标准事件。纯状态 voice allocator 支持确定性的 32 音复音上限、同音重触发、延音锁存/释放和优先回收已松键旧 voice；采样提供器基础支持根音/音域/力度层选择、音高移调、可取消异步装载和有界 LRU 缓存。
+
+当前 APK 尚未加入真实钢琴样本，默认仍明确显示“兼容合成音”，并通过 `mobile/public/piano/timbres.manifest.json` 记录来源、许可、版本、归一化、循环策略和构建摘要；它不得被称为专业采样钢琴。现有真实挂载 React 行为继续覆盖多指、延音、音量、切换音域、全停、失败重试、后台/卸载和残音看门狗，并新增音色降级身份断言；P106 focused 纯状态测试覆盖事件归一化、32 音分配、voice stealing、延音、all-notes-off、LRU 和采样区域选择。P107 仍负责合法离线三角钢琴样本、至少三力度层、88 键映射、听感/内存/首次可弹和真机门槛。QA level recommendation：**strict**。
+
 ## P105R — 专业竞争力路线重定标与主动暂停（docs-only，2026-07-16）
 
 产品所有者要求钢琴功能的功能性与专业性至少以 Perfect Piano 一类成熟移动钢琴的核心演奏能力为参照，录音停止/提交后的本地音准识别以及视唱、练耳、节奏、声乐、课程、定制、统计和自适应能力域以 EarMaster 一类完整训练系统为参照。本阶段新增 `docs/professional-competitive-roadmap-perfect-piano-earmaster.md`，把 88 键、专业采样音色、复音、移动交互、录制/节拍器/循环、多音色、USB MIDI/MusicXML、录音后多引擎分析、音符分段/目标对齐、14 活动族、中文课程和教育验收拆为恢复后的 P106–P120 路线；对标不允许复制竞品 UI、资产、曲库、课程或品牌。
