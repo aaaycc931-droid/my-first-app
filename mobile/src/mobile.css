@@ -32,7 +32,6 @@ select {
 
 .local-piano-keyboard {
   position: relative;
-  min-width: 21rem;
   height: 15rem;
   touch-action: none;
   user-select: none;
@@ -60,7 +59,7 @@ select {
   top: 0;
   left: var(--local-piano-key-left);
   display: flex;
-  width: 12.5%;
+  width: var(--local-piano-white-width);
   height: 100%;
   align-items: flex-end;
   justify-content: center;
@@ -85,7 +84,7 @@ select {
   left: var(--local-piano-key-left);
   z-index: 1;
   display: flex;
-  width: 8.5%;
+  width: var(--local-piano-black-width);
   height: 61%;
   transform: translateX(-50%);
   align-items: flex-end;
@@ -102,6 +101,20 @@ select {
 
 .local-piano-key-black[aria-pressed="true"] {
   background: #a21caf;
+}
+
+.local-piano-double-rows .local-piano-keyboard {
+  height: 11rem;
+}
+
+@media (orientation: landscape) and (max-height: 600px) {
+  .local-piano-keyboard {
+    height: 10.5rem;
+  }
+
+  .local-piano-double-rows .local-piano-keyboard {
+    height: 8.5rem;
+  }
 }
 
 .mobile-topbar {

@@ -506,4 +506,51 @@ describe("本地钢琴面板行为", () => {
     expect(container.querySelector('[role="alert"]')?.textContent).toContain("已自动停止");
     vi.useRealTimers();
   });
+
+  it("完整视图提供 88 键、双排、标签、移调和真实 32 voice 压力入口", async () => {
+    const audio = createAudioHarness();
+    const container = await renderPanel(audio.factory);
+    const changeSelect = async (label: string, value: string) => {
+      const select = container.querySelector<HTMLSelectElement>(`select[aria-label="${label}"]`);
+      if (!select) throw new Error(`找不到选择器：${label}`);
+      await act(async () => {
+        select.value = value;
+        select.dispatchEvent(new Event("change", { bubbles: true }));
+      });
+      await flush();
+    };
+
+    await changeSelect("钢琴视图", "full");
+    expect(container.querySelectorAll("[data-piano-key]")).toHaveLength(88);
+    expect(container.querySelectorAll("[data-piano-row]")).toHaveLength(1);
+    await changeSelect("钢琴排布", "double");
+    expect(container.querySelectorAll("[data-piano-row]")).toHaveLength(2);
+    expect(container.querySelectorAll("[data-piano-key]")).toHaveLength(88);
+    await changeSelect("钢琴标签", "fixed-solfege");
+    expect(pianoKey(container, "c4").textContent).toBe("do");
+
+    const transpose = container.querySelector<HTMLInputElement>('input[aria-label="钢琴移调"]');
+    if (!transpose) throw new Error("找不到钢琴移调");
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set?.call(transpose, "12");
+      transpose.dispatchEvent(new Event("input", { bubbles: true }));
+      transpose.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    await flush();
+    expect(pianoKey(container, "c4").getAttribute("aria-label")).toContain("移调后发出 C5");
+
+    vi.useFakeTimers();
+    await act(async () => {
+      buttonWithText(container, "运行 32 音压力测试（2 秒）")
+        .dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(container.querySelectorAll('[data-piano-key][aria-pressed="true"]')).toHaveLength(32);
+    expect(audio.oscillators).toHaveLength(32);
+    await act(async () => vi.advanceTimersByTime(2_000));
+    expect(container.querySelectorAll('[data-piano-key][aria-pressed="true"]')).toHaveLength(0);
+    expect(audio.channels.every((channel) => channel.stopped)).toBe(true);
+    vi.useRealTimers();
+  });
 });

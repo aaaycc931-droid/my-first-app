@@ -40,8 +40,8 @@ export const SPLENDID_GRAND_PIANO_ZONES: readonly PianoSampleZone[] = layers.fla
     return {
       id: `${layer.prefix}-${note}`,
       rootMidi,
-      minMidi: index === 0 ? 21 : Math.floor((previous + rootMidi) / 2) + 1,
-      maxMidi: index === roots.length - 1 ? 108 : Math.floor((rootMidi + next) / 2),
+      minMidi: index === 0 ? 9 : Math.floor((previous + rootMidi) / 2) + 1,
+      maxMidi: index === roots.length - 1 ? 120 : Math.floor((rootMidi + next) / 2),
       minVelocity: layer.minVelocity,
       maxVelocity: layer.maxVelocity,
       assetPath: `/piano/splendid-grand-v1/${layer.prefix}-${note.replace("#", "%23")}.ogg`,

@@ -15,6 +15,7 @@ const requiredSources = [
   "lib/piano/pianoNoteEvents.ts",
   "lib/piano/pianoAudioProvider.ts",
   "lib/piano/splendidGrandPiano.ts",
+  "lib/piano/pianoInteraction.ts",
   "mobile/public/piano/timbres.manifest.json",
   "components/piano/LocalPianoPanel.tsx",
   "components/piano/useLocalPianoAudio.ts",
@@ -61,6 +62,7 @@ const pianoAudioSource = readFileSync(
 const pianoProviderSource = readFileSync(join(root, "lib/piano/pianoAudioProvider.ts"), "utf8");
 const pianoEventSource = readFileSync(join(root, "lib/piano/pianoNoteEvents.ts"), "utf8");
 const sampledPianoSource = readFileSync(join(root, "lib/piano/splendidGrandPiano.ts"), "utf8");
+const pianoInteractionSource = readFileSync(join(root, "lib/piano/pianoInteraction.ts"), "utf8");
 const pianoTimbreManifest = JSON.parse(readFileSync(
   join(root, "mobile/public/piano/timbres.manifest.json"),
   "utf8",
@@ -116,6 +118,9 @@ if (
   || !pianoEventSource.includes('PIANO_NOTE_EVENT_PROTOCOL_VERSION = "piano-note-events-v1"')
   || !pianoEventSource.includes("DEFAULT_PIANO_POLYPHONY = 32")
   || !sampledPianoSource.includes("SPLENDID_GRAND_PIANO_ZONES")
+  || !pianoInteractionSource.includes("transposePianoKeys")
+  || !pianoInteractionSource.includes("splitFullPianoRows")
+  || !pianoPanelSource.includes("运行 32 音压力测试")
   || pianoTimbreManifest.timbres?.[0]?.id !== "splendid-grand-piano-mobile-v1"
   || pianoTimbreManifest.timbres?.[0]?.velocityLayers !== 3
 ) {
