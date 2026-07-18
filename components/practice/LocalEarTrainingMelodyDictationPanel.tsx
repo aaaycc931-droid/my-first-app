@@ -22,6 +22,31 @@ import { ActivityOrderedChoiceAnswerPanel } from "./ActivityChoiceAnswerPanel";
 import { ActivityProtocolState } from "./ActivityProtocolState";
 import { useChoiceActivitySession } from "./useChoiceActivitySession";
 import { adaptMelodyDictationQuestionToActivity } from "../../lib/activity/legacyLocalActivityAdapter";
+import {
+  adaptFixedSolfegeAnswerToActivityEvidence,
+  createFixedSolfegeAnswer,
+  enableMelodyFixedSolfegeInput,
+  FIXED_SOLFEGE_TOKEN_BY_NOTE_ID,
+} from "../../lib/activity/melodySolfegeActivityAdapter";
+
+type MelodyAnswerMode = "choice" | "solfege";
+
+const getFixedSolfegeLabel = (noteId: string) => {
+  const token = FIXED_SOLFEGE_TOKEN_BY_NOTE_ID[
+    noteId as keyof typeof FIXED_SOLFEGE_TOKEN_BY_NOTE_ID
+  ];
+  const pitchLabel = earTrainingMelodyNotes[
+    noteId as keyof typeof earTrainingMelodyNotes
+  ].label;
+  const syllable = noteId === "c5"
+    ? "高音 do"
+    : noteId === "f-sharp-4"
+      ? "升 fa"
+      : token.startsWith("ti")
+        ? "si"
+        : token.replace(/[0-9]/g, "");
+  return `${syllable}（${pitchLabel}）`;
+};
 
 export function LocalEarTrainingMelodyDictationPanel({
   initialReviewTarget,
@@ -37,6 +62,7 @@ export function LocalEarTrainingMelodyDictationPanel({
   expandedLocalCatalog?: boolean;
 }) {
   const [isLocalPianoOpen, setIsLocalPianoOpen] = useState(false);
+  const [answerMode, setAnswerMode] = useState<MelodyAnswerMode>("choice");
   const [difficulty, setDifficulty] = useState<EarTrainingMelodyDictationDifficulty>(initialReviewTarget?.difficulty ?? "基础");
   const [sequence, setSequence] = useState(initialReviewTarget?.sequence ?? 0);
   const catalogMode = expandedLocalCatalog ? "expanded-local-v2" : "legacy-v1";
@@ -64,7 +90,9 @@ export function LocalEarTrainingMelodyDictationPanel({
   }), [catalogMode, difficulty, initialReviewTarget?.variantId, questionIndex, sequence]);
   const answer = useMemo(() => getLocalEarTrainingMelodyAnswer({ question, selectedNoteIds }), [question, selectedNoteIds]);
   const activityDefinition = useMemo(
-    () => adaptMelodyDictationQuestionToActivity(question),
+    () => enableMelodyFixedSolfegeInput(
+      adaptMelodyDictationQuestionToActivity(question),
+    ),
     [question],
   );
   const activity = useChoiceActivitySession(activityDefinition, `melody-dictation:${question.id}`);
@@ -97,12 +125,36 @@ export function LocalEarTrainingMelodyDictationPanel({
       (value, valueIndex) => valueIndex === index ? noteId : value,
     );
     if (!answerLock.choose(nextSelection)) return;
-    activity.submitChoice(nextSelection.filter((value): value is string => value !== null));
+    const completedNoteIds = nextSelection.filter(
+      (value): value is string => value !== null,
+    );
+    if (answerMode === "choice") {
+      activity.submitChoice(completedNoteIds);
+      return;
+    }
+    const solfegeAnswer = createFixedSolfegeAnswer(completedNoteIds);
+    if (solfegeAnswer) activity.submitAnswer(solfegeAnswer);
   };
   const revealAnswer = () => {
     const submittedNoteIds = answerLock.reveal();
     if (!submittedNoteIds) return;
-    activity.checkChoice(submittedNoteIds.filter((value): value is string => value !== null));
+    const completedNoteIds = submittedNoteIds.filter(
+      (value): value is string => value !== null,
+    );
+    if (answerMode === "choice") {
+      activity.checkChoice(completedNoteIds);
+    } else {
+      const solfegeAnswer = createFixedSolfegeAnswer(completedNoteIds);
+      if (solfegeAnswer) {
+        activity.checkAnswer(
+          solfegeAnswer,
+          adaptFixedSolfegeAnswerToActivityEvidence({
+            definition: activityDefinition,
+            answer: solfegeAnswer,
+          }),
+        );
+      }
+    }
     if (sessionSeed === null || !onLocalAnswerResult) return;
     onLocalAnswerResult({
       target: {
@@ -123,10 +175,41 @@ export function LocalEarTrainingMelodyDictationPanel({
     else setSequence((current) => current + 1);
   };
 
+  const changeAnswerMode = (nextMode: MelodyAnswerMode) => {
+    if (nextMode === answerMode) return;
+    const hasStartedAnswer = selectedNoteIds.some((noteId) => noteId !== null)
+      || isAnswerVisible;
+    stopPlayback();
+    answerLock.reset();
+    if (hasStartedAnswer) activity.restart();
+    else activity.restartIfDirty();
+    setAudioError("");
+    setAnswerMode(nextMode);
+  };
+
+  const answerOptions = getEarTrainingMelodyNoteIds(difficulty, catalogMode).map(
+    (noteId) => answerMode === "choice"
+      ? earTrainingMelodyNotes[noteId]
+      : { id: noteId, label: getFixedSolfegeLabel(noteId) },
+  );
+
+  const selectedAnswerLabel = answer.selectedNoteIds.map((noteId) => {
+    if (!noteId) return "未选择";
+    return answerMode === "choice"
+      ? earTrainingMelodyNotes[noteId as keyof typeof earTrainingMelodyNotes].label
+      : getFixedSolfegeLabel(noteId);
+  }).join(" → ");
+
+  const expectedAnswerLabel = answer.answerNoteIds.map((noteId) =>
+    answerMode === "choice"
+      ? earTrainingMelodyNotes[noteId as keyof typeof earTrainingMelodyNotes].label
+      : getFixedSolfegeLabel(noteId),
+  ).join(" → ");
+
   return <section className="mt-5 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
     <p className="text-sm font-semibold tracking-wide text-violet-600">本地练习</p>
     <h2 className="mt-1 text-2xl font-bold text-slate-950">内置旋律听写练习</h2>
-    <p className="mt-2 text-sm leading-6 text-slate-600">先听三音短旋律，再按听到的顺序选择音名。本模块不上传音频，也不生成正式成绩。{onLocalAnswerResult ? "当前填写和声音不保存；答错时仅保存复现本题所需的最小信息。" : "当前入口不会保存练习记录。"}</p>
+    <p className="mt-2 text-sm leading-6 text-slate-600">先听三音短旋律，再按听到的顺序使用音名或固定唱名作答。本模块不上传音频，也不生成正式成绩。{onLocalAnswerResult ? "当前填写和声音不保存；答错时仅保存复现本题所需的最小信息。" : "当前入口不会保存练习记录。"}</p>
     <div className="mt-5 grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)]">
       <div className="rounded-2xl bg-violet-50 p-4 ring-1 ring-violet-100">
         <label className="block text-sm font-semibold text-slate-800" htmlFor="ear-training-melody-difficulty">练习难度</label>
@@ -140,18 +223,26 @@ export function LocalEarTrainingMelodyDictationPanel({
         {audioError ? <p className="mt-3 rounded-xl bg-rose-50 p-3 text-sm leading-6 text-rose-800">{audioError}</p> : null}
       </div>
       <div className="rounded-2xl border border-slate-200 p-4">
-        <p className="text-sm font-semibold text-slate-500">回答本题</p><p className="mt-1 text-lg font-bold text-slate-950">按播放顺序填写三个音名</p>
+        <p className="text-sm font-semibold text-slate-500">回答本题</p><p className="mt-1 text-lg font-bold text-slate-950">按播放顺序填写三个音</p>
+        <fieldset className="mt-4">
+          <legend className="text-sm font-semibold text-slate-700">答案方式</legend>
+          <div className="mt-2 grid grid-cols-2 gap-2" data-testid="melody-answer-mode">
+            <button type="button" role="radio" aria-checked={answerMode === "choice"} onClick={() => changeAnswerMode("choice")} className={`rounded-xl border px-3 py-2 text-sm font-semibold ${answerMode === "choice" ? "border-violet-600 bg-violet-50 text-violet-900 ring-2 ring-violet-200" : "border-slate-200 text-slate-700"}`}>音名</button>
+            <button type="button" role="radio" aria-checked={answerMode === "solfege"} onClick={() => changeAnswerMode("solfege")} className={`rounded-xl border px-3 py-2 text-sm font-semibold ${answerMode === "solfege" ? "border-violet-600 bg-violet-50 text-violet-900 ring-2 ring-violet-200" : "border-slate-200 text-slate-700"}`}>固定唱名</button>
+          </div>
+        </fieldset>
+        <p className="mt-3 text-sm leading-6 text-slate-600">{answerMode === "choice" ? "使用科学音高名填写，例如 C4、F♯4。" : "使用固定唱名填写；低音区 do 与高音 do 会明确区分，升 fa 表示 F♯。"}</p>
         <ActivityOrderedChoiceAnswerPanel
           positionLabels={["第 1 个音", "第 2 个音", "第 3 个音"]}
-          options={getEarTrainingMelodyNoteIds(difficulty, catalogMode).map((noteId) => earTrainingMelodyNotes[noteId])}
+          options={answerOptions}
           selectedOptionIds={selectedNoteIds}
           disabled={!isQuestionReady || isAnswerVisible}
           onChoose={chooseNote}
         />
         <div className="mt-4 flex flex-wrap gap-2"><button type="button" disabled={!isQuestionReady || !answer.hasSelection || isAnswerVisible} onClick={revealAnswer} className="rounded-xl bg-slate-900 px-4 py-2.5 font-semibold text-white disabled:cursor-not-allowed disabled:bg-slate-300">查看本题答案</button>{isAnswerVisible && !answer.matchesAnswer ? <button type="button" onClick={retryCurrentQuestion} className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-2.5 font-semibold text-amber-900">重新播放并复练本题</button> : null}<button type="button" onClick={resetCurrentQuestion} className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 font-semibold text-slate-800">重置本题</button><button type="button" disabled={!isQuestionReady} onClick={nextQuestion} className="rounded-xl border border-violet-300 bg-white px-4 py-2.5 font-semibold text-violet-800 disabled:cursor-not-allowed disabled:opacity-50">{initialReviewTarget ? "返回随机练习" : "下一题"}</button></div>
-        {!answer.hasSelection ? <p className="mt-3 text-sm leading-6 text-slate-500">请为三个位置都选择音名，再查看本题答案。</p> : null}
+        {!answer.hasSelection ? <p className="mt-3 text-sm leading-6 text-slate-500">请为三个位置都选择{answerMode === "choice" ? "音名" : "固定唱名"}，再查看本题答案。</p> : null}
         <ActivityProtocolState session={activity.session} />
-        {isAnswerVisible ? <div className="mt-4 rounded-2xl bg-slate-50 p-4 text-sm leading-6 text-slate-700"><p className="font-bold text-slate-950">本题答案：{answer.answerLabel}</p><p className="mt-1">{answer.explanation}</p><p className="mt-2">你的填写：{answer.selectedNoteIds.map((noteId) => noteId ? earTrainingMelodyNotes[noteId as keyof typeof earTrainingMelodyNotes].label : "未选择").join(" → ")}。{answer.matchesAnswer ? "这次填写与本题答案一致。" : "这次填写与本题答案不同；可以再次播放并重置本题复练。"}</p><p className="mt-2 text-slate-500">答案说明显示后，本题填写已锁定；请使用复练或下一题开始新的尝试。这不是正式分数、准确率、等级、通过或失败判断。</p></div> : null}
+        {isAnswerVisible ? <div className="mt-4 rounded-2xl bg-slate-50 p-4 text-sm leading-6 text-slate-700"><p className="font-bold text-slate-950">本题答案：{expectedAnswerLabel}</p><p className="mt-1">{answer.explanation}</p><p className="mt-2">你的填写：{selectedAnswerLabel}。{answer.matchesAnswer ? "这次填写与本题答案一致。" : "这次填写与本题答案不同；可以再次播放并重置本题复练。"}</p><p className="mt-2 text-slate-500">答案说明显示后，本题填写已锁定；请使用复练或下一题开始新的尝试。这不是正式分数、准确率、等级、通过或失败判断。</p></div> : null}
       </div>
     </div>
     {showLocalPiano ? (

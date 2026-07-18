@@ -1,14 +1,20 @@
-## P114d — 项目原创谱面屏幕钢琴输入协议（堆叠候选，2026-07-18）
+## P114e — 三音旋律听写固定唱名答案（ACTIVE implementation candidate，2026-07-18）
 
-P114d 在 P114c 候选之上，把 P110 的项目原创、已确认「级进与小跳」谱面接入统一活动协议，成为首个真实 `piano` 输入 vertical slice。用户必须显式开始后，触摸、鼠标或键盘触发的屏幕琴键才会按科学音高名记录为有序 `noteIds`；重复音保持原位置，检查只返回一致、有差异或证据不足的非评分解释，并支持新尝试。参考谱面播放、已保存演奏回放、32 音压力测试和 MIDI 路径均不写入本轮答案，多指同批输入达到目标长度后会停止接收。
+P114e 本地 implementation candidate 已复用现有三音旋律听写的版本化三难度题库、Web Audio、复习队列和 `choice` 路径，新增可切换的固定唱名 `solfege` 作答；两种答案都按三个位置有序检查并保留重复音，挑战题中的 F♯4 与 C5 使用不会丢失升号或八度的稳定 token。切换模式会停止播放、清空旧答案和证据并按实际状态开始新尝试；Web `/practice` 与 Android 继续共享同一组件。完整 empty、disabled、检查锁定、复练、重置、下一题、难度和复习队列验收见 `docs/p114e-fixed-solfege-answer-acceptance.md`。
 
-本切片固定使用项目原创确认谱面，不把本机导入 MusicXML 草稿、USB MIDI 或 BLE MIDI 冒充已适配能力；不改变活动核心 schema/session、钢琴录制存储、Web Audio、旧题库、课程 RPC、本机复练 v2 或 Android 离线边界。focused adapter 与移动钢琴真实挂载行为测试已加入 strict 门禁；完整仓库、Android CI、真实多指设备、USB/BLE MIDI 和视觉 QA 仍须单列。该候选依赖 PR #369，不代表 P114c 已合并，也不是完整 P114。QA level recommendation：**strict**。
+focused adapter 与共享真实挂载行为测试已在本机通过；完整 `npm run check`、远端 `quality` / `android-local` / Vercel、Web 手动 QA 和 Android 真机 QA 仍待执行或记录。本状态不代表已提交、创建 PR 或合并。候选不增加五线谱/简谱编辑、麦克风或 MIDI 答案，不产生分数、等级或通过/失败，也不修改云端、账号、数据库、伙伴 UI、Web Audio、旧题库和本机复练 v2 格式。QA level recommendation：**strict**。
 
-## P114c — 临时乐谱节奏拍击接入统一活动协议（候选，2026-07-18）
+## P114d — 项目原创谱面屏幕钢琴输入协议（PR #370 已合并，2026-07-18）
+
+P114d 在已合并的 P114c 基础上，把 P110 的项目原创、已确认「级进与小跳」谱面接入统一活动协议，成为首个真实 `piano` 输入 vertical slice。用户必须显式开始后，触摸、鼠标或键盘触发的屏幕琴键才会按科学音高名记录为有序 `noteIds`；重复音保持原位置，检查只返回一致、有差异或证据不足的非评分解释，并支持新尝试。参考谱面播放、已保存演奏回放、32 音压力测试和 MIDI 路径均不写入本轮答案，多指同批输入达到目标长度后会停止接收。
+
+本切片固定使用项目原创确认谱面，不把本机导入 MusicXML 草稿、USB MIDI 或 BLE MIDI 冒充已适配能力；不改变活动核心 schema/session、钢琴录制存储、Web Audio、旧题库、课程 RPC、本机复练 v2 或 Android 离线边界。focused adapter 与移动钢琴真实挂载行为测试已加入 strict 门禁；GitHub `quality`、`android-local` 和 Vercel 已通过。PR #370 已合并，main commit 为 `0e1d7ee107ec1e8c0131e972031b27d408f5dade`；真实多指设备、USB/BLE MIDI 和视觉 QA 仍须单列，P114 也尚未整体完成。QA level recommendation：**strict**。
+
+## P114c — 临时乐谱节奏拍击接入统一活动协议（PR #369 已合并，2026-07-18）
 
 P114c 把现有“已确认临时乐谱节奏目标 → 点击/空格练习 → 非评分节奏反馈”接入 `activity-definition-v1` 与 `activity-session-v1`，成为统一协议中第一个真实 `tap` 输入 vertical slice。活动身份由草稿指纹、拍号和本轮 BPM 稳定生成，不使用仅当前会话的创建时间；休止符继续只推进音乐时间，非休止音符起点成为相对 `onsetMs` 答案。练习开始、点击、自然结束/主动停止和重置分别驱动 ready、answering、checked 与新尝试状态，检查证据只表达接近、有差异或证据不足，不产生分数、准确率、等级或通过/失败。
 
-本切片复用既有临时目标确认、Web Audio 节拍器、延迟校准和 DP 节奏反馈，不改变旧题库、课程 RPC、Web Audio、本机复练 v2 或 Android 行为；不增加伙伴 UI、麦克风起音、五线谱/简谱/唱名编辑答案、MIDI 输入、持久节奏历史或云端上传。focused 协议/适配器测试、完整 `npm run check`、Android 本地静态边界和 CI focused 门禁已纳入；本地原生 Gradle 下载受执行环境网络策略阻塞，`testDebugUnitTest` 与 `assembleDebug` 必须由 PR 的 `android-local` CI 验证，真实手机与教育审核继续单列。QA level recommendation：**strict**。
+本切片复用既有临时目标确认、Web Audio 节拍器、延迟校准和 DP 节奏反馈，不改变旧题库、课程 RPC、Web Audio、本机复练 v2 或 Android 行为；不增加伙伴 UI、麦克风起音、五线谱/简谱/唱名编辑答案、MIDI 输入、持久节奏历史或云端上传。focused 协议/适配器测试、完整 `npm run check`、Android 本地静态边界和 CI focused 门禁已纳入；GitHub `quality`、`android-local` 和 Vercel 已通过。PR #369 已合并，main commit 为 `4737f7eb9dae2f18c15008f2a0f718f3fd7cba5e`；真实手机与教育审核继续单列。QA level recommendation：**strict**。
 
 ## P114b — 四类现有练习统一协议迁移（合并后按产品要求暂停，2026-07-18）
 
