@@ -60,6 +60,7 @@ jobs:
           npm run test:offline-note-alignment
           npm run test:activity-protocol
           npm run test:notation-rhythm-activity-adapter
+          npm run test:piano-learning-activity-adapter
           npm run test:legacy-activity-adapters
           npm run test:analysis-evidence-adapter
           npm run test:companion-activity-bridge

@@ -523,6 +523,9 @@ describe("本地钢琴面板行为", () => {
   it("完整视图提供 88 键、双排、标签、移调和真实 32 voice 压力入口", async () => {
     const audio = createAudioHarness();
     const container = await renderPanel(audio.factory);
+    const protocolPanel = container.querySelector<HTMLElement>("[aria-labelledby='piano-activity-heading']");
+    if (!protocolPanel) throw new Error("找不到钢琴统一活动面板");
+    await click(buttonWithText(protocolPanel, "开始屏幕跟弹"));
     const changeSelect = async (label: string, value: string) => {
       const select = container.querySelector<HTMLSelectElement>(`select[aria-label="${label}"]`);
       if (!select) throw new Error(`找不到选择器：${label}`);
@@ -561,6 +564,7 @@ describe("本地钢琴面板行为", () => {
     });
     expect(container.querySelectorAll('[data-piano-key][aria-pressed="true"]')).toHaveLength(32);
     expect(audio.oscillators).toHaveLength(32);
+    expect(protocolPanel.textContent).toContain("本轮输入：尚未输入");
     await act(async () => vi.advanceTimersByTimeAsync(2_000));
     expect(container.querySelectorAll('[data-piano-key][aria-pressed="true"]')).toHaveLength(0);
     expect(audio.channels.every((channel) => channel.stopped)).toBe(true);
@@ -585,6 +589,9 @@ describe("本地钢琴面板行为", () => {
     expect(stored[0]?.events.map((event) => event.type)).toEqual(["note-on", "note-off", "all-notes-off"]);
     expect(container.querySelectorAll('select[aria-label="钢琴演奏记录"] option')).toHaveLength(2);
 
+    const protocolPanel = container.querySelector<HTMLElement>("[aria-labelledby='piano-activity-heading']");
+    if (!protocolPanel) throw new Error("找不到钢琴统一活动面板");
+    await click(buttonWithText(protocolPanel, "开始屏幕跟弹"));
     vi.useFakeTimers();
     await act(async () => {
       buttonWithText(container, "回放所选记录").dispatchEvent(new MouseEvent("click", { bubbles: true }));
@@ -593,6 +600,7 @@ describe("本地钢琴面板行为", () => {
     await act(async () => vi.advanceTimersByTimeAsync(2_000));
     expect(audio.oscillators.length).toBeGreaterThanOrEqual(2);
     expect(container.textContent).toContain("回放所选记录");
+    expect(protocolPanel.textContent).toContain("本轮输入：尚未输入");
     vi.useRealTimers();
 
     await click(buttonWithText(container, "导出事件 JSON"));
@@ -729,11 +737,15 @@ describe("本地钢琴面板行为", () => {
       value: vi.fn(async () => access),
     });
     const container = await renderPanel(audio.factory);
+    const protocolPanel = container.querySelector<HTMLElement>("[aria-labelledby='piano-activity-heading']");
+    if (!protocolPanel) throw new Error("找不到钢琴统一活动面板");
+    await click(buttonWithText(protocolPanel, "开始屏幕跟弹"));
     await click(buttonWithText(container, "连接 MIDI"));
     expect(container.textContent).toContain("本机夹具 · 测试键盘");
     await act(async () => input.onmidimessage?.({ data: new Uint8Array([0x90, 60, 127]) }));
     await flush();
     expect(pianoKey(container, "c4").getAttribute("aria-pressed")).toBe("true");
+    expect(protocolPanel.textContent).toContain("本轮输入：尚未输入");
     await act(async () => input.onmidimessage?.({ data: new Uint8Array([0xb0, 64, 127]) }));
     await act(async () => input.onmidimessage?.({ data: new Uint8Array([0x80, 60, 0]) }));
     await flush();
@@ -789,5 +801,74 @@ describe("本地钢琴面板行为", () => {
     expect(audio.oscillators).toHaveLength(8);
     expect(audio.channels.every((channel) => channel.stopped)).toBe(true);
     expect(buttonWithText(container, "停止谱面播放").disabled).toBe(true);
+  });
+
+  it("项目原创谱面只接收显式开始后的屏幕琴键并保留重复音顺序", async () => {
+    const audio = createAudioHarness();
+    const container = await renderPanel(audio.factory);
+    const protocolPanel = container.querySelector<HTMLElement>("[aria-labelledby='piano-activity-heading']");
+    if (!protocolPanel) throw new Error("找不到钢琴统一活动面板");
+
+    expect(protocolPanel.textContent).toContain("本轮输入：尚未输入");
+    expect(protocolPanel.textContent).toContain("统一活动协议：题目已确认");
+    await pointer(pianoKey(container, "c4"), "pointerdown", 500);
+    await pointer(pianoKey(container, "c4"), "pointerup", 500);
+    expect(protocolPanel.textContent).toContain("本轮输入：尚未输入");
+
+    await click(buttonWithText(protocolPanel, "开始屏幕跟弹"));
+    const sequence = ["c4", "d4", "e4", "g4", "e4", "d4", "c4", "c4"];
+    for (let index = 0; index < sequence.length; index += 1) {
+      const key = pianoKey(container, sequence[index] as string);
+      await pointer(key, "pointerdown", 510 + index);
+      await pointer(key, "pointerup", 510 + index);
+    }
+    expect(protocolPanel.textContent).toContain("C4 · D4 · E4 · G4 · E4 · D4 · C4 · C4（8/8）");
+    expect(protocolPanel.textContent).not.toContain("正在接收屏幕琴键输入");
+
+    await click(buttonWithText(protocolPanel, "检查本轮"));
+    expect(protocolPanel.textContent).toContain("统一活动协议：答案已检查");
+    expect(protocolPanel.textContent).toContain("音符与重复音顺序均和当前原创谱面一致");
+
+    await click(buttonWithText(protocolPanel, "重新尝试"));
+    expect(protocolPanel.textContent).toContain("第 2 次尝试");
+    expect(protocolPanel.textContent).toContain("本轮输入：尚未输入");
+    await pointer(pianoKey(container, "d4"), "pointerdown", 530);
+    await pointer(pianoKey(container, "d4"), "pointerup", 530);
+    await click(buttonWithText(protocolPanel, "检查本轮"));
+    expect(protocolPanel.textContent).toContain("音符数量或顺序存在差异");
+  });
+
+  it("参考谱面播放不会写入已开始的屏幕钢琴活动答案", async () => {
+    const audio = createAudioHarness();
+    const container = await renderPanel(audio.factory);
+    const protocolPanel = container.querySelector<HTMLElement>("[aria-labelledby='piano-activity-heading']");
+    if (!protocolPanel) throw new Error("找不到钢琴统一活动面板");
+    await click(buttonWithText(protocolPanel, "开始屏幕跟弹"));
+    vi.useFakeTimers();
+    await act(async () => {
+      buttonWithText(container, "播放确认谱面").click();
+      await Promise.resolve();
+    });
+    await act(async () => vi.advanceTimersByTimeAsync(8_000));
+    expect(protocolPanel.textContent).toContain("本轮输入：尚未输入");
+  });
+
+  it("同一批多指输入达到目标音数后也会可靠停止接收", async () => {
+    const audio = createAudioHarness();
+    const container = await renderPanel(audio.factory);
+    const protocolPanel = container.querySelector<HTMLElement>("[aria-labelledby='piano-activity-heading']");
+    if (!protocolPanel) throw new Error("找不到钢琴统一活动面板");
+    await click(buttonWithText(protocolPanel, "开始屏幕跟弹"));
+    const sequence = ["c4", "d4", "e4", "g4", "e4", "d4", "c4", "c4"];
+    await act(async () => {
+      sequence.forEach((keyId, index) => {
+        const key = pianoKey(container, keyId);
+        key.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, button: 0, pointerId: 600 + index }));
+        key.dispatchEvent(new PointerEvent("pointerup", { bubbles: true, button: 0, pointerId: 600 + index }));
+      });
+    });
+    await flush();
+    expect(protocolPanel.textContent).toContain("（8/8）");
+    expect(protocolPanel.textContent).not.toContain("正在接收屏幕琴键输入");
   });
 });
