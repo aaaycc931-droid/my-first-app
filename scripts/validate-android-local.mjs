@@ -28,7 +28,10 @@ const requiredSources = [
   "components/practice/RealtimePitchCurveChart.tsx",
   "components/practice/LocalVocalExercisePanel.tsx",
   "components/practice/useRealtimePitchMonitor.ts",
+  "components/practice/useOfflinePitchAnalysis.ts",
+  "components/practice/OfflinePitchAnalysisPanel.tsx",
   "lib/practice/pitchEstimate.ts",
+  "lib/practice/offlinePitchAnalysis.ts",
   "lib/practice/realtimePitchCurve.ts",
   "lib/practice/localVocalExercise.ts",
   "lib/practice/localVocalTargetFeedback.ts",
@@ -75,6 +78,7 @@ const pianoInteractionSource = readFileSync(join(root, "lib/piano/pianoInteracti
 const pianoPerformanceSource = readFileSync(join(root, "lib/piano/pianoPerformance.ts"), "utf8");
 const pianoMidiSource = readFileSync(join(root, "lib/piano/pianoMidi.ts"), "utf8");
 const pianoLearningSource = readFileSync(join(root, "lib/piano/pianoLearningScore.ts"), "utf8");
+const offlinePitchSource = readFileSync(join(root, "lib/practice/offlinePitchAnalysis.ts"), "utf8");
 const pianoTimbreManifest = JSON.parse(readFileSync(
   join(root, "mobile/public/piano/timbres.manifest.json"),
   "utf8",
@@ -149,6 +153,15 @@ if (
 ) {
   throw new Error("Android 本地参考钢琴缺少音域、多指、延音或残音清理边界");
 }
+if (
+  !offlinePitchSource.includes('OFFLINE_PITCH_ANALYSIS_VERSION = "offline-pitch-multicandidate-v1"')
+  || !offlinePitchSource.includes("OFFLINE_PITCH_SAMPLE_RATE = 16_000")
+  || !offlinePitchSource.includes("PitchDetector.forFloat32Array")
+  || !offlinePitchSource.includes("suppressOfflineOctaveJump")
+  || !offlinePitchSource.includes("engine-disagreement")
+) {
+  throw new Error("Android 录音后分析缺少版本、标准 PCM、多候选、拒答或八度抑制边界");
+}
 const pianoAssetDirectory = join(root, "mobile/public/piano/splendid-grand-v1");
 const pianoAssets = readdirSync(pianoAssetDirectory).filter((name) => name.endsWith(".ogg"));
 const pianoAssetBytes = pianoAssets.reduce((total, name) => total + statSync(join(pianoAssetDirectory, name)).size, 0);
@@ -220,6 +233,8 @@ for (const expectedCopy of [
   "开始实时反馈",
   "开始会话录音",
   "丢弃本次录音",
+  "录音停止后的本地多候选分析",
+  "确认开始本地分析",
   "练声目标生成器",
   "播放参考音型",
   "练声目标对照（非评分）",

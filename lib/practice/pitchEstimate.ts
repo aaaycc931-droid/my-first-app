@@ -51,7 +51,7 @@ const calculateRms = (
   return Math.sqrt(squaredSampleSum / frameSize);
 };
 
-const estimateFrameFrequency = (
+export const estimateFrameFrequency = (
   samples: Float32Array,
   startIndex: number,
   frameSize: number,
