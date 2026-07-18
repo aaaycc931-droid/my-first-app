@@ -52,4 +52,44 @@ assert.throws(
   /不允许/,
 );
 
+const orderedDefinition: ActivityDefinitionV1 = {
+  ...definition,
+  activityId: "local.melody.ordered",
+  target: {
+    targetId: "melody:c4-d4-c4",
+    label: "C4 → D4 → C4",
+    expectedAnswer: { mode: "choice", optionIds: ["c4", "d4", "c4"] },
+    answerPolicy: { choiceOrder: "ordered" },
+  },
+};
+let ordered = createActivitySession(orderedDefinition, "session-ordered");
+ordered = submitActivityAnswer(
+  orderedDefinition,
+  ordered,
+  { mode: "choice", optionIds: ["c4", "c4", "d4"] },
+  ordered.revision,
+);
+ordered = checkChoiceActivityAnswer(orderedDefinition, ordered, ordered.revision);
+assert.equal(ordered.checkEvidence?.state, "different", "melody answers must preserve order and repeated notes");
+
+const unorderedDefinition: ActivityDefinitionV1 = {
+  ...definition,
+  activityId: "local.chord.unordered",
+  target: {
+    targetId: "chord:c-major",
+    label: "C 大三和弦",
+    expectedAnswer: { mode: "choice", optionIds: ["c4", "e4", "g4"] },
+    answerPolicy: { choiceOrder: "unordered" },
+  },
+};
+let unordered = createActivitySession(unorderedDefinition, "session-unordered");
+unordered = submitActivityAnswer(
+  unorderedDefinition,
+  unordered,
+  { mode: "choice", optionIds: ["g4", "c4", "e4"] },
+  unordered.revision,
+);
+unordered = checkChoiceActivityAnswer(unorderedDefinition, unordered, unordered.revision);
+assert.equal(unordered.checkEvidence?.state, "consistent");
+
 console.log("P114 unified activity protocol tests passed.");

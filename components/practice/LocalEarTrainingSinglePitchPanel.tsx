@@ -24,12 +24,8 @@ import { useLockedPracticeAnswer } from "./useLockedPracticeAnswer";
 import { useLocalQuestionSchedule } from "./useLocalQuestionSchedule";
 import { ActivityChoiceAnswerPanel } from "./ActivityChoiceAnswerPanel";
 import { adaptSinglePitchQuestionToActivity } from "../../lib/activity/legacyLocalActivityAdapter";
-import {
-  checkChoiceActivityAnswer,
-  createActivitySession,
-  restartActivityAttempt,
-  submitActivityAnswer,
-} from "../../lib/activity/activitySession";
+import { ActivityProtocolState } from "./ActivityProtocolState";
+import { useChoiceActivitySession } from "./useChoiceActivitySession";
 
 export function LocalEarTrainingSinglePitchPanel({
   courseExerciseId,
@@ -87,23 +83,13 @@ export function LocalEarTrainingSinglePitchPanel({
     () => adaptSinglePitchQuestionToActivity(question),
     [question],
   );
-  const [storedActivitySession, setActivitySession] = useState(() =>
-    createActivitySession(activityDefinition, `single-pitch:${question.id}`),
-  );
-  const currentActivitySession = (candidate: typeof storedActivitySession) =>
-    candidate.activityId === activityDefinition.activityId && candidate.targetId === activityDefinition.target.targetId
-      ? candidate
-      : createActivitySession(activityDefinition, `single-pitch:${question.id}`);
-  const activitySession = currentActivitySession(storedActivitySession);
+  const activity = useChoiceActivitySession(activityDefinition, `single-pitch:${question.id}`);
   const answer = useMemo(() => getLocalEarTrainingSinglePitchAnswer({ question, selectedPitchId }), [question, selectedPitchId]);
 
   const resetCurrentQuestion = () => {
     stopPlayback();
     answerLock.reset();
-    setActivitySession((stored) => {
-      const current = currentActivitySession(stored);
-      return restartActivityAttempt(current, current.revision);
-    });
+    activity.restart();
     setAudioError("");
     resetSaveStatus();
   };
@@ -111,16 +97,7 @@ export function LocalEarTrainingSinglePitchPanel({
   const revealAnswer = async () => {
     const submittedPitchId = answerLock.reveal();
     if (!submittedPitchId) return;
-    setActivitySession((stored) => {
-      const current = currentActivitySession(stored);
-      const submitted = submitActivityAnswer(
-        activityDefinition,
-        current,
-        { mode: "choice", optionIds: [submittedPitchId] },
-        current.revision,
-      );
-      return checkChoiceActivityAnswer(activityDefinition, submitted, submitted.revision);
-    });
+    activity.checkChoice([submittedPitchId]);
     const matchesAnswer = submittedPitchId === question.pitch.id;
     if (!courseExerciseId && onLocalAnswerResult && sessionSeed !== null) {
       onLocalAnswerResult({
@@ -204,18 +181,7 @@ export function LocalEarTrainingSinglePitchPanel({
             disabled={!isQuestionReady || isAnswerVisible}
             onChoose={(pitchId) => {
               if (!answerLock.choose(pitchId)) return;
-              setActivitySession((stored) => {
-                const current = currentActivitySession(stored);
-                const available = current.lifecycle === "answering"
-                  ? restartActivityAttempt(current, current.revision)
-                  : current;
-                return submitActivityAnswer(
-                  activityDefinition,
-                  available,
-                  { mode: "choice", optionIds: [pitchId] },
-                  available.revision,
-                );
-              });
+              activity.submitChoice([pitchId]);
               resetSaveStatus();
             }}
           />
@@ -226,9 +192,7 @@ export function LocalEarTrainingSinglePitchPanel({
             <button type="button" disabled={!isQuestionReady} onClick={() => { resetCurrentQuestion(); if (initialReviewTarget && onLeaveReviewTarget) onLeaveReviewTarget(); else setSequence((current) => current + 1); }} className="rounded-xl border border-sky-300 bg-white px-4 py-2.5 font-semibold text-sky-800 disabled:cursor-not-allowed disabled:opacity-50">{initialReviewTarget ? "返回随机练习" : "下一题"}</button>
           </div>
           {!answer.hasSelection ? <p className="mt-3 text-sm leading-6 text-slate-500">请先选择一个音名，再查看本题答案。</p> : null}
-          <p className="mt-3 text-xs leading-5 text-slate-500" data-testid="activity-protocol-state">
-            统一活动协议：{activitySession.lifecycle === "ready" ? "题目已确认" : activitySession.lifecycle === "answering" ? "已作答，等待检查" : activitySession.lifecycle === "checked" ? "答案已检查" : "正在检查题目"}；第 {activitySession.attemptNumber} 次尝试。本活动只提供非评分证据。
-          </p>
+          <ActivityProtocolState session={activity.session} />
           {isAnswerVisible ? <div className="mt-4 rounded-2xl bg-slate-50 p-4 text-sm leading-6 text-slate-700"><p className="font-bold text-slate-950">本题答案：{answer.answerLabel}</p><p className="mt-1">{answer.explanation}</p><p className="mt-2">你的选择：{answerPitches.find((pitch) => pitch.id === selectedPitchId)?.label ?? "未选择"}。{answer.matchesAnswer ? "这次选择与本题答案一致。" : "这次选择与本题答案不同；可以再次播放并重置本题复练。"}</p><p className="mt-2 text-slate-500">答案说明显示后，本题选择已锁定；请使用复练或下一题开始新的尝试。这不是正式分数、准确率、等级、通过或失败判断。</p></div> : null}
           {courseExerciseId ? <CourseAttemptSaveNotice status={saveStatus} /> : null}
         </div>
