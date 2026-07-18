@@ -46,7 +46,7 @@
 
 如果某个文件不存在，必须先说明，不要凭空假设其内容。
 
-截至 2026-07-18，P106–P113 已合并，P113 merge commit 为 `2a786f1b66fee095224214430d12e96f78a5057e`；伙伴总路线与单伙伴细化路线已入库，但没有伙伴运行时实现。产品所有者已明确恢复 P114：P114a、P114b、P114c 和 P114d 均已合并，当前 `main` 为 `0e1d7ee107ec1e8c0131e972031b27d408f5dade`。当前活动协议已有真实 `choice`、`tap` 和屏幕 `piano` 输入，P114 仍未整体完成；P114e 固定唱名答案是 ACTIVE implementation candidate，验收边界见 `docs/p114e-fixed-solfege-answer-acceptance.md`。后续必须从远端最新 `main`、最新状态矩阵和统一路线继续，不得把候选写成已交付，也不得自行开始伙伴 UI。
+截至 2026-07-18，P106–P113 已合并，P113 merge commit 为 `2a786f1b66fee095224214430d12e96f78a5057e`；伙伴总路线与单伙伴细化路线已入库，但没有伙伴运行时实现。产品所有者已明确恢复 P114：P114a–P114e 均已合并，P114e 通过 PR #371 squash merge，当前 `main` 为 `b8cff79626af3267611291b13f020a24f5a55ff5`。当前活动协议已有真实 `choice`、`tap`、屏幕 `piano` 和固定唱名 `solfege` 输入，P114 仍未整体完成；P114f 固定 A4 单音麦克风证据接入已形成 Web/Android 共享挂载的本地 implementation candidate，边界见 `docs/p114f-fixed-a4-microphone-evidence-acceptance.md`，远端门禁、PR、合并和真机 QA 仍未完成。不得把自动测试或候选代码冒充 P114f 已交付、Android 真机、真实人声、三档设备或 P104 教育证据，也不得自行开始伙伴 UI。
 
 凡涉及五线谱、乐谱预览、notation draft、识谱、OCR / OMR、乐谱到练习目标、Stage A–F 的任务，除上述通用必读文档外，还必须读取：
 

@@ -1,14 +1,18 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { midiToScientificNote } from "../../lib/practice/realtimePitchCurve";
 import type { GeneratedLocalVocalExercise } from "../../lib/practice/localVocalExercise";
 import {
   analyzeOfflineNoteAlignment,
   type OfflineAlignmentTarget,
+  type OfflineNoteAlignmentResult,
 } from "../../lib/practice/offlineNoteAlignment";
-import type { OfflinePitchFrame } from "../../lib/practice/offlinePitchAnalysis";
+import type {
+  OfflinePitchAnalysisResult,
+  OfflinePitchFrame,
+} from "../../lib/practice/offlinePitchAnalysis";
 import { OfflineNoteAlignmentEvidencePanel } from "./OfflineNoteAlignmentEvidencePanel";
 import { useOfflinePitchAnalysis } from "./useOfflinePitchAnalysis";
 
@@ -25,21 +29,39 @@ const trajectoryPoints = (frames: readonly OfflinePitchFrame[]) => {
   }).join(" ");
 };
 
+export type OfflinePitchAnalysisReadyDetail = {
+  recording: Blob;
+  pitchAnalysis: OfflinePitchAnalysisResult;
+  noteAlignment: OfflineNoteAlignmentResult;
+};
+
+export type OfflinePitchAnalysisInvalidationDetail = {
+  reason: "analysis-cleared" | "recording-changed";
+  previousRecording: Blob | null;
+  nextRecording: Blob | null;
+};
+
 export function OfflinePitchAnalysisPanel({
   recording,
   onBeforeAnalyze,
   targetExercise,
   recordingStartedAtMs,
   targetStartedAtMs,
+  onAnalysisReady,
+  onAnalysisInvalidated,
 }: {
   recording: Blob | null;
   onBeforeAnalyze: () => void;
   targetExercise?: GeneratedLocalVocalExercise | null;
   recordingStartedAtMs?: number | null;
   targetStartedAtMs?: number | null;
+  onAnalysisReady?: (detail: OfflinePitchAnalysisReadyDetail) => void;
+  onAnalysisInvalidated?: (detail: OfflinePitchAnalysisInvalidationDetail) => void;
 }) {
   const analysis = useOfflinePitchAnalysis(recording);
   const [confirmingRecording, setConfirmingRecording] = useState<Blob | null>(null);
+  const previousRecordingRef = useRef(recording);
+  const reportedAnalysisRef = useRef<OfflinePitchAnalysisResult | null>(null);
   const confirming = recording !== null && confirmingRecording === recording;
   const points = useMemo(() => analysis.state.result ? trajectoryPoints(analysis.state.result.frames) : "", [analysis.state]);
   const targets = useMemo<OfflineAlignmentTarget[]>(() => {
@@ -64,10 +86,48 @@ export function OfflinePitchAnalysisPanel({
     [analysis.state, targets],
   );
 
+  useEffect(() => {
+    const previousRecording = previousRecordingRef.current;
+    if (previousRecording === recording) return;
+    previousRecordingRef.current = recording;
+    reportedAnalysisRef.current = null;
+    setConfirmingRecording(null);
+    onAnalysisInvalidated?.({
+      reason: "recording-changed",
+      previousRecording,
+      nextRecording: recording,
+    });
+  }, [onAnalysisInvalidated, recording]);
+
+  useEffect(() => {
+    if (
+      !recording
+      || analysis.state.status !== "ready"
+      || !noteAlignment
+      || reportedAnalysisRef.current === analysis.state.result
+    ) return;
+    reportedAnalysisRef.current = analysis.state.result;
+    onAnalysisReady?.({
+      recording,
+      pitchAnalysis: analysis.state.result,
+      noteAlignment,
+    });
+  }, [analysis.state, noteAlignment, onAnalysisReady, recording]);
+
   const confirmAnalyze = () => {
     setConfirmingRecording(null);
     onBeforeAnalyze();
     void analysis.analyze();
+  };
+
+  const clearAnalysis = () => {
+    reportedAnalysisRef.current = null;
+    analysis.clear();
+    onAnalysisInvalidated?.({
+      reason: "analysis-cleared",
+      previousRecording: recording,
+      nextRecording: recording,
+    });
   };
 
   const stateCopy = !recording
@@ -108,7 +168,7 @@ export function OfflinePitchAnalysisPanel({
           <p className="mt-3 text-xs leading-5 text-slate-600">标准 PCM：16 kHz 单声道，{analysis.state.result.pcm.durationSeconds.toFixed(2)} 秒；拒答 {analysis.state.result.summary.rejectedFrames} 帧，八度修正 {analysis.state.result.summary.octaveAdjustedFrames} 帧，输入削波样本 {(analysis.state.result.pcm.diagnostics.clippedSampleRatio * 100).toFixed(2)}%。</p>
           {points ? <svg viewBox="0 0 100 100" role="img" aria-label="录音后连续音高轨迹，不含目标评分" className="mt-3 h-36 w-full rounded-lg bg-slate-950 p-2" preserveAspectRatio="none"><polyline points={points} fill="none" stroke="#e879f9" strokeWidth="1.5" vectorEffect="non-scaling-stroke" /></svg> : <p className="mt-3 text-sm text-slate-700">可靠帧不足，保留“无法判断”，不强行生成轨迹。</p>}
           {recording && noteAlignment ? <OfflineNoteAlignmentEvidencePanel recording={recording} result={noteAlignment} onBeforePlay={onBeforeAnalyze} /> : null}
-          <button type="button" onClick={analysis.clear} className="mt-3 min-h-10 rounded-lg border border-rose-300 px-3 text-sm font-bold text-rose-800">清除本次分析结果</button>
+          <button type="button" onClick={clearAnalysis} className="mt-3 min-h-10 rounded-lg border border-rose-300 px-3 text-sm font-bold text-rose-800">清除本次分析结果</button>
         </div>
       ) : null}
     </section>

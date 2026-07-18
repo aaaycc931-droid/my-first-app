@@ -70,6 +70,7 @@ import { LocalEarTrainingIntervalPanel } from "../../components/practice/LocalEa
 import { LocalEarTrainingRhythmPanel } from "../../components/practice/LocalEarTrainingRhythmPanel";
 import { LocalEarTrainingSinglePitchPanel } from "../../components/practice/LocalEarTrainingSinglePitchPanel";
 import { LocalEarTrainingMelodyDictationPanel } from "../../components/practice/LocalEarTrainingMelodyDictationPanel";
+import { RealtimePitchMonitorPanel } from "../../components/practice/RealtimePitchMonitorPanel";
 import { LocalTargetPitchCurveDraftPanel } from "../../components/practice/LocalTargetPitchCurveDraftPanel";
 import { LocalTargetPitchCurveReviewPreviewPanel } from "../../components/practice/LocalTargetPitchCurveReviewPreviewPanel";
 import { LocalTargetPitchCurveDraftReviewControlsPanel } from "../../components/practice/LocalTargetPitchCurveDraftReviewControlsPanel";
@@ -430,6 +431,8 @@ const stopOscillator = (oscillator: OscillatorNode) => {
 export default function PracticePage() {
   const [activeFeatureView, setActiveFeatureView] =
     useState<PracticeFeatureView>("local-melody");
+  const [isA4MicrophoneActivityOpen, setIsA4MicrophoneActivityOpen] =
+    useState(false);
   const [earTrainingExerciseMode, setEarTrainingExerciseMode] =
     useState<EarTrainingExerciseMode>("单音");
   const [courseExerciseId, setCourseExerciseId] = useState<string | null>(null);
@@ -616,6 +619,10 @@ export default function PracticePage() {
       setCourseExerciseMode(requestedCourseMode);
     }
   }, []);
+
+  useEffect(() => {
+    if (activeFeatureView !== "feedback") setIsA4MicrophoneActivityOpen(false);
+  }, [activeFeatureView]);
 
   useEffect(() => {
     setNotationTemporaryPracticeTarget((currentTarget) =>
@@ -3306,6 +3313,29 @@ export default function PracticePage() {
               title="本次会话的录音、音高估计与反馈"
               description="这里保留本地录音、音高估计、临时乐谱与导入目标音高反馈及练习记录。反馈只用于诊断参考，不是评分、等级或通过 / 失败判断。"
             />
+            <section className="mt-6 rounded-3xl border border-cyan-200 bg-cyan-50 p-5 shadow-sm sm:p-6" aria-labelledby="web-a4-microphone-entry-title">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                  <p className="text-sm font-semibold uppercase tracking-wide text-cyan-700">本地 A4 麦克风活动</p>
+                  <h2 id="web-a4-microphone-entry-title" className="mt-1 text-2xl font-bold text-cyan-950">主动进入 A4 单音录音与证据检查</h2>
+                  <p className="mt-2 max-w-3xl text-sm leading-6 text-cyan-900">共享活动只在你点击进入后挂载；不会随页面打开自动请求麦克风权限。录音、离线分析与逐音证据只在本机处理，不上传，也不生成分数、等级或通过判断。</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsA4MicrophoneActivityOpen((current) => !current)}
+                  aria-expanded={isA4MicrophoneActivityOpen}
+                  aria-controls="web-a4-microphone-activity"
+                  className={`min-h-11 shrink-0 rounded-xl px-4 py-2 text-sm font-bold ${isA4MicrophoneActivityOpen ? "border border-cyan-300 bg-white text-cyan-900" : "bg-cyan-800 text-white"}`}
+                >
+                  {isA4MicrophoneActivityOpen ? "退出并停止 A4 活动" : "进入本地 A4 麦克风活动"}
+                </button>
+              </div>
+            </section>
+            {isA4MicrophoneActivityOpen ? (
+              <div id="web-a4-microphone-activity" className="mt-4">
+                <RealtimePitchMonitorPanel />
+              </div>
+            ) : null}
         {notationPracticePitchFeedbackContext ? (
           <section className="mt-6 rounded-3xl border border-violet-200 bg-violet-50 p-5 shadow-sm sm:p-6">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">

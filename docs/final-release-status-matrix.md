@@ -13,7 +13,7 @@
 | V1-02 | 账户与会话 | IN_PROGRESS | Supabase Auth、邮箱 magic link、资料读取/更新、生产浏览器 QA | 密码登录、退出/恢复全矩阵、异常邮件路径 |
 | V1-03 | 数据导出与删除 | NOT_STARTED | 数据模型有 deletion request 草案 | 用户入口、导出包、级联删除、24h SLA、端到端演练 |
 | V1-04 | 系统课程与题库 | IN_PROGRESS | 基础课程；单音、音程、节奏持久化；Android 四类听辨已有三难度、每档至少 20 个版本化组合 | 基础视唱、课程三难度与进度、教育审核；Android 难度仍待审核校准 |
-| V1-05 | 视唱与录音闭环 | IN_PROGRESS | Web 本地录音/回放；Android 实时曲线、录音、本机记录与 P103 观察；P112 独立后分析已合并；P113 独立分段、目标对齐、逐音/逐句证据与片段复练已通过 PR #365 合并 | P113 真机/真实人声；正式课程/云端记录；P104 真机同步/延迟/录音设备矩阵 |
+| V1-05 | 视唱与录音闭环 | IN_PROGRESS | Web 本地录音/回放；Android 实时曲线、录音、本机记录与 P103 观察；P112 独立后分析与 P113 分段、目标对齐、逐音/逐句证据、片段复练已合并；P114f 固定 A4 麦克风 Activity 已形成 Web/Android 共享本地候选 | P114f CI/PR/合并和 Web/Android 真麦克风 QA；P113/P114f 真实人声；正式课程/云端记录；P104 真机同步/延迟/录音设备矩阵 |
 | V1-06 | 节奏练习与反馈 | IN_PROGRESS | 节拍器、tap/onset、延迟校准、DP 对齐、课程节奏听辨 | 真实数据基准、录音闭环、长期记录与复练 |
 | V1-07 | 钢琴辅助 | IN_PROGRESS | P106–P110 已合并：统一 note event/provider、三层离线采样与 A0–C8 映射、移动钢琴交互、节拍器/事件录制/循环、多音色/USB MIDI/MusicXML 学习基础 | 三档真机低延迟/听感/10 指/32 音与设备断连证据；对照完美钢琴和来音钢琴的完整任务差距闭环 |
 | V1-08 | MusicXML/MXL | IN_PROGRESS | parser、fixture、dev import、草稿与临时目标链路 | 正式用户入口、编辑确认、错误恢复、私有持久化 |
@@ -49,7 +49,7 @@
 
 ## 3. 当前最高优先级
 
-产品所有者已明确恢复开发；P114a–P114d 均已合并，当前进入 P114e 三音旋律听写固定唱名答案 implementation candidate。本地代码与 focused tests 已形成候选，但尚未经过远端门禁、PR 或合并。当前依赖顺序如下：
+产品所有者已明确恢复开发；P114a–P114e 均已合并，P114e 已通过 PR #371 squash merge，当前 main 为 `b8cff79626af3267611291b13f020a24f5a55ff5`。当前进入 P114f 固定 A4 单音麦克风证据接入 implementation candidate；本地 Web/Android 共享挂载与 focused tests 已形成，远端门禁、PR、合并和真机仍未完成。当前依赖顺序如下：
 
 1. P106–P113 已合并；P104 最低真实证据、三档 Android、教育审核和竞品同机任务继续保留，不能用 PR 或路线文档替代。
 2. P113 已通过 PR #365 squash merge，merge commit 为 `2a786f1b66fee095224214430d12e96f78a5057e`；真机和真实人声证据继续单列，不因合并或自动测试通过而冒充完成。
@@ -57,10 +57,11 @@
 4. P114b 已通过 PR #368 合并，main commit 为 `65ed9950d480a78f327bec500de407336ee9a52e`；音程、节奏和三音旋律听写已迁入同一协议，旧题库、课程 RPC、Web Audio 和复练 v2 保持兼容。
 5. P114c 已通过 PR #369 合并，main commit 为 `4737f7eb9dae2f18c15008f2a0f718f3fd7cba5e`；它把已确认临时乐谱节奏目标的 `tap` 输入、生命周期和非评分证据接入协议，自动 `quality`、`android-local` 与 Vercel 已通过。
 6. P114d 已通过 PR #370 合并，main commit 为 `0e1d7ee107ec1e8c0131e972031b27d408f5dade`；它只接项目原创确认谱面的屏幕 `piano` 输入，本机 MusicXML 草稿、USB/BLE MIDI、正式评分和持久活动历史不在该切片。
-7. P114e 当前是 ACTIVE implementation candidate：本地运行时在现有三音旋律听写中保留 `choice` 音名答案并增加固定唱名 `solfege` 答案；focused adapter 与共享真实挂载行为测试已通过。ordered、重复音、F♯4/C5 token、完整复练和 strict QA 边界见 `docs/p114e-fixed-solfege-answer-acceptance.md`。远端门禁、PR 和合并尚未完成，P114 仍未整体完成。
-8. P115–P118 教学泳道与 S（制谱/OMR）、A（伴奏/歌曲）、必要 C（云端/内容/教师）泳道按依赖滚动；钢琴 P106–P110 只补真实体验和证据缺口。
-9. P119/Q 必须汇合算法、钢琴、教学、制谱、伴奏、云服务、教育和目标用户验收；P120 只是八产品范围明确的专业私测候选，不是公开最终版。
-10. V1-03 / V1-02 / V1-15 Web 数据生命周期继续是正式 Web 责任；最终产品同时建设本地与中国区合规云端能力，当前离线优先不是终局。
+7. P114e 已通过 PR #371 squash merge，main commit 为 `b8cff79626af3267611291b13f020a24f5a55ff5`；现有三音旋律听写保留 `choice` 并增加固定唱名 `solfege` 有序答案，ordered、重复音、F♯4/C5 token 与复练边界见 `docs/p114e-fixed-solfege-answer-acceptance.md`。合并不替代 Web/Android 真机与教育证据。
+8. P114f 当前是 ACTIVE implementation candidate：固定 A4 单音已在本地复用用户主动录音、P112/P113 本机分析和 `AnalysisEvidence`，接入当前 attempt 的 `microphone` answer 与非评分检查，并共享挂载到 Web/Android；focused adapter 与挂载行为测试已通过。验收边界见 `docs/p114f-fixed-a4-microphone-evidence-acceptance.md`。远端 CI/PR/合并、APK 真机、真实人声和 P104 证据仍未完成，P114 仍未整体完成。
+9. P115–P118 教学泳道与 S（制谱/OMR）、A（伴奏/歌曲）、必要 C（云端/内容/教师）泳道按依赖滚动；钢琴 P106–P110 只补真实体验和证据缺口。
+10. P119/Q 必须汇合算法、钢琴、教学、制谱、伴奏、云服务、教育和目标用户验收；P120 只是八产品范围明确的专业私测候选，不是公开最终版。
+11. V1-03 / V1-02 / V1-15 Web 数据生命周期继续是正式 Web 责任；最终产品同时建设本地与中国区合规云端能力，当前离线优先不是终局。
 
 完整长期范围见 `docs/eight-product-unified-competitive-roadmap-2026-07-18.md`，P113 之后包含伙伴系统的滚动执行顺序见 `docs/unified-development-roadmap-with-ai-music-companion-2026-07-18.md`；旧执行路线与 P112 后暂停交接保留为历史依据，当前执行事实以本矩阵和 `docs/mvp-status.md` 为准。
 
