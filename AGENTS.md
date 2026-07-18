@@ -11,11 +11,14 @@
 - 专业移动钢琴、MIDI、录音、谱面学习与多音色；
 - 乐谱导入、识谱/OMR、制谱、播放、标准格式导入导出；
 - 歌曲/伴奏导入、分离、编辑、分析、跟唱与跟弹；
-- 本地项目、账号同步、私有云处理、内容分发和教师/作业能力。
+- 本地项目、账号同步、私有云处理、内容分发和教师/作业能力；
+- AI 音乐伙伴：以可信证据解释、范唱、发起复练并受控调用各模块；单伙伴先行，长期扩展多伙伴。
 
 最终产品同时建设高质量本地与中国区合规云端能力；当前 Android 离线优先只是阶段性实施约束，不是最终卖点或终局范围。
 
 五线谱识别必须进入“预览 → 检查 → 修改/确认 → 再练习/制谱”的完整链路，不是孤立 OCR 工具。私人歌曲和伴奏处理必须服务于同一份乐谱、练习目标、录音证据与学习画像。
+
+伙伴不能替代底层音乐测量或核心工具。其先天人格、学习风格和关系成长必须与用户音乐能力分层；用户可以隐藏、关闭、重置或删除伙伴数据，且不影响钢琴、练习、制谱、伴奏和项目。
 
 ## Codex 必读文件规则
 
@@ -29,6 +32,9 @@
 - `docs/professional-competitive-roadmap-perfect-piano-earmaster.md`
 - `docs/eight-product-unified-competitive-roadmap-2026-07-18.md`
 - `docs/future-development-execution-roadmap-eight-products-2026-07-18.md`
+- `docs/unified-development-roadmap-with-ai-music-companion-2026-07-18.md`
+- `docs/ai-music-companion-agent-roadmap-2026-07-18.md`
+- `docs/ai-music-companion-single-companion-pilot-roadmap-2026-07-18.md`
 - `docs/project-handoff-paused-after-p112-eight-product-rebaseline-2026-07-18.md`
 - `docs/sight-singing-ear-training-feature-detail-map.md`
 - `docs/private-cloud-song-practice-pipeline-plan.md`
@@ -40,7 +46,7 @@
 
 如果某个文件不存在，必须先说明，不要凭空假设其内容。
 
-截至 2026-07-18，P106–P112 已合并；产品所有者在八产品全能路线重定标后再次明确暂停运行时开发。若新请求只是询问状态、竞品、复盘、规划或文档，不得自行开始 P113；只有用户明确要求恢复开发时，才从远端最新 `main` 和最新交接继续。
+截至 2026-07-18，P106–P113 已合并，P113 merge commit 为 `2a786f1b66fee095224214430d12e96f78a5057e`；伙伴总路线与单伙伴细化路线已入库，但没有伙伴运行时实现。产品所有者要求在 P113 合并后暂停运行时开发。若新请求只是询问状态、竞品、复盘、规划或文档，不得自行开始 P114 或伙伴运行时；只有用户明确要求恢复开发时，才从远端最新 `main`、最新状态矩阵和统一路线继续。
 
 凡涉及五线谱、乐谱预览、notation draft、识谱、OCR / OMR、乐谱到练习目标、Stage A–F 的任务，除上述通用必读文档外，还必须读取：
 

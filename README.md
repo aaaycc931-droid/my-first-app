@@ -1,10 +1,10 @@
-# 视唱练耳学习平台
+# 全能音乐学习与创作系统
 
-面向中文学习者的视唱练耳平台。当前最高优先级是可私下分发、无需访问生产网站即可运行的 Android 本地 APK；Web 入口及其 Supabase 账户、课程和私人记录能力继续保留，但不作为 APK 启动依赖。
+面向中文学习者，覆盖练声/音准、视唱练耳、乐理、专业钢琴、制谱/识谱、伴奏/歌曲工作台、学习系统与 AI 音乐伙伴。当前最高优先级是可私下分发、无需访问生产网站即可运行的 Android 本地 APK；Web 入口及其 Supabase 账户、课程和私人记录能力继续保留，但不作为 APK 启动依赖。离线优先是当前实施边界，不是最终产品终局。
 
-正式版 V1 的唯一范围与完成标准见 [`docs/final-release-definition-of-done.md`](docs/final-release-definition-of-done.md)，实时状态见 [`docs/final-release-status-matrix.md`](docs/final-release-status-matrix.md)，Android 路线见 [`docs/android-apk-release-plan.md`](docs/android-apk-release-plan.md)，已经真实交付的阶段事实见 [`docs/mvp-status.md`](docs/mvp-status.md)。
+正式版 V1 的唯一范围与完成标准见 [`docs/final-release-definition-of-done.md`](docs/final-release-definition-of-done.md)，实时状态见 [`docs/final-release-status-matrix.md`](docs/final-release-status-matrix.md)，P113 之后包含伙伴系统的统一开发顺序见 [`docs/unified-development-roadmap-with-ai-music-companion-2026-07-18.md`](docs/unified-development-roadmap-with-ai-music-companion-2026-07-18.md)，Android 路线见 [`docs/android-apk-release-plan.md`](docs/android-apk-release-plan.md)，已经真实交付的阶段事实见 [`docs/mvp-status.md`](docs/mvp-status.md)。
 
-AI 音乐小伙伴与智能体已经纳入未来产品方向，详细路线见 [`docs/ai-music-companion-agent-roadmap-2026-07-18.md`](docs/ai-music-companion-agent-roadmap-2026-07-18.md)；单伙伴先行测试、未来多伙伴以及“伙伴人格 × 学习风格”的细化路线见 [`docs/ai-music-companion-single-companion-pilot-roadmap-2026-07-18.md`](docs/ai-music-companion-single-companion-pilot-roadmap-2026-07-18.md)。该方向当前只进入产品与架构规划，不改变项目暂停点，也不代表已经启动运行时开发。
+AI 音乐小伙伴与智能体已经纳入长期产品终局；能力、安全与智能体原则见 [`docs/ai-music-companion-agent-roadmap-2026-07-18.md`](docs/ai-music-companion-agent-roadmap-2026-07-18.md)，单伙伴先行、未来多伙伴以及“伙伴人格 × 学习风格”见 [`docs/ai-music-companion-single-companion-pilot-roadmap-2026-07-18.md`](docs/ai-music-companion-single-companion-pilot-roadmap-2026-07-18.md)。当前 P113 已合并，项目在规划更新后暂停；下一运行时切片仍是 P114，不代表伙伴运行时已经开始。
 
 下方“五线谱识别 MVP”章节保留早期项目背景；其中对“当前能力”的描述不应替代上述实时状态文件。
 
