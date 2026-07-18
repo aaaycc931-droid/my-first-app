@@ -1,3 +1,9 @@
+## P112R — 八产品全能路线重定标并暂停（docs-only，2026-07-18）
+
+远端已核对 P106–P112 均已合并：PR #357–#363 的 merge commits 依次为 `889e60d2b273446fb167f6acfa1bd8cb7195d706`、`eb530417894292fb5e20522c01be03cc7cc056eb`、`17e247888cc23b7c5d88a366f0338f76effb7591`、`65ea05428c3118acbfd1d9bc582bc9db9359ed3a`、`a81bed90987cf327a311f4f1b15ed61a36885915`、`c849d901da8ae89c9b5fab6f27324342adb200cd` 和 `a38d7be42b57e2bde4030e78d03a41f644897ee8`。合并事实不替代三档 Android、真实人声、教育审核或竞品同机证据。
+
+产品范围扩展为八款正式对标对象：开嗓练声、知唱音域音调仪、EarMaster、来音乐理、来音钢琴、来音伴奏、来音制谱和完美钢琴；练耳大师明确排除。新增八产品 canonical 竞争路线、P113 后执行路线和最新暂停交接，保留 P113–P120 含义，并增加 F/S/A/C/Q 泳道。最终产品同时建设本地与中国区合规云端能力；当前离线优先不是终局。本阶段只写文档，不修改 runtime、测试、依赖、Android 工程、数据库、版本或 APK；P113 尚未开始。QA level recommendation：**none**。
+
 ## P107 — 三层离线采样钢琴与 88 键音频映射（本地验证通过，待 CI/真机，2026-07-17）
 
 P107 将 Public Domain 的 Splendid Grand Piano 浏览器 OGG 转换版固定到上游 commit `eae8c5c7a10f4b0e06281211e704c36c30e25342`，从 PP、Mp、Mf 三档力度各选 12 个根音，共 36 个本地资产、约 2 MB。版本化 zone map 覆盖 MIDI 21–108（A0–C8），触控压力或接触面积用于选择力度层，无压力能力时使用稳定默认力度；解码采用按需加载、24-buffer LRU 和 in-flight 去重。任何 fetch/decode 失败都会明确提示并自动回退到 P106 兼容合成音，不伪装成采样音色。
