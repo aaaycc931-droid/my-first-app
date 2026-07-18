@@ -47,13 +47,25 @@ import {
 import { BrowserMetronomeScheduler } from "../../lib/metronome/metronomeScheduler";
 import {
   createPianoLearningSchedule,
+  P110_ORIGINAL_PIANO_EXERCISE,
   type PianoLearningScore,
 } from "../../lib/piano/pianoLearningScore";
+import {
+  completeActivityCheck,
+  createActivitySession,
+  restartActivityAttempt,
+  submitActivityAnswer,
+} from "../../lib/activity/activitySession";
+import {
+  adaptPianoNoteSequenceToActivityEvidence,
+  createPianoLearningActivityDefinition,
+} from "../../lib/activity/pianoLearningActivityAdapter";
 import {
   useLocalPianoAudio,
   type LocalPianoAudioChannelFactory,
 } from "./useLocalPianoAudio";
 import { LocalPianoLearningPanel } from "./LocalPianoLearningPanel";
+import { PianoActivityProtocolPanel } from "./PianoActivityProtocolPanel";
 
 const rangeLabels: Record<LocalPianoRangeId, string> = {
   "C3-C4": "低音区：C3 到 C4",
@@ -70,6 +82,8 @@ const labelModeNames: Record<PianoLabelMode, string> = {
 const locatorNotes = ["a0", "c2", "c3", "c4", "c5", "c6", "c7", "c8"] as const;
 const keyboardToken = (keyId: string) => `key-${keyId}`;
 const PIANO_PERFORMANCE_STORAGE_KEY = "solfeggio.piano.performances.v1";
+const PIANO_ACTIVITY_DEFINITION = createPianoLearningActivityDefinition(P110_ORIGINAL_PIANO_EXERCISE);
+const PIANO_ACTIVITY_SESSION_ID = `piano-learning:${P110_ORIGINAL_PIANO_EXERCISE.id}`;
 
 const loadInitialPianoPerformances = (): {
   items: PianoPerformance[];
@@ -136,6 +150,9 @@ export function LocalPianoPanel({
   const [metronomeRunning, setMetronomeRunning] = useState(false);
   const [metronomeBeat, setMetronomeBeat] = useState(0);
   const metronomeRef = useRef<BrowserMetronomeScheduler | null>(null);
+  const [pianoActivitySession, setPianoActivitySession] = useState(() =>
+    createActivitySession(PIANO_ACTIVITY_DEFINITION, PIANO_ACTIVITY_SESSION_ID));
+  const [pianoActivityActive, setPianoActivityActive] = useState(false);
 
   const handleExternalAudioStop = useCallback(() => {
     playbackTimersRef.current.forEach((timer) => window.clearTimeout(timer));
@@ -167,6 +184,14 @@ export function LocalPianoPanel({
     () => transposePianoKeys(getFullPianoKeys(), transpose),
     [transpose],
   );
+  const expectedPianoActivityNoteIds = PIANO_ACTIVITY_DEFINITION.target.expectedAnswer.mode === "piano"
+    ? PIANO_ACTIVITY_DEFINITION.target.expectedAnswer.noteIds
+    : [];
+  const pianoActivityAnswerCount = pianoActivitySession.answer?.mode === "piano"
+    ? pianoActivitySession.answer.noteIds.length
+    : 0;
+  const pianoActivityAccepting = pianoActivityActive
+    && pianoActivityAnswerCount < expectedPianoActivityNoteIds.length;
   const rows = useMemo(
     () => viewMode === "full" ? splitFullPianoRows(keys, rowMode) : [keys],
     [keys, rowMode, viewMode],
@@ -427,6 +452,58 @@ export function LocalPianoPanel({
     }, 2_000);
   };
 
+  const startPianoActivity = () => {
+    if (transpose !== 0 || pianoActivitySession.lifecycle === "checked") return;
+    stopPlayback();
+    setPianoActivityActive(true);
+  };
+
+  const capturePianoActivityKey = (key: LocalPianoKey) => {
+    if (!pianoActivityAccepting || transpose !== 0) return;
+    const currentCount = pianoActivityAnswerCount;
+    if (currentCount >= expectedPianoActivityNoteIds.length) return;
+    const noteId = key.soundingNoteName ?? key.noteName;
+    setPianoActivitySession((currentSession) => {
+      const existing = currentSession.answer?.mode === "piano"
+        ? currentSession.answer.noteIds
+        : [];
+      if (currentSession.lifecycle === "checked" || existing.length >= expectedPianoActivityNoteIds.length) {
+        return currentSession;
+      }
+      return submitActivityAnswer(
+        PIANO_ACTIVITY_DEFINITION,
+        currentSession,
+        { mode: "piano", noteIds: [...existing, noteId] },
+        currentSession.revision,
+      );
+    });
+    if (currentCount + 1 >= expectedPianoActivityNoteIds.length) setPianoActivityActive(false);
+  };
+
+  const checkPianoActivity = () => {
+    setPianoActivityActive(false);
+    setPianoActivitySession((currentSession) => {
+      const actualNoteIds = currentSession.answer?.mode === "piano"
+        ? currentSession.answer.noteIds
+        : [];
+      return completeActivityCheck(
+        currentSession,
+        adaptPianoNoteSequenceToActivityEvidence({
+          expectedNoteIds: expectedPianoActivityNoteIds,
+          actualNoteIds,
+        }),
+        currentSession.revision,
+      );
+    });
+  };
+
+  const restartPianoActivity = () => {
+    stopPlayback();
+    setPianoActivitySession((currentSession) =>
+      restartActivityAttempt(currentSession, currentSession.revision));
+    setPianoActivityActive(transpose === 0);
+  };
+
   const handlePointerDown = (
     event: PointerEvent<HTMLButtonElement>,
     key: LocalPianoKey,
@@ -444,6 +521,7 @@ export function LocalPianoPanel({
       : contactArea >= 16
         ? Math.min(1, Math.max(0.25, contactArea / 900))
         : 0.65;
+    capturePianoActivityKey(key);
     pressKey(event.pointerId, key.id, velocity);
   };
 
@@ -491,6 +569,7 @@ export function LocalPianoPanel({
                   onKeyDown={(event) => {
                     if ((event.key === "Enter" || event.key === " ") && !event.repeat) {
                       event.preventDefault();
+                      capturePianoActivityKey(key);
                       pressKey(keyboardToken(key.id), key.id);
                     }
                   }}
@@ -567,7 +646,7 @@ export function LocalPianoPanel({
 
       <div className="mt-4 grid gap-4 sm:grid-cols-3">
         <label className="text-sm font-semibold text-slate-800">移调：{transpose > 0 ? `+${transpose}` : transpose} 半音
-          <input aria-label="钢琴移调" type="range" min="-12" max="12" step="1" value={transpose} onChange={(event) => changeKeyboard(() => setTranspose(Number(event.target.value)))} className="mt-3 w-full accent-fuchsia-700" />
+          <input aria-label="钢琴移调" type="range" min="-12" max="12" step="1" value={transpose} onChange={(event) => changeKeyboard(() => { setPianoActivityActive(false); setTranspose(Number(event.target.value)); })} className="mt-3 w-full accent-fuchsia-700" />
         </label>
         <label className="text-sm font-semibold text-slate-800">音量：{Math.round(keyboardState.volume * 100)}%
           <input aria-label="钢琴音量" type="range" min="0" max="1" step="0.05" value={keyboardState.volume} onChange={(event) => changeVolume(Number(event.target.value))} className="mt-3 w-full accent-fuchsia-700" />
@@ -643,6 +722,16 @@ export function LocalPianoPanel({
         onStopPlayback={stopPlayback}
         isPlaying={isPlaying}
         playbackBlocked={isRecording || stressRunning}
+      />
+
+      <PianoActivityProtocolPanel
+        session={pianoActivitySession}
+        expectedNoteIds={expectedPianoActivityNoteIds}
+        active={pianoActivityAccepting}
+        transpose={transpose}
+        onStart={startPianoActivity}
+        onCheck={checkPianoActivity}
+        onRestart={restartPianoActivity}
       />
 
       {viewMode === "full" ? <div className="mt-4 rounded-xl bg-slate-50 p-3"><button type="button" disabled={stressRunning || isRecording || isPlaying} onClick={runStressTest} className="min-h-11 rounded-xl bg-slate-900 px-4 py-2 text-sm font-bold text-white disabled:opacity-50">{stressRunning ? "32 音压力测试进行中…" : "运行 32 音压力测试（2 秒）"}</button><p className="mt-2 text-xs leading-5 text-slate-600">会同时播放 32 个中音区音符并自动全停；请用于检查爆音、性能下降和残音，测试前降低媒体音量。</p></div> : null}
