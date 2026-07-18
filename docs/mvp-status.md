@@ -1,3 +1,9 @@
+## P114c — 临时乐谱节奏拍击接入统一活动协议（候选，2026-07-18）
+
+P114c 把现有“已确认临时乐谱节奏目标 → 点击/空格练习 → 非评分节奏反馈”接入 `activity-definition-v1` 与 `activity-session-v1`，成为统一协议中第一个真实 `tap` 输入 vertical slice。活动身份由草稿指纹、拍号和本轮 BPM 稳定生成，不使用仅当前会话的创建时间；休止符继续只推进音乐时间，非休止音符起点成为相对 `onsetMs` 答案。练习开始、点击、自然结束/主动停止和重置分别驱动 ready、answering、checked 与新尝试状态，检查证据只表达接近、有差异或证据不足，不产生分数、准确率、等级或通过/失败。
+
+本切片复用既有临时目标确认、Web Audio 节拍器、延迟校准和 DP 节奏反馈，不改变旧题库、课程 RPC、Web Audio、本机复练 v2 或 Android 行为；不增加伙伴 UI、麦克风起音、五线谱/简谱/唱名编辑答案、MIDI 输入、持久节奏历史或云端上传。focused 协议/适配器测试、完整 `npm run check`、Android 本地静态边界和 CI focused 门禁已纳入；本地原生 Gradle 下载受执行环境网络策略阻塞，`testDebugUnitTest` 与 `assembleDebug` 必须由 PR 的 `android-local` CI 验证，真实手机与教育审核继续单列。QA level recommendation：**strict**。
+
 ## P114b — 四类现有练习统一协议迁移（合并后按产品要求暂停，2026-07-18）
 
 P114b 将 Android/共享入口中尚未迁移的音程、节奏和三音旋律听写接入 P114a 冻结的 `activity-definition-v1` 与 `activity-session-v1`；至此当前四类本地听辨题都复用同一套作答、检查、新尝试和非评分证据状态。音程保留上/下行稳定题目标识，节奏保留 4/4 与题目 BPM，旋律答案明确按三个音的位置顺序检查并保留重复音，不能用无序集合误判。共享答案组件同时覆盖单选与有序多位置输入。

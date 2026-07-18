@@ -67,6 +67,16 @@ export const checkChoiceActivityAnswer = (
   });
 };
 
+export const completeActivityCheck = (
+  session: ActivitySessionV1,
+  evidence: ActivityCheckEvidence,
+  expectedRevision: number,
+) => update(session, expectedRevision, {
+  lifecycle: "checked",
+  checkEvidence: { ...evidence, assessmentMode: "non-scoring" },
+  availableActions: ["replay-reference", "restart-current-attempt", "show-explanation"],
+});
+
 export const restartActivityAttempt = (session: ActivitySessionV1, expectedRevision: number): ActivitySessionV1 => {
   const attemptNumber = session.attemptNumber + 1;
   return update(session, expectedRevision, {
