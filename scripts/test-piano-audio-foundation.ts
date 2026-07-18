@@ -13,6 +13,7 @@ import {
   reducePianoNoteEvent,
 } from "../lib/piano/pianoNoteEvents";
 import {
+  LOCAL_PIANO_TIMBRE_PROVIDERS,
   SPLENDID_GRAND_PIANO_TIMBRE,
   SPLENDID_GRAND_PIANO_ZONES,
 } from "../lib/piano/splendidGrandPiano";
@@ -66,6 +67,12 @@ assert.equal(selectPianoSampleZone(zones, 61, 0.8)?.id, "c4-loud");
 assert.equal(selectPianoSampleZone(zones, 80, 0.8), null);
 
 assert.equal(SPLENDID_GRAND_PIANO_TIMBRE.license, "Public Domain");
+assert.equal(LOCAL_PIANO_TIMBRE_PROVIDERS.length, 6);
+assert.equal(new Set(LOCAL_PIANO_TIMBRE_PROVIDERS.map((provider) => provider.descriptor.id)).size, 6);
+assert.ok(LOCAL_PIANO_TIMBRE_PROVIDERS.slice(1).every((provider) =>
+  provider.descriptor.baseTimbreId === SPLENDID_GRAND_PIANO_TIMBRE.id
+  && provider.descriptor.license === "Public Domain",
+));
 assert.equal(SPLENDID_GRAND_PIANO_ZONES.length, 36);
 for (const midi of [21, 60, 108]) {
   for (const velocity of [0.2, 0.5, 0.9]) {

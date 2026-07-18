@@ -71,7 +71,13 @@ export function useLocalPianoAudio({
     () => createLocalPianoKeyboardState(),
   );
   const [notice, setNotice] = useState<string | null>(null);
-  const [timbre, setTimbre] = useState<PianoTimbreDescriptor>(voiceProvider.descriptor);
+  const [resolvedTimbre, setResolvedTimbre] = useState<{
+    providerId: string;
+    descriptor: PianoTimbreDescriptor;
+  }>(() => ({ providerId: voiceProvider.descriptor.id, descriptor: voiceProvider.descriptor }));
+  const timbre = resolvedTimbre.providerId === voiceProvider.descriptor.id
+    ? resolvedTimbre.descriptor
+    : voiceProvider.descriptor;
   const stateRef = useRef(keyboardState);
   const keysById = useMemo(() => new Map(keys.map((key) => [key.id, key])), [keys]);
   const voicesRef = useRef(new Map<string, ActiveVoice>());
@@ -205,7 +211,10 @@ export function useLocalPianoAudio({
         }
         pendingRef.current.delete(keyId);
         if (mountedRef.current) {
-          setTimbre(voice.timbre);
+          setResolvedTimbre({
+            providerId: voiceProvider.descriptor.id,
+            descriptor: voice.timbre,
+          });
           if (voiceProvider.descriptor.kind === "sampled" && voice.timbre.kind === "compatibility-synth") {
             setNotice("本地钢琴采样暂不可用，已自动切换到兼容降级音色。");
           }

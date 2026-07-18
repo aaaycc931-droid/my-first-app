@@ -30,6 +30,7 @@ import {
   type PianoViewMode,
 } from "../../lib/piano/pianoInteraction";
 import type { PianoVoiceProvider } from "../../lib/piano/pianoAudioProvider";
+import { LOCAL_PIANO_TIMBRE_PROVIDERS } from "../../lib/piano/splendidGrandPiano";
 import {
   appendPianoPerformanceEvent,
   createPianoPerformanceRecorder,
@@ -45,9 +46,14 @@ import {
 } from "../../lib/piano/pianoPerformance";
 import { BrowserMetronomeScheduler } from "../../lib/metronome/metronomeScheduler";
 import {
+  createPianoLearningSchedule,
+  type PianoLearningScore,
+} from "../../lib/piano/pianoLearningScore";
+import {
   useLocalPianoAudio,
   type LocalPianoAudioChannelFactory,
 } from "./useLocalPianoAudio";
+import { LocalPianoLearningPanel } from "./LocalPianoLearningPanel";
 
 const rangeLabels: Record<LocalPianoRangeId, string> = {
   "C3-C4": "低音区：C3 到 C4",
@@ -100,6 +106,16 @@ export function LocalPianoPanel({
   const [keyWidth, setKeyWidth] = useState<PianoKeyWidth>(46);
   const [labelMode, setLabelMode] = useState<PianoLabelMode>("scientific");
   const [transpose, setTranspose] = useState(0);
+  const availableTimbreProviders = useMemo(
+    () => voiceProvider ? [voiceProvider] : LOCAL_PIANO_TIMBRE_PROVIDERS,
+    [voiceProvider],
+  );
+  const [selectedTimbreId, setSelectedTimbreId] = useState(
+    () => availableTimbreProviders[0]?.descriptor.id ?? "",
+  );
+  const selectedVoiceProvider = availableTimbreProviders.find(
+    (provider) => provider.descriptor.id === selectedTimbreId,
+  ) ?? availableTimbreProviders[0];
   const [stressRunning, setStressRunning] = useState(false);
   const stressTimerRef = useRef<number | null>(null);
   const [initialPerformanceLibrary] = useState(loadInitialPianoPerformances);
@@ -168,7 +184,7 @@ export function LocalPianoPanel({
   } = useLocalPianoAudio({
     keys: audioKeys,
     createChannel: createAudioChannel,
-    voiceProvider,
+    voiceProvider: selectedVoiceProvider,
     onPerformanceEvent: recordPerformanceEvent,
     onExternalAudioStop: handleExternalAudioStop,
   });
@@ -266,6 +282,33 @@ export function LocalPianoPanel({
       playbackTimersRef.current.push(finishTimer);
     };
     runCycle();
+  };
+
+  const startLearningPlayback = (score: PianoLearningScore, bpm: number) => {
+    stopPlayback();
+    const schedule = createPianoLearningSchedule(score, bpm);
+    if (schedule.length === 0) {
+      setPerformanceNotice("请先检查并确认谱面草稿，再开始播放。");
+      return;
+    }
+    const baseDelay = transpose === 0 ? 0 : 60;
+    if (transpose !== 0) setTranspose(0);
+    setIsPlaying(true);
+    playbackTimersRef.current = schedule.map((event) => window.setTimeout(() => {
+      if (event.type === "note-on" && event.keyId && event.pointerId) {
+        pressKeyRef.current(event.pointerId, event.keyId, 0.68);
+      } else if (event.type === "note-off" && event.pointerId) {
+        releasePointerRef.current(event.pointerId);
+      } else if (event.type === "all-notes-off") {
+        stopAllRef.current();
+      }
+    }, baseDelay + event.delayMs));
+    const finishTimer = window.setTimeout(() => {
+      stopAllRef.current();
+      playbackTimersRef.current = [];
+      setIsPlaying(false);
+    }, baseDelay + (schedule.at(-1)?.delayMs ?? 0) + 30);
+    playbackTimersRef.current.push(finishTimer);
   };
 
   const startRecording = () => {
@@ -484,6 +527,16 @@ export function LocalPianoPanel({
         当前音色：{timbre.displayName}。{timbre.kind === "compatibility-synth" ? "这只是兼容降级音色，不是真实钢琴采样。" : `采样版本：${timbre.version}。`}
       </p>
 
+      <label className="mt-3 block text-sm font-semibold text-slate-800">离线音色预设
+        <select aria-label="钢琴离线音色" value={selectedVoiceProvider?.descriptor.id ?? ""} disabled={availableTimbreProviders.length < 2 || isRecording || isPlaying} onChange={(event) => {
+          stopStress();
+          setSelectedTimbreId(event.target.value);
+        }} className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 disabled:opacity-60">
+          {availableTimbreProviders.map((provider) => <option key={provider.descriptor.id} value={provider.descriptor.id}>{provider.descriptor.displayName}</option>)}
+        </select>
+        <span className="mt-1 block text-xs font-normal leading-5 text-slate-600">六种预设共用同一套 Public Domain 三层采样，通过本机滤波与包络形成差异，并非六套独立乐器采样库。</span>
+      </label>
+
       <fieldset className="mt-5 grid gap-3 rounded-2xl border border-slate-200 p-3 sm:grid-cols-2 lg:grid-cols-4">
         <legend className="px-2 text-sm font-bold text-slate-900">键盘显示</legend>
         <label className="text-sm font-semibold text-slate-800">视图
@@ -580,6 +633,17 @@ export function LocalPianoPanel({
         </div>
         {performanceNotice ? <p className="mt-3 rounded-xl bg-white p-3 text-sm leading-6 text-indigo-950" role="status">{performanceNotice}</p> : null}
       </section>
+
+      <LocalPianoLearningPanel
+        onPressKey={(pointerId, keyId, velocity) => { pressKey(pointerId, keyId, velocity); }}
+        onReleasePointer={releasePointer}
+        onPedal={setSustainEnabled}
+        onStopAll={stopPlayback}
+        onPlayScore={startLearningPlayback}
+        onStopPlayback={stopPlayback}
+        isPlaying={isPlaying}
+        playbackBlocked={isRecording || stressRunning}
+      />
 
       {viewMode === "full" ? <div className="mt-4 rounded-xl bg-slate-50 p-3"><button type="button" disabled={stressRunning || isRecording || isPlaying} onClick={runStressTest} className="min-h-11 rounded-xl bg-slate-900 px-4 py-2 text-sm font-bold text-white disabled:opacity-50">{stressRunning ? "32 音压力测试进行中…" : "运行 32 音压力测试（2 秒）"}</button><p className="mt-2 text-xs leading-5 text-slate-600">会同时播放 32 个中音区音符并自动全停；请用于检查爆音、性能下降和残音，测试前降低媒体音量。</p></div> : null}
       <p className="mt-4 text-xs leading-5 text-slate-500">支持完整 88 键逻辑音域、最多 32 个并发音符和至少 10 指状态。切换视图、排布、键宽、移调、离开页面或应用进入后台时会停止声音。</p>
