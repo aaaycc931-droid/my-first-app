@@ -2,25 +2,24 @@
 
 ## 项目入口定位
 
-本项目最终定位为：面向中文用户的视唱练耳练习系统。
+本项目最终定位为：面向中文用户的全能音乐学习与创作系统。视唱练耳是核心教学主轴，但不是唯一功能边界。
 
 主体功能包括：
 
-- 音高练习；
-- 节奏练习；
-- 听辨练习；
-- 视唱练习；
-- 练习反馈。
+- 练声、实时音准、录音提交后分析与分段复练；
+- 视唱、练耳、节奏、乐理课程、定制练习与学习反馈；
+- 专业移动钢琴、MIDI、录音、谱面学习与多音色；
+- 乐谱导入、识谱/OMR、制谱、播放、标准格式导入导出；
+- 歌曲/伴奏导入、分离、编辑、分析、跟唱与跟弹；
+- 本地项目、账号同步、私有云处理、内容分发和教师/作业能力。
 
-五线谱识别是练习内容生成的重要输入能力，不是孤立 OCR 工具。
+最终产品同时建设高质量本地与中国区合规云端能力；当前 Android 离线优先只是阶段性实施约束，不是最终卖点或终局范围。
 
-私人歌曲练习是未来补全功能和个性化练习素材来源，不是当前最大主体。
-
-练习反馈是视唱练耳训练闭环的关键支撑。
+五线谱识别必须进入“预览 → 检查 → 修改/确认 → 再练习/制谱”的完整链路，不是孤立 OCR 工具。私人歌曲和伴奏处理必须服务于同一份乐谱、练习目标、录音证据与学习画像。
 
 ## Codex 必读文件规则
 
-每次涉及 `/practice`、五线谱识别、视唱练耳、练习反馈、产品路线或功能规划任务时，开始实现前必须先读取：
+每次涉及 `/practice`、五线谱识别、制谱、伴奏、钢琴、视唱练耳、练习反馈、云端能力、产品路线或功能规划任务时，开始实现前必须先读取：
 
 - `docs/mvp-status.md`
 - `docs/final-release-definition-of-done.md`
@@ -28,7 +27,9 @@
 - `docs/android-apk-release-plan.md`
 - `docs/android-offline-professional-product-roadmap.md`
 - `docs/professional-competitive-roadmap-perfect-piano-earmaster.md`
-- `docs/project-handoff-paused-professional-rebaseline-2026-07-16.md`
+- `docs/eight-product-unified-competitive-roadmap-2026-07-18.md`
+- `docs/future-development-execution-roadmap-eight-products-2026-07-18.md`
+- `docs/project-handoff-paused-after-p112-eight-product-rebaseline-2026-07-18.md`
 - `docs/sight-singing-ear-training-feature-detail-map.md`
 - `docs/private-cloud-song-practice-pipeline-plan.md`
 
@@ -39,7 +40,7 @@
 
 如果某个文件不存在，必须先说明，不要凭空假设其内容。
 
-截至 2026-07-16，产品所有者已在专业竞争力路线重定标后明确暂停运行时开发。若新请求只是询问状态、复盘或规划，不得自行开始 P106；只有用户明确要求恢复开发时，才从远端最新 `main` 和交接文档继续。
+截至 2026-07-18，P106–P112 已合并；产品所有者在八产品全能路线重定标后再次明确暂停运行时开发。若新请求只是询问状态、竞品、复盘、规划或文档，不得自行开始 P113；只有用户明确要求恢复开发时，才从远端最新 `main` 和最新交接继续。
 
 凡涉及五线谱、乐谱预览、notation draft、识谱、OCR / OMR、乐谱到练习目标、Stage A–F 的任务，除上述通用必读文档外，还必须读取：
 
@@ -184,7 +185,7 @@ QA 分级：
 
 ## 开发原则
 
-- 只做 MVP，不做复杂优化。
+- 每个阶段先做边界明确的可验证候选，不用“小步 MVP”削减已经冻结的最终专业能力范围。
 - 每次实现一个边界清楚、可运行、可测试的完整功能切片。
 - 优先保证可运行，但不能省略适用的错误状态、清除、重置、disabled reason、测试或用户流程。
 - 所有改动必须可解释。
