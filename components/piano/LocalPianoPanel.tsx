@@ -66,12 +66,14 @@ import {
   type ScreenPianoActivityProducer,
 } from "../../lib/activity/pianoNoteEventActivityAdapter";
 import type { NoteEventV1 } from "../../lib/music/noteEvent";
+import { midiPointerToken } from "../../lib/piano/pianoMidi";
 import {
   useLocalPianoAudio,
   type LocalPianoAudioChannelFactory,
 } from "./useLocalPianoAudio";
 import { LocalPianoLearningPanel } from "./LocalPianoLearningPanel";
 import { PianoActivityProtocolPanel } from "./PianoActivityProtocolPanel";
+import { AndroidUsbMidiActivityPanel } from "./AndroidUsbMidiActivityPanel";
 
 const rangeLabels: Record<LocalPianoRangeId, string> = {
   "C3-C4": "低音区：C3 到 C4",
@@ -562,6 +564,26 @@ export function LocalPianoPanel({
     pressKey(event.pointerId, key.id, velocity);
   };
 
+  const handleAndroidUsbMidiSoundEvent = (event: NoteEventV1) => {
+    if (event.type === "all-notes-off") {
+      stopAll();
+      return;
+    }
+    if (event.type === "sustain") {
+      setSustainEnabled(event.down);
+      return;
+    }
+    const deviceSessionId = event.source.deviceSessionId;
+    if (!deviceSessionId) return;
+    const pointerId = midiPointerToken(deviceSessionId, event.channel, event.note);
+    if (event.type === "note-off") {
+      releasePointer(pointerId);
+      return;
+    }
+    const key = audioKeys.find((candidate) => candidate.midi === event.note);
+    if (key) pressKey(pointerId, key.id, event.velocity);
+  };
+
   const renderRow = (rowKeys: readonly LocalPianoKey[], rowIndex: number) => {
     const whiteKeys = rowKeys.filter((key) => key.keyType === "white");
     const firstWhiteIndex = whiteKeys[0]?.whiteKeyIndex ?? 0;
@@ -771,6 +793,11 @@ export function LocalPianoPanel({
         onStart={startPianoActivity}
         onCheck={checkPianoActivity}
         onRestart={restartPianoActivity}
+      />
+
+      <AndroidUsbMidiActivityPanel
+        onSoundEvent={handleAndroidUsbMidiSoundEvent}
+        onStopAll={stopAll}
       />
 
       {viewMode === "full" ? <div className="mt-4 rounded-xl bg-slate-50 p-3"><button type="button" disabled={stressRunning || isRecording || isPlaying} onClick={runStressTest} className="min-h-11 rounded-xl bg-slate-900 px-4 py-2 text-sm font-bold text-white disabled:opacity-50">{stressRunning ? "32 音压力测试进行中…" : "运行 32 音压力测试（2 秒）"}</button><p className="mt-2 text-xs leading-5 text-slate-600">会同时播放 32 个中音区音符并自动全停；请用于检查爆音、性能下降和残音，测试前降低媒体音量。</p></div> : null}

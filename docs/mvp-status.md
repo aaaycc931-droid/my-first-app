@@ -1,4 +1,10 @@
-## P114g — 共享音乐事件与练习目标协议（ACTIVE implementation candidate，2026-07-18）
+## P114h — Android 原生 USB MIDI bridge（本地已验证候选，待 Draft PR / 远端 Android 门禁，2026-07-18）
+
+P114h 在 P114g 的版本化 `NoteEventV1` 和练习目标基础上，增加只面向已安装 Android APK 的原生 USB MIDI bridge：Android `MidiManager` 只枚举系统类型为 `TYPE_USB` 且具有应用接收用 `TYPE_OUTPUT` 端口的设备，用户必须依次手动查找、选择设备、选择输出端口、连接，再显式开始当前跟弹；不会由设备回调、页面恢复或热插拔自动打开或重连。Web MIDI、设备名、蓝牙、虚拟端口均不能进入该 `usb-midi` 活动。屏幕钢琴仍是独立可用的降级路径。
+
+原生解析器支持分包、running status、实时字节、SysEx 跳过、note-on/off、零力度 note-on 规范化为 note-off 与 CC64 sustain；断开、暂停、销毁和拔线均释放端口、发出 all-notes-off / 失效事件，并以会话、序列、generation 和原生 epoch 拒绝陈旧异步输入。活动继续只产生非评分的“一致 / 有差异 / 证据不足”证据，不产生成绩、等级或教育结论。两个 TS focused tests、现有移动钢琴挂载测试、`npm run check`、Android 静态边界校验、移动构建和 Capacitor sync 已在本地通过；本容器无法下载 Gradle 发行版，原生 Gradle/JUnit/APK 构建尚未本地执行，必须由远端 `android-local` 门禁验证。未做 Android OTG 真机、真实 USB 键盘、生命周期或教育有效性测试，不能把候选、CI 或设备类型声明为实机证据。QA level recommendation：**strict**。
+
+## P114g — 共享音乐事件与练习目标协议（PR #373 已合并，2026-07-18）
 
 P114g 在已合并的真实活动迁移之上，冻结最小版本化共享音乐时间、音符事件与练习目标语义，并迁移 P110/P114d 的项目原创确认谱面与屏幕钢琴跟弹作为真实使用者。共享事件必须区分 note-on/off、sustain、all-notes-off、来源和当前会话单调时间；共享目标保留稳定版本、有序音符和重复音，并继续只生成非评分 Activity 证据。完整 empty/error/disabled/clear/reset/stale、兼容性与 strict QA 边界见 `docs/p114g-shared-musical-event-practice-target-acceptance.md`。
 

@@ -1,8 +1,16 @@
 package com.aaaycc931.solfeggio;
 
 import com.getcapacitor.BridgeActivity;
+import com.aaaycc931.solfeggio.midi.UsbMidiPlugin;
+import android.os.Bundle;
 
 public class MainActivity extends BridgeActivity {
+  @Override
+  protected void onCreate(Bundle savedInstanceState) {
+    registerPlugin(UsbMidiPlugin.class);
+    super.onCreate(savedInstanceState);
+  }
+
   @Override
   public void onPause() {
     dispatchLifecycle("pause");
