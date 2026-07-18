@@ -31,7 +31,23 @@
       "normalization": "运行时增益包络",
       "loopStrategy": "持续振荡，松键后短释放",
       "buildDigest": "code-generated-p106-v1"
+    },
+    {
+      "id": "splendid-grand-profile-pack-v1",
+      "version": "1.0.0",
+      "displayName": "Splendid Grand Piano 六种离线音色预设",
+      "kind": "sampled-profile-pack",
+      "default": false,
+      "source": "与默认音色共用同一组 Public Domain 采样；仅使用本机 Web Audio 滤波、包络和增益形成预设差异",
+      "license": "Public Domain 采样；预设参数属于项目源代码",
+      "sampleRate": "asset-native; Web Audio decodeAudioData",
+      "velocityLayers": 3,
+      "profileCount": 6,
+      "profiles": ["原始", "明亮", "柔和", "近场练习", "复古", "清脆短音"],
+      "normalization": "每个预设独立增益、滤波与释放参数",
+      "loopStrategy": "one-shot；按预设使用 35–200ms 释放",
+      "buildDigest": "same-36-public-domain-ogg-assets; six-code-defined-profiles"
     }
   ],
-  "notes": "P107 默认使用离线三层公共领域采样；解码失败时明确回退到 P106 兼容合成音。"
+  "notes": "P110 提供同一合法离线三层采样的六种处理预设，不声称它们是六套独立乐器采样库；解码失败时明确回退到 P106 兼容合成音。"
 }

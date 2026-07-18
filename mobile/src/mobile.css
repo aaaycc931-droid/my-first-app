@@ -107,6 +107,48 @@ select {
   height: 11rem;
 }
 
+.piano-learning-score {
+  position: relative;
+  min-height: 10rem;
+  overflow-x: auto;
+  border: 1px solid #a7f3d0;
+  border-radius: 0.75rem;
+  background:
+    repeating-linear-gradient(to bottom, transparent 0 17px, #64748b 18px 19px, transparent 20px 25px),
+    #fff;
+}
+
+.piano-learning-note {
+  position: absolute;
+  color: #065f46;
+  font-size: 1.3rem;
+  line-height: 1;
+  transform: translateX(-50%) scaleX(1.35);
+}
+
+.piano-learning-waterfall {
+  position: relative;
+  min-height: 19rem;
+  overflow: hidden;
+  border: 1px solid #a7f3d0;
+  border-radius: 0.75rem;
+  background: linear-gradient(90deg, #ecfdf5, #f8fafc 50%, #ecfdf5);
+}
+
+.piano-waterfall-note {
+  position: absolute;
+  width: clamp(2.1rem, 8vw, 4.5rem);
+  min-height: 1.6rem;
+  transform: translateX(-50%);
+  border-radius: 0.5rem;
+  background: #047857;
+  padding: 0.2rem;
+  color: #fff;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-align: center;
+}
+
 @media (orientation: landscape) and (max-height: 600px) {
   .local-piano-keyboard {
     height: 10.5rem;

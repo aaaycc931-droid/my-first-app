@@ -8,6 +8,20 @@ export type PianoTimbreDescriptor = {
   attribution: string;
   license: string;
   source: string;
+  baseTimbreId?: string;
+  profileDescription?: string;
+};
+
+export type PianoSampleVoiceProfile = {
+  gainMultiplier?: number;
+  attackSeconds?: number;
+  releaseSeconds?: number;
+  filter?: {
+    type: BiquadFilterType;
+    frequencyHz: number;
+    gainDb?: number;
+    q?: number;
+  };
 };
 
 export type PianoVoiceTrackingChannel = {
@@ -168,10 +182,12 @@ export const createSamplePianoVoiceProvider = ({
   descriptor,
   zones,
   loadSample,
+  profile = {},
 }: {
   descriptor: PianoTimbreDescriptor;
   zones: readonly PianoSampleZone[];
   loadSample: (context: AudioContext, zone: PianoSampleZone) => Promise<AudioBuffer>;
+  profile?: PianoSampleVoiceProfile;
 }): PianoVoiceProvider => {
   if (descriptor.kind !== "sampled") throw new Error("采样提供器必须使用 sampled 音色描述");
   return {
@@ -183,19 +199,34 @@ export const createSamplePianoVoiceProvider = ({
       if (isCancelled()) throw new Error("钢琴采样请求已取消");
       const source = context.createBufferSource();
       const gain = context.createGain();
+      const filter = profile.filter ? context.createBiquadFilter() : null;
       source.buffer = buffer;
       source.playbackRate.value = 2 ** ((event.note - zone.rootMidi) / 12);
-      const outputGain = Math.max(0, Math.min(1, volume)) * event.velocity * zone.gain;
-      gain.gain.setValueAtTime(outputGain, context.currentTime);
+      const gainMultiplier = Math.max(0, Math.min(2, profile.gainMultiplier ?? 1));
+      const outputGain = Math.max(0, Math.min(1, volume)) * event.velocity * zone.gain * gainMultiplier;
+      const attackSeconds = Math.max(0, Math.min(0.2, profile.attackSeconds ?? 0));
+      gain.gain.setValueAtTime(attackSeconds > 0 && outputGain > 0 ? 0.0001 : outputGain, context.currentTime);
+      if (attackSeconds > 0 && outputGain > 0) {
+        gain.gain.exponentialRampToValueAtTime(outputGain, context.currentTime + attackSeconds);
+      }
       source.connect(gain);
-      gain.connect(context.destination);
-      channel.trackSource(source, [gain]);
+      if (filter) {
+        filter.type = profile.filter?.type ?? "lowpass";
+        filter.frequency.setValueAtTime(profile.filter?.frequencyHz ?? 20_000, context.currentTime);
+        filter.Q.setValueAtTime(profile.filter?.q ?? 0.7, context.currentTime);
+        filter.gain.setValueAtTime(profile.filter?.gainDb ?? 0, context.currentTime);
+        gain.connect(filter);
+        filter.connect(context.destination);
+      } else {
+        gain.connect(context.destination);
+      }
+      channel.trackSource(source, filter ? [gain, filter] : [gain]);
       source.start(context.currentTime + 0.005);
       let released = false;
       return {
         timbre: descriptor,
         setVolume(nextVolume) {
-          if (!released) gain.gain.setTargetAtTime(nextVolume * event.velocity * zone.gain, context.currentTime, 0.015);
+          if (!released) gain.gain.setTargetAtTime(nextVolume * event.velocity * zone.gain * gainMultiplier, context.currentTime, 0.015);
         },
         release(immediately = false) {
           if (released) return;
@@ -207,8 +238,9 @@ export const createSamplePianoVoiceProvider = ({
           }
           gain.gain.cancelScheduledValues(now);
           gain.gain.setValueAtTime(Math.max(0, gain.gain.value), now);
-          if (gain.gain.value > 0) gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.08);
-          source.stop(now + 0.1);
+          const releaseSeconds = Math.max(0.02, Math.min(0.8, profile.releaseSeconds ?? 0.08));
+          if (gain.gain.value > 0) gain.gain.exponentialRampToValueAtTime(0.0001, now + releaseSeconds);
+          source.stop(now + releaseSeconds + 0.02);
         },
       };
     },

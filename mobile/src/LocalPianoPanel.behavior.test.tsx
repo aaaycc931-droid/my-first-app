@@ -126,6 +126,17 @@ const renderPanel = async (factory: LocalPianoAudioChannelFactory) => {
   return container;
 };
 
+const renderPanelWithDefaultTimbres = async (factory: LocalPianoAudioChannelFactory) => {
+  const container = document.createElement("div");
+  document.body.append(container);
+  root = createRoot(container);
+  await act(async () => root?.render(
+    <StrictMode><LocalPianoPanel createAudioChannel={factory} /></StrictMode>,
+  ));
+  await flush();
+  return container;
+};
+
 const pianoKey = (container: ParentNode, keyId: string): HTMLButtonElement => {
   const button = container.querySelector<HTMLButtonElement>(`[data-piano-key="${keyId}"]`);
   if (!button) throw new Error(`找不到琴键：${keyId}`);
@@ -175,6 +186,7 @@ afterEach(async () => {
   }
   vi.useRealTimers();
   Object.defineProperty(document, "hidden", { configurable: true, value: false });
+  Object.defineProperty(navigator, "requestMIDIAccess", { configurable: true, value: undefined });
   vi.restoreAllMocks();
 });
 
@@ -677,5 +689,105 @@ describe("本地钢琴面板行为", () => {
     await click(buttonWithText(container, "回放所选记录"));
     expect(container.textContent).toContain("区间至少为 0.1 秒");
     expect(audio.oscillators).toHaveLength(0);
+  });
+
+  it("默认运行时展示六种合法离线音色预设，测试注入 provider 时保持固定", async () => {
+    const audio = createAudioHarness();
+    const container = await renderPanelWithDefaultTimbres(audio.factory);
+    const timbres = container.querySelector<HTMLSelectElement>('select[aria-label="钢琴离线音色"]');
+    if (!timbres) throw new Error("找不到离线音色预设");
+    expect(timbres.options).toHaveLength(6);
+    expect(new Set(Array.from(timbres.options).map((option) => option.value)).size).toBe(6);
+    expect(container.textContent).toContain("并非六套独立乐器采样库");
+  });
+
+  it("Web MIDI 不支持时显示中文降级且屏幕钢琴保持可用", async () => {
+    const audio = createAudioHarness();
+    const container = await renderPanel(audio.factory);
+    await click(buttonWithText(container, "连接 MIDI"));
+    expect(container.textContent).toContain("不支持 Web MIDI");
+    await pointer(pianoKey(container, "c4"), "pointerdown", 300);
+    expect(audio.oscillators).toHaveLength(1);
+  });
+
+  it("MIDI 音符、力度、延音与设备断连映射到钢琴并清理状态", async () => {
+    const audio = createAudioHarness();
+    const input = {
+      id: "usb-midi-1",
+      name: "测试键盘",
+      manufacturer: "本机夹具",
+      state: "connected" as "connected" | "disconnected",
+      type: "input",
+      onmidimessage: null as ((event: { data: Uint8Array }) => void) | null,
+    };
+    const access = {
+      inputs: new Map([[input.id, input]]),
+      onstatechange: null as (() => void) | null,
+    };
+    Object.defineProperty(navigator, "requestMIDIAccess", {
+      configurable: true,
+      value: vi.fn(async () => access),
+    });
+    const container = await renderPanel(audio.factory);
+    await click(buttonWithText(container, "连接 MIDI"));
+    expect(container.textContent).toContain("本机夹具 · 测试键盘");
+    await act(async () => input.onmidimessage?.({ data: new Uint8Array([0x90, 60, 127]) }));
+    await flush();
+    expect(pianoKey(container, "c4").getAttribute("aria-pressed")).toBe("true");
+    await act(async () => input.onmidimessage?.({ data: new Uint8Array([0xb0, 64, 127]) }));
+    await act(async () => input.onmidimessage?.({ data: new Uint8Array([0x80, 60, 0]) }));
+    await flush();
+    expect(container.textContent).toContain("延音：开");
+    expect(pianoKey(container, "c4").getAttribute("aria-pressed")).toBe("true");
+    input.state = "disconnected";
+    await act(async () => access.onstatechange?.());
+    await flush();
+    expect(pianoKey(container, "c4").getAttribute("aria-pressed")).toBe("false");
+    expect(container.textContent).toContain("当前没有可用输入设备");
+  });
+
+  it("MusicXML 先生成待检查草稿，修改会使确认失效，重新确认后才可播放", async () => {
+    const audio = createAudioHarness();
+    const container = await renderPanel(audio.factory);
+    const input = container.querySelector<HTMLInputElement>('input[aria-label="选择本机 MusicXML"]');
+    if (!input) throw new Error("找不到 MusicXML 输入");
+    const xml = `<?xml version="1.0"?><score-partwise version="3.1"><part id="P1"><measure number="1"><attributes><divisions>1</divisions></attributes><note><pitch><step>C</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type></note><note><pitch><step>E</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type></note></measure></part></score-partwise>`;
+    const file = new File([xml], "本机练习.musicxml", { type: "application/xml" });
+    Object.defineProperty(file, "text", { configurable: true, value: async () => xml });
+    Object.defineProperty(input, "files", { configurable: true, value: [file] });
+    await act(async () => {
+      input.dispatchEvent(new Event("change", { bubbles: true }));
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    await flush();
+    expect(container.textContent).toContain("2 个音符的待检查草稿");
+    expect(buttonWithText(container, "播放确认谱面").disabled).toBe(true);
+    await click(buttonWithText(container, "我已检查，确认此草稿用于练习"));
+    expect(buttonWithText(container, "播放确认谱面").disabled).toBe(false);
+    await click(buttonWithText(container, "移除"));
+    expect(container.textContent).toContain("确认状态已失效");
+    expect(buttonWithText(container, "播放确认谱面").disabled).toBe(true);
+    await click(buttonWithText(container, "我已检查，确认此草稿用于练习"));
+    expect(buttonWithText(container, "播放确认谱面").disabled).toBe(false);
+    await click(buttonWithText(container, "清除本机草稿"));
+    expect(container.textContent).toContain("没有保存或上传文件内容");
+    expect(container.textContent).toContain("原创练习：级进与小跳");
+  });
+
+  it("原创谱面可切换瀑布视图并通过统一定时器播放后全停", async () => {
+    const audio = createAudioHarness();
+    const container = await renderPanel(audio.factory);
+    await click(buttonWithText(container, "瀑布视图"));
+    expect(container.querySelectorAll(".piano-waterfall-note")).toHaveLength(8);
+    vi.useFakeTimers();
+    await act(async () => {
+      buttonWithText(container, "播放确认谱面").click();
+      await Promise.resolve();
+    });
+    await act(async () => vi.advanceTimersByTimeAsync(8_000));
+    expect(audio.oscillators).toHaveLength(8);
+    expect(audio.channels.every((channel) => channel.stopped)).toBe(true);
+    expect(buttonWithText(container, "停止谱面播放").disabled).toBe(true);
   });
 });

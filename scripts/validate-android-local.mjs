@@ -17,9 +17,13 @@ const requiredSources = [
   "lib/piano/splendidGrandPiano.ts",
   "lib/piano/pianoInteraction.ts",
   "lib/piano/pianoPerformance.ts",
+  "lib/piano/pianoMidi.ts",
+  "lib/piano/pianoLearningScore.ts",
   "mobile/public/piano/timbres.manifest.json",
   "components/piano/LocalPianoPanel.tsx",
   "components/piano/useLocalPianoAudio.ts",
+  "components/piano/useLocalPianoMidi.ts",
+  "components/piano/LocalPianoLearningPanel.tsx",
   "components/practice/RealtimePitchMonitorPanel.tsx",
   "components/practice/RealtimePitchCurveChart.tsx",
   "components/practice/LocalVocalExercisePanel.tsx",
@@ -60,11 +64,17 @@ const pianoAudioSource = readFileSync(
   join(root, "components/piano/useLocalPianoAudio.ts"),
   "utf8",
 );
+const pianoLearningPanelSource = readFileSync(
+  join(root, "components/piano/LocalPianoLearningPanel.tsx"),
+  "utf8",
+);
 const pianoProviderSource = readFileSync(join(root, "lib/piano/pianoAudioProvider.ts"), "utf8");
 const pianoEventSource = readFileSync(join(root, "lib/piano/pianoNoteEvents.ts"), "utf8");
 const sampledPianoSource = readFileSync(join(root, "lib/piano/splendidGrandPiano.ts"), "utf8");
 const pianoInteractionSource = readFileSync(join(root, "lib/piano/pianoInteraction.ts"), "utf8");
 const pianoPerformanceSource = readFileSync(join(root, "lib/piano/pianoPerformance.ts"), "utf8");
+const pianoMidiSource = readFileSync(join(root, "lib/piano/pianoMidi.ts"), "utf8");
+const pianoLearningSource = readFileSync(join(root, "lib/piano/pianoLearningScore.ts"), "utf8");
 const pianoTimbreManifest = JSON.parse(readFileSync(
   join(root, "mobile/public/piano/timbres.manifest.json"),
   "utf8",
@@ -127,8 +137,15 @@ if (
   || !pianoPanelSource.includes("solfeggio.piano.performances.v1")
   || !pianoPerformanceSource.includes("MAX_PIANO_PERFORMANCE_EVENTS = 2_000")
   || !pianoPerformanceSource.includes("createPianoPlaybackSchedule")
+  || !pianoMidiSource.includes('PIANO_MIDI_INPUT_VERSION = "piano-midi-input-v1"')
+  || !pianoMidiSource.includes("decodePianoMidiMessage")
+  || !pianoLearningSource.includes('PIANO_LEARNING_SCORE_VERSION = "piano-learning-score-v1"')
+  || !pianoLearningSource.includes("createPianoLearningDraftFromMusicXML")
+  || !pianoLearningPanelSource.includes("MIDI 与谱面学习")
+  || !pianoLearningPanelSource.includes("瀑布视图")
   || pianoTimbreManifest.timbres?.[0]?.id !== "splendid-grand-piano-mobile-v1"
   || pianoTimbreManifest.timbres?.[0]?.velocityLayers !== 3
+  || pianoTimbreManifest.timbres?.find((item) => item.id === "splendid-grand-profile-pack-v1")?.profileCount !== 6
 ) {
   throw new Error("Android 本地参考钢琴缺少音域、多指、延音或残音清理边界");
 }
@@ -197,6 +214,8 @@ for (const expectedCopy of [
   "本机复练",
   "本地参考钢琴",
   "节拍器与演奏记录",
+  "MIDI 与谱面学习",
+  "瀑布视图",
   "实时音高反馈",
   "开始实时反馈",
   "开始会话录音",
