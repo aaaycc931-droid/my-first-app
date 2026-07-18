@@ -38,6 +38,12 @@ const requiredSources = [
   "lib/practice/localVocalExercise.ts",
   "lib/practice/localVocalTargetFeedback.ts",
   "mobile/src/runtime/localVocalPracticeStorage.ts",
+  "android/app/src/main/java/com/aaaycc931/solfeggio/midi/NormalizedMidiMessage.java",
+  "android/app/src/main/java/com/aaaycc931/solfeggio/midi/NativeUsbMidiNoteEvent.java",
+  "android/app/src/main/java/com/aaaycc931/solfeggio/midi/UsbMidiMessageParser.java",
+  "android/app/src/main/java/com/aaaycc931/solfeggio/midi/UsbMidiPlugin.java",
+  "android/app/src/test/java/com/aaaycc931/solfeggio/midi/NativeUsbMidiNoteEventTest.java",
+  "android/app/src/test/java/com/aaaycc931/solfeggio/midi/UsbMidiMessageParserTest.java",
 ];
 
 for (const relativePath of requiredSources) {
@@ -90,6 +96,18 @@ const mainActivityPath = join(
   root,
   "android/app/src/main/java/com/aaaycc931/solfeggio/MainActivity.java",
 );
+const usbMidiPluginSource = readFileSync(join(
+  root,
+  "android/app/src/main/java/com/aaaycc931/solfeggio/midi/UsbMidiPlugin.java",
+), "utf8");
+const usbMidiParserSource = readFileSync(join(
+  root,
+  "android/app/src/main/java/com/aaaycc931/solfeggio/midi/UsbMidiMessageParser.java",
+), "utf8");
+const normalizedMidiMessageSource = readFileSync(join(
+  root,
+  "android/app/src/main/java/com/aaaycc931/solfeggio/midi/NormalizedMidiMessage.java",
+), "utf8");
 if (!capacitorConfig.includes('appId: "com.aaaycc931.solfeggio"')) {
   throw new Error("Android applicationId 未固定");
 }
@@ -201,6 +219,46 @@ if (existsSync(mainActivityPath)) {
   if (!mainActivity.includes("solfeggio:native-lifecycle")) {
     throw new Error("Android 原生层缺少本地生命周期事件桥接");
   }
+  if (!mainActivity.includes("registerPlugin(UsbMidiPlugin.class)")) {
+    throw new Error("Android 原生层未注册 USB MIDI Capacitor bridge");
+  }
+}
+
+const deviceCallbackEnd = usbMidiPluginSource.indexOf("  @Override\n  public void load()");
+const deviceCallbackSource = usbMidiPluginSource.slice(
+  usbMidiPluginSource.indexOf("MidiManager.DeviceCallback"),
+  deviceCallbackEnd,
+);
+if (
+  !usbMidiPluginSource.includes('@CapacitorPlugin(name = "UsbMidi")')
+  || !usbMidiPluginSource.includes('BRIDGE_PROTOCOL_VERSION = "android-midi-bridge-v1"')
+  || !usbMidiPluginSource.includes("info.getType() == MidiDeviceInfo.TYPE_USB")
+  || !usbMidiPluginSource.includes("port.getType() == MidiDeviceInfo.PortInfo.TYPE_OUTPUT")
+  || !usbMidiPluginSource.includes('call.getInt("deviceId")')
+  || !usbMidiPluginSource.includes('call.getInt("outputPort")')
+  || !usbMidiPluginSource.includes('call.getString("commandId")')
+  || !usbMidiPluginSource.includes("handleOnPause()")
+  || !usbMidiPluginSource.includes("handleOnDestroy()")
+  || !usbMidiPluginSource.includes("unregisterDeviceCallback(deviceCallback)")
+) {
+  throw new Error("Android USB MIDI bridge 缺少 TYPE_USB、显式设备/端口选择、协议或生命周期关闭边界");
+}
+if (
+  deviceCallbackEnd < 0
+  || deviceCallbackSource.includes("openDevice(")
+  || deviceCallbackSource.includes("openOutputPort(")
+) {
+  throw new Error("Android USB MIDI 设备回调不得自动打开设备或端口");
+}
+if (
+  !usbMidiParserSource.includes("runningStatus")
+  || !usbMidiParserSource.includes("insideSystemExclusive")
+  || !usbMidiParserSource.includes("value >= 0xf8")
+  || !usbMidiParserSource.includes("data[0] == 64")
+  || !normalizedMidiMessageSource.includes("if (velocity == 0) return noteOff(channel, note)")
+  || !normalizedMidiMessageSource.includes("value >= 64")
+) {
+  throw new Error("Android USB MIDI parser 缺少 running status、实时字节、SysEx、零力度 note-off 或延音边界");
 }
 
 const distRoot = join(root, "mobile-dist");
@@ -284,6 +342,19 @@ if (existsSync(manifestPath)) {
   }
   if (!manifest.includes("android.permission.RECORD_AUDIO")) {
     throw new Error("实时音高反馈缺少 Android 麦克风权限");
+  }
+  if (
+    !/<uses-feature android:name="android\.software\.midi" android:required="false" \/>/.test(manifest)
+    || !/<uses-feature android:name="android\.hardware\.usb\.host" android:required="false" \/>/.test(manifest)
+  ) {
+    throw new Error("Android USB MIDI 必须保持 MIDI 与 USB host 为非强制 feature");
+  }
+  if (
+    /android\.permission\.(?:BLUETOOTH(?:_CONNECT|_SCAN)?|MIDI|USB)/.test(manifest)
+    || manifest.includes("android.hardware.usb.action.USB_DEVICE_ATTACHED")
+    || manifest.includes("device_filter")
+  ) {
+    throw new Error("Android USB MIDI 不得虚构危险权限或通过 USB attach filter 自动打开应用");
   }
 }
 

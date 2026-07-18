@@ -62,6 +62,8 @@ jobs:
           npm run test:activity-protocol
           npm run test:musical-time-v1
           npm run test:note-event-v1
+          npm run test:android-midi-bridge
+          npm run test:android-usb-midi-activity-adapter
           npm run test:piano-note-event-activity-adapter
           npm run test:notation-rhythm-activity-adapter
           npm run test:piano-learning-activity-adapter
