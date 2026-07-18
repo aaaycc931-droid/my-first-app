@@ -45,6 +45,7 @@ jobs:
           npm run test:mobile-practice-review-storage
           npm run test:mobile-practice-review-ui-contract
           npm run test:mobile-practice-review-behavior
+          npm run test:mobile-melody-solfege-behavior
           npm run test:mobile-piano-behavior
           npm run test:piano-audio-foundation
           npm run test:piano-interaction
@@ -61,6 +62,7 @@ jobs:
           npm run test:activity-protocol
           npm run test:notation-rhythm-activity-adapter
           npm run test:piano-learning-activity-adapter
+          npm run test:melody-solfege-activity-adapter
           npm run test:legacy-activity-adapters
           npm run test:analysis-evidence-adapter
           npm run test:companion-activity-bridge

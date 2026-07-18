@@ -4,7 +4,7 @@
 
 状态：**Canonical integrated roadmap / 统一长期开发主路线**
 
-当前执行状态：**ACTIVE AT P114d / 屏幕钢琴输入协议堆叠候选**
+当前执行状态：**ACTIVE AT P114e / 三音旋律听写固定唱名答案 implementation candidate**
 
 适用项目：`aaaycc931-droid/my-first-app`
 
@@ -19,8 +19,9 @@
 - AI 音乐伙伴总路线和“单伙伴先行、未来多伙伴、先天人格 × 学习风格”细化路线已经入库；
 - P114a 已通过 PR #367 squash merge，main commit 为 `f8939d8c614d9b328acdcea63614d95db7b34e01`；单音听辨已成为统一活动、通用证据与 M0 安全接入协议的首个真实使用者；
 - P114b 已通过 PR #368 合并，main commit 为 `65ed9950d480a78f327bec500de407336ee9a52e`；音程、节奏和三音旋律听写保持旧题库、课程 RPC、Web Audio 与本机复练兼容地迁入统一协议；
-- 产品所有者已明确开始 P114c。当前切片只把已确认临时乐谱节奏目标的 `tap` 输入、活动生命周期和非评分证据接入统一协议，不制作伙伴 UI，也不把这一输入切片冒充完整 P114。
-- P114c 已形成草稿 PR #369 并通过自动门禁，但尚未获合并确认；P114d 在其上堆叠项目原创确认谱面的屏幕 `piano` 输入，不把 MusicXML 草稿或 USB/BLE MIDI 描述为已适配。
+- P114c 已通过 PR #369 合并，main commit 为 `4737f7eb9dae2f18c15008f2a0f718f3fd7cba5e`；已确认临时乐谱节奏目标的 `tap` 输入、活动生命周期和非评分证据已接入统一协议；
+- P114d 已通过 PR #370 合并，main commit 为 `0e1d7ee107ec1e8c0131e972031b27d408f5dade`；项目原创确认谱面的屏幕 `piano` 输入已接入，但 MusicXML 草稿和 USB/BLE MIDI 仍未适配；
+- P114e 当前为 ACTIVE implementation candidate，本地运行时已在现有三音旋律听写中保留 `choice` 并增加固定唱名 `solfege` 有序答案，focused adapter 与共享真实挂载行为测试已通过；验收标准记录在 `docs/p114e-fixed-solfege-answer-acceptance.md`，但完整远端门禁、PR 和合并尚未完成。
 
 本次产品决策是：
 
@@ -188,7 +189,7 @@ flowchart TD
 - P113 真机音频/录音/生命周期与目标用户证据；
 - 伙伴运行时、P114 统一活动模型和共享协议。
 
-该暂停点已由产品所有者在 2026-07-18 明确解除；当前进入 R1 的 P114a 首个完整切片。
+该暂停点已由产品所有者在 2026-07-18 明确解除；P114a–P114d 已合并，当前继续 R1 的 P114e implementation candidate，P114 尚未整体完成。
 
 ### R1：P114 + F1/F2 + M0——统一活动与伙伴安全接入点
 

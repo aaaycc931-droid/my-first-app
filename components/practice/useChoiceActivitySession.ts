@@ -2,12 +2,15 @@
 
 import { useState } from "react";
 
+import type { ActivityAnswer } from "../../lib/activity/activityAnswer";
 import type { ActivityDefinitionV1 } from "../../lib/activity/activityDefinition";
 import {
   checkChoiceActivityAnswer,
+  completeActivityCheck,
   createActivitySession,
   restartActivityAttempt,
   submitActivityAnswer,
+  type ActivityCheckEvidence,
   type ActivitySessionV1,
 } from "../../lib/activity/activitySession";
 
@@ -36,6 +39,18 @@ export function useChoiceActivitySession(
     });
   };
 
+  const submitAnswer = (answer: ActivityAnswer) => {
+    setStoredSession((stored) => {
+      const current = resolve(stored);
+      return submitActivityAnswer(
+        definition,
+        current,
+        answer,
+        current.revision,
+      );
+    });
+  };
+
   const checkChoice = (optionIds: string[]) => {
     setStoredSession((stored) => {
       const current = resolve(stored);
@@ -49,6 +64,19 @@ export function useChoiceActivitySession(
     });
   };
 
+  const checkAnswer = (answer: ActivityAnswer, evidence: ActivityCheckEvidence) => {
+    setStoredSession((stored) => {
+      const current = resolve(stored);
+      const submitted = submitActivityAnswer(
+        definition,
+        current,
+        answer,
+        current.revision,
+      );
+      return completeActivityCheck(submitted, evidence, submitted.revision);
+    });
+  };
+
   const restart = () => {
     setStoredSession((stored) => {
       const current = resolve(stored);
@@ -56,5 +84,27 @@ export function useChoiceActivitySession(
     });
   };
 
-  return { session, submitChoice, checkChoice, restart };
+  const restartIfDirty = () => {
+    setStoredSession((stored) => {
+      const current = resolve(stored);
+      if (
+        current.lifecycle === "ready"
+        && current.answer === undefined
+        && current.checkEvidence === undefined
+      ) {
+        return current;
+      }
+      return restartActivityAttempt(current, current.revision);
+    });
+  };
+
+  return {
+    session,
+    submitAnswer,
+    submitChoice,
+    checkAnswer,
+    checkChoice,
+    restart,
+    restartIfDirty,
+  };
 }
