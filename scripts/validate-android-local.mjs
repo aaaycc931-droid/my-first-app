@@ -30,8 +30,10 @@ const requiredSources = [
   "components/practice/useRealtimePitchMonitor.ts",
   "components/practice/useOfflinePitchAnalysis.ts",
   "components/practice/OfflinePitchAnalysisPanel.tsx",
+  "components/practice/OfflineNoteAlignmentEvidencePanel.tsx",
   "lib/practice/pitchEstimate.ts",
   "lib/practice/offlinePitchAnalysis.ts",
+  "lib/practice/offlineNoteAlignment.ts",
   "lib/practice/realtimePitchCurve.ts",
   "lib/practice/localVocalExercise.ts",
   "lib/practice/localVocalTargetFeedback.ts",
@@ -79,6 +81,7 @@ const pianoPerformanceSource = readFileSync(join(root, "lib/piano/pianoPerforman
 const pianoMidiSource = readFileSync(join(root, "lib/piano/pianoMidi.ts"), "utf8");
 const pianoLearningSource = readFileSync(join(root, "lib/piano/pianoLearningScore.ts"), "utf8");
 const offlinePitchSource = readFileSync(join(root, "lib/practice/offlinePitchAnalysis.ts"), "utf8");
+const offlineAlignmentSource = readFileSync(join(root, "lib/practice/offlineNoteAlignment.ts"), "utf8");
 const pianoTimbreManifest = JSON.parse(readFileSync(
   join(root, "mobile/public/piano/timbres.manifest.json"),
   "utf8",
@@ -162,6 +165,18 @@ if (
 ) {
   throw new Error("Android 录音后分析缺少版本、标准 PCM、多候选、拒答或八度抑制边界");
 }
+if (
+  !offlineAlignmentSource.includes('OFFLINE_NOTE_ALIGNMENT_VERSION = "offline-note-alignment-v1"')
+  || !offlineAlignmentSource.includes("segmentOfflinePitchFrames")
+  || !offlineAlignmentSource.includes("analyzeOfflineNoteAlignment")
+  || !offlineAlignmentSource.includes('label: "音头"')
+  || !offlineAlignmentSource.includes('label: "稳定段"')
+  || !offlineAlignmentSource.includes('label: "尾音"')
+  || !offlineAlignmentSource.includes('state: "missing"')
+  || !offlineAlignmentSource.includes('state: "unreliable"')
+) {
+  throw new Error("Android 逐音证据缺少版本、独立分段、目标对齐、三阶段证据或局部拒答边界");
+}
 const pianoAssetDirectory = join(root, "mobile/public/piano/splendid-grand-v1");
 const pianoAssets = readdirSync(pianoAssetDirectory).filter((name) => name.endsWith(".ogg"));
 const pianoAssetBytes = pianoAssets.reduce((total, name) => total + statSync(join(pianoAssetDirectory, name)).size, 0);
@@ -235,6 +250,9 @@ for (const expectedCopy of [
   "丢弃本次录音",
   "录音停止后的本地多候选分析",
   "确认开始本地分析",
+  "逐音与逐句证据（非评分）",
+  "回放本次片段并定位复练",
+  "没有用单个总百分比",
   "练声目标生成器",
   "播放参考音型",
   "练声目标对照（非评分）",

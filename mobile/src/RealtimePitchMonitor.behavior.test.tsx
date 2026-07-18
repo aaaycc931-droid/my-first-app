@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { RealtimePitchMonitorPanel } from "../../components/practice/RealtimePitchMonitorPanel";
 import { stopAllBrowserAudio } from "../../lib/audio/browserAudioEngine";
+import { generateLocalVocalExercise, type GeneratedLocalVocalExercise } from "../../lib/practice/localVocalExercise";
 
 let root: Root | null = null;
 let trackStop: ReturnType<typeof vi.fn>;
@@ -20,11 +21,11 @@ const flush = async () => {
   await act(async () => { await new Promise((resolve) => window.setTimeout(resolve, 10)); });
 };
 
-const renderPanel = async () => {
+const renderPanel = async (targetExercise?: GeneratedLocalVocalExercise) => {
   const container = document.createElement("div");
   document.body.append(container);
   root = createRoot(container);
-  await act(async () => root?.render(<StrictMode><RealtimePitchMonitorPanel /></StrictMode>));
+  await act(async () => root?.render(<StrictMode><RealtimePitchMonitorPanel targetExercise={targetExercise} /></StrictMode>));
   await flush();
   return container;
 };
@@ -159,7 +160,17 @@ describe("Android 实时音高反馈行为", () => {
   });
 
   it("录音停止后必须二次确认才执行本地多候选分析，丢弃会使结果失效", async () => {
-    const container = await renderPanel();
+    const targetExercise = generateLocalVocalExercise({
+      patternId: "single",
+      rootMidi: 69,
+      direction: "ascending",
+      bpm: 60,
+      octaveShift: 0,
+      loops: 1,
+      referenceMode: "full",
+      intervalSemitones: 7,
+    });
+    const container = await renderPanel(targetExercise);
     await click(button(container, "开始实时反馈"));
     await click(button(container, "开始会话录音"));
     await click(button(container, "停止录音"));
@@ -175,6 +186,16 @@ describe("Android 实时音高反馈行为", () => {
     expect(container.textContent).toContain("A4");
     expect(container.textContent).toContain("候选一致");
     expect(container.querySelector('[aria-label="录音后连续音高轨迹，不含目标评分"]')).not.toBeNull();
+    expect(container.textContent).toContain("逐音与逐句证据（非评分）");
+    expect(container.textContent).toContain("第 1 音 · 目标 A4");
+    expect(container.textContent).toContain("接近目标");
+    expect(container.textContent).toContain("音头");
+    expect(container.textContent).toContain("稳定段");
+    expect(container.textContent).toContain("尾音");
+
+    await click(button(container, "回放本次片段并定位复练"));
+    expect(audioPlay).toHaveBeenCalledTimes(1);
+    expect(container.textContent).toContain("已定位片段");
 
     await click(button(container, "丢弃本次录音"));
     expect(container.textContent).toContain("状态：等待本次录音");
