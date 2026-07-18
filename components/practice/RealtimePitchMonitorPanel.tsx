@@ -7,6 +7,7 @@ import { localVocalExerciseManifest, type GeneratedLocalVocalExercise } from "..
 import { getLocalVocalTargetFeedback } from "../../lib/practice/localVocalTargetFeedback";
 import { RealtimePitchCurveChart } from "./RealtimePitchCurveChart";
 import { LocalVocalObservationPanel } from "./LocalVocalObservationPanel";
+import { OfflinePitchAnalysisPanel } from "./OfflinePitchAnalysisPanel";
 import { useRealtimePitchMonitor } from "./useRealtimePitchMonitor";
 import { stopAllBrowserAudio, subscribeBrowserAudioStopAll } from "../../lib/audio/browserAudioEngine";
 import {
@@ -189,6 +190,7 @@ export function RealtimePitchMonitorPanel({ targetExercise = null }: { targetExe
           <button type="button" onClick={monitor.stopPlayback} disabled={monitor.recordingStatus !== "playing"} className="min-h-11 rounded-xl border border-violet-300 bg-white px-4 py-2 text-sm font-bold text-violet-950 disabled:cursor-not-allowed disabled:opacity-50">停止回放</button>
           <button type="button" onClick={monitor.discardRecording} disabled={monitor.recordingStatus === "empty"} className="min-h-11 rounded-xl border border-rose-300 bg-white px-4 py-2 text-sm font-bold text-rose-800 disabled:cursor-not-allowed disabled:opacity-50">丢弃本次录音</button>
         </div>
+        <OfflinePitchAnalysisPanel recording={monitor.recordingBlob} onBeforeAnalyze={() => { stopSavedPlayback(); monitor.stopPlayback(); monitor.stop(); }} />
       </section>
 
       <div className="mt-5 flex flex-wrap gap-2">

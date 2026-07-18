@@ -14,6 +14,7 @@ let audioPlay: ReturnType<typeof vi.fn>;
 let audioPause: ReturnType<typeof vi.fn>;
 let createObjectUrl: ReturnType<typeof vi.fn>;
 let revokeObjectUrl: ReturnType<typeof vi.fn>;
+let decodeAudioDataMock: ReturnType<typeof vi.fn>;
 
 const flush = async () => {
   await act(async () => { await new Promise((resolve) => window.setTimeout(resolve, 10)); });
@@ -48,12 +49,20 @@ beforeEach(() => {
   createObjectUrl = vi.fn().mockReturnValue("blob:session-recording");
   revokeObjectUrl = vi.fn();
   getUserMedia = vi.fn().mockResolvedValue({ getTracks: () => [{ stop: trackStop }] });
+  const decodedSamples = new Float32Array(48_000);
+  for (let index = 0; index < decodedSamples.length; index += 1) decodedSamples[index] = 0.35 * Math.sin(2 * Math.PI * 440 * index / 48_000);
+  decodeAudioDataMock = vi.fn().mockResolvedValue({
+    numberOfChannels: 1,
+    sampleRate: 48_000,
+    getChannelData: () => decodedSamples,
+  });
   Object.defineProperty(navigator, "mediaDevices", { configurable: true, value: { getUserMedia } });
   class FakeAudioContext {
     sampleRate = 48_000;
     state = "running";
     resume = vi.fn().mockResolvedValue(undefined);
     close = contextClose;
+    decodeAudioData = decodeAudioDataMock;
     createMediaStreamSource = () => ({ connect: vi.fn(), disconnect: vi.fn() });
     createAnalyser = () => ({
       fftSize: 4096,
@@ -147,6 +156,29 @@ describe("Android 实时音高反馈行为", () => {
     await click(button(container, "丢弃本次录音"));
     expect(revokeObjectUrl).toHaveBeenCalledWith("blob:session-recording");
     expect(container.textContent).toContain("状态：尚未录音");
+  });
+
+  it("录音停止后必须二次确认才执行本地多候选分析，丢弃会使结果失效", async () => {
+    const container = await renderPanel();
+    await click(button(container, "开始实时反馈"));
+    await click(button(container, "开始会话录音"));
+    await click(button(container, "停止录音"));
+
+    await click(button(container, "检查并准备分析本次录音"));
+    expect(container.textContent).toContain("确认停止麦克风");
+    expect(decodeAudioDataMock).not.toHaveBeenCalled();
+
+    await click(button(container, "确认开始本地分析"));
+    expect(decodeAudioDataMock).toHaveBeenCalledTimes(1);
+    expect(trackStop).toHaveBeenCalledTimes(1);
+    expect(container.textContent).toContain("状态：本地分析已完成");
+    expect(container.textContent).toContain("A4");
+    expect(container.textContent).toContain("候选一致");
+    expect(container.querySelector('[aria-label="录音后连续音高轨迹，不含目标评分"]')).not.toBeNull();
+
+    await click(button(container, "丢弃本次录音"));
+    expect(container.textContent).toContain("状态：等待本次录音");
+    expect(container.textContent).not.toContain("状态：本地分析已完成");
   });
 
   it("录音中卸载会停止录制、释放媒体轨且不生成会话 URL", async () => {
