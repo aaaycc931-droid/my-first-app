@@ -4,13 +4,13 @@
 
 状态：**Canonical integrated roadmap / 统一长期开发主路线**
 
-当前执行状态：**ACTIVE AT P114f / 固定 A4 单音麦克风证据 implementation candidate（本地共享挂载已形成）**
+当前执行状态：**ACTIVE AT P114g / 共享音乐事件与练习目标协议 implementation candidate**
 
 适用项目：`aaaycc931-droid/my-first-app`
 
 ## 1. 当前事实与本次决策
 
-截至本文件建立时，远端 `main` 已核对到 `f6082bdb1dbb2069250e4035b7ff33277c52ba38`：
+当前远端检查点已更新到 `main@5006e882676c0ac2c747286efaa34b0423526b3c`：
 
 - P106–P112 已合并；
 - P113 已通过 PR #365 squash merge，merge commit 为 `2a786f1b66fee095224214430d12e96f78a5057e`；
@@ -22,7 +22,8 @@
 - P114c 已通过 PR #369 合并，main commit 为 `4737f7eb9dae2f18c15008f2a0f718f3fd7cba5e`；已确认临时乐谱节奏目标的 `tap` 输入、活动生命周期和非评分证据已接入统一协议；
 - P114d 已通过 PR #370 合并，main commit 为 `0e1d7ee107ec1e8c0131e972031b27d408f5dade`；项目原创确认谱面的屏幕 `piano` 输入已接入，但 MusicXML 草稿和 USB/BLE MIDI 仍未适配；
 - P114e 已通过 PR #371 squash merge，main commit 为 `b8cff79626af3267611291b13f020a24f5a55ff5`；现有三音旋律听写保留 `choice` 并增加固定唱名 `solfege` 有序答案，ordered、重复音、F♯4/C5 token 与 strict QA 边界见 `docs/p114e-fixed-solfege-answer-acceptance.md`；
-- P114f 当前为 ACTIVE implementation candidate：固定 A4 单音已在本地把用户主动录音、二次确认后的 P112/P113 本机分析与 `AnalysisEvidence` 接入当前 attempt 的 `microphone` answer，并共享挂载到 Android 与 Web `/practice` 手动入口；focused adapter 与挂载行为测试已通过。验收标准见 `docs/p114f-fixed-a4-microphone-evidence-acceptance.md`。远端门禁、PR、合并、APK 真机、真实人声或 P104 证据尚未完成。
+- P114f 已通过 PR #372 合并，main commit 为 `5006e882676c0ac2c747286efaa34b0423526b3c`；固定 A4 单音把用户主动录音、二次确认后的 P112/P113 本机分析与 `AnalysisEvidence` 接入当前 attempt 的 `microphone` answer，并共享挂载到 Android 与 Web `/practice` 手动入口；合并不替代 APK 真机、真实人声或 P104 证据；
+- P114g 当前为 ACTIVE implementation candidate：冻结共享音乐事件与练习目标协议，并迁移项目原创确认谱面与现有屏幕钢琴活动作为真实使用者，验收标准见 `docs/p114g-shared-musical-event-practice-target-acceptance.md`。P114g 不交付 USB/BLE Activity；Web MIDI 不能证明物理传输类型，Android 原生 USB MIDI bridge 后续独立实施。
 
 本次产品决策是：
 
@@ -190,7 +191,7 @@ flowchart TD
 - P113 真机音频/录音/生命周期与目标用户证据；
 - 伙伴运行时、P114 统一活动模型和共享协议。
 
-该暂停点已由产品所有者在 2026-07-18 明确解除；P114a–P114e 已合并，其中 P114e 为 PR #371 / `b8cff79626af3267611291b13f020a24f5a55ff5`。当前继续 R1 的 P114f 固定 A4 麦克风证据 implementation candidate；本地共享挂载已形成但远端与真机仍待完成，P114 尚未整体完成。
+该暂停点已由产品所有者在 2026-07-18 明确解除；P114a–P114f 已合并，其中 P114f 为 PR #372 / `5006e882676c0ac2c747286efaa34b0423526b3c`。当前继续 R1 的 P114g 共享音乐事件与练习目标 implementation candidate；USB/BLE Activity、Android 原生 USB bridge 与真机证据仍待独立完成，P114 尚未整体完成。
 
 ### R1：P114 + F1/F2 + M0——统一活动与伙伴安全接入点
 
@@ -491,9 +492,9 @@ P120 仍是专业私测候选，不是全能公开最终版。
 
 产品所有者再次明确恢复运行时开发后：
 
-1. 从 P114e 已合并的远端 `main@b8cff79626af3267611291b13f020a24f5a55ff5` 建立新分支，先核对本路线、DoD、状态矩阵和 P114f 验收文档；
+1. 从 P114f 已合并的远端 `main@5006e882676c0ac2c747286efaa34b0423526b3c` 建立新分支，先核对本路线、DoD、状态矩阵和 P114g 验收文档；
 2. 继续把 P104/P113 的真实人声、三档 Android、延迟/同步和教育证据列为独立缺口；
-3. 实现 P114f 固定 A4 单音麦克风证据 vertical slice：录音零点锚定、当前 attempt 的 P113 evidence、`microphone` answer、非评分 checked 与 stale 清理必须同一切片闭合；
+3. 实现 P114g 共享音乐事件与练习目标 vertical slice：版本化事件、稳定确认目标、现有屏幕钢琴 Activity 真实迁移、来源隔离与 stale 清理必须同一切片闭合；Web MIDI 只标记为 Web MIDI，不推断 USB/BLE；
 4. 不先做伙伴形象、首页悬浮物或自由聊天；
 5. P114 完整合并并证明所有计划输入与共享证据协议有真实使用者后，才启动 M1a 单伙伴可信反馈闭环；
 6. 后续按 R2–R9 滚动推进，每个切片完成“实现 → focused tests → 完整检查 → 提交 → 推送 → PR → CI → 审查 → squash merge → 状态更新”；
@@ -501,7 +502,7 @@ P120 仍是专业私测候选，不是全能公开最终版。
 
 ## 19. 本次规划边界
 
-本节保留本路线最初建立时的 docs-only 边界；它不是当前执行状态。当前 P114a–P114e 已合并并进入 P114f 实施候选，但以下原则继续有效：
+本节保留本路线最初建立时的 docs-only 边界；它不是当前执行状态。当前 P114a–P114f 已合并并进入 P114g 实施候选，但以下原则继续有效：
 
 - 没有实现 P114、F、S、A、C、M 或 Q 的新运行时能力；
 - 没有创建伙伴形象、动画、声音、台词、模型或资源包；

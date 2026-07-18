@@ -46,7 +46,7 @@
 
 如果某个文件不存在，必须先说明，不要凭空假设其内容。
 
-截至 2026-07-18，P106–P113 已合并，P113 merge commit 为 `2a786f1b66fee095224214430d12e96f78a5057e`；伙伴总路线与单伙伴细化路线已入库，但没有伙伴运行时实现。产品所有者已明确恢复 P114：P114a–P114e 均已合并，P114e 通过 PR #371 squash merge，当前 `main` 为 `b8cff79626af3267611291b13f020a24f5a55ff5`。当前活动协议已有真实 `choice`、`tap`、屏幕 `piano` 和固定唱名 `solfege` 输入，P114 仍未整体完成；P114f 固定 A4 单音麦克风证据接入已形成 Web/Android 共享挂载的本地 implementation candidate，边界见 `docs/p114f-fixed-a4-microphone-evidence-acceptance.md`，远端门禁、PR、合并和真机 QA 仍未完成。不得把自动测试或候选代码冒充 P114f 已交付、Android 真机、真实人声、三档设备或 P104 教育证据，也不得自行开始伙伴 UI。
+截至 2026-07-18，P106–P113 已合并，P113 merge commit 为 `2a786f1b66fee095224214430d12e96f78a5057e`；伙伴总路线与单伙伴细化路线已入库，但没有伙伴运行时实现。产品所有者已明确恢复 P114：P114a–P114f 均已合并，P114f 通过 PR #372 合并，当前 `main` 为 `5006e882676c0ac2c747286efaa34b0423526b3c`。当前活动协议已有真实 `choice`、`tap`、屏幕 `piano`、固定唱名 `solfege` 和固定 A4 `microphone` 输入，P114 仍未整体完成；P114g 共享音乐事件与练习目标协议当前为 ACTIVE implementation candidate，验收边界见 `docs/p114g-shared-musical-event-practice-target-acceptance.md`。P114g 是共享协议与现有真实钢琴活动迁移，不代表 USB/BLE MIDI Activity 已交付；Web MIDI 端口不能可靠证明物理传输类型，Android 原生 USB MIDI bridge 留给后续独立切片。不得把自动测试、Web MIDI 设备名或候选代码冒充 USB/BLE、Android 真机、P104 真实数据或教育证据，也不得自行开始伙伴 UI。
 
 凡涉及五线谱、乐谱预览、notation draft、识谱、OCR / OMR、乐谱到练习目标、Stage A–F 的任务，除上述通用必读文档外，还必须读取：
 

@@ -60,6 +60,9 @@ jobs:
           npm run test:offline-pitch-analysis
           npm run test:offline-note-alignment
           npm run test:activity-protocol
+          npm run test:musical-time-v1
+          npm run test:note-event-v1
+          npm run test:piano-note-event-activity-adapter
           npm run test:notation-rhythm-activity-adapter
           npm run test:piano-learning-activity-adapter
           npm run test:melody-solfege-activity-adapter

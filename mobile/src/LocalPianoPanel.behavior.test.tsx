@@ -824,6 +824,8 @@ describe("本地钢琴面板行为", () => {
     }
     expect(protocolPanel.textContent).toContain("C4 · D4 · E4 · G4 · E4 · D4 · C4 · C4（8/8）");
     expect(protocolPanel.textContent).not.toContain("正在接收屏幕琴键输入");
+    expect(protocolPanel.dataset.noteEventCount).toBe("8");
+    expect(protocolPanel.dataset.noteEventProducers).toBe("screen-piano");
 
     await click(buttonWithText(protocolPanel, "检查本轮"));
     expect(protocolPanel.textContent).toContain("统一活动协议：答案已检查");
@@ -832,8 +834,15 @@ describe("本地钢琴面板行为", () => {
     await click(buttonWithText(protocolPanel, "重新尝试"));
     expect(protocolPanel.textContent).toContain("第 2 次尝试");
     expect(protocolPanel.textContent).toContain("本轮输入：尚未输入");
-    await pointer(pianoKey(container, "d4"), "pointerdown", 530);
-    await pointer(pianoKey(container, "d4"), "pointerup", 530);
+    expect(protocolPanel.dataset.noteEventCount).toBe("0");
+    await act(async () => {
+      const d4 = pianoKey(container, "d4");
+      d4.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, key: "Enter" }));
+      d4.dispatchEvent(new KeyboardEvent("keyup", { bubbles: true, key: "Enter" }));
+    });
+    await flush();
+    expect(protocolPanel.dataset.noteEventCount).toBe("1");
+    expect(protocolPanel.dataset.noteEventProducers).toBe("computer-keyboard");
     await click(buttonWithText(protocolPanel, "检查本轮"));
     expect(protocolPanel.textContent).toContain("音符数量或顺序存在差异");
   });

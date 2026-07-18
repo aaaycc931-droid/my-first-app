@@ -1,8 +1,14 @@
-## P114f — 固定 A4 单音麦克风证据接入（ACTIVE implementation candidate，本地共享挂载已形成，2026-07-18）
+## P114g — 共享音乐事件与练习目标协议（ACTIVE implementation candidate，2026-07-18）
+
+P114g 在已合并的真实活动迁移之上，冻结最小版本化共享音乐时间、音符事件与练习目标语义，并迁移 P110/P114d 的项目原创确认谱面与屏幕钢琴跟弹作为真实使用者。共享事件必须区分 note-on/off、sustain、all-notes-off、来源和当前会话单调时间；共享目标保留稳定版本、有序音符和重复音，并继续只生成非评分 Activity 证据。完整 empty/error/disabled/clear/reset/stale、兼容性与 strict QA 边界见 `docs/p114g-shared-musical-event-practice-target-acceptance.md`。
+
+P114g 不是 USB/BLE MIDI Activity 交付。现有 Web MIDI 可以成为共享事件的真实生产者，但 Web MIDI API、端口 id、设备名和厂商字符串都不能可靠证明物理传输是 USB 或 BLE，因此不得自动提交为 `usb-midi` / `ble-midi` answer。Android 原生 USB MIDI bridge、原生权限、OTG、热插拔和真机矩阵留给后续独立切片；完整 `ScoreDocument`、五线谱/简谱答案和正式评分也不在本切片。QA level recommendation：**strict**。
+
+## P114f — 固定 A4 单音麦克风证据接入（PR #372 已合并，2026-07-18）
 
 P114f 选择项目内置、已确认的固定 A4 / 440 Hz、一个音、一个目标的最小声乐活动，把用户主动录制、二次确认后的 P112/P113 本机多候选分析、音符分段和逐音证据接入 `microphone` Activity answer。目标是用无 `expectedAnswer` 的 `analysis-evidence` check policy 将当前 P113 子目标和 attempt 证据绑定，真实驱动初始 `ready`、`answering`、`checked` 和新尝试，并把 `close`、`high/low`、`missing/unreliable` 分别映射为一致、有差异、证据不足的非评分解释；现有 answer-key 分支继续兼容。完整稳定身份、录音零点时间锚定、权限、empty/error/disabled/clear/reset/stale、Web/Android、离线隐私与 strict QA 边界见 `docs/p114f-fixed-a4-microphone-evidence-acceptance.md`。
 
-本地 implementation candidate 已在 Android 音高入口和 Web `/practice` 手动入口复用同一面板，真实驱动 `ready → answering → checked`；录音开始成为固定 A4 目标零点，清除、重录、丢弃、权限拒绝和旧异步结果均有 fail-closed 行为测试。focused adapter、16 个相关挂载测试、协议/证据回归、TypeScript、Lint、依赖审计、Android 本地静态边界、Web/移动生产构建、完整 `npm run check` 和 diff 检查已通过；远端 CI/PR/合并、Web 真麦克风和 Android 真机仍待完成。P104 的真实人声、三档 Android、同步/延迟、算法量化和教育审核继续是独立硬缺口。P114f 不扩展到自由练唱、音程/音阶/歌曲、多句视唱、正式评分、伙伴 UI、云端上传、数据库迁移或持久学习历史。QA level recommendation：**strict**。
+共享运行时已在 Android 音高入口和 Web `/practice` 手动入口复用同一面板，真实驱动 `ready → answering → checked`；录音开始成为固定 A4 目标零点，清除、重录、丢弃、权限拒绝和旧异步结果均有 fail-closed 行为测试。focused adapter、挂载行为、协议/证据回归和远端门禁已随 PR #372 通过并合并，当前 main commit 为 `5006e882676c0ac2c747286efaa34b0423526b3c`。Web 真麦克风、Android 真机、P104 的真实人声、三档 Android、同步/延迟、算法量化和教育审核继续是独立硬缺口，不能被 PR 合并替代。P114f 不扩展到自由练唱、音程/音阶/歌曲、多句视唱、正式评分、伙伴 UI、云端上传、数据库迁移或持久学习历史。QA level recommendation：**strict**。
 
 ## P114e — 三音旋律听写固定唱名答案（PR #371 已 squash merge，2026-07-18）
 
