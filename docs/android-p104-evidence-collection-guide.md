@@ -25,6 +25,8 @@
 
 真实声音原始样本继续使用 `local-fixtures/real-voice/` 的本地约定和 `npm run validate:local-real-phone-comparison`，不得把单个 smoke 样本冒充统计基准。
 
+P111 起，正式多引擎数据汇总统一使用 `p111-pitch-benchmark-v1`：复制 `local-fixtures/pitch-benchmark/benchmark.example.json` 为被忽略的 `benchmark.local.json`，按 `docs/p111-pitch-benchmark-protocol.md` 先分配调参/开发/盲测集、封存盲测标签并冻结引擎参数，再运行 `npm run validate:pitch-benchmark-protocol`。该工具不读取音频；P104 汇总表和 P111 逐样本匿名基准必须互相吻合，但任何一个工具都不能替代授权原件与人工复核。
+
 ## 4. 版本与签名
 
 P104 真机活动开始前，应把功能冻结候选升级为 `0.3.0` / versionCode `3`，并切换到产品所有者控制的稳定私测签名。debug 签名切换到专用签名通常需要卸载，P102 本机曲线与录音会丢失；JSON 导出不含录音。密钥不得进入仓库、日志、截图或公开工件，至少保留两份加密离线备份。
