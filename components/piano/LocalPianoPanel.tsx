@@ -61,6 +61,12 @@ import {
   createPianoLearningActivityDefinition,
 } from "../../lib/activity/pianoLearningActivityAdapter";
 import {
+  adaptScreenPianoNoteEventsToNoteIds,
+  createScreenPianoActivityNoteOn,
+  type ScreenPianoActivityProducer,
+} from "../../lib/activity/pianoNoteEventActivityAdapter";
+import type { NoteEventV1 } from "../../lib/music/noteEvent";
+import {
   useLocalPianoAudio,
   type LocalPianoAudioChannelFactory,
 } from "./useLocalPianoAudio";
@@ -84,6 +90,8 @@ const keyboardToken = (keyId: string) => `key-${keyId}`;
 const PIANO_PERFORMANCE_STORAGE_KEY = "solfeggio.piano.performances.v1";
 const PIANO_ACTIVITY_DEFINITION = createPianoLearningActivityDefinition(P110_ORIGINAL_PIANO_EXERCISE);
 const PIANO_ACTIVITY_SESSION_ID = `piano-learning:${P110_ORIGINAL_PIANO_EXERCISE.id}`;
+const pianoActivityEventOrigin = (attemptNumber: number) =>
+  `${PIANO_ACTIVITY_SESSION_ID}:attempt-${attemptNumber}`;
 
 const loadInitialPianoPerformances = (): {
   items: PianoPerformance[];
@@ -153,6 +161,12 @@ export function LocalPianoPanel({
   const [pianoActivitySession, setPianoActivitySession] = useState(() =>
     createActivitySession(PIANO_ACTIVITY_DEFINITION, PIANO_ACTIVITY_SESSION_ID));
   const [pianoActivityActive, setPianoActivityActive] = useState(false);
+  const pianoActivityNoteEventsRef = useRef<NoteEventV1[]>([]);
+  const pianoActivityEventOriginRef = useRef(pianoActivityEventOrigin(1));
+  const [pianoActivityEventAudit, setPianoActivityEventAudit] = useState({
+    count: 0,
+    producers: "",
+  });
 
   const handleExternalAudioStop = useCallback(() => {
     playbackTimersRef.current.forEach((timer) => window.clearTimeout(timer));
@@ -458,11 +472,31 @@ export function LocalPianoPanel({
     setPianoActivityActive(true);
   };
 
-  const capturePianoActivityKey = (key: LocalPianoKey) => {
+  const capturePianoActivityKey = (
+    key: LocalPianoKey,
+    producer: ScreenPianoActivityProducer,
+    velocity: number,
+    atMs: number,
+  ) => {
     if (!pianoActivityAccepting || transpose !== 0) return;
-    const currentCount = pianoActivityAnswerCount;
+    const currentEvents = pianoActivityNoteEventsRef.current;
+    const currentCount = adaptScreenPianoNoteEventsToNoteIds(currentEvents).length;
     if (currentCount >= expectedPianoActivityNoteIds.length) return;
-    const noteId = key.soundingNoteName ?? key.noteName;
+    const nextEvent = createScreenPianoActivityNoteOn({
+      originId: pianoActivityEventOriginRef.current,
+      sequence: currentEvents.length,
+      producer,
+      note: key.midi,
+      velocity,
+      atMs,
+    });
+    const nextEvents = [...currentEvents, nextEvent];
+    const nextNoteIds = adaptScreenPianoNoteEventsToNoteIds(nextEvents);
+    pianoActivityNoteEventsRef.current = nextEvents;
+    setPianoActivityEventAudit({
+      count: nextEvents.length,
+      producers: Array.from(new Set(nextEvents.map((event) => event.source.producer))).join(","),
+    });
     setPianoActivitySession((currentSession) => {
       const existing = currentSession.answer?.mode === "piano"
         ? currentSession.answer.noteIds
@@ -473,7 +507,7 @@ export function LocalPianoPanel({
       return submitActivityAnswer(
         PIANO_ACTIVITY_DEFINITION,
         currentSession,
-        { mode: "piano", noteIds: [...existing, noteId] },
+        { mode: "piano", noteIds: nextNoteIds },
         currentSession.revision,
       );
     });
@@ -499,6 +533,9 @@ export function LocalPianoPanel({
 
   const restartPianoActivity = () => {
     stopPlayback();
+    pianoActivityNoteEventsRef.current = [];
+    pianoActivityEventOriginRef.current = pianoActivityEventOrigin(pianoActivitySession.attemptNumber + 1);
+    setPianoActivityEventAudit({ count: 0, producers: "" });
     setPianoActivitySession((currentSession) =>
       restartActivityAttempt(currentSession, currentSession.revision));
     setPianoActivityActive(transpose === 0);
@@ -521,7 +558,7 @@ export function LocalPianoPanel({
       : contactArea >= 16
         ? Math.min(1, Math.max(0.25, contactArea / 900))
         : 0.65;
-    capturePianoActivityKey(key);
+    capturePianoActivityKey(key, "screen-piano", velocity, event.timeStamp);
     pressKey(event.pointerId, key.id, velocity);
   };
 
@@ -569,7 +606,7 @@ export function LocalPianoPanel({
                   onKeyDown={(event) => {
                     if ((event.key === "Enter" || event.key === " ") && !event.repeat) {
                       event.preventDefault();
-                      capturePianoActivityKey(key);
+                      capturePianoActivityKey(key, "computer-keyboard", 0.7, event.timeStamp);
                       pressKey(keyboardToken(key.id), key.id);
                     }
                   }}
@@ -727,6 +764,8 @@ export function LocalPianoPanel({
       <PianoActivityProtocolPanel
         session={pianoActivitySession}
         expectedNoteIds={expectedPianoActivityNoteIds}
+        noteEventCount={pianoActivityEventAudit.count}
+        noteEventProducers={pianoActivityEventAudit.producers}
         active={pianoActivityAccepting}
         transpose={transpose}
         onStart={startPianoActivity}
