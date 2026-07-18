@@ -25,6 +25,10 @@ import {
 import { useLocalAudioPlayback } from "./useLocalAudioPlayback";
 import { useLockedPracticeAnswer } from "./useLockedPracticeAnswer";
 import { useLocalQuestionSchedule } from "./useLocalQuestionSchedule";
+import { ActivityChoiceAnswerPanel } from "./ActivityChoiceAnswerPanel";
+import { ActivityProtocolState } from "./ActivityProtocolState";
+import { useChoiceActivitySession } from "./useChoiceActivitySession";
+import { adaptIntervalQuestionToActivity } from "../../lib/activity/legacyLocalActivityAdapter";
 
 export function LocalEarTrainingIntervalPanel({
   courseExerciseId,
@@ -83,6 +87,11 @@ export function LocalEarTrainingIntervalPanel({
     () => getLocalEarTrainingAnswer({ question, selectedIntervalId }),
     [question, selectedIntervalId],
   );
+  const activityDefinition = useMemo(
+    () => adaptIntervalQuestionToActivity(question),
+    [question],
+  );
+  const activity = useChoiceActivitySession(activityDefinition, `interval:${question.id}`);
 
   const playQuestion = async () => {
     setAudioError("");
@@ -114,6 +123,7 @@ export function LocalEarTrainingIntervalPanel({
   const resetCurrentQuestion = () => {
     stopPlayback();
     answerLock.reset();
+    activity.restart();
     setAudioError("");
     resetSaveStatus();
   };
@@ -121,6 +131,7 @@ export function LocalEarTrainingIntervalPanel({
   const revealAnswer = async () => {
     const submittedIntervalId = answerLock.reveal();
     if (!submittedIntervalId) return;
+    activity.checkChoice([submittedIntervalId]);
     const matchesAnswer = submittedIntervalId === question.interval.id;
     if (!courseExerciseId && onLocalAnswerResult && sessionSeed !== null) {
       onLocalAnswerResult({
@@ -230,19 +241,17 @@ export function LocalEarTrainingIntervalPanel({
         <div className="rounded-2xl border border-slate-200 p-4">
           <p className="text-sm font-semibold text-slate-500">回答本题</p>
           <p className="mt-1 text-lg font-bold text-slate-950">听完后选择两个音之间的{direction}音程</p>
-          <div className="mt-4 grid gap-2 sm:grid-cols-3">
-            {answerIntervals.map((interval) => (
-              <button
-                key={interval.id}
-                type="button"
-                disabled={!isQuestionReady || isAnswerVisible}
-                onClick={() => { if (answerLock.choose(interval.id)) resetSaveStatus(); }}
-                className={`rounded-xl border px-3 py-3 text-left font-semibold transition disabled:cursor-not-allowed disabled:opacity-70 ${selectedIntervalId === interval.id ? "border-emerald-600 bg-emerald-50 text-emerald-900 ring-2 ring-emerald-200" : "border-slate-200 bg-white text-slate-800 hover:border-emerald-300"}`}
-              >
-                {interval.label}
-              </button>
-            ))}
-          </div>
+          <ActivityChoiceAnswerPanel
+            options={answerIntervals}
+            selectedOptionId={selectedIntervalId}
+            disabled={!isQuestionReady || isAnswerVisible}
+            accent="emerald"
+            onChoose={(intervalId) => {
+              if (!answerLock.choose(intervalId)) return;
+              activity.submitChoice([intervalId]);
+              resetSaveStatus();
+            }}
+          />
           <div className="mt-4 flex flex-wrap gap-2">
             <button type="button" disabled={!answer.hasSelection || saveStatus === "saving"} onClick={() => void revealAnswer()} className="rounded-xl bg-slate-900 px-4 py-2.5 font-semibold text-white disabled:cursor-not-allowed disabled:bg-slate-300">
               {saveStatus === "saving" ? "正在保存练习记录…" : "查看本题答案"}
@@ -252,6 +261,7 @@ export function LocalEarTrainingIntervalPanel({
             <button type="button" disabled={!isQuestionReady} onClick={nextQuestion} className="rounded-xl border border-emerald-300 bg-white px-4 py-2.5 font-semibold text-emerald-800 disabled:cursor-not-allowed disabled:opacity-50">{initialReviewTarget ? "返回随机练习" : "下一题"}</button>
           </div>
           {!answer.hasSelection ? <p className="mt-3 text-sm leading-6 text-slate-500">请先选择一个音程，再查看本题答案。</p> : null}
+          <ActivityProtocolState session={activity.session} />
           {isAnswerVisible ? (
             <div className="mt-4 rounded-2xl bg-slate-50 p-4 text-sm leading-6 text-slate-700">
               <p className="font-bold text-slate-950">本题答案：{answer.answerLabel}</p>

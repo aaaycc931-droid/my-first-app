@@ -22,7 +22,12 @@ export type ActivityDefinitionV1 = {
   assessmentMode: "non-scoring";
   source: { kind: "built-in" | "generated" | "imported" | "user-authored"; reviewState: "draft" | "checked" | "confirmed" };
   allowedInputModes: ActivityInputMode[];
-  target: { targetId: string; label: string; expectedAnswer: ActivityAnswer };
+  target: {
+    targetId: string;
+    label: string;
+    expectedAnswer: ActivityAnswer;
+    answerPolicy?: { choiceOrder: "ordered" | "unordered" };
+  };
   explanation: string;
   music?: {
     key?: string;

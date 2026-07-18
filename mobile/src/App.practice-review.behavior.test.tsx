@@ -160,6 +160,48 @@ describe("Android 本机复练行为", () => {
     expect(container.textContent).toContain("已加入本机复练");
   });
 
+  for (const [practiceLabel, answerLabel] of [
+    ["音程听辨", "大三度"],
+    ["节奏听辨", "四拍均匀"],
+  ] as const) {
+    it(`${practiceLabel}通过统一活动协议完成作答、检查和非评分反馈`, async () => {
+      const container = await renderApp();
+      await click(findLink(container, practiceLabel));
+      await waitFor(() => !findButton(container, answerLabel).disabled, `${practiceLabel}题目可回答`);
+
+      await click(findButton(container, answerLabel));
+      expect(container.querySelector('[data-testid="activity-protocol-state"]')?.textContent)
+        .toContain("已作答，等待检查");
+      await click(findButton(container, "查看本题答案"));
+      expect(container.querySelector('[data-testid="activity-protocol-state"]')?.textContent)
+        .toContain("答案已检查");
+      expect(container.querySelector('[data-testid="activity-protocol-state"]')?.textContent)
+        .toContain("非评分证据");
+    });
+  }
+
+  it("旋律听写按音符顺序通过统一活动协议完成作答和检查", async () => {
+    const container = await renderApp();
+    await click(findLink(container, "旋律听写"));
+    await waitFor(() => !findButton(container, "C4").disabled, "旋律听写题目可回答");
+
+    const positionFields = Array.from(container.querySelectorAll("fieldset")).filter(
+      (fieldset) => fieldset.querySelector("legend")?.textContent?.startsWith("第 "),
+    );
+    expect(positionFields).toHaveLength(3);
+    for (const fieldset of positionFields) {
+      await click(findButton(fieldset, "C4"));
+    }
+
+    expect(container.querySelector('[data-testid="activity-protocol-state"]')?.textContent)
+      .toContain("已作答，等待检查");
+    await click(findButton(container, "查看本题答案"));
+    expect(container.querySelector('[data-testid="activity-protocol-state"]')?.textContent)
+      .toContain("答案已检查");
+    expect(container.querySelector('[data-testid="activity-protocol-state"]')?.textContent)
+      .toContain("非评分证据");
+  });
+
   it("从首页打开复练题并答对后移除该题", async () => {
     const target = { kind: "single-pitch", difficulty: "基础", seed: 0, sequence: 0 } as const;
     seedQueue(target);

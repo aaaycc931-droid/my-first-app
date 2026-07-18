@@ -1,0 +1,60 @@
+import assert from "node:assert/strict";
+
+import {
+  adaptIntervalQuestionToActivity,
+  adaptMelodyDictationQuestionToActivity,
+  adaptRhythmQuestionToActivity,
+  adaptSinglePitchQuestionToActivity,
+} from "../lib/activity/legacyLocalActivityAdapter";
+import { createLocalEarTrainingSinglePitchQuestion } from "../lib/practice/localEarTrainingSinglePitch";
+import { createLocalEarTrainingQuestion } from "../lib/practice/localEarTrainingIntervals";
+import { createLocalEarTrainingRhythmQuestion } from "../lib/practice/localEarTrainingRhythm";
+import { createLocalEarTrainingMelodyQuestion } from "../lib/practice/localEarTrainingMelodyDictation";
+
+const single = adaptSinglePitchQuestionToActivity(createLocalEarTrainingSinglePitchQuestion({
+  difficulty: "基础", sequence: 0, questionIndex: 0, catalogMode: "expanded-local-v2",
+}));
+assert.equal(single.family, "pitch-relation");
+assert.deepEqual(single.allowedInputModes, ["choice"]);
+
+const intervalQuestion = createLocalEarTrainingQuestion({
+  difficulty: "基础", direction: "上行", sequence: 0, questionIndex: 0, catalogMode: "expanded-local-v2",
+});
+const interval = adaptIntervalQuestionToActivity(intervalQuestion);
+const repeatedInterval = adaptIntervalQuestionToActivity(createLocalEarTrainingQuestion({
+  difficulty: "基础", direction: "上行", sequence: 99, variantId: intervalQuestion.variantId, catalogMode: "expanded-local-v2",
+}));
+const descendingInterval = adaptIntervalQuestionToActivity({ ...intervalQuestion, direction: "下行" });
+assert.equal(interval.family, "interval");
+assert.equal(interval.activityId, repeatedInterval.activityId, "sequence must not change stable activity identity");
+assert.notEqual(interval.activityId, descendingInterval.activityId, "direction is part of the interval target identity");
+assert.deepEqual(interval.target.expectedAnswer, { mode: "choice", optionIds: [intervalQuestion.interval.id] });
+
+const rhythmQuestion = createLocalEarTrainingRhythmQuestion({
+  difficulty: "进阶", sequence: 0, questionIndex: 0, catalogMode: "expanded-local-v2",
+});
+const rhythm = adaptRhythmQuestionToActivity(rhythmQuestion);
+assert.equal(rhythm.family, "rhythm-dictation");
+assert.equal(rhythm.music?.meter, "4/4");
+assert.equal(rhythm.music?.tempoBpm, rhythmQuestion.bpm);
+assert.match(rhythm.target.targetId, new RegExp(`bpm-${rhythmQuestion.bpm}$`));
+
+const melodyQuestion = createLocalEarTrainingMelodyQuestion({
+  difficulty: "基础", sequence: 0, questionIndex: 3, catalogMode: "expanded-local-v2",
+});
+const melody = adaptMelodyDictationQuestionToActivity(melodyQuestion);
+assert.equal(melody.family, "melody-dictation");
+assert.equal(melody.target.answerPolicy?.choiceOrder, "ordered");
+assert.deepEqual(
+  melody.target.expectedAnswer,
+  { mode: "choice", optionIds: melodyQuestion.melody.noteIds },
+);
+
+for (const activity of [single, interval, rhythm, melody]) {
+  assert.equal(activity.assessmentMode, "non-scoring");
+  assert.equal(activity.source.reviewState, "confirmed");
+  assert.equal("score" in activity, false);
+  assert.equal("accuracy" in activity, false);
+}
+
+console.log("P114b legacy activity adapter tests passed.");

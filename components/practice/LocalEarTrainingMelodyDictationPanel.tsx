@@ -18,6 +18,10 @@ import type {
 import { useLocalAudioPlayback } from "./useLocalAudioPlayback";
 import { useLockedPracticeAnswer } from "./useLockedPracticeAnswer";
 import { useLocalQuestionSchedule } from "./useLocalQuestionSchedule";
+import { ActivityOrderedChoiceAnswerPanel } from "./ActivityChoiceAnswerPanel";
+import { ActivityProtocolState } from "./ActivityProtocolState";
+import { useChoiceActivitySession } from "./useChoiceActivitySession";
+import { adaptMelodyDictationQuestionToActivity } from "../../lib/activity/legacyLocalActivityAdapter";
 
 export function LocalEarTrainingMelodyDictationPanel({
   initialReviewTarget,
@@ -59,8 +63,13 @@ export function LocalEarTrainingMelodyDictationPanel({
     catalogMode,
   }), [catalogMode, difficulty, initialReviewTarget?.variantId, questionIndex, sequence]);
   const answer = useMemo(() => getLocalEarTrainingMelodyAnswer({ question, selectedNoteIds }), [question, selectedNoteIds]);
+  const activityDefinition = useMemo(
+    () => adaptMelodyDictationQuestionToActivity(question),
+    [question],
+  );
+  const activity = useChoiceActivitySession(activityDefinition, `melody-dictation:${question.id}`);
 
-  const resetCurrentQuestion = () => { stopPlayback(); answerLock.reset(); setAudioError(""); };
+  const resetCurrentQuestion = () => { stopPlayback(); answerLock.reset(); activity.restart(); setAudioError(""); };
   const playQuestion = async () => {
     setAudioError("");
     const playbackError = await play((audioContext, channel) => {
@@ -83,12 +92,18 @@ export function LocalEarTrainingMelodyDictationPanel({
     if (playbackError) setAudioError(playbackError);
   };
   const retryCurrentQuestion = () => { resetCurrentQuestion(); void playQuestion(); };
-  const chooseNote = (index: number, noteId: string) => answerLock.choose(
-    selectedNoteIds.map((value, valueIndex) => valueIndex === index ? noteId : value),
-  );
+  const chooseNote = (index: number, noteId: string) => {
+    const nextSelection = selectedNoteIds.map(
+      (value, valueIndex) => valueIndex === index ? noteId : value,
+    );
+    if (!answerLock.choose(nextSelection)) return;
+    activity.submitChoice(nextSelection.filter((value): value is string => value !== null));
+  };
   const revealAnswer = () => {
     const submittedNoteIds = answerLock.reveal();
-    if (!submittedNoteIds || sessionSeed === null || !onLocalAnswerResult) return;
+    if (!submittedNoteIds) return;
+    activity.checkChoice(submittedNoteIds.filter((value): value is string => value !== null));
+    if (sessionSeed === null || !onLocalAnswerResult) return;
     onLocalAnswerResult({
       target: {
         kind: "melody-dictation",
@@ -126,9 +141,16 @@ export function LocalEarTrainingMelodyDictationPanel({
       </div>
       <div className="rounded-2xl border border-slate-200 p-4">
         <p className="text-sm font-semibold text-slate-500">回答本题</p><p className="mt-1 text-lg font-bold text-slate-950">按播放顺序填写三个音名</p>
-        <div className="mt-4 grid gap-4 sm:grid-cols-3">{[0, 1, 2].map((index) => <fieldset key={index}><legend className="text-sm font-semibold text-slate-700">第 {index + 1} 个音</legend><div className="mt-2 grid gap-2">{getEarTrainingMelodyNoteIds(difficulty, catalogMode).map((noteId) => <button key={noteId} type="button" disabled={!isQuestionReady || isAnswerVisible} onClick={() => chooseNote(index, noteId)} className={`rounded-xl border px-3 py-2 text-left font-semibold disabled:cursor-not-allowed disabled:opacity-70 ${selectedNoteIds[index] === noteId ? "border-violet-600 bg-violet-50 text-violet-900 ring-2 ring-violet-200" : "border-slate-200 bg-white text-slate-800 hover:border-violet-300"}`}>{earTrainingMelodyNotes[noteId].label}</button>)}</div></fieldset>)}</div>
+        <ActivityOrderedChoiceAnswerPanel
+          positionLabels={["第 1 个音", "第 2 个音", "第 3 个音"]}
+          options={getEarTrainingMelodyNoteIds(difficulty, catalogMode).map((noteId) => earTrainingMelodyNotes[noteId])}
+          selectedOptionIds={selectedNoteIds}
+          disabled={!isQuestionReady || isAnswerVisible}
+          onChoose={chooseNote}
+        />
         <div className="mt-4 flex flex-wrap gap-2"><button type="button" disabled={!isQuestionReady || !answer.hasSelection || isAnswerVisible} onClick={revealAnswer} className="rounded-xl bg-slate-900 px-4 py-2.5 font-semibold text-white disabled:cursor-not-allowed disabled:bg-slate-300">查看本题答案</button>{isAnswerVisible && !answer.matchesAnswer ? <button type="button" onClick={retryCurrentQuestion} className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-2.5 font-semibold text-amber-900">重新播放并复练本题</button> : null}<button type="button" onClick={resetCurrentQuestion} className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 font-semibold text-slate-800">重置本题</button><button type="button" disabled={!isQuestionReady} onClick={nextQuestion} className="rounded-xl border border-violet-300 bg-white px-4 py-2.5 font-semibold text-violet-800 disabled:cursor-not-allowed disabled:opacity-50">{initialReviewTarget ? "返回随机练习" : "下一题"}</button></div>
         {!answer.hasSelection ? <p className="mt-3 text-sm leading-6 text-slate-500">请为三个位置都选择音名，再查看本题答案。</p> : null}
+        <ActivityProtocolState session={activity.session} />
         {isAnswerVisible ? <div className="mt-4 rounded-2xl bg-slate-50 p-4 text-sm leading-6 text-slate-700"><p className="font-bold text-slate-950">本题答案：{answer.answerLabel}</p><p className="mt-1">{answer.explanation}</p><p className="mt-2">你的填写：{answer.selectedNoteIds.map((noteId) => noteId ? earTrainingMelodyNotes[noteId as keyof typeof earTrainingMelodyNotes].label : "未选择").join(" → ")}。{answer.matchesAnswer ? "这次填写与本题答案一致。" : "这次填写与本题答案不同；可以再次播放并重置本题复练。"}</p><p className="mt-2 text-slate-500">答案说明显示后，本题填写已锁定；请使用复练或下一题开始新的尝试。这不是正式分数、准确率、等级、通过或失败判断。</p></div> : null}
       </div>
     </div>

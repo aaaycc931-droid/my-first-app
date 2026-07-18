@@ -55,8 +55,11 @@ export const checkChoiceActivityAnswer = (
       availableActions: ["replay-reference", "restart-current-attempt", "show-explanation"],
     });
   }
-  const expected = [...definition.target.expectedAnswer.optionIds].sort().join("|");
-  const actual = [...session.answer.optionIds].sort().join("|");
+  const ordered = definition.target.answerPolicy?.choiceOrder !== "unordered";
+  const normalize = (optionIds: readonly string[]) =>
+    (ordered ? [...optionIds] : [...optionIds].sort()).join("|");
+  const expected = normalize(definition.target.expectedAnswer.optionIds);
+  const actual = normalize(session.answer.optionIds);
   return update(session, expectedRevision, {
     lifecycle: "checked",
     checkEvidence: { state: expected === actual ? "consistent" : "different", assessmentMode: "non-scoring", explanation: definition.explanation },
