@@ -14,8 +14,12 @@
 2. `docs/final-release-status-matrix.md`：每项门槛的实时状态、证据和下一步。
 3. `docs/mvp-status.md`：已经真实交付的运行时事实和历史阶段记录。
 4. `docs/final-product-shape-and-feature-map.md`：完整产品方向与长期功能地图。
-5. `docs/android-offline-professional-product-roadmap.md`：当前 Android 离线私测版的产品主轴、竞争力原则与滚动实施顺序。
-6. 其他 Pxx 文档：阶段设计、研究或历史决策，不单独构成正式发布证明。
+5. `docs/android-offline-professional-product-roadmap.md`：第一代 Android 离线私测版的阶段约束。
+6. `docs/eight-product-unified-competitive-roadmap-2026-07-18.md`：八产品长期终局、单项竞争力和本地/云端协同范围。
+7. `docs/future-development-execution-roadmap-eight-products-2026-07-18.md`：P113 之后的滚动波次、F/S/A/C/Q 泳道和汇合条件。
+8. 其他 Pxx 文档：阶段设计、研究或历史决策，不单独构成正式发布证明。
+
+八产品路线扩大的是长期产品终局，不自动把未列入本 V1 冻结范围的能力变成当前 V1 发布宣称，也不降低本文件任何 MUST 门槛。P120 仍只是专业私测候选，不是八产品公开最终版。
 
 不得因为页面存在、演示可运行、测试使用 mock、代码已经提交或某个 Pxx 阶段完成，就把对应能力标记为正式完成。
 
