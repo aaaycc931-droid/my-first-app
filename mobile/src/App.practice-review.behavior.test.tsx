@@ -145,7 +145,10 @@ describe("Android 本机复练行为", () => {
 
     // Expanded catalog seed 0 schedules the short E4 variant first, so C4 is deterministically wrong.
     await click(findButton(container, "C4"));
+    expect(container.querySelector('[data-testid="activity-protocol-state"]')?.textContent).toContain("已作答，等待检查");
     await click(findButton(container, "查看本题答案"));
+    expect(container.querySelector('[data-testid="activity-protocol-state"]')?.textContent).toContain("答案已检查");
+    expect(container.querySelector('[data-testid="activity-protocol-state"]')?.textContent).toContain("非评分证据");
     expect(container.textContent?.match(/本题答案：[A-G][0-9]/)?.[0]).toBe("本题答案：E4");
 
     const queue = getStoredQueue();

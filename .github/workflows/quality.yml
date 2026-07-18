@@ -57,6 +57,10 @@ jobs:
           npm run test:android-p104-evidence
           npm run test:pitch-benchmark-protocol
           npm run test:offline-pitch-analysis
+          npm run test:offline-note-alignment
+          npm run test:activity-protocol
+          npm run test:analysis-evidence-adapter
+          npm run test:companion-activity-bridge
           npm run test:local-question-scheduler
           npm run test:local-practice-catalog
           npm run test:expanded-local-practice-catalog
