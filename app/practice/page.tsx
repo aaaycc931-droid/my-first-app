@@ -15,6 +15,19 @@ import {
 import { BrowserMetronomeScheduler } from "../../lib/metronome/metronomeScheduler";
 import { AudioOnsetRhythmFeedbackPanel } from "../../components/practice/AudioOnsetRhythmFeedbackPanel";
 import { AudioOnsetTimelinePreview } from "../../components/practice/AudioOnsetTimelinePreview";
+import { ActivityProtocolState } from "../../components/practice/ActivityProtocolState";
+import {
+  completeActivityCheck,
+  createActivitySession,
+  restartActivityAttempt,
+  submitActivityAnswer,
+  type ActivitySessionV1,
+} from "../../lib/activity/activitySession";
+import {
+  adaptRhythmTapFeedbackToActivityEvidence,
+  createNotationRhythmActivityDefinition,
+  getRelativeNotationRhythmTapOnsetMs,
+} from "../../lib/activity/notationRhythmActivityAdapter";
 import {
   createRhythmTargetPattern,
   getRhythmTapFeedback,
@@ -154,6 +167,8 @@ type NotationRhythmTapPracticeContext = {
   targetId: string;
   draftFingerprint: string;
   targetEventCount: number;
+  bpm: number;
+  practiceStartTimeMs: number | null;
 };
 
 const getNotationPracticePitchFeedbackContextKey = (
@@ -431,6 +446,7 @@ export default function PracticePage() {
   const [notationTemporaryPracticeTargetMode, setNotationTemporaryPracticeTargetMode] = useState<NotationTemporaryPracticeTargetMode>("sight-singing");
   const [notationPracticePitchFeedbackContext, setNotationPracticePitchFeedbackContext] = useState<NotationPracticePitchFeedbackContext | null>(null);
   const [notationRhythmTapPracticeContext, setNotationRhythmTapPracticeContext] = useState<NotationRhythmTapPracticeContext | null>(null);
+  const [notationRhythmActivitySession, setNotationRhythmActivitySession] = useState<ActivitySessionV1 | null>(null);
   const [flowState, setFlowState] = useState<PracticeFlowState>("idle");
   const [metronomeBpm, setMetronomeBpm] = useState(defaultMetronomeConfig.bpm);
   const [metronomeMeter, setMetronomeMeter] = useState<MetronomeMeter>(
@@ -654,11 +670,57 @@ export default function PracticePage() {
 
     stopRhythmPracticeRuntime();
     setNotationRhythmTapPracticeContext(null);
+    setNotationRhythmActivitySession(null);
     setRhythmPhase("idle");
     setRhythmTargets([]);
     setRhythmTaps([]);
     setRhythmNowMs(0);
   }, [notationTemporaryPracticeTarget, notationRhythmTapPracticeContext]);
+
+  const notationRhythmActivityDefinition = useMemo(() => {
+    const target = notationTemporaryPracticeTarget;
+    const context = notationRhythmTapPracticeContext;
+    if (
+      !target ||
+      !context ||
+      target.status !== "active" ||
+      target.mode !== "rhythm" ||
+      target.id !== context.targetId ||
+      target.draftFingerprint !== context.draftFingerprint ||
+      context.targetEventCount <= 0
+    ) {
+      return null;
+    }
+
+    try {
+      return createNotationRhythmActivityDefinition({
+        target,
+        bpm: context.bpm,
+      });
+    } catch {
+      return null;
+    }
+  }, [notationTemporaryPracticeTarget, notationRhythmTapPracticeContext]);
+
+  useEffect(() => {
+    if (!notationRhythmActivityDefinition) {
+      setNotationRhythmActivitySession(null);
+      return;
+    }
+
+    setNotationRhythmActivitySession((currentSession) => {
+      if (
+        currentSession?.activityId === notationRhythmActivityDefinition.activityId &&
+        currentSession.targetId === notationRhythmActivityDefinition.target.targetId
+      ) {
+        return currentSession;
+      }
+      return createActivitySession(
+        notationRhythmActivityDefinition,
+        `notation-rhythm:${notationRhythmActivityDefinition.target.targetId}`,
+      );
+    });
+  }, [notationRhythmActivityDefinition]);
 
   const clearLocalReviewedDraftPracticeTarget = () => {
     setLocalReviewedDraftPracticeTarget(null);
@@ -826,6 +888,40 @@ export default function PracticePage() {
       activeLatencyOffsetMs,
     ],
   );
+
+  useEffect(() => {
+    if (
+      rhythmPhase !== "stopped" ||
+      !notationRhythmActivityDefinition ||
+      !notationRhythmTapPracticeContext
+    ) {
+      return;
+    }
+
+    setNotationRhythmActivitySession((currentSession) => {
+      const session =
+        currentSession?.activityId === notationRhythmActivityDefinition.activityId &&
+        currentSession.targetId === notationRhythmActivityDefinition.target.targetId
+          ? currentSession
+          : createActivitySession(
+              notationRhythmActivityDefinition,
+              `notation-rhythm:${notationRhythmActivityDefinition.target.targetId}`,
+            );
+      if (session.lifecycle === "checked") {
+        return session;
+      }
+      return completeActivityCheck(
+        session,
+        adaptRhythmTapFeedbackToActivityEvidence(rhythmFeedbackSummary),
+        session.revision,
+      );
+    });
+  }, [
+    notationRhythmActivityDefinition,
+    notationRhythmTapPracticeContext,
+    rhythmFeedbackSummary,
+    rhythmPhase,
+  ]);
 
   const audioOnsetRhythmFeedback = useMemo(
     () =>
@@ -1128,13 +1224,34 @@ export default function PracticePage() {
     setLocalReviewedDraftPracticeTarget(target);
   };
 
-  const handleResetRhythmPractice = () => {
+  const resetRhythmPracticeRuntimeState = () => {
     stopRhythmPracticeRuntime();
     setRhythmPhase("idle");
     setRhythmTargets([]);
     setRhythmTaps([]);
     setRhythmNowMs(0);
     setRhythmError("");
+  };
+
+  const handleResetRhythmPractice = () => {
+    resetRhythmPracticeRuntimeState();
+    setNotationRhythmTapPracticeContext((currentContext) =>
+      currentContext
+        ? { ...currentContext, practiceStartTimeMs: null }
+        : null,
+    );
+    setNotationRhythmActivitySession((currentSession) => {
+      if (
+        !currentSession ||
+        !notationRhythmActivityDefinition ||
+        (currentSession.lifecycle === "ready" &&
+          !currentSession.answer &&
+          !currentSession.checkEvidence)
+      ) {
+        return currentSession;
+      }
+      return restartActivityAttempt(currentSession, currentSession.revision);
+    });
   };
 
   const handleStopRhythmPractice = () => {
@@ -1145,7 +1262,8 @@ export default function PracticePage() {
 
   const handleStartRhythmPractice = async () => {
     setNotationRhythmTapPracticeContext(null);
-    handleResetRhythmPractice();
+    setNotationRhythmActivitySession(null);
+    resetRhythmPracticeRuntimeState();
 
     const beatsPerBar = getBeatsPerBar(metronomeMeter);
     const beatDurationMs = (60 / metronomeBpm) * 1000;
@@ -1236,7 +1354,7 @@ export default function PracticePage() {
       return;
     }
 
-    handleResetRhythmPractice();
+    resetRhythmPracticeRuntimeState();
 
     const targetEventCount = target.events.filter((event) => event.type === "note").length;
     if (targetEventCount === 0) {
@@ -1266,12 +1384,37 @@ export default function PracticePage() {
       getNotationTemporaryRhythmTotalBeats(target.events) * beatDurationMs +
       rhythmMatchWindowMs +
       120;
+    const activityDefinition = createNotationRhythmActivityDefinition({
+      target,
+      bpm: metronomeBpm,
+    });
 
     setMetronomeMeter(meter);
     setNotationRhythmTapPracticeContext({
       targetId: target.id,
       draftFingerprint: target.draftFingerprint,
       targetEventCount,
+      bpm: metronomeBpm,
+      practiceStartTimeMs,
+    });
+    setNotationRhythmActivitySession((currentSession) => {
+      if (
+        currentSession?.activityId !== activityDefinition.activityId ||
+        currentSession.targetId !== activityDefinition.target.targetId
+      ) {
+        return createActivitySession(
+          activityDefinition,
+          `notation-rhythm:${activityDefinition.target.targetId}`,
+        );
+      }
+      if (
+        currentSession.lifecycle !== "ready" ||
+        currentSession.answer ||
+        currentSession.checkEvidence
+      ) {
+        return restartActivityAttempt(currentSession, currentSession.revision);
+      }
+      return currentSession;
     });
     setRhythmTargets(targets);
     setRhythmTaps([]);
@@ -1320,8 +1463,40 @@ export default function PracticePage() {
       ...currentTaps,
       { id: nextTapId, timestampMs, phase: "practice" },
     ]);
+    if (
+      notationRhythmActivityDefinition &&
+      typeof notationRhythmTapPracticeContext?.practiceStartTimeMs === "number"
+    ) {
+      const relativeOnsetMs = getRelativeNotationRhythmTapOnsetMs({
+        timestampMs,
+        practiceStartTimeMs:
+          notationRhythmTapPracticeContext.practiceStartTimeMs,
+      });
+      setNotationRhythmActivitySession((currentSession) => {
+        const session =
+          currentSession?.activityId === notationRhythmActivityDefinition.activityId &&
+          currentSession.targetId === notationRhythmActivityDefinition.target.targetId
+            ? currentSession
+            : createActivitySession(
+                notationRhythmActivityDefinition,
+                `notation-rhythm:${notationRhythmActivityDefinition.target.targetId}`,
+              );
+        const previousOnsets =
+          session.answer?.mode === "tap" ? session.answer.onsetMs : [];
+        return submitActivityAnswer(
+          notationRhythmActivityDefinition,
+          session,
+          { mode: "tap", onsetMs: [...previousOnsets, relativeOnsetMs] },
+          session.revision,
+        );
+      });
+    }
     setRhythmNowMs(timestampMs);
-  }, [rhythmPhase]);
+  }, [
+    notationRhythmActivityDefinition,
+    notationRhythmTapPracticeContext,
+    rhythmPhase,
+  ]);
 
   const handleResetLatencyCalibration = () => {
     stopLatencyCalibrationRuntime();
@@ -2224,7 +2399,8 @@ export default function PracticePage() {
                   setNotationTemporaryPracticeProgress(createNotationTemporaryPracticeProgress(target));
                   setNotationPracticePitchFeedbackContext(null);
                   setNotationRhythmTapPracticeContext(null);
-                  handleResetRhythmPractice();
+                  setNotationRhythmActivitySession(null);
+                  resetRhythmPracticeRuntimeState();
                 }
               }}
               onClear={() => {
@@ -2232,7 +2408,8 @@ export default function PracticePage() {
                 setNotationTemporaryPracticeProgress(null);
                 setNotationPracticePitchFeedbackContext(null);
                 setNotationRhythmTapPracticeContext(null);
-                handleResetRhythmPractice();
+                setNotationRhythmActivitySession(null);
+                resetRhythmPracticeRuntimeState();
               }}
               onEnterPractice={() => setActiveFeatureView("notation-practice")}
             />
@@ -2254,7 +2431,8 @@ export default function PracticePage() {
                 setNotationTemporaryPracticeProgress(null);
                 setNotationPracticePitchFeedbackContext(null);
                 setNotationRhythmTapPracticeContext(null);
-                handleResetRhythmPractice();
+                setNotationRhythmActivitySession(null);
+                resetRhythmPracticeRuntimeState();
               }}
               onPracticeCurrentNote={(event, eventIndex) => {
                 const targetFrequencyHz = getNotationTargetPitchFrequencyHz(
@@ -2297,6 +2475,8 @@ export default function PracticePage() {
                   targetId: currentTarget.id,
                   draftFingerprint: currentTarget.draftFingerprint,
                   targetEventCount: currentTarget.events.filter((event) => event.type === "note").length,
+                  bpm: metronomeBpm,
+                  practiceStartTimeMs: null,
                 });
                 setActiveFeatureView("rhythm");
               }}
@@ -2649,6 +2829,35 @@ export default function PracticePage() {
               </p>
             </div>
           </div>
+
+          {notationRhythmTapPracticeContext && notationRhythmActivitySession ? (
+            <div
+              className="mt-5 rounded-2xl border border-violet-200 bg-white p-4"
+              data-testid="notation-rhythm-activity-protocol"
+            >
+              <p className="font-bold text-violet-950">
+                统一活动协议 · 节奏拍击输入
+              </p>
+              <p className="mt-2 text-sm text-violet-800">
+                {notationRhythmActivityDefinition?.target.label}
+              </p>
+              <ActivityProtocolState session={notationRhythmActivitySession} />
+              {notationRhythmActivitySession.checkEvidence ? (
+                <p
+                  className="mt-2 text-sm font-semibold text-violet-900"
+                  data-testid="notation-rhythm-activity-evidence"
+                >
+                  检查结果：
+                  {notationRhythmActivitySession.checkEvidence.state === "consistent"
+                    ? "与当前目标接近"
+                    : notationRhythmActivitySession.checkEvidence.state === "different"
+                      ? "与当前目标有差异"
+                      : "证据不足"}
+                  。{notationRhythmActivitySession.checkEvidence.explanation}
+                </p>
+              ) : null}
+            </div>
+          ) : null}
 
           <div className="mt-5 grid gap-3 text-sm md:grid-cols-4">
             <label className="rounded-2xl bg-white p-4 font-semibold text-violet-950 ring-1 ring-violet-200">
