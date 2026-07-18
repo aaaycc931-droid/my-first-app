@@ -2,7 +2,14 @@
 
 import { useMemo, useState } from "react";
 
+import { midiToScientificNote } from "../../lib/practice/realtimePitchCurve";
+import type { GeneratedLocalVocalExercise } from "../../lib/practice/localVocalExercise";
+import {
+  analyzeOfflineNoteAlignment,
+  type OfflineAlignmentTarget,
+} from "../../lib/practice/offlineNoteAlignment";
 import type { OfflinePitchFrame } from "../../lib/practice/offlinePitchAnalysis";
+import { OfflineNoteAlignmentEvidencePanel } from "./OfflineNoteAlignmentEvidencePanel";
 import { useOfflinePitchAnalysis } from "./useOfflinePitchAnalysis";
 
 const trajectoryPoints = (frames: readonly OfflinePitchFrame[]) => {
@@ -21,14 +28,41 @@ const trajectoryPoints = (frames: readonly OfflinePitchFrame[]) => {
 export function OfflinePitchAnalysisPanel({
   recording,
   onBeforeAnalyze,
+  targetExercise,
+  recordingStartedAtMs,
+  targetStartedAtMs,
 }: {
   recording: Blob | null;
   onBeforeAnalyze: () => void;
+  targetExercise?: GeneratedLocalVocalExercise | null;
+  recordingStartedAtMs?: number | null;
+  targetStartedAtMs?: number | null;
 }) {
   const analysis = useOfflinePitchAnalysis(recording);
   const [confirmingRecording, setConfirmingRecording] = useState<Blob | null>(null);
   const confirming = recording !== null && confirmingRecording === recording;
   const points = useMemo(() => analysis.state.result ? trajectoryPoints(analysis.state.result.frames) : "", [analysis.state]);
+  const targets = useMemo<OfflineAlignmentTarget[]>(() => {
+    if (!targetExercise || recordingStartedAtMs === null || recordingStartedAtMs === undefined || targetStartedAtMs === null || targetStartedAtMs === undefined) return [];
+    const recordingOffsetMs = recordingStartedAtMs - targetStartedAtMs;
+    return targetExercise.events
+      .filter((event) => (event.startSeconds + event.durationSeconds) * 1_000 > recordingOffsetMs)
+      .map((event) => ({
+        targetId: `${targetExercise.manifestVersion}-${event.index}`,
+        index: event.index,
+        phraseIndex: event.loop,
+        label: midiToScientificNote(event.midi),
+        midi: event.midi,
+        startMs: event.startSeconds * 1_000 - recordingOffsetMs,
+        endMs: (event.startSeconds + event.durationSeconds) * 1_000 - recordingOffsetMs,
+      }));
+  }, [recordingStartedAtMs, targetExercise, targetStartedAtMs]);
+  const noteAlignment = useMemo(
+    () => analysis.state.status === "ready"
+      ? analyzeOfflineNoteAlignment(analysis.state.result, { targets })
+      : null,
+    [analysis.state, targets],
+  );
 
   const confirmAnalyze = () => {
     setConfirmingRecording(null);
@@ -49,7 +83,7 @@ export function OfflinePitchAnalysisPanel({
   return (
     <section className="mt-4 rounded-2xl border border-fuchsia-200 bg-fuchsia-50 p-4" aria-labelledby="offline-pitch-analysis-title">
       <h3 id="offline-pitch-analysis-title" className="font-black text-fuchsia-950">录音停止后的本地多候选分析</h3>
-      <p className="mt-1 text-sm leading-6 text-fuchsia-900">只有确认后才在本机解码本次录音。分析比较自相关与 McLeod 候选，保留拒答、连续轨迹和八度抑制证据；不上传、不使用目标音吸附，也不是正式评分或 P113 逐音对齐。</p>
+      <p className="mt-1 text-sm leading-6 text-fuchsia-900">只有确认后才在本机解码本次录音。分析比较自相关与 McLeod 候选，再独立分段并与录音开始时冻结的练声目标单调对齐；目标不会改写检测轨迹，不上传，也不生成正式评分。</p>
       <p className="mt-2 text-sm font-bold text-fuchsia-950" role="status" aria-live="polite">状态：{stateCopy}</p>
       {!confirming ? (
         <button type="button" disabled={!recording || analysis.state.status === "processing"} onClick={() => setConfirmingRecording(recording)} className="mt-3 min-h-11 rounded-xl bg-fuchsia-800 px-4 py-2 text-sm font-bold text-white disabled:opacity-50">检查并准备分析本次录音</button>
@@ -73,6 +107,7 @@ export function OfflinePitchAnalysisPanel({
           </div>
           <p className="mt-3 text-xs leading-5 text-slate-600">标准 PCM：16 kHz 单声道，{analysis.state.result.pcm.durationSeconds.toFixed(2)} 秒；拒答 {analysis.state.result.summary.rejectedFrames} 帧，八度修正 {analysis.state.result.summary.octaveAdjustedFrames} 帧，输入削波样本 {(analysis.state.result.pcm.diagnostics.clippedSampleRatio * 100).toFixed(2)}%。</p>
           {points ? <svg viewBox="0 0 100 100" role="img" aria-label="录音后连续音高轨迹，不含目标评分" className="mt-3 h-36 w-full rounded-lg bg-slate-950 p-2" preserveAspectRatio="none"><polyline points={points} fill="none" stroke="#e879f9" strokeWidth="1.5" vectorEffect="non-scaling-stroke" /></svg> : <p className="mt-3 text-sm text-slate-700">可靠帧不足，保留“无法判断”，不强行生成轨迹。</p>}
+          {recording && noteAlignment ? <OfflineNoteAlignmentEvidencePanel recording={recording} result={noteAlignment} onBeforePlay={onBeforeAnalyze} /> : null}
           <button type="button" onClick={analysis.clear} className="mt-3 min-h-10 rounded-lg border border-rose-300 px-3 text-sm font-bold text-rose-800">清除本次分析结果</button>
         </div>
       ) : null}

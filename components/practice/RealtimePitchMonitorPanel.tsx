@@ -41,6 +41,7 @@ export function RealtimePitchMonitorPanel({ targetExercise = null }: { targetExe
   const [isStorageLoading, setIsStorageLoading] = useState(true);
   const [storageBusy, setStorageBusy] = useState(false);
   const [playingSavedRecordId, setPlayingSavedRecordId] = useState<string | null>(null);
+  const [recordingTargetSnapshot, setRecordingTargetSnapshot] = useState<GeneratedLocalVocalExercise | null>(null);
   const savedPlaybackRef = useRef<HTMLAudioElement | null>(null);
   const savedPlaybackUrlRef = useRef<string | null>(null);
   const isActive = monitor.status === "requesting" || monitor.status === "listening";
@@ -108,6 +109,19 @@ export function RealtimePitchMonitorPanel({ targetExercise = null }: { targetExe
 
   const startMonitoring = () => { stopSavedPlayback(); void monitor.start(); };
   const playCurrentRecording = () => { stopSavedPlayback(); void monitor.playRecording(); };
+  const startSessionRecording = () => {
+    setRecordingTargetSnapshot(targetExercise ? {
+      ...targetExercise,
+      config: { ...targetExercise.config },
+      events: targetExercise.events.map((event) => ({ ...event })),
+      playbackEvents: targetExercise.playbackEvents.map((event) => ({ ...event })),
+    } : null);
+    monitor.startRecording();
+  };
+  const discardSessionRecording = () => {
+    setRecordingTargetSnapshot(null);
+    monitor.discardRecording();
+  };
 
   const deleteRecord = async (record: LocalVocalPracticeRecord) => {
     if (storageBusy) return;
@@ -184,13 +198,19 @@ export function RealtimePitchMonitorPanel({ targetExercise = null }: { targetExe
         <p className="mt-2 text-sm font-bold text-violet-950" aria-live="polite">状态：{monitor.recordingStatus === "recording" ? "正在录音" : monitor.recordingStatus === "ready" ? "可以回放" : monitor.recordingStatus === "playing" ? "正在回放" : monitor.recordingStatus === "error" ? "录音或回放失败" : "尚未录音"}</p>
         {monitor.recordingError ? <p className="mt-2 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950" role="alert">{monitor.recordingError}</p> : null}
         <div className="mt-3 flex flex-wrap gap-2">
-          <button type="button" onClick={monitor.startRecording} disabled={monitor.status !== "listening" || monitor.recordingStatus === "recording" || monitor.recordingStatus === "playing"} className="min-h-11 rounded-xl bg-violet-700 px-4 py-2 text-sm font-bold text-white disabled:cursor-not-allowed disabled:bg-violet-300">开始会话录音</button>
+          <button type="button" onClick={startSessionRecording} disabled={monitor.status !== "listening" || monitor.recordingStatus === "recording" || monitor.recordingStatus === "playing"} className="min-h-11 rounded-xl bg-violet-700 px-4 py-2 text-sm font-bold text-white disabled:cursor-not-allowed disabled:bg-violet-300">开始会话录音</button>
           <button type="button" onClick={monitor.stopRecording} disabled={monitor.recordingStatus !== "recording"} className="min-h-11 rounded-xl border border-violet-300 bg-white px-4 py-2 text-sm font-bold text-violet-950 disabled:cursor-not-allowed disabled:opacity-50">停止录音</button>
           <button type="button" onClick={playCurrentRecording} disabled={!monitor.hasRecording || monitor.recordingStatus === "playing" || monitor.recordingStatus === "recording"} className="min-h-11 rounded-xl border border-violet-300 bg-white px-4 py-2 text-sm font-bold text-violet-950 disabled:cursor-not-allowed disabled:opacity-50">播放本次录音</button>
           <button type="button" onClick={monitor.stopPlayback} disabled={monitor.recordingStatus !== "playing"} className="min-h-11 rounded-xl border border-violet-300 bg-white px-4 py-2 text-sm font-bold text-violet-950 disabled:cursor-not-allowed disabled:opacity-50">停止回放</button>
-          <button type="button" onClick={monitor.discardRecording} disabled={monitor.recordingStatus === "empty"} className="min-h-11 rounded-xl border border-rose-300 bg-white px-4 py-2 text-sm font-bold text-rose-800 disabled:cursor-not-allowed disabled:opacity-50">丢弃本次录音</button>
+          <button type="button" onClick={discardSessionRecording} disabled={monitor.recordingStatus === "empty"} className="min-h-11 rounded-xl border border-rose-300 bg-white px-4 py-2 text-sm font-bold text-rose-800 disabled:cursor-not-allowed disabled:opacity-50">丢弃本次录音</button>
         </div>
-        <OfflinePitchAnalysisPanel recording={monitor.recordingBlob} onBeforeAnalyze={() => { stopSavedPlayback(); monitor.stopPlayback(); monitor.stop(); }} />
+        <OfflinePitchAnalysisPanel
+          recording={monitor.recordingBlob}
+          onBeforeAnalyze={() => { stopSavedPlayback(); monitor.stopPlayback(); monitor.stop(); }}
+          targetExercise={recordingTargetSnapshot}
+          recordingStartedAtMs={monitor.recordingStartedAtMs}
+          targetStartedAtMs={monitor.listeningStartedAtMs}
+        />
       </section>
 
       <div className="mt-5 flex flex-wrap gap-2">

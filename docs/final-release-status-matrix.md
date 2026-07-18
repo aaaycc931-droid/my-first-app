@@ -13,7 +13,7 @@
 | V1-02 | 账户与会话 | IN_PROGRESS | Supabase Auth、邮箱 magic link、资料读取/更新、生产浏览器 QA | 密码登录、退出/恢复全矩阵、异常邮件路径 |
 | V1-03 | 数据导出与删除 | NOT_STARTED | 数据模型有 deletion request 草案 | 用户入口、导出包、级联删除、24h SLA、端到端演练 |
 | V1-04 | 系统课程与题库 | IN_PROGRESS | 基础课程；单音、音程、节奏持久化；Android 四类听辨已有三难度、每档至少 20 个版本化组合 | 基础视唱、课程三难度与进度、教育审核；Android 难度仍待审核校准 |
-| V1-05 | 视唱与录音闭环 | IN_PROGRESS | Web 本地录音/回放；Android 实时曲线、录音、目标/分段反馈、本机记录与 P103 探索性观察；P112 录音提交后独立本地分析已合并 | P113 音符分段/目标对齐/逐句反馈、正式课程/云端记录、P104 真机同步/延迟/录音设备矩阵 |
+| V1-05 | 视唱与录音闭环 | IN_PROGRESS | Web 本地录音/回放；Android 实时曲线、录音、本机记录与 P103 观察；P112 独立后分析已合并；P113 独立分段、目标对齐、逐音/逐句证据与片段复练已本地 focused 验证 | P113 完整 CI/真机；正式课程/云端记录；P104 真机同步/延迟/录音设备矩阵 |
 | V1-06 | 节奏练习与反馈 | IN_PROGRESS | 节拍器、tap/onset、延迟校准、DP 对齐、课程节奏听辨 | 真实数据基准、录音闭环、长期记录与复练 |
 | V1-07 | 钢琴辅助 | IN_PROGRESS | P106–P110 已合并：统一 note event/provider、三层离线采样与 A0–C8 映射、移动钢琴交互、节拍器/事件录制/循环、多音色/USB MIDI/MusicXML 学习基础 | 三档真机低延迟/听感/10 指/32 音与设备断连证据；对照完美钢琴和来音钢琴的完整任务差距闭环 |
 | V1-08 | MusicXML/MXL | IN_PROGRESS | parser、fixture、dev import、草稿与临时目标链路 | 正式用户入口、编辑确认、错误恢复、私有持久化 |
@@ -21,7 +21,7 @@
 | V1-10 | 私有音频素材 | IN_PROGRESS | 浏览器本地导入、decode、音高曲线草稿、检查与临时目标 | 私有上传、worker、保留/删除、任务恢复、版权说明 |
 | V1-11 | 私有云任务 | NOT_STARTED | 数据模型和架构蓝图 | Storage、队列 worker、取消/重试、审计、配额和运行手册 |
 | V1-12 | 学习历史与复习 | IN_PROGRESS | 私有 practice attempts、课程答案摘要；Android 本机最小错题队列，以及用户主动保存的练声曲线/可选录音记录（均非正式学习历史） | Web 历史 UI、技能画像、解释型跨会话 review queue；Android IndexedDB、跨版本/跨重启和配额真机验证 |
-| V1-13 | 音高算法基准 | IN_PROGRESS | P111 共同输入/数据与分层基准基础、P112 录音提交后 PCM 标准化/多候选/voicing/连续轨迹/八度抑制与确定性分析已合并；实时生产仍独立记录 `autocorrelation-realtime-v1` | P113 音符分段/目标对齐；200 合成/乐器、100 真实人声/20 位/4 类设备最低证据及专业扩展集、三档性能、量化结果和专家审核 |
+| V1-13 | 音高算法基准 | IN_PROGRESS | P111 共同输入/分层基准基础、P112 多候选连续轨迹已合并；P113 `offline-note-alignment-v1` 独立分段、单调目标对齐、三阶段证据和局部拒答已本地 focused 验证；实时生产仍为 `autocorrelation-realtime-v1` | P113 完整 CI/真机；200 合成/乐器、100 真实人声/20 位/4 类设备最低证据及专业扩展集、三档性能、量化结果和专家审核 |
 | V1-14 | 节奏算法基准 | IN_PROGRESS | DP 对齐回归、tap/onset/latency 测试 | 真实设备/人声/乐器集、量化报告、低置信度校准 |
 | V1-15 | RLS 与最小权限 | IN_PROGRESS | P78 最小权限；P84 生产 RPC 和跨用户事务 smoke QA | 覆盖所有 owner tables、Storage、签名 URL、删除后访问 |
 | V1-16 | 性能与可靠性 | NOT_STARTED | 生产构建和常规 CI | 14 天窗口、真实用户指标、音频延迟、长循环/内存测试 |
@@ -48,15 +48,15 @@
 
 ## 3. 当前最高优先级
 
-产品所有者已于 2026-07-18 在 P112 合并后明确要求只完成八产品规划并暂停运行时开发。当前依赖顺序如下：
+产品所有者已于 2026-07-18 明确解除 P112 后暂停并恢复运行时开发。当前依赖顺序如下：
 
 1. P106–P112 已合并；P104 最低真实证据、三档 Android、教育审核和竞品同机任务继续保留，不能用 PR 或路线文档替代。
-2. 只有产品所有者明确恢复开发时才开始 P113：音符分段、目标对齐、逐音/逐句证据、拒答原因和分段复练。
-3. P114 冻结统一活动协议，并与 F1/F2 的 NoteEvent、ScoreDocument、PracticeTarget、MediaProject、AnalysisEvidence 和本地/云端 provider 契约汇合。
+2. P113 已完成本地实现和 focused 验证，必须先通过完整检查、PR CI、审查与安全合并；真机和真实人声证据继续单列，不因自动测试通过而冒充完成。
+3. P113 合并后再启动 P114，冻结统一活动协议，并与 F1/F2 的 NoteEvent、ScoreDocument、PracticeTarget、MediaProject、AnalysisEvidence 和本地/云端 provider 契约汇合。
 4. P115–P118 教学泳道与 S（制谱/OMR）、A（伴奏/歌曲）、必要 C（云端/内容/教师）泳道按依赖滚动；钢琴 P106–P110 只补真实体验和证据缺口。
 5. P119/Q 必须汇合算法、钢琴、教学、制谱、伴奏、云服务、教育和目标用户验收；P120 只是八产品范围明确的专业私测候选，不是公开最终版。
 6. V1-03 / V1-02 / V1-15 Web 数据生命周期继续是正式 Web 责任；最终产品同时建设本地与中国区合规云端能力，当前离线优先不是终局。
 
-完整长期范围见 `docs/eight-product-unified-competitive-roadmap-2026-07-18.md`，滚动执行顺序见 `docs/future-development-execution-roadmap-eight-products-2026-07-18.md`，最新暂停点见 `docs/project-handoff-paused-after-p112-eight-product-rebaseline-2026-07-18.md`。
+完整长期范围见 `docs/eight-product-unified-competitive-roadmap-2026-07-18.md`，滚动执行顺序见 `docs/future-development-execution-roadmap-eight-products-2026-07-18.md`；P112 后暂停交接保留为历史恢复依据，当前执行事实以本矩阵和 `docs/mvp-status.md` 为准。
 
 每次状态更新必须附真实证据链接或仓库文件；不能用“代码看起来支持”“计划完成”替代执行结果。

@@ -34,6 +34,7 @@ export function useRealtimePitchMonitor() {
   const [recordingError, setRecordingError] = useState("");
   const [hasRecording, setHasRecording] = useState(false);
   const [recordingBlob, setRecordingBlob] = useState<Blob | null>(null);
+  const [recordingStartedAtMs, setRecordingStartedAtMs] = useState<number | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const contextRef = useRef<AudioContext | null>(null);
   const sourceRef = useRef<MediaStreamAudioSourceNode | null>(null);
@@ -77,6 +78,7 @@ export function useRealtimePitchMonitor() {
       setRecordingError("");
       setHasRecording(false);
       setRecordingBlob(null);
+      setRecordingStartedAtMs(null);
     }
   }, [stopPlayback]);
 
@@ -244,12 +246,14 @@ export function useRealtimePitchMonitor() {
         }
       };
       recorder.start(250);
+      setRecordingStartedAtMs(performance.now());
       setRecordingStatus("recording");
     } catch {
       recorderRef.current = null;
       recordingChunksRef.current = [];
       setRecordingStatus("error");
       setRecordingError("无法开始会话内录音。实时曲线仍可继续使用。");
+      setRecordingStartedAtMs(null);
     }
   }, [discardRecording, status]);
 
@@ -326,6 +330,7 @@ export function useRealtimePitchMonitor() {
     recordingStatus,
     hasRecording,
     recordingBlob,
+    recordingStartedAtMs,
     recordingError,
     startRecording,
     stopRecording: finishRecording,
