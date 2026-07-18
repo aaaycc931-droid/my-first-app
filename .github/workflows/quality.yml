@@ -65,6 +65,7 @@ jobs:
           npm run test:melody-solfege-activity-adapter
           npm run test:legacy-activity-adapters
           npm run test:analysis-evidence-adapter
+          npm run test:local-vocal-microphone-activity-adapter
           npm run test:companion-activity-bridge
           npm run test:local-question-scheduler
           npm run test:local-practice-catalog

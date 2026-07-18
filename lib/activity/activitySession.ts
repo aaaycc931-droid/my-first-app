@@ -1,7 +1,7 @@
 import type { ActivityAnswer } from "./activityAnswer";
 import { validateActivityAnswer } from "./activityAnswer";
-import type { ActivityDefinitionV1 } from "./activityDefinition";
-import { canEnterActivityPractice, validateActivityDefinition } from "./activityDefinition";
+import type { AnyActivityDefinitionV1 } from "./activityDefinition";
+import { canEnterActivityPractice, isAnalysisEvidenceActivityTarget, validateActivityDefinition } from "./activityDefinition";
 
 export type ActivityLifecycle = "preview" | "ready" | "answering" | "checked" | "explained";
 export type ActivityCheckEvidence = {
@@ -29,7 +29,7 @@ const update = (session: ActivitySessionV1, expectedRevision: number, change: Pa
   return { ...session, ...change, revision: session.revision + 1 };
 };
 
-export const createActivitySession = (definition: ActivityDefinitionV1, sessionId: string): ActivitySessionV1 => {
+export const createActivitySession = (definition: AnyActivityDefinitionV1, sessionId: string): ActivitySessionV1 => {
   validateActivityDefinition(definition);
   return {
     schemaVersion: "activity-session-v1", sessionId, attemptId: `${sessionId}:attempt:1`, attemptNumber: 1,
@@ -43,13 +43,18 @@ export const confirmActivityPreview = (session: ActivitySessionV1, expectedRevis
   update(session, expectedRevision, { lifecycle: "ready" });
 
 export const submitActivityAnswer = (
-  definition: ActivityDefinitionV1, session: ActivitySessionV1, answer: ActivityAnswer, expectedRevision: number,
+  definition: AnyActivityDefinitionV1, session: ActivitySessionV1, answer: ActivityAnswer, expectedRevision: number,
 ) => update(session, expectedRevision, { answer: validateActivityAnswer(answer, definition.allowedInputModes), lifecycle: "answering" });
 
 export const checkChoiceActivityAnswer = (
-  definition: ActivityDefinitionV1, session: ActivitySessionV1, expectedRevision: number,
+  definition: AnyActivityDefinitionV1, session: ActivitySessionV1, expectedRevision: number,
 ) => {
-  if (!session.answer || session.answer.mode !== "choice" || definition.target.expectedAnswer.mode !== "choice") {
+  if (
+    !session.answer
+    || session.answer.mode !== "choice"
+    || isAnalysisEvidenceActivityTarget(definition.target)
+    || definition.target.expectedAnswer.mode !== "choice"
+  ) {
     return update(session, expectedRevision, {
       lifecycle: "checked", checkEvidence: { state: "insufficient", assessmentMode: "non-scoring", explanation: "当前答案无法可靠检查。" },
       availableActions: ["replay-reference", "restart-current-attempt", "show-explanation"],

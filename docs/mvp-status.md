@@ -1,8 +1,14 @@
-## P114e — 三音旋律听写固定唱名答案（ACTIVE implementation candidate，2026-07-18）
+## P114f — 固定 A4 单音麦克风证据接入（ACTIVE implementation candidate，本地共享挂载已形成，2026-07-18）
 
-P114e 本地 implementation candidate 已复用现有三音旋律听写的版本化三难度题库、Web Audio、复习队列和 `choice` 路径，新增可切换的固定唱名 `solfege` 作答；两种答案都按三个位置有序检查并保留重复音，挑战题中的 F♯4 与 C5 使用不会丢失升号或八度的稳定 token。切换模式会停止播放、清空旧答案和证据并按实际状态开始新尝试；Web `/practice` 与 Android 继续共享同一组件。完整 empty、disabled、检查锁定、复练、重置、下一题、难度和复习队列验收见 `docs/p114e-fixed-solfege-answer-acceptance.md`。
+P114f 选择项目内置、已确认的固定 A4 / 440 Hz、一个音、一个目标的最小声乐活动，把用户主动录制、二次确认后的 P112/P113 本机多候选分析、音符分段和逐音证据接入 `microphone` Activity answer。目标是用无 `expectedAnswer` 的 `analysis-evidence` check policy 将当前 P113 子目标和 attempt 证据绑定，真实驱动初始 `ready`、`answering`、`checked` 和新尝试，并把 `close`、`high/low`、`missing/unreliable` 分别映射为一致、有差异、证据不足的非评分解释；现有 answer-key 分支继续兼容。完整稳定身份、录音零点时间锚定、权限、empty/error/disabled/clear/reset/stale、Web/Android、离线隐私与 strict QA 边界见 `docs/p114f-fixed-a4-microphone-evidence-acceptance.md`。
 
-focused adapter 与共享真实挂载行为测试已在本机通过；完整 `npm run check`、远端 `quality` / `android-local` / Vercel、Web 手动 QA 和 Android 真机 QA 仍待执行或记录。本状态不代表已提交、创建 PR 或合并。候选不增加五线谱/简谱编辑、麦克风或 MIDI 答案，不产生分数、等级或通过/失败，也不修改云端、账号、数据库、伙伴 UI、Web Audio、旧题库和本机复练 v2 格式。QA level recommendation：**strict**。
+本地 implementation candidate 已在 Android 音高入口和 Web `/practice` 手动入口复用同一面板，真实驱动 `ready → answering → checked`；录音开始成为固定 A4 目标零点，清除、重录、丢弃、权限拒绝和旧异步结果均有 fail-closed 行为测试。focused adapter、16 个相关挂载测试、协议/证据回归、TypeScript、Lint、依赖审计、Android 本地静态边界、Web/移动生产构建、完整 `npm run check` 和 diff 检查已通过；远端 CI/PR/合并、Web 真麦克风和 Android 真机仍待完成。P104 的真实人声、三档 Android、同步/延迟、算法量化和教育审核继续是独立硬缺口。P114f 不扩展到自由练唱、音程/音阶/歌曲、多句视唱、正式评分、伙伴 UI、云端上传、数据库迁移或持久学习历史。QA level recommendation：**strict**。
+
+## P114e — 三音旋律听写固定唱名答案（PR #371 已 squash merge，2026-07-18）
+
+P114e 复用现有三音旋律听写的版本化三难度题库、Web Audio、复习队列和 `choice` 路径，新增可切换的固定唱名 `solfege` 作答；两种答案都按三个位置有序检查并保留重复音，挑战题中的 F♯4 与 C5 使用不会丢失升号或八度的稳定 token。切换模式会停止播放、清空旧答案和证据并按实际状态开始新尝试；Web `/practice` 与 Android 共享同一组件。完整 empty、disabled、检查锁定、复练、重置、下一题、难度和复习队列验收见 `docs/p114e-fixed-solfege-answer-acceptance.md`。
+
+focused adapter、共享真实挂载行为、完整检查与远端门禁已经随 PR #371 通过并 squash merge，当前 main commit 为 `b8cff79626af3267611291b13f020a24f5a55ff5`。合并事实不替代 Web 手动视觉/音频 QA、Android 真机触控/生命周期、教育审核或正式发布证据；P114 仍未整体完成。P114e 不增加五线谱/简谱编辑、麦克风或 MIDI 答案，不产生分数、等级或通过/失败，也不修改云端、账号、数据库、伙伴 UI、Web Audio、旧题库和本机复练 v2 格式。QA level recommendation：**strict**。
 
 ## P114d — 项目原创谱面屏幕钢琴输入协议（PR #370 已合并，2026-07-18）
 

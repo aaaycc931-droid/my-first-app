@@ -2,14 +2,19 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
+import { adaptLocalVocalMicrophoneActivityEvidence, createLocalVocalMicrophoneActivityDefinition } from "../../lib/activity/localVocalMicrophoneActivityAdapter";
+import type { ActivityCheckEvidence } from "../../lib/activity/activitySession";
 import { midiToScientificNote } from "../../lib/practice/realtimePitchCurve";
-import { localVocalExerciseManifest, type GeneratedLocalVocalExercise } from "../../lib/practice/localVocalExercise";
+import { generateLocalVocalExercise, localVocalExerciseManifest, type GeneratedLocalVocalExercise } from "../../lib/practice/localVocalExercise";
 import { getLocalVocalTargetFeedback } from "../../lib/practice/localVocalTargetFeedback";
 import { RealtimePitchCurveChart } from "./RealtimePitchCurveChart";
 import { LocalVocalObservationPanel } from "./LocalVocalObservationPanel";
 import { OfflinePitchAnalysisPanel } from "./OfflinePitchAnalysisPanel";
+import type { OfflinePitchAnalysisInvalidationDetail, OfflinePitchAnalysisReadyDetail } from "./OfflinePitchAnalysisPanel";
+import { ActivityProtocolState } from "./ActivityProtocolState";
+import { useChoiceActivitySession } from "./useChoiceActivitySession";
 import { useRealtimePitchMonitor } from "./useRealtimePitchMonitor";
-import { stopAllBrowserAudio, subscribeBrowserAudioStopAll } from "../../lib/audio/browserAudioEngine";
+import { createBrowserAudioChannel, stopAllBrowserAudio, subscribeBrowserAudioStopAll } from "../../lib/audio/browserAudioEngine";
 import {
   clearLocalVocalPracticeRecords,
   createLocalVocalPracticeRecord,
@@ -29,8 +34,27 @@ const frameCopy = {
 
 const displayNote = (note: string | null): string => note?.replace("#", "♯") ?? "—";
 
+const fixedA4ActivityExercise = generateLocalVocalExercise({
+  patternId: "single",
+  rootMidi: 69,
+  direction: "ascending",
+  bpm: 60,
+  octaveShift: 0,
+  loops: 1,
+  referenceMode: "full",
+  intervalSemitones: 7,
+});
+const fixedA4ActivityDefinition = createLocalVocalMicrophoneActivityDefinition(fixedA4ActivityExercise);
+
+type PendingA4ActivityCheck = {
+  attemptId: string;
+  recording: Blob;
+  checkEvidence: ActivityCheckEvidence;
+};
+
 export function RealtimePitchMonitorPanel({ targetExercise = null }: { targetExercise?: GeneratedLocalVocalExercise | null }) {
   const monitor = useRealtimePitchMonitor();
+  const a4Activity = useChoiceActivitySession(fixedA4ActivityDefinition, "local-vocal-a4-microphone-session");
   const [windowSeconds, setWindowSeconds] = useState(10);
   const [targetMidi, setTargetMidi] = useState(69);
   const [recordNote, setRecordNote] = useState("");
@@ -42,6 +66,10 @@ export function RealtimePitchMonitorPanel({ targetExercise = null }: { targetExe
   const [storageBusy, setStorageBusy] = useState(false);
   const [playingSavedRecordId, setPlayingSavedRecordId] = useState<string | null>(null);
   const [recordingTargetSnapshot, setRecordingTargetSnapshot] = useState<GeneratedLocalVocalExercise | null>(null);
+  const [pendingA4ActivityCheck, setPendingA4ActivityCheck] = useState<PendingA4ActivityCheck | null>(null);
+  const [a4ReferenceError, setA4ReferenceError] = useState("");
+  const a4RecordingAttemptIdRef = useRef<string | null>(null);
+  const a4ReferenceChannelRef = useRef<ReturnType<typeof createBrowserAudioChannel> | null>(null);
   const savedPlaybackRef = useRef<HTMLAudioElement | null>(null);
   const savedPlaybackUrlRef = useRef<string | null>(null);
   const isActive = monitor.status === "requesting" || monitor.status === "listening";
@@ -65,6 +93,8 @@ export function RealtimePitchMonitorPanel({ targetExercise = null }: { targetExe
   }, [stopSavedPlayback]);
 
   useEffect(() => subscribeBrowserAudioStopAll(stopSavedPlayback), [stopSavedPlayback]);
+
+  useEffect(() => () => a4ReferenceChannelRef.current?.stop(), []);
 
   const saveSession = async () => {
     if (storageBusy || isStorageLoading) return;
@@ -108,8 +138,36 @@ export function RealtimePitchMonitorPanel({ targetExercise = null }: { targetExe
   };
 
   const startMonitoring = () => { stopSavedPlayback(); void monitor.start(); };
+  const playA4Reference = async () => {
+    stopSavedPlayback();
+    stopAllBrowserAudio();
+    setA4ReferenceError("");
+    try {
+      const channel = a4ReferenceChannelRef.current ?? createBrowserAudioChannel();
+      a4ReferenceChannelRef.current = channel;
+      const context = await channel.prepareForUserGesture();
+      const oscillator = context.createOscillator();
+      const gain = context.createGain();
+      const startAt = context.currentTime + 0.03;
+      oscillator.type = "sine";
+      oscillator.frequency.setValueAtTime(440, startAt);
+      gain.gain.setValueAtTime(0.0001, startAt);
+      gain.gain.exponentialRampToValueAtTime(0.16, startAt + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.0001, startAt + 0.85);
+      oscillator.connect(gain);
+      gain.connect(context.destination);
+      channel.trackSource(oscillator, [gain]);
+      oscillator.start(startAt);
+      oscillator.stop(startAt + 0.9);
+    } catch {
+      setA4ReferenceError("当前设备无法播放 A4 参考音。你仍可查看目标并稍后重试。");
+    }
+  };
   const playCurrentRecording = () => { stopSavedPlayback(); void monitor.playRecording(); };
   const startSessionRecording = () => {
+    setPendingA4ActivityCheck(null);
+    a4Activity.restartIfDirty();
+    a4RecordingAttemptIdRef.current = null;
     setRecordingTargetSnapshot(targetExercise ? {
       ...targetExercise,
       config: { ...targetExercise.config },
@@ -118,9 +176,72 @@ export function RealtimePitchMonitorPanel({ targetExercise = null }: { targetExe
     } : null);
     monitor.startRecording();
   };
+  const startA4ActivityRecording = () => {
+    const current = a4Activity.session;
+    const dirty = current.lifecycle !== "ready" || current.answer !== undefined || current.checkEvidence !== undefined;
+    const attemptId = dirty
+      ? `${current.sessionId}:attempt:${current.attemptNumber + 1}`
+      : current.attemptId;
+    if (dirty) a4Activity.restart();
+    setPendingA4ActivityCheck(null);
+    a4RecordingAttemptIdRef.current = attemptId;
+    setRecordingTargetSnapshot(fixedA4ActivityExercise);
+    monitor.startRecording();
+  };
   const discardSessionRecording = () => {
     setRecordingTargetSnapshot(null);
+    setPendingA4ActivityCheck(null);
+    a4RecordingAttemptIdRef.current = null;
+    a4Activity.restartIfDirty();
     monitor.discardRecording();
+  };
+
+  const handleAnalysisReady = (detail: OfflinePitchAnalysisReadyDetail) => {
+    const attemptId = a4RecordingAttemptIdRef.current;
+    if (
+      !attemptId
+      || detail.recording !== monitor.recordingBlob
+      || attemptId !== a4Activity.session.attemptId
+      || recordingTargetSnapshot !== fixedA4ActivityExercise
+    ) return;
+    const bundle = adaptLocalVocalMicrophoneActivityEvidence({
+      definition: fixedA4ActivityDefinition,
+      attemptId,
+      result: detail.noteAlignment,
+    });
+    if (!bundle.answer) return;
+    a4Activity.submitAnswer(bundle.answer);
+    setPendingA4ActivityCheck({ attemptId, recording: detail.recording, checkEvidence: bundle.checkEvidence });
+  };
+
+  const handleAnalysisInvalidated = (detail: OfflinePitchAnalysisInvalidationDetail) => {
+    setPendingA4ActivityCheck(null);
+    a4Activity.restartIfDirty();
+    if (
+      detail.reason === "analysis-cleared"
+      || (detail.nextRecording === null && monitor.recordingStatus !== "recording")
+    ) {
+      a4RecordingAttemptIdRef.current = null;
+    }
+  };
+
+  const checkA4ActivityEvidence = () => {
+    if (
+      !pendingA4ActivityCheck
+      || pendingA4ActivityCheck.attemptId !== a4Activity.session.attemptId
+      || pendingA4ActivityCheck.recording !== monitor.recordingBlob
+      || a4Activity.session.lifecycle !== "answering"
+    ) return;
+    a4Activity.completeCheck(pendingA4ActivityCheck.checkEvidence);
+    setPendingA4ActivityCheck(null);
+  };
+
+  const retryA4Activity = () => {
+    monitor.clear();
+    setRecordingTargetSnapshot(null);
+    setPendingA4ActivityCheck(null);
+    a4RecordingAttemptIdRef.current = null;
+    a4Activity.restart();
   };
 
   const deleteRecord = async (record: LocalVocalPracticeRecord) => {
@@ -204,12 +325,27 @@ export function RealtimePitchMonitorPanel({ targetExercise = null }: { targetExe
           <button type="button" onClick={monitor.stopPlayback} disabled={monitor.recordingStatus !== "playing"} className="min-h-11 rounded-xl border border-violet-300 bg-white px-4 py-2 text-sm font-bold text-violet-950 disabled:cursor-not-allowed disabled:opacity-50">停止回放</button>
           <button type="button" onClick={discardSessionRecording} disabled={monitor.recordingStatus === "empty"} className="min-h-11 rounded-xl border border-rose-300 bg-white px-4 py-2 text-sm font-bold text-rose-800 disabled:cursor-not-allowed disabled:opacity-50">丢弃本次录音</button>
         </div>
+        <section className="mt-4 rounded-2xl border border-cyan-200 bg-white p-4" aria-labelledby="a4-microphone-activity-title">
+          <h3 id="a4-microphone-activity-title" className="font-black text-cyan-950">A4 单音长音活动</h3>
+          <p className="mt-1 text-sm leading-6 text-cyan-900">固定目标 A4 · 440 Hz。请先主动开始实时反馈，再单独开始活动录音；分析证据只属于本次尝试，不自动保存，也不生成分数。</p>
+          <ActivityProtocolState session={a4Activity.session} />
+          {a4Activity.session.checkEvidence ? <p className="mt-2 rounded-xl bg-cyan-50 p-3 text-sm leading-6 text-cyan-950" role="status">{a4Activity.session.checkEvidence.explanation}</p> : null}
+          {a4ReferenceError ? <p className="mt-2 text-sm text-amber-800" role="alert">{a4ReferenceError}</p> : null}
+          <div className="mt-3 flex flex-wrap gap-2">
+            <button type="button" onClick={() => void playA4Reference()} className="min-h-11 rounded-xl border border-cyan-300 bg-white px-4 py-2 text-sm font-bold text-cyan-950">播放 A4 参考音</button>
+            <button type="button" onClick={startA4ActivityRecording} disabled={monitor.status !== "listening" || monitor.recordingStatus === "recording" || monitor.recordingStatus === "playing"} className="min-h-11 rounded-xl bg-cyan-800 px-4 py-2 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-50">开始 A4 活动录音</button>
+            <button type="button" onClick={checkA4ActivityEvidence} disabled={!pendingA4ActivityCheck || a4Activity.session.lifecycle !== "answering"} className="min-h-11 rounded-xl border border-cyan-300 bg-white px-4 py-2 text-sm font-bold text-cyan-950 disabled:cursor-not-allowed disabled:opacity-50">检查本次 A4 证据</button>
+            <button type="button" onClick={retryA4Activity} disabled={a4Activity.session.lifecycle === "ready" && !monitor.recordingBlob && !pendingA4ActivityCheck} className="min-h-11 rounded-xl border border-rose-300 bg-white px-4 py-2 text-sm font-bold text-rose-800 disabled:cursor-not-allowed disabled:opacity-50">重新尝试 A4</button>
+          </div>
+        </section>
         <OfflinePitchAnalysisPanel
           recording={monitor.recordingBlob}
           onBeforeAnalyze={() => { stopSavedPlayback(); monitor.stopPlayback(); monitor.stop(); }}
           targetExercise={recordingTargetSnapshot}
           recordingStartedAtMs={monitor.recordingStartedAtMs}
-          targetStartedAtMs={monitor.listeningStartedAtMs}
+          targetStartedAtMs={recordingTargetSnapshot === fixedA4ActivityExercise ? monitor.recordingStartedAtMs : monitor.listeningStartedAtMs}
+          onAnalysisReady={handleAnalysisReady}
+          onAnalysisInvalidated={handleAnalysisInvalidated}
         />
       </section>
 

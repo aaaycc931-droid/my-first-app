@@ -21,6 +21,14 @@ const flush = async () => {
   await act(async () => { await new Promise((resolve) => window.setTimeout(resolve, 10)); });
 };
 
+const waitFor = async (predicate: () => boolean, message: string) => {
+  for (let attempt = 0; attempt < 40; attempt += 1) {
+    if (predicate()) return;
+    await flush();
+  }
+  throw new Error(`等待超时：${message}`);
+};
+
 const renderPanel = async (targetExercise?: GeneratedLocalVocalExercise) => {
   const container = document.createElement("div");
   document.body.append(container);
@@ -256,6 +264,83 @@ describe("Android 实时音高反馈行为", () => {
     expect(trackStop).toHaveBeenCalledTimes(1);
   });
 
+  it("固定 A4 活动必须显式录音、分析和检查，并以录音开始作为目标零点", async () => {
+    let now = 1_000;
+    vi.spyOn(performance, "now").mockImplementation(() => now);
+    const container = await renderPanel();
+    const activityRecordButton = button(container, "开始 A4 活动录音") as HTMLButtonElement;
+
+    expect(getUserMedia).not.toHaveBeenCalled();
+    expect(activityRecordButton.disabled).toBe(true);
+    expect(container.textContent).toContain("固定目标 A4 · 440 Hz");
+    expect(container.querySelector('[data-testid="activity-protocol-state"]')?.textContent).toContain("题目已确认");
+    expect(container.querySelector('[data-testid="activity-protocol-state"]')?.textContent).toContain("第 1 次尝试");
+
+    await click(button(container, "开始实时反馈"));
+    now = 10_000;
+    expect((button(container, "开始 A4 活动录音") as HTMLButtonElement).disabled).toBe(false);
+    await click(button(container, "开始 A4 活动录音"));
+    expect(container.textContent).toContain("状态：正在录音");
+
+    await click(button(container, "停止录音"));
+    await click(button(container, "检查并准备分析本次录音"));
+    await click(button(container, "确认开始本地分析"));
+    await waitFor(
+      () => container.querySelector('[data-testid="activity-protocol-state"]')?.textContent?.includes("已作答，等待检查") === true,
+      "A4 分析证据提交到当前活动尝试",
+    );
+    expect(container.textContent).toContain("第 1 音 · 目标 A4");
+    expect(container.querySelector('[data-testid="activity-protocol-state"]')?.textContent).not.toContain("答案已检查");
+
+    await click(button(container, "检查本次 A4 证据"));
+    expect(container.querySelector('[data-testid="activity-protocol-state"]')?.textContent).toContain("答案已检查");
+    expect(container.querySelector('[data-testid="activity-protocol-state"]')?.textContent).toContain("非评分证据");
+
+    await click(button(container, "重新尝试 A4"));
+    expect(container.querySelector('[data-testid="activity-protocol-state"]')?.textContent).toContain("题目已确认");
+    expect(container.querySelector('[data-testid="activity-protocol-state"]')?.textContent).toContain("第 2 次尝试");
+    expect(container.textContent).toContain("状态：尚未录音");
+    expect(container.textContent).not.toContain("状态：本地分析已完成");
+  });
+
+  it("清除分析或在 checked 后重录会清除旧证据并隔离新尝试", async () => {
+    const container = await renderPanel();
+    await click(button(container, "开始实时反馈"));
+    await click(button(container, "开始 A4 活动录音"));
+    await click(button(container, "停止录音"));
+    await click(button(container, "检查并准备分析本次录音"));
+    await click(button(container, "确认开始本地分析"));
+    await waitFor(
+      () => container.querySelector('[data-testid="activity-protocol-state"]')?.textContent?.includes("已作答，等待检查") === true,
+      "首次 A4 证据提交",
+    );
+
+    await click(button(container, "清除本次分析结果"));
+    expect(container.querySelector('[data-testid="activity-protocol-state"]')?.textContent).toContain("题目已确认");
+    expect(container.querySelector('[data-testid="activity-protocol-state"]')?.textContent).toContain("第 2 次尝试");
+    expect((button(container, "检查本次 A4 证据") as HTMLButtonElement).disabled).toBe(true);
+
+    await click(button(container, "开始实时反馈"));
+    await click(button(container, "开始 A4 活动录音"));
+    await click(button(container, "停止录音"));
+    await click(button(container, "检查并准备分析本次录音"));
+    await click(button(container, "确认开始本地分析"));
+    await waitFor(
+      () => container.querySelector('[data-testid="activity-protocol-state"]')?.textContent?.includes("已作答，等待检查") === true,
+      "第二次 A4 证据提交",
+    );
+    await click(button(container, "检查本次 A4 证据"));
+    expect(container.querySelector('[data-testid="activity-protocol-state"]')?.textContent).toContain("答案已检查");
+    expect(container.querySelector('[data-testid="activity-protocol-state"]')?.textContent).toContain("第 2 次尝试");
+
+    await click(button(container, "开始实时反馈"));
+    await click(button(container, "开始 A4 活动录音"));
+    expect(container.querySelector('[data-testid="activity-protocol-state"]')?.textContent).toContain("题目已确认");
+    expect(container.querySelector('[data-testid="activity-protocol-state"]')?.textContent).toContain("第 3 次尝试");
+    expect(container.querySelector('[data-testid="activity-protocol-state"]')?.textContent).not.toContain("答案已检查");
+    expect((button(container, "检查本次 A4 证据") as HTMLButtonElement).disabled).toBe(true);
+  });
+
   it("权限拒绝显示中文恢复提示且不伪造音名", async () => {
     getUserMedia.mockRejectedValue(new DOMException("denied", "NotAllowedError"));
     const container = await renderPanel();
@@ -264,6 +349,9 @@ describe("Android 实时音高反馈行为", () => {
     expect(container.textContent).toContain("麦克风权限未开启");
     expect(container.textContent).toContain("—");
     expect(container.textContent).not.toContain("正在本地监听");
+    expect(container.querySelector('[data-testid="activity-protocol-state"]')?.textContent).toContain("题目已确认");
+    expect(container.querySelector('[data-testid="activity-protocol-state"]')?.textContent).toContain("第 1 次尝试");
+    expect((button(container, "开始 A4 活动录音") as HTMLButtonElement).disabled).toBe(true);
   });
 
   it("组件卸载会释放仍在使用的轨道和音频上下文", async () => {

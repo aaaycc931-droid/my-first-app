@@ -3,7 +3,7 @@
 import { useState } from "react";
 
 import type { ActivityAnswer } from "../../lib/activity/activityAnswer";
-import type { ActivityDefinitionV1 } from "../../lib/activity/activityDefinition";
+import type { AnyActivityDefinitionV1 } from "../../lib/activity/activityDefinition";
 import {
   checkChoiceActivityAnswer,
   completeActivityCheck,
@@ -15,7 +15,7 @@ import {
 } from "../../lib/activity/activitySession";
 
 export function useChoiceActivitySession(
-  definition: ActivityDefinitionV1,
+  definition: AnyActivityDefinitionV1,
   sessionId: string,
 ) {
   const [storedSession, setStoredSession] = useState(() =>
@@ -77,6 +77,13 @@ export function useChoiceActivitySession(
     });
   };
 
+  const completeCheck = (evidence: ActivityCheckEvidence) => {
+    setStoredSession((stored) => {
+      const current = resolve(stored);
+      return completeActivityCheck(current, evidence, current.revision);
+    });
+  };
+
   const restart = () => {
     setStoredSession((stored) => {
       const current = resolve(stored);
@@ -103,6 +110,7 @@ export function useChoiceActivitySession(
     submitAnswer,
     submitChoice,
     checkAnswer,
+    completeCheck,
     checkChoice,
     restart,
     restartIfDirty,

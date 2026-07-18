@@ -4,7 +4,7 @@
 
 状态：**Canonical integrated roadmap / 统一长期开发主路线**
 
-当前执行状态：**ACTIVE AT P114e / 三音旋律听写固定唱名答案 implementation candidate**
+当前执行状态：**ACTIVE AT P114f / 固定 A4 单音麦克风证据 implementation candidate（本地共享挂载已形成）**
 
 适用项目：`aaaycc931-droid/my-first-app`
 
@@ -21,7 +21,8 @@
 - P114b 已通过 PR #368 合并，main commit 为 `65ed9950d480a78f327bec500de407336ee9a52e`；音程、节奏和三音旋律听写保持旧题库、课程 RPC、Web Audio 与本机复练兼容地迁入统一协议；
 - P114c 已通过 PR #369 合并，main commit 为 `4737f7eb9dae2f18c15008f2a0f718f3fd7cba5e`；已确认临时乐谱节奏目标的 `tap` 输入、活动生命周期和非评分证据已接入统一协议；
 - P114d 已通过 PR #370 合并，main commit 为 `0e1d7ee107ec1e8c0131e972031b27d408f5dade`；项目原创确认谱面的屏幕 `piano` 输入已接入，但 MusicXML 草稿和 USB/BLE MIDI 仍未适配；
-- P114e 当前为 ACTIVE implementation candidate，本地运行时已在现有三音旋律听写中保留 `choice` 并增加固定唱名 `solfege` 有序答案，focused adapter 与共享真实挂载行为测试已通过；验收标准记录在 `docs/p114e-fixed-solfege-answer-acceptance.md`，但完整远端门禁、PR 和合并尚未完成。
+- P114e 已通过 PR #371 squash merge，main commit 为 `b8cff79626af3267611291b13f020a24f5a55ff5`；现有三音旋律听写保留 `choice` 并增加固定唱名 `solfege` 有序答案，ordered、重复音、F♯4/C5 token 与 strict QA 边界见 `docs/p114e-fixed-solfege-answer-acceptance.md`；
+- P114f 当前为 ACTIVE implementation candidate：固定 A4 单音已在本地把用户主动录音、二次确认后的 P112/P113 本机分析与 `AnalysisEvidence` 接入当前 attempt 的 `microphone` answer，并共享挂载到 Android 与 Web `/practice` 手动入口；focused adapter 与挂载行为测试已通过。验收标准见 `docs/p114f-fixed-a4-microphone-evidence-acceptance.md`。远端门禁、PR、合并、APK 真机、真实人声或 P104 证据尚未完成。
 
 本次产品决策是：
 
@@ -189,7 +190,7 @@ flowchart TD
 - P113 真机音频/录音/生命周期与目标用户证据；
 - 伙伴运行时、P114 统一活动模型和共享协议。
 
-该暂停点已由产品所有者在 2026-07-18 明确解除；P114a–P114d 已合并，当前继续 R1 的 P114e implementation candidate，P114 尚未整体完成。
+该暂停点已由产品所有者在 2026-07-18 明确解除；P114a–P114e 已合并，其中 P114e 为 PR #371 / `b8cff79626af3267611291b13f020a24f5a55ff5`。当前继续 R1 的 P114f 固定 A4 麦克风证据 implementation candidate；本地共享挂载已形成但远端与真机仍待完成，P114 尚未整体完成。
 
 ### R1：P114 + F1/F2 + M0——统一活动与伙伴安全接入点
 
@@ -486,21 +487,21 @@ P120 仍是专业私测候选，不是全能公开最终版。
 4. 保留本地确定性解释与手动召唤；
 5. 完全隐藏伙伴，核心产品继续工作。
 
-## 18. 恢复开发后的唯一下一步
+## 18. 当前恢复开发后的唯一下一步
 
 产品所有者再次明确恢复运行时开发后：
 
-1. 从远端最新 `main` 建立新分支，先核对本路线、DoD、状态矩阵和最新交接；
-2. 确认 P113 merge commit 和 CI 事实，继续把真实人声/真机/教育证据列为独立缺口；
-3. 开始 P114 的真实 vertical slice，同时冻结 F1/F2/M0 的最小协议；
+1. 从 P114e 已合并的远端 `main@b8cff79626af3267611291b13f020a24f5a55ff5` 建立新分支，先核对本路线、DoD、状态矩阵和 P114f 验收文档；
+2. 继续把 P104/P113 的真实人声、三档 Android、延迟/同步和教育证据列为独立缺口；
+3. 实现 P114f 固定 A4 单音麦克风证据 vertical slice：录音零点锚定、当前 attempt 的 P113 evidence、`microphone` answer、非评分 checked 与 stale 清理必须同一切片闭合；
 4. 不先做伙伴形象、首页悬浮物或自由聊天；
-5. P114 合并并证明协议有真实使用者后，才启动 M1a 单伙伴可信反馈闭环；
+5. P114 完整合并并证明所有计划输入与共享证据协议有真实使用者后，才启动 M1a 单伙伴可信反馈闭环；
 6. 后续按 R2–R9 滚动推进，每个切片完成“实现 → focused tests → 完整检查 → 提交 → 推送 → PR → CI → 审查 → squash merge → 状态更新”；
 7. 只在最终交付完成或必须由产品所有者、真实设备参与者、教育专家、合法数据/许可方处理的外部硬阻塞时暂停。
 
 ## 19. 本次规划边界
 
-本文件只完成未来路线整合：
+本节保留本路线最初建立时的 docs-only 边界；它不是当前执行状态。当前 P114a–P114e 已合并并进入 P114f 实施候选，但以下原则继续有效：
 
 - 没有实现 P114、F、S、A、C、M 或 Q 的新运行时能力；
 - 没有创建伙伴形象、动画、声音、台词、模型或资源包；
@@ -509,4 +510,4 @@ P120 仍是专业私测候选，不是全能公开最终版。
 - 不宣称项目已经达到八款参照产品或 P120 的门槛；
 - QA level recommendation：**none**。
 
-路线文档合并后项目继续暂停，等待产品所有者明确恢复开发。
+最初的规划暂停已由产品所有者解除；当前真实检查点以本文件顶部、`docs/mvp-status.md` 和 `docs/final-release-status-matrix.md` 为准。

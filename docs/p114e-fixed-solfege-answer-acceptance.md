@@ -1,6 +1,6 @@
 # P114e — 三音旋律听写固定唱名答案接入验收标准
 
-状态：**ACTIVE / implementation candidate**
+状态：**PR #371 已 squash merge / main `b8cff79626af3267611291b13f020a24f5a55ff5`**
 
 QA level recommendation：**strict**
 
@@ -122,4 +122,4 @@ P114e 不包含：
 
 ## 8. 完成判定
 
-代码与本机 focused tests 已形成 implementation candidate；远端门禁、Web 浏览器手动 QA、Android 真机 QA、PR 和合并仍未完成。只有完整检查和相应远端门禁真实通过，且状态文档附上可核实的 PR/commit 事实后，P114e 才能从 **ACTIVE / implementation candidate** 改为已完成或已合并。
+代码、focused tests、完整检查与远端门禁已经随 PR #371 通过并 squash merge，main commit 为 `b8cff79626af3267611291b13f020a24f5a55ff5`。这只证明 P114e 代码与自动门禁已合并；Web 浏览器手动视觉/音频 QA、Android 真机触控/生命周期、教育审核与正式发布证据仍须分别记录，不能用合并事实替代。P114 也尚未整体完成。
