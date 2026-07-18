@@ -1,7 +1,7 @@
 # Android 离线专业视唱练耳产品路线
 
-状态：**Historical first-generation Android private-test route / 仍约束离线私测边界**  
-生效日期：2026-07-16  
+状态：**Historical first-generation Android private-test route / 仍约束离线私测边界**
+生效日期：2026-07-16
 适用范围：面向中文用户、可私下分发、断网可用的第一代 Android APK；长期终局见八产品路线
 
 ## 1. 产品结论
