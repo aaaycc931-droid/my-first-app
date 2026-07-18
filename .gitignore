@@ -25,3 +25,7 @@ local-fixtures/melody-guide-audio/metadata.local.json
 
 # P104 release evidence contains local device and participant summaries.
 local-fixtures/android-p104/evidence.local.json
+
+# P111 pitch benchmark rows and reports may summarize private local recordings.
+local-fixtures/pitch-benchmark/benchmark.local.json
+local-fixtures/pitch-benchmark/*.report.local.json

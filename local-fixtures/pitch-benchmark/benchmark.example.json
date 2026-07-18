@@ -1,0 +1,73 @@
+{
+  "protocolVersion": "p111-pitch-benchmark-v1",
+  "benchmarkId": "replace-with-unique-local-run-id",
+  "run": {
+    "commitSha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "engineId": "replace-with-engine-id",
+    "engineVersion": "replace-with-engine-version",
+    "parametersSha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "deviceProfile": "replace-with-nonidentifying-device-profile",
+    "labelsSealedBeforeRun": false,
+    "engineFrozenBeforeBlindRun": false
+  },
+  "governance": {
+    "rawAudioLocalOnly": true,
+    "containsDirectIdentifiers": false,
+    "consentRecordsStoredSeparately": true,
+    "splitsAssignedBeforeRun": false
+  },
+  "cases": [
+    {
+      "id": "example-tuning-synthetic-001",
+      "split": "tuning",
+      "sourceType": "synthetic",
+      "participantToken": null,
+      "consentRecordToken": null,
+      "authorizedForBenchmark": true,
+      "referenceVoiced": true,
+      "referenceFrequencyHz": 440,
+      "strata": { "range": "mid", "dynamics": "medium", "technique": "stable", "noise": "quiet", "deviceClass": "generated-in-memory" },
+      "annotation": { "annotatorCount": 2, "adjudicatedWhenDisputed": true },
+      "result": { "predictedVoiced": true, "frequencyHz": 440, "durationSeconds": 1, "processingMs": 100 }
+    },
+    {
+      "id": "example-development-instrument-001",
+      "split": "development",
+      "sourceType": "instrument",
+      "participantToken": null,
+      "consentRecordToken": null,
+      "authorizedForBenchmark": true,
+      "referenceVoiced": true,
+      "referenceFrequencyHz": 220,
+      "strata": { "range": "low", "dynamics": "soft", "technique": "stable", "noise": "ambient", "deviceClass": "phone-microphone-category" },
+      "annotation": { "annotatorCount": 2, "adjudicatedWhenDisputed": true },
+      "result": { "predictedVoiced": true, "frequencyHz": 220, "durationSeconds": 1, "processingMs": 100 }
+    },
+    {
+      "id": "example-blind-real-voice-001",
+      "split": "acceptance-blind",
+      "sourceType": "real-voice",
+      "participantToken": "anonymous-participant-token-example",
+      "consentRecordToken": "separate-consent-record-token-example",
+      "authorizedForBenchmark": false,
+      "referenceVoiced": true,
+      "referenceFrequencyHz": 261.6256,
+      "strata": { "range": "mid", "dynamics": "medium", "technique": "vibrato", "noise": "quiet", "deviceClass": "phone-microphone-category" },
+      "annotation": { "annotatorCount": 0, "adjudicatedWhenDisputed": false },
+      "result": { "predictedVoiced": false, "frequencyHz": null, "durationSeconds": 1, "processingMs": 0 }
+    },
+    {
+      "id": "example-blind-no-pitch-001",
+      "split": "acceptance-blind",
+      "sourceType": "no-pitch",
+      "participantToken": null,
+      "consentRecordToken": null,
+      "authorizedForBenchmark": true,
+      "referenceVoiced": false,
+      "referenceFrequencyHz": null,
+      "strata": { "range": "not-applicable", "dynamics": "not-applicable", "technique": "not-applicable", "noise": "speaker-leak", "deviceClass": "phone-microphone-category" },
+      "annotation": { "annotatorCount": 2, "adjudicatedWhenDisputed": true },
+      "result": { "predictedVoiced": false, "frequencyHz": null, "durationSeconds": 1, "processingMs": 100 }
+    }
+  ]
+}
