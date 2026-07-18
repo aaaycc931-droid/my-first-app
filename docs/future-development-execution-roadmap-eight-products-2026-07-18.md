@@ -1,9 +1,11 @@
 # 八产品全能音乐学习系统：未来开发执行路线（代码冻结规划版）
 
 规划日期：2026-07-18
-状态：**ACTIVE EXECUTION / 原规划冻结已由产品所有者解除**
-当前检查点：远端已核对 **P112 / PR #363 已 squash merge**，merge commit 为 `a38d7be42b57e2bde4030e78d03a41f644897ee8`；P113 已本地实现并通过 focused 验证，待完整 CI/真机证据
+状态：**HISTORICAL EXECUTION BASELINE / 已由包含伙伴系统的统一路线接续**
+当前检查点更新：P113 已通过 PR #365 squash merge，merge commit 为 `2a786f1b66fee095224214430d12e96f78a5057e`；项目在规划更新后暂停，下一运行时切片为 P114
 适用项目：`aaaycc931-droid/my-first-app`
+
+> 本文件保留 P/F/S/A/C/Q 原始范围和详细波次。P113 之后加入 AI 音乐伙伴 `M` 泳道的 canonical 执行顺序，以 `docs/unified-development-roadmap-with-ai-music-companion-2026-07-18.md` 为准；以下 P112/P113 暂停文字只作为历史创建背景。
 
 ## 1. 本次规划的授权边界
 
