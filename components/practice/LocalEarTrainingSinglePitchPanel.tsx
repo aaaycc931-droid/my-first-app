@@ -22,6 +22,14 @@ import {
 import { useLocalAudioPlayback } from "./useLocalAudioPlayback";
 import { useLockedPracticeAnswer } from "./useLockedPracticeAnswer";
 import { useLocalQuestionSchedule } from "./useLocalQuestionSchedule";
+import { ActivityChoiceAnswerPanel } from "./ActivityChoiceAnswerPanel";
+import { adaptSinglePitchQuestionToActivity } from "../../lib/activity/legacyLocalActivityAdapter";
+import {
+  checkChoiceActivityAnswer,
+  createActivitySession,
+  restartActivityAttempt,
+  submitActivityAnswer,
+} from "../../lib/activity/activitySession";
 
 export function LocalEarTrainingSinglePitchPanel({
   courseExerciseId,
@@ -75,11 +83,27 @@ export function LocalEarTrainingSinglePitchPanel({
     }),
     [catalogMode, difficulty, initialReviewTarget?.variantId, questionIndex, sequence],
   );
+  const activityDefinition = useMemo(
+    () => adaptSinglePitchQuestionToActivity(question),
+    [question],
+  );
+  const [storedActivitySession, setActivitySession] = useState(() =>
+    createActivitySession(activityDefinition, `single-pitch:${question.id}`),
+  );
+  const currentActivitySession = (candidate: typeof storedActivitySession) =>
+    candidate.activityId === activityDefinition.activityId && candidate.targetId === activityDefinition.target.targetId
+      ? candidate
+      : createActivitySession(activityDefinition, `single-pitch:${question.id}`);
+  const activitySession = currentActivitySession(storedActivitySession);
   const answer = useMemo(() => getLocalEarTrainingSinglePitchAnswer({ question, selectedPitchId }), [question, selectedPitchId]);
 
   const resetCurrentQuestion = () => {
     stopPlayback();
     answerLock.reset();
+    setActivitySession((stored) => {
+      const current = currentActivitySession(stored);
+      return restartActivityAttempt(current, current.revision);
+    });
     setAudioError("");
     resetSaveStatus();
   };
@@ -87,6 +111,16 @@ export function LocalEarTrainingSinglePitchPanel({
   const revealAnswer = async () => {
     const submittedPitchId = answerLock.reveal();
     if (!submittedPitchId) return;
+    setActivitySession((stored) => {
+      const current = currentActivitySession(stored);
+      const submitted = submitActivityAnswer(
+        activityDefinition,
+        current,
+        { mode: "choice", optionIds: [submittedPitchId] },
+        current.revision,
+      );
+      return checkChoiceActivityAnswer(activityDefinition, submitted, submitted.revision);
+    });
     const matchesAnswer = submittedPitchId === question.pitch.id;
     if (!courseExerciseId && onLocalAnswerResult && sessionSeed !== null) {
       onLocalAnswerResult({
@@ -164,7 +198,27 @@ export function LocalEarTrainingSinglePitchPanel({
         <div className="rounded-2xl border border-slate-200 p-4">
           <p className="text-sm font-semibold text-slate-500">回答本题</p>
           <p className="mt-1 text-lg font-bold text-slate-950">听完后选择你听到的音名</p>
-          <div className="mt-4 grid gap-2 sm:grid-cols-3">{answerPitches.map((pitch) => <button key={pitch.id} type="button" disabled={!isQuestionReady || isAnswerVisible} onClick={() => { if (answerLock.choose(pitch.id)) resetSaveStatus(); }} className={`rounded-xl border px-3 py-3 text-left font-semibold transition disabled:cursor-not-allowed disabled:opacity-70 ${selectedPitchId === pitch.id ? "border-sky-600 bg-sky-50 text-sky-900 ring-2 ring-sky-200" : "border-slate-200 bg-white text-slate-800 hover:border-sky-300"}`}>{pitch.label}</button>)}</div>
+          <ActivityChoiceAnswerPanel
+            options={answerPitches}
+            selectedOptionId={selectedPitchId}
+            disabled={!isQuestionReady || isAnswerVisible}
+            onChoose={(pitchId) => {
+              if (!answerLock.choose(pitchId)) return;
+              setActivitySession((stored) => {
+                const current = currentActivitySession(stored);
+                const available = current.lifecycle === "answering"
+                  ? restartActivityAttempt(current, current.revision)
+                  : current;
+                return submitActivityAnswer(
+                  activityDefinition,
+                  available,
+                  { mode: "choice", optionIds: [pitchId] },
+                  available.revision,
+                );
+              });
+              resetSaveStatus();
+            }}
+          />
           <div className="mt-4 flex flex-wrap gap-2">
             <button type="button" disabled={!answer.hasSelection || saveStatus === "saving"} onClick={() => void revealAnswer()} className="rounded-xl bg-slate-900 px-4 py-2.5 font-semibold text-white disabled:cursor-not-allowed disabled:bg-slate-300">{saveStatus === "saving" ? "正在保存练习记录…" : "查看本题答案"}</button>
             {isAnswerVisible && !answer.matchesAnswer ? <button type="button" onClick={retryCurrentQuestion} className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-2.5 font-semibold text-amber-900">重新播放并复练本题</button> : null}
@@ -172,6 +226,9 @@ export function LocalEarTrainingSinglePitchPanel({
             <button type="button" disabled={!isQuestionReady} onClick={() => { resetCurrentQuestion(); if (initialReviewTarget && onLeaveReviewTarget) onLeaveReviewTarget(); else setSequence((current) => current + 1); }} className="rounded-xl border border-sky-300 bg-white px-4 py-2.5 font-semibold text-sky-800 disabled:cursor-not-allowed disabled:opacity-50">{initialReviewTarget ? "返回随机练习" : "下一题"}</button>
           </div>
           {!answer.hasSelection ? <p className="mt-3 text-sm leading-6 text-slate-500">请先选择一个音名，再查看本题答案。</p> : null}
+          <p className="mt-3 text-xs leading-5 text-slate-500" data-testid="activity-protocol-state">
+            统一活动协议：{activitySession.lifecycle === "ready" ? "题目已确认" : activitySession.lifecycle === "answering" ? "已作答，等待检查" : activitySession.lifecycle === "checked" ? "答案已检查" : "正在检查题目"}；第 {activitySession.attemptNumber} 次尝试。本活动只提供非评分证据。
+          </p>
           {isAnswerVisible ? <div className="mt-4 rounded-2xl bg-slate-50 p-4 text-sm leading-6 text-slate-700"><p className="font-bold text-slate-950">本题答案：{answer.answerLabel}</p><p className="mt-1">{answer.explanation}</p><p className="mt-2">你的选择：{answerPitches.find((pitch) => pitch.id === selectedPitchId)?.label ?? "未选择"}。{answer.matchesAnswer ? "这次选择与本题答案一致。" : "这次选择与本题答案不同；可以再次播放并重置本题复练。"}</p><p className="mt-2 text-slate-500">答案说明显示后，本题选择已锁定；请使用复练或下一题开始新的尝试。这不是正式分数、准确率、等级、通过或失败判断。</p></div> : null}
           {courseExerciseId ? <CourseAttemptSaveNotice status={saveStatus} /> : null}
         </div>
