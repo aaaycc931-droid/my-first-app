@@ -1,5 +1,6 @@
 import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
+import { createHash } from "node:crypto";
 
 const root = process.cwd();
 const requiredSources = [
@@ -19,6 +20,7 @@ const requiredSources = [
   "lib/piano/pianoPerformance.ts",
   "lib/piano/pianoMidi.ts",
   "lib/piano/pianoLearningScore.ts",
+  "lib/platform/sharedProjectCapability.ts",
   "mobile/public/piano/timbres.manifest.json",
   "components/piano/LocalPianoPanel.tsx",
   "components/piano/useLocalPianoAudio.ts",
@@ -196,10 +198,29 @@ if (
   throw new Error("Android 逐音证据缺少版本、独立分段、目标对齐、三阶段证据或局部拒答边界");
 }
 const pianoAssetDirectory = join(root, "mobile/public/piano/splendid-grand-v1");
-const pianoAssets = readdirSync(pianoAssetDirectory).filter((name) => name.endsWith(".ogg"));
+const pianoAssets = readdirSync(pianoAssetDirectory).filter((name) => name.endsWith(".ogg")).sort();
 const pianoAssetBytes = pianoAssets.reduce((total, name) => total + statSync(join(pianoAssetDirectory, name)).size, 0);
 if (pianoAssets.length !== 36 || pianoAssetBytes > 3 * 1024 * 1024) {
   throw new Error(`钢琴采样资产数量或包体预算异常：${pianoAssets.length} files / ${pianoAssetBytes} bytes`);
+}
+const pianoPackageDigestInput = pianoAssets.map((name) => {
+  const digest = createHash("sha256")
+    .update(readFileSync(join(pianoAssetDirectory, name)))
+    .digest("hex");
+  return `${digest}  ${name}\n`;
+}).join("");
+const pianoPackageDigest = createHash("sha256")
+  .update(pianoPackageDigestInput)
+  .digest("hex");
+const splendidManifest = pianoTimbreManifest.timbres.find(
+  (timbre) => timbre.id === "splendid-grand-piano-mobile-v1",
+);
+if (
+  splendidManifest?.packageSha256 !== pianoPackageDigest
+  || splendidManifest?.packageSizeBytes !== pianoAssetBytes
+  || !sampledPianoSource.includes(pianoPackageDigest)
+) {
+  throw new Error("钢琴 ResourcePackage 的 SHA-256、大小或运行时声明与 36 个实际资产不一致");
 }
 for (const forbiddenReviewField of [
   "selectedPitchId",
