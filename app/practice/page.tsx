@@ -1153,7 +1153,10 @@ export default function PracticePage() {
       return;
     }
 
-    const selectedSummary = createLocalMelodyGuideFileSummary(file);
+    const selectedSummary = createLocalMelodyGuideFileSummary(
+      file,
+      `local-melody-guide-${runId}`,
+    );
     setLocalMelodyGuideSource({ ...selectedSummary, status: "decoding" });
 
     let audioContext: AudioContext | null = null;
