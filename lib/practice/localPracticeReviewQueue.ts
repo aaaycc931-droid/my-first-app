@@ -2,6 +2,7 @@ import { isLocalEarTrainingIntervalVariantId } from "./localEarTrainingIntervals
 import { isLocalEarTrainingMelodyVariantId } from "./localEarTrainingMelodyDictation";
 import { isLocalEarTrainingRhythmVariantId } from "./localEarTrainingRhythm";
 import { isLocalEarTrainingSinglePitchVariantId } from "./localEarTrainingSinglePitch";
+import { isLocalEarTrainingChordVariantId, type ChordPlaybackMode } from "./localEarTrainingChords";
 import {
   getLegacyLocalPracticeVariantId,
   LOCAL_PRACTICE_CATALOG_VERSION,
@@ -9,7 +10,7 @@ import {
   type LocalPracticeDifficulty,
 } from "./localPracticeCatalog";
 
-export const LOCAL_PRACTICE_REVIEW_QUEUE_SCHEMA_VERSION = 2 as const;
+export const LOCAL_PRACTICE_REVIEW_QUEUE_SCHEMA_VERSION = 3 as const;
 export { LOCAL_PRACTICE_CATALOG_VERSION };
 export const LOCAL_PRACTICE_REVIEW_QUEUE_MAX_ITEMS = 12;
 export const LOCAL_PRACTICE_REVIEW_QUEUE_MAX_SERIALIZED_LENGTH = 8 * 1024;
@@ -26,6 +27,10 @@ export type LocalPracticeReviewTarget =
   | (LocalPracticeReviewTargetBase & {
       kind: "interval";
       direction: "上行" | "下行";
+    })
+  | (LocalPracticeReviewTargetBase & {
+      kind: "chord-inversion";
+      playbackMode: ChordPlaybackMode;
     })
   | (LocalPracticeReviewTargetBase & { kind: "rhythm" })
   | (LocalPracticeReviewTargetBase & { kind: "melody-dictation" });
@@ -84,6 +89,9 @@ const isKnownVariantId = (
   if (kind === "interval") {
     return isLocalEarTrainingIntervalVariantId(difficulty, variantId);
   }
+  if (kind === "chord-inversion") {
+    return isLocalEarTrainingChordVariantId(difficulty, variantId);
+  }
   if (kind === "rhythm") {
     return isLocalEarTrainingRhythmVariantId(difficulty, variantId);
   }
@@ -112,6 +120,20 @@ const parseTarget = (value: unknown): LocalPracticeReviewTarget | null => {
       kind: "interval",
       difficulty,
       direction: value.direction,
+      seed,
+      sequence,
+      variantId,
+    };
+  }
+
+  if (value.kind === "chord-inversion") {
+    if (!hasExactKeys(value, ["kind", "difficulty", "playbackMode", "seed", "sequence", "variantId"])) return null;
+    if (value.playbackMode !== "和声" && value.playbackMode !== "分解") return null;
+    if (!isKnownVariantId("chord-inversion", difficulty, variantId)) return null;
+    return {
+      kind: "chord-inversion",
+      difficulty,
+      playbackMode: value.playbackMode,
       seed,
       sequence,
       variantId,
@@ -173,6 +195,7 @@ export const getLocalPracticeReviewTargetKey = (target: LocalPracticeReviewTarge
     target.kind,
     target.difficulty,
     target.kind === "interval" ? target.direction : "",
+    target.kind === "chord-inversion" ? target.playbackMode : "",
     target.variantId,
   ].join(":");
 
@@ -205,6 +228,16 @@ const serializeTarget = (target: LocalPracticeReviewTarget): LocalPracticeReview
       kind: "interval",
       difficulty: target.difficulty,
       direction: target.direction,
+      seed: target.seed,
+      sequence: target.sequence,
+      variantId: target.variantId,
+    };
+  }
+  if (target.kind === "chord-inversion") {
+    return {
+      kind: "chord-inversion",
+      difficulty: target.difficulty,
+      playbackMode: target.playbackMode,
       seed: target.seed,
       sequence: target.sequence,
       variantId: target.variantId,
@@ -244,14 +277,16 @@ export const deserializeLocalPracticeReviewQueue = (
 
   const isCurrent = value.schemaVersion === LOCAL_PRACTICE_REVIEW_QUEUE_SCHEMA_VERSION
     && value.catalogVersion === LOCAL_PRACTICE_CATALOG_VERSION;
+  const isPrevious = value.schemaVersion === 2 && value.catalogVersion === 2;
   const isLegacy = value.schemaVersion === 1 && value.catalogVersion === 1;
-  if (!isCurrent && !isLegacy) return null;
+  if (!isCurrent && !isPrevious && !isLegacy) return null;
 
   const targets: LocalPracticeReviewQueue = [];
   const targetKeys = new Set<string>();
   for (const item of value.targets) {
     const target = isLegacy ? parseLegacyTarget(item) : parseTarget(item);
     if (!target) return null;
+    if (isPrevious && target.kind === "chord-inversion") return null;
     const targetKey = getLocalPracticeReviewTargetKey(target);
     if (targetKeys.has(targetKey)) {
       if (isLegacy) continue;
@@ -260,7 +295,7 @@ export const deserializeLocalPracticeReviewQueue = (
     targetKeys.add(targetKey);
     targets.push(target);
   }
-  return { queue: targets, migrated: isLegacy };
+  return { queue: targets, migrated: isLegacy || isPrevious };
 };
 
 export const parseLocalPracticeReviewQueue = (input: string): LocalPracticeReviewQueue | null =>
