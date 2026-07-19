@@ -1,8 +1,7 @@
 /* eslint-disable @next/next/no-img-element -- Capacitor loads this bundled local SVG without Next.js. */
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { LocalEarTrainingIntervalPanel } from "../../components/practice/LocalEarTrainingIntervalPanel";
-import { LocalEarTrainingChordPanel } from "../../components/practice/LocalEarTrainingChordPanel";
 import { LocalEarTrainingMelodyDictationPanel } from "../../components/practice/LocalEarTrainingMelodyDictationPanel";
 import { LocalEarTrainingRhythmPanel } from "../../components/practice/LocalEarTrainingRhythmPanel";
 import { LocalEarTrainingSinglePitchPanel } from "../../components/practice/LocalEarTrainingSinglePitchPanel";
@@ -48,7 +47,18 @@ import {
 } from "./runtime/mobileLearningProfileStorage";
 import type { GeneratedLocalVocalExercise } from "../../lib/practice/localVocalExercise";
 
-const screens = ["home", "monitor", "pitch", "interval", "chord", "rhythm", "melody", "piano"] as const;
+const LocalEarTrainingHarmonyProgressionPanel = lazy(() =>
+  import("../../components/practice/LocalEarTrainingHarmonyProgressionPanel").then((module) => ({
+    default: module.LocalEarTrainingHarmonyProgressionPanel,
+  })),
+);
+const LocalEarTrainingChordPanel = lazy(() =>
+  import("../../components/practice/LocalEarTrainingChordPanel").then((module) => ({
+    default: module.LocalEarTrainingChordPanel,
+  })),
+);
+
+const screens = ["home", "monitor", "pitch", "interval", "chord", "progression", "rhythm", "melody", "piano"] as const;
 type Screen = (typeof screens)[number];
 type PracticeScreenName = Exclude<Screen, "home" | "piano" | "monitor">;
 
@@ -76,6 +86,11 @@ const screenDetails: Record<
     summary: "听三和弦同时或分解发声，辨认和弦性质与最低音位置。",
     tone: "bg-fuchsia-50 text-fuchsia-950 ring-fuchsia-200",
   },
+  progression: {
+    title: "和声进行",
+    summary: "听依次播放的三和弦，辨认级数进行与终止式。",
+    tone: "bg-cyan-50 text-cyan-950 ring-cyan-200",
+  },
   rhythm: {
     title: "节奏听辨",
     summary: "听四拍节奏，选择与声音一致的节奏形状。",
@@ -102,6 +117,7 @@ const screenForReviewTarget = (target: LocalPracticeReviewTarget): PracticeScree
   if (target.kind === "single-pitch") return "pitch";
   if (target.kind === "melody-dictation") return "melody";
   if (target.kind === "chord-inversion") return "chord";
+  if (target.kind === "harmony-progression") return "progression";
   return target.kind;
 };
 
@@ -133,7 +149,11 @@ function PracticeScreen({
   }
   if (screen === "chord") {
     const target = reviewTarget?.kind === "chord-inversion" ? reviewTarget : undefined;
-    return <LocalEarTrainingChordPanel key={target ? getLocalPracticeReviewTargetKey(target) : "random-chord"} initialReviewTarget={target} showLocalPiano {...sharedProps} />;
+    return <Suspense fallback={<p className="rounded-2xl bg-fuchsia-50 p-4 text-sm text-fuchsia-900">正在载入和弦练习…</p>}><LocalEarTrainingChordPanel key={target ? getLocalPracticeReviewTargetKey(target) : "random-chord"} initialReviewTarget={target} showLocalPiano {...sharedProps} /></Suspense>;
+  }
+  if (screen === "progression") {
+    const target = reviewTarget?.kind === "harmony-progression" ? reviewTarget : undefined;
+    return <Suspense fallback={<p className="rounded-2xl bg-cyan-50 p-4 text-sm text-cyan-900">正在载入和声进行练习…</p>}><LocalEarTrainingHarmonyProgressionPanel key={target ? getLocalPracticeReviewTargetKey(target) : "random-progression"} initialReviewTarget={target} showLocalPiano {...sharedProps} /></Suspense>;
   }
   if (screen === "rhythm") {
     const target = reviewTarget?.kind === "rhythm" ? reviewTarget : undefined;
