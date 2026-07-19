@@ -1,6 +1,6 @@
 # P115b：和声进行与终止式听辨验收标准
 
-状态：**IMPLEMENTATION CANDIDATE / 等待远端 PR 与 CI**
+状态：**PR #381 已合并 / CI 与 Android Debug APK 工件通过**
 日期：2026-07-19
 QA level recommendation：**strict**
 
@@ -49,3 +49,7 @@ QA level recommendation：**strict**
 - 七和弦、和弦外音、完整四部和声、调制、转调或正式和声分析；
 - 麦克风/MIDI 作答、正式评分、自适应、跨设备同步或伙伴运行时；
 - 教师审核、五名目标用户、三档 Android 真机矩阵、正式签名或最终发布完成。
+
+## 7. 合并证据
+
+PR #381 已 squash merge，main commit 为 `72b4ed0f371380e25c27d363c4306b0fa73b985b`。Actions run `29684947244` 的 `quality` 与 `android-local` 均通过，artifact `8441785466` 的 ZIP SHA-256 为 `e6b6f8edb464b4159893c8f09023c28cbf4cbfcdaccceb302a8186a088a27ba2`，Vercel 合并前与合并后状态均成功。该证据不替代真机、教育审核或正式签名。

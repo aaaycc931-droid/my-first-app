@@ -52,13 +52,18 @@ const LocalEarTrainingHarmonyProgressionPanel = lazy(() =>
     default: module.LocalEarTrainingHarmonyProgressionPanel,
   })),
 );
+const LocalEarTrainingScaleModePanel = lazy(() =>
+  import("../../components/practice/LocalEarTrainingScaleModePanel").then((module) => ({
+    default: module.LocalEarTrainingScaleModePanel,
+  })),
+);
 const LocalEarTrainingChordPanel = lazy(() =>
   import("../../components/practice/LocalEarTrainingChordPanel").then((module) => ({
     default: module.LocalEarTrainingChordPanel,
   })),
 );
 
-const screens = ["home", "monitor", "pitch", "interval", "chord", "progression", "rhythm", "melody", "piano"] as const;
+const screens = ["home", "monitor", "pitch", "interval", "chord", "progression", "scale", "rhythm", "melody", "piano"] as const;
 type Screen = (typeof screens)[number];
 type PracticeScreenName = Exclude<Screen, "home" | "piano" | "monitor">;
 
@@ -91,6 +96,11 @@ const screenDetails: Record<
     summary: "听依次播放的三和弦，辨认级数进行与终止式。",
     tone: "bg-cyan-50 text-cyan-950 ring-cyan-200",
   },
+  scale: {
+    title: "音阶与调式",
+    summary: "听从主音上行的音阶，辨认大小调、五声与教会调式。",
+    tone: "bg-teal-50 text-teal-950 ring-teal-200",
+  },
   rhythm: {
     title: "节奏听辨",
     summary: "听四拍节奏，选择与声音一致的节奏形状。",
@@ -118,6 +128,7 @@ const screenForReviewTarget = (target: LocalPracticeReviewTarget): PracticeScree
   if (target.kind === "melody-dictation") return "melody";
   if (target.kind === "chord-inversion") return "chord";
   if (target.kind === "harmony-progression") return "progression";
+  if (target.kind === "scale-mode") return "scale";
   return target.kind;
 };
 
@@ -154,6 +165,10 @@ function PracticeScreen({
   if (screen === "progression") {
     const target = reviewTarget?.kind === "harmony-progression" ? reviewTarget : undefined;
     return <Suspense fallback={<p className="rounded-2xl bg-cyan-50 p-4 text-sm text-cyan-900">正在载入和声进行练习…</p>}><LocalEarTrainingHarmonyProgressionPanel key={target ? getLocalPracticeReviewTargetKey(target) : "random-progression"} initialReviewTarget={target} showLocalPiano {...sharedProps} /></Suspense>;
+  }
+  if (screen === "scale") {
+    const target = reviewTarget?.kind === "scale-mode" ? reviewTarget : undefined;
+    return <Suspense fallback={<p className="rounded-2xl bg-teal-50 p-4 text-sm text-teal-900">正在载入音阶与调式练习…</p>}><LocalEarTrainingScaleModePanel key={target ? getLocalPracticeReviewTargetKey(target) : "random-scale"} initialReviewTarget={target} showLocalPiano {...sharedProps} /></Suspense>;
   }
   if (screen === "rhythm") {
     const target = reviewTarget?.kind === "rhythm" ? reviewTarget : undefined;
@@ -614,7 +629,7 @@ export function App() {
         className="mobile-bottom-nav fixed inset-x-0 bottom-0 z-20 border-t border-slate-200 bg-white/95 px-2 pt-2 shadow-[0_-8px_30px_rgba(15,23,42,0.08)] backdrop-blur"
         aria-label="主要练习"
       >
-        <div className="mx-auto grid max-w-3xl grid-cols-7 gap-1">
+        <div className="mx-auto grid max-w-3xl grid-cols-5 gap-1">
           {screens.map((screen) => {
             const label = screen === "home"
               ? "首页"

@@ -215,6 +215,7 @@ for (const expectedCopy of [
   "旋律听写",
   "和弦性质与转位听辨",
   "和声进行与终止式听辨",
+  "音阶与调式听辨",
   "本地参考钢琴",
   "本地模式",
 ]) {
@@ -298,7 +299,7 @@ writeFileSync(
     `- 包名：\`${packagedApplicationId}\`；minSdk / targetSdk：${packagedMinSdk} / ${packagedTargetSdk}\n` +
     `- 签名：Android Debug，APK Signature Scheme 已验证；不是 release 签名。\n\n` +
     `## 已验证的本地边界\n\n` +
-    `- APK 包含本地 Web 资源、六类核心听辨练习（含和弦/转位与和声进行）及本地参考钢琴；\n` +
+    `- APK 包含本地 Web 资源、七类核心听辨练习（含和弦/转位、和声进行与音阶/调式）及本地参考钢琴；\n` +
     `- 未声明网络或宽泛外部存储权限；麦克风权限仅用于用户主动开始的本地实时音高反馈和当前会话录音；\n` +
     `- Capacitor 配置未包含远程 server 或网址，APK bundle 未出现受控生产云端标识；\n` +
     `- 本报告仅在 Gradle 单元测试、debug APK 构建、源码 bundle 校验、APK 签名与结构校验均成功后生成。\n\n` +

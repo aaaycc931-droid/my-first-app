@@ -25,6 +25,11 @@ import {
   getLocalHarmonyProgressionAnswerOptions,
   getLocalHarmonyProgressionVariantCount,
 } from "../../lib/practice/localEarTrainingHarmonyProgressions";
+import {
+  createLocalScaleModeQuestion,
+  getLocalScaleModeAnswerOptions,
+  getLocalScaleModeVariantCount,
+} from "../../lib/practice/localEarTrainingScaleModes";
 import { App } from "./App";
 import { deserializeLocalLearningHistory } from "../../lib/learning/learningEventProfile";
 import { MOBILE_LEARNING_PROFILE_STORAGE_KEY } from "./runtime/mobileLearningProfileStorage";
@@ -222,8 +227,8 @@ describe("Android 本机复练行为", () => {
     const migratedEnvelope = JSON.parse(
       window.localStorage.getItem(MOBILE_PRACTICE_REVIEW_STORAGE_KEY) ?? "{}",
     ) as { schemaVersion?: number; catalogVersion?: number; targets?: Array<Record<string, unknown>> };
-    expect(migratedEnvelope.schemaVersion).toBe(4);
-    expect(migratedEnvelope.catalogVersion).toBe(4);
+    expect(migratedEnvelope.schemaVersion).toBe(5);
+    expect(migratedEnvelope.catalogVersion).toBe(5);
     expect(migratedEnvelope.targets?.[0]?.variantId).toBe("pitch:g4");
 
     expect(container.textContent).toContain("本机复练（1）");
@@ -287,8 +292,8 @@ describe("Android 本机复练行为", () => {
 
   it("答对移除保存失败时不伪称已持久移除", async () => {
     const original = JSON.stringify({
-      schemaVersion: 4,
-      catalogVersion: 4,
+      schemaVersion: 5,
+      catalogVersion: 5,
       targets: [{
         kind: "single-pitch",
         difficulty: "基础",
@@ -439,6 +444,37 @@ describe("Android 本机复练行为", () => {
 
     await click(findButton(container, "和声进行 · 基础复练 1"));
     expect(container.querySelector<HTMLSelectElement>("#progression-training-difficulty")?.disabled).toBe(true);
+    await click(findButton(container, options.find((option) => option.id === question.answerOptionId)?.label ?? ""));
+    await click(findButton(container, "查看本题答案"));
+    expect(getStoredQueue()).toHaveLength(0);
+  });
+
+  it("音阶与调式完成三难度作答、解释、复练和画像闭环", async () => {
+    const count = getLocalScaleModeVariantCount("基础");
+    const questionIndex = getScheduledQuestionIndex(createLocalQuestionSchedule(count, 0), 0) ?? 0;
+    const question = createLocalScaleModeQuestion({ difficulty: "基础", sequence: 0, questionIndex });
+    const options = getLocalScaleModeAnswerOptions("基础");
+    const wrongOption = options.find((option) => option.id !== question.answerOptionId);
+    expect(wrongOption).toBeDefined();
+
+    const container = await renderApp();
+    await click(findLink(container, "音阶与调式"));
+    await waitFor(() => Boolean(container.querySelector("#scale-mode-difficulty")), "音阶与调式面板载入");
+    expect(Array.from(container.querySelector<HTMLSelectElement>("#scale-mode-difficulty")?.options ?? []).map((option) => option.value)).toEqual(["基础", "进阶", "挑战"]);
+    expect(container.textContent).toContain("本难度共 48 个版本化组合");
+    await waitFor(() => !findButton(container, wrongOption?.label ?? "").disabled, "音阶与调式题目可回答");
+    await click(findButton(container, wrongOption?.label ?? ""));
+    await click(findButton(container, "查看本题答案"));
+    expect(container.textContent).toContain(`本题答案：${options.find((option) => option.id === question.answerOptionId)?.label}`);
+    expect(container.textContent).toContain("特征");
+    await click(findLink(container, "返回练习首页"));
+
+    expect(getStoredQueue()[0]).toMatchObject({ kind: "scale-mode", difficulty: "基础", variantId: question.variantId });
+    const storedHistory = deserializeLocalLearningHistory(window.localStorage.getItem(MOBILE_LEARNING_PROFILE_STORAGE_KEY) ?? "");
+    expect(storedHistory?.profile.skillFacts.find((fact) => fact.skillKind === "scale-mode")?.incorrectCount).toBe(1);
+
+    await click(findButton(container, "音阶与调式 · 基础复练 1"));
+    expect(container.querySelector<HTMLSelectElement>("#scale-mode-difficulty")?.disabled).toBe(true);
     await click(findButton(container, options.find((option) => option.id === question.answerOptionId)?.label ?? ""));
     await click(findButton(container, "查看本题答案"));
     expect(getStoredQueue()).toHaveLength(0);
