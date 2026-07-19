@@ -1,8 +1,14 @@
-## P114k — 五线谱 / 简谱文档答案活动（本地验证中，2026-07-19）
+## P114l — 共享媒体项目、资源包与能力解析（本地验证中，2026-07-19）
+
+P114l 把用户主动选择的本地旋律参考音频映射为会话内、非破坏的 `media-project-v1`，保留稳定项目身份、revision、draft/ready/error、只读 original asset 和空编辑图；不复制或上传 PCM/Blob。现有 36 个 Public Domain Splendid Grand Piano OGG 采样冻结为 `resource-package-v1`，记录来源、许可、文件数、1,940,745 bytes、设备要求、删除方式和基于实际文件清单的 package SHA-256。Android validator 会重新计算摘要与大小并交叉核对 manifest 和运行时声明。
+
+本地钢琴新增真实 `capability-resolution-v1` 使用者，明确区分本地采样可用、兼容合成音降级和 Web Audio 不可用；静态资源包有效不冒充单个资产已经解码，既有发声时失败降级继续保留。本切片不新增上传、云端、持久化、后台下载、权限或评分。focused 项目/资源/能力测试、本地旋律导入回归、30 项钢琴挂载行为和完整 `npm run check` 已通过；浏览器手动视觉与 Android 真机解码/听感 QA 未执行。完整边界见 `docs/p114l-media-resource-capability-acceptance.md`。QA level recommendation：**strict**。
+
+## P114k — 五线谱 / 简谱文档答案活动（PR #377 已合并，2026-07-19）
 
 P114k 把 Stage E 中用户已检查、校验并明确确认的临时乐谱目标冻结为当前会话内的最小 `score-document-v1` 确认修订，包含稳定文档标识、revision、来源指纹、拍号和 part/staff/voice/measure/event 层级。用户可检查受控的五线谱或简谱表示预览，再主动提交 `staff-notation` / `numbered-notation` 答案；切换表示会重建本轮，检查只验证文档、修订和表示方式一致性，并支持重置新 attempt。
 
-本切片不是完整制谱、正式 OMR、出版级排版、MusicXML 编辑、持久谱面项目或评分。文档刷新后消失，不上传、不持久化；失效目标失败关闭。focused 逻辑、3 项真实挂载行为和完整 `npm run check` 已在本地通过；原生 Gradle/JUnit/APK 本地构建因环境禁止写入 `/root/.gradle` 而未执行，远端 CI 与浏览器手动视觉 QA 也尚未执行。Android 离线入口当前没有挂载 Stage A–E，不能把移动测试环境或构建通过冒充 APK 已交付此入口。完整边界见 `docs/p114k-notation-document-answer-acceptance.md`。QA level recommendation：**strict**。
+本切片不是完整制谱、正式 OMR、出版级排版、MusicXML 编辑、持久谱面项目或评分。文档刷新后消失，不上传、不持久化；失效目标失败关闭。PR #377 已 squash merge，main commit 为 `4300655455e1c98a86fac3858ac6200d2197fe60`。GitHub Actions run `29670599499` 首次仅因 ArtifactService 创建请求连续超时失败；未改代码重跑后 `quality`、`android-local`、Debug APK 工件上传和 Vercel 均通过。artifact `8437239995` 的 ZIP digest 为 `6ba0ae2af304ac3cdf6e1cbb303983b1fc64c3917de93ded315ccc908384d1a1`。Android 离线入口当前没有挂载 Stage A–E，不能把移动测试环境或构建通过冒充 APK 已交付此入口。完整边界见 `docs/p114k-notation-document-answer-acceptance.md`。QA level recommendation：**strict**。
 
 ## P114j — Android 原生 BLE MIDI Activity（PR #376 已合并，2026-07-19）
 

@@ -10,6 +10,22 @@ import {
   type PianoTimbreDescriptor,
   type PianoVoiceProvider,
 } from "./pianoAudioProvider";
+import type { ResourcePackageV1 } from "../platform/sharedProjectCapability";
+
+export const SPLENDID_GRAND_PIANO_RESOURCE_PACKAGE: ResourcePackageV1 = {
+  schemaVersion: "resource-package-v1",
+  packageId: "piano.splendid-grand.samples.v1",
+  version: "1.0.0",
+  kind: "audio-samples",
+  state: "bundled",
+  source: "danigb/samples@eae8c5c7a10f4b0e06281211e704c36c30e25342",
+  license: "Public Domain",
+  sha256: "4a5e9ed5617dea1a329d0c85573ea76e0e81a81089d4dfda65a32ee50ea33cbc",
+  sizeBytes: 1_940_745,
+  fileCount: 36,
+  deviceRequirements: ["Web Audio decodeAudioData", "约 2 MB 应用内资源空间"],
+  removal: "remove-with-app",
+};
 
 export const SPLENDID_GRAND_PIANO_TIMBRE: PianoTimbreDescriptor = {
   id: "splendid-grand-piano-mobile-v1",

@@ -6,6 +6,7 @@ import {
   localMelodyGuideLocalOnlyCopy,
   type LocalMelodyGuideAudioSource,
 } from "../../lib/practice/localMelodyGuideAudio";
+import { createMediaProjectFromLocalMelodyGuide } from "../../lib/platform/sharedProjectCapability";
 
 type LocalMelodyGuideAudioImportPanelProps = {
   source: LocalMelodyGuideAudioSource | null;
@@ -22,6 +23,15 @@ export function LocalMelodyGuideAudioImportPanel({
   onFileChange,
   onClear,
 }: LocalMelodyGuideAudioImportPanelProps) {
+  const mediaProject = source
+    ? createMediaProjectFromLocalMelodyGuide(source)
+    : null;
+  const projectStatusLabel = mediaProject?.status === "ready"
+    ? "项目来源已就绪"
+    : mediaProject?.status === "error"
+      ? "项目来源解码失败"
+      : "项目来源待解码";
+
   return (
     <section className="mt-6 rounded-3xl border border-cyan-200 bg-cyan-50 p-5 shadow-sm sm:p-6">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
@@ -75,7 +85,7 @@ export function LocalMelodyGuideAudioImportPanel({
       </div>
 
       {source ? (
-        <div className="mt-5 grid gap-3 text-sm md:grid-cols-3">
+        <div className="mt-5 grid gap-3 text-sm md:grid-cols-2 lg:grid-cols-4">
           <div className="rounded-2xl bg-white p-4 ring-1 ring-cyan-200">
             <p className="font-semibold text-cyan-950">已选文件</p>
             <p className="mt-2 break-words text-cyan-800">{source.fileName}</p>
@@ -91,6 +101,11 @@ export function LocalMelodyGuideAudioImportPanel({
             <p className="mt-2 text-cyan-800">
               时长 {source.decodedDurationSeconds === null ? "—" : `${source.decodedDurationSeconds.toFixed(2)}s`} · 采样率 {source.sampleRate ?? "—"} Hz · 声道数 {source.channelCount ?? "—"}
             </p>
+          </div>
+          <div className="rounded-2xl bg-white p-4 ring-1 ring-cyan-200">
+            <p className="font-semibold text-cyan-950">会话内媒体项目</p>
+            <p className="mt-2 text-cyan-800">{projectStatusLabel} · 修订 {mediaProject?.revision}</p>
+            <p className="mt-1 text-xs text-cyan-700">原始资产保持只读，编辑图为空；清除来源或刷新页面后消失。</p>
           </div>
         </div>
       ) : null}

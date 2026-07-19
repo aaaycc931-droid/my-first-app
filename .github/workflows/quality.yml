@@ -68,6 +68,7 @@ jobs:
           npm run test:notation-rhythm-activity-adapter
           npm run test:notation-document-activity
           npm run test:notation-document-activity-behavior
+          npm run test:shared-project-capability
           npm run test:piano-learning-activity-adapter
           npm run test:melody-solfege-activity-adapter
           npm run test:legacy-activity-adapters

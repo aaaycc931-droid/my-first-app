@@ -4,7 +4,7 @@
 
 状态：**Canonical integrated roadmap / 统一长期开发主路线**
 
-当前执行状态：**ACTIVE AT P114k / notation ScoreDocument answer activity implementation candidate**
+当前执行状态：**ACTIVE AT P114l / MediaProject, ResourcePackage and CapabilityResolver implementation candidate**
 
 适用项目：`aaaycc931-droid/my-first-app`
 
@@ -27,7 +27,8 @@
 - P114h 已通过 PR #374 合并，交付 Android 原生 `TYPE_USB` MIDI bridge；
 - P114i 已通过 PR #375 合并，只冻结“共鸣之旅者”角色、世界观和最终形象，不包含伙伴运行时；
 - P114j 已通过 PR #376 squash merge，main commit 为 `764e103111cd264c5714063445c6cd9e61438951`；它交付 Android 系统 MIDI 服务已暴露 `TYPE_BLUETOOTH` 端点的 `ble-midi` Activity，但合并与 CI 不等于 BLE 真机证据；
-- P114k 当前为 ACTIVE implementation candidate：冻结会话内最小确认 `ScoreDocument`，并让 `staff-notation` / `numbered-notation` 成为真实非评分文档答案。完整制谱、正式 OMR、持久化和评分不在本切片，验收标准见 `docs/p114k-notation-document-answer-acceptance.md`。
+- P114k 已通过 PR #377 squash merge，main commit 为 `4300655455e1c98a86fac3858ac6200d2197fe60`；五线谱/简谱文档答案已有真实使用者，但 Android 离线入口仍未挂载 Stage A–E；
+- P114l 当前为 ACTIVE implementation candidate：让本地旋律参考音频、钢琴采样资源包与本地钢琴能力解析成为 `MediaProject`、`ResourcePackage`、`CapabilityResolver` 的真实使用者，验收标准见 `docs/p114l-media-resource-capability-acceptance.md`。
 
 本次产品决策是：
 
@@ -195,7 +196,7 @@ flowchart TD
 - P113 真机音频/录音/生命周期与目标用户证据；
 - 伙伴运行时、P114 统一活动模型和共享协议。
 
-该暂停点已由产品所有者在 2026-07-18 明确解除；P114a–P114j 已合并，P114i 角色设定没有伙伴运行时。当前继续 R1 的 P114k 最小确认 `ScoreDocument` 与五线谱/简谱文档答案 implementation candidate；BLE/USB 真机证据和其余共享对象仍待独立完成，P114 尚未整体完成。
+该暂停点已由产品所有者在 2026-07-18 明确解除；P114a–P114k 已合并，P114i 角色设定没有伙伴运行时。当前继续 R1 的 P114l `MediaProject` / `ResourcePackage` / `CapabilityResolver` implementation candidate；`LearningEvent/Profile`、BLE/USB 真机证据和后续发布门槛仍待独立完成，P114 尚未整体完成。
 
 ### R1：P114 + F1/F2 + M0——统一活动与伙伴安全接入点
 

@@ -30,7 +30,11 @@ import {
   type PianoViewMode,
 } from "../../lib/piano/pianoInteraction";
 import type { PianoVoiceProvider } from "../../lib/piano/pianoAudioProvider";
-import { LOCAL_PIANO_TIMBRE_PROVIDERS } from "../../lib/piano/splendidGrandPiano";
+import {
+  LOCAL_PIANO_TIMBRE_PROVIDERS,
+  SPLENDID_GRAND_PIANO_RESOURCE_PACKAGE,
+} from "../../lib/piano/splendidGrandPiano";
+import { resolveLocalPianoAudioCapability } from "../../lib/platform/sharedProjectCapability";
 import {
   appendPianoPerformanceEvent,
   createPianoPerformanceRecorder,
@@ -140,6 +144,17 @@ export function LocalPianoPanel({
   const selectedVoiceProvider = availableTimbreProviders.find(
     (provider) => provider.descriptor.id === selectedTimbreId,
   ) ?? availableTimbreProviders[0];
+  const pianoAudioCapability = resolveLocalPianoAudioCapability({
+    webAudioAvailable:
+      typeof window !== "undefined" &&
+      (typeof window.AudioContext === "function" ||
+        "webkitAudioContext" in window),
+    localAssetsEnabled: selectedVoiceProvider?.descriptor.kind === "sampled",
+    resourcePackage:
+      selectedVoiceProvider?.descriptor.kind === "sampled"
+        ? SPLENDID_GRAND_PIANO_RESOURCE_PACKAGE
+        : null,
+  });
   const [stressRunning, setStressRunning] = useState(false);
   const stressTimerRef = useRef<number | null>(null);
   const [initialPerformanceLibrary] = useState(loadInitialPianoPerformances);
@@ -663,6 +678,9 @@ export function LocalPianoPanel({
       <p className="mt-2 text-sm leading-6 text-slate-600">按住琴键即可播放安装包内的本地参考音，松开后停止。不录音、不联网，也不生成正式成绩。</p>
       <p className="mt-2 rounded-xl bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-900" data-piano-timbre={timbre.id}>
         当前音色：{timbre.displayName}。{timbre.kind === "compatibility-synth" ? "这只是兼容降级音色，不是真实钢琴采样。" : `采样版本：${timbre.version}。`}
+      </p>
+      <p className="mt-2 rounded-xl bg-slate-50 px-3 py-2 text-xs leading-5 text-slate-700" data-piano-capability={pianoAudioCapability.status}>
+        本机声音能力：{pianoAudioCapability.reason}
       </p>
 
       <label className="mt-3 block text-sm font-semibold text-slate-800">离线音色预设
