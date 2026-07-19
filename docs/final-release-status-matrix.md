@@ -16,7 +16,7 @@
 | V1-05 | 视唱与录音闭环 | IN_PROGRESS | Web 本地录音/回放；Android 实时曲线、录音、本机记录与 P103 观察；P112 独立后分析与 P113 分段、目标对齐、逐音/逐句证据、片段复练已合并；P114f 固定 A4 麦克风 Activity 已通过 PR #372 合并 | Web/Android 真麦克风 QA；P113/P114f 真实人声；正式课程/云端记录；P104 真机同步/延迟/录音设备矩阵 |
 | V1-06 | 节奏练习与反馈 | IN_PROGRESS | 节拍器、tap/onset、延迟校准、DP 对齐、课程节奏听辨 | 真实数据基准、录音闭环、长期记录与复练 |
 | V1-07 | 钢琴辅助 | IN_PROGRESS | P106–P110 已合并；P114g 共享事件/目标与 P114h Android 原生 USB MIDI 已合并；P114j 已有原生 TYPE_BLUETOOTH 候选 | P114j 远端门禁与 BLE 真机；三档真机低延迟/听感/10 指/32 音与设备断连证据；完整应用内 BLE 扫描/选择另行决策；竞品完整任务差距闭环 |
-| V1-08 | MusicXML/MXL | IN_PROGRESS | parser、fixture、dev import、草稿与临时目标链路 | 正式用户入口、编辑确认、错误恢复、私有持久化 |
+| V1-08 | MusicXML/MXL | IN_PROGRESS | parser、fixture、dev import、草稿与临时目标链路；P114k 最小确认 ScoreDocument 与五线谱/简谱答案候选 | 正式用户入口、完整制谱编辑、错误恢复、私有持久化 |
 | V1-09 | 图片/PDF OMR | IN_PROGRESS | mock flow、Audiveris fixture/runner 研究基础 | 隔离 worker、私有上传、真实 OMR、草稿编辑、失败恢复 |
 | V1-10 | 私有音频素材 | IN_PROGRESS | 浏览器本地导入、decode、音高曲线草稿、检查与临时目标 | 私有上传、worker、保留/删除、任务恢复、版权说明 |
 | V1-11 | 私有云任务 | NOT_STARTED | 数据模型和架构蓝图 | Storage、队列 worker、取消/重试、审计、配额和运行手册 |
@@ -49,7 +49,7 @@
 
 ## 3. 当前最高优先级
 
-产品所有者已明确恢复开发；P114a–P114h 已合并，P114i 角色设定通过 PR #375 合并，当前 main 为 `a9a9b19510423ce0d8c036298be555b73b290360`。当前进入 P114j Android 原生 BLE MIDI implementation candidate；角色设定不代表伙伴运行时，BLE 候选也不代表真机证据。当前依赖顺序如下：
+产品所有者已明确恢复开发；P114a–P114j 已合并，P114j 通过 PR #376 squash merge，当前 main 为 `764e103111cd264c5714063445c6cd9e61438951`。当前进入 P114k 最小确认 `ScoreDocument` 与五线谱/简谱文档答案 implementation candidate；角色设定不代表伙伴运行时，MIDI 合并也不代表真机证据。当前依赖顺序如下：
 
 1. P106–P113 已合并；P104 最低真实证据、三档 Android、教育审核和竞品同机任务继续保留，不能用 PR 或路线文档替代。
 2. P113 已通过 PR #365 squash merge，merge commit 为 `2a786f1b66fee095224214430d12e96f78a5057e`；真机和真实人声证据继续单列，不因合并或自动测试通过而冒充完成。
