@@ -22,6 +22,10 @@ import {
   createLocalEarTrainingChordQuestion,
   getLocalEarTrainingChordVariantCount,
 } from "../lib/practice/localEarTrainingChords";
+import {
+  createLocalHarmonyProgressionQuestion,
+  getLocalHarmonyProgressionVariantCount,
+} from "../lib/practice/localEarTrainingHarmonyProgressions";
 import type { LocalPracticeDifficulty, LocalPracticeKind } from "../lib/practice/localPracticeCatalog";
 import { createLocalQuestionSchedule, getScheduledQuestionIndex } from "../lib/practice/localQuestionScheduler";
 
@@ -31,6 +35,7 @@ const expectedCounts: Record<LocalPracticeKind, Record<LocalPracticeDifficulty, 
   "single-pitch": { 基础: 20, 进阶: 24, 挑战: 24 },
   interval: { 基础: 21, 进阶: 24, 挑战: 24 },
   "chord-inversion": { 基础: 8, 进阶: 48, 挑战: 72 },
+  "harmony-progression": { 基础: 8, 进阶: 24, 挑战: 42 },
   rhythm: { 基础: 20, 进阶: 24, 挑战: 20 },
   "melody-dictation": { 基础: 20, 进阶: 20, 挑战: 20 },
 };
@@ -39,6 +44,7 @@ const getCount = (kind: LocalPracticeKind, difficulty: LocalPracticeDifficulty):
   if (kind === "single-pitch") return getLocalEarTrainingSinglePitchVariantCount(difficulty, mode);
   if (kind === "interval") return getLocalEarTrainingQuestionVariantCount(difficulty, mode);
   if (kind === "chord-inversion") return getLocalEarTrainingChordVariantCount(difficulty);
+  if (kind === "harmony-progression") return getLocalHarmonyProgressionVariantCount(difficulty);
   if (kind === "rhythm") return getLocalEarTrainingRhythmVariantCount(difficulty, mode);
   return getLocalEarTrainingMelodyVariantCount(difficulty, mode);
 };
@@ -74,13 +80,18 @@ const getVariantId = (
     assert(question.frequenciesHz.every((frequencyHz) => Number.isFinite(frequencyHz) && frequencyHz > 0));
     return question.variantId;
   }
+  if (kind === "harmony-progression") {
+    const question = createLocalHarmonyProgressionQuestion({ difficulty, sequence: questionIndex, questionIndex });
+    assert(question.chordFrequenciesHz.every((chord) => chord.length === 3));
+    return question.variantId;
+  }
   const question = createLocalEarTrainingMelodyQuestion({ difficulty, sequence: questionIndex, questionIndex, catalogMode: mode });
   assert.equal(question.melody.noteIds.length, 3);
   assert(question.melody.noteIds.every((noteId) => noteId in earTrainingMelodyNotes));
   return question.variantId;
 };
 
-for (const kind of ["single-pitch", "interval", "chord-inversion", "rhythm", "melody-dictation"] as const) {
+for (const kind of ["single-pitch", "interval", "chord-inversion", "harmony-progression", "rhythm", "melody-dictation"] as const) {
   for (const difficulty of difficulties) {
     const count = getCount(kind, difficulty);
     assert.equal(count, expectedCounts[kind][difficulty], `${kind}/${difficulty} count drifted`);
@@ -102,6 +113,8 @@ for (const kind of ["single-pitch", "interval", "chord-inversion", "rhythm", "me
         ? createLocalEarTrainingQuestion({ difficulty, direction: "下行", sequence: 0, questionIndex: 0, variantId: replayed }).variantId
         : kind === "chord-inversion"
           ? createLocalEarTrainingChordQuestion({ difficulty, sequence: 0, questionIndex: 0, variantId: replayed }).variantId
+        : kind === "harmony-progression"
+          ? createLocalHarmonyProgressionQuestion({ difficulty, sequence: 0, questionIndex: 0, variantId: replayed }).variantId
         : kind === "rhythm"
           ? createLocalEarTrainingRhythmQuestion({ difficulty, sequence: 0, questionIndex: 0, variantId: replayed }).variantId
           : createLocalEarTrainingMelodyQuestion({ difficulty, sequence: 0, questionIndex: 0, variantId: replayed }).variantId;
@@ -112,6 +125,7 @@ for (const kind of ["single-pitch", "interval", "chord-inversion", "rhythm", "me
 assert.equal(createLocalEarTrainingSinglePitchQuestion({ difficulty: "基础", sequence: 0 }).variantId, "pitch:c4");
 assert.equal(createLocalEarTrainingQuestion({ difficulty: "基础", direction: "上行", sequence: 0 }).variantId, "interval:c4:major-third");
 assert.equal(createLocalEarTrainingChordQuestion({ difficulty: "基础", sequence: 0 }).variantId, "chord:c4:major:root");
+assert.equal(createLocalHarmonyProgressionQuestion({ difficulty: "基础", sequence: 0 }).variantId, "progression:c3:authentic-three");
 assert.equal(createLocalEarTrainingRhythmQuestion({ difficulty: "基础", sequence: 0 }).variantId, "rhythm:even-quarters");
 assert.equal(createLocalEarTrainingMelodyQuestion({ difficulty: "基础", sequence: 0 }).variantId, "melody:up-step");
 
