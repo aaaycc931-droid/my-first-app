@@ -16,7 +16,11 @@
       "mappedMidiRange": "21-108 (A0-C8)",
       "normalization": "per-layer runtime gain",
       "loopStrategy": "one-shot natural decay with 80ms release",
-      "buildDigest": "36 pinned OGG assets; bounded 24-buffer LRU"
+      "buildDigest": "36 pinned OGG assets; bounded 24-buffer LRU",
+      "packageSha256": "4a5e9ed5617dea1a329d0c85573ea76e0e81a81089d4dfda65a32ee50ea33cbc",
+      "packageSha256Method": "SHA-256 of GNU sha256sum lines ordered lexicographically by the 36 OGG basenames",
+      "packageSizeBytes": 1940745,
+      "removal": "随应用卸载或清除应用数据移除"
     },
     {
       "id": "compatibility-triangle-v1",
