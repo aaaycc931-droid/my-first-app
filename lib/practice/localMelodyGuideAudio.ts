@@ -28,6 +28,7 @@ export type LocalMelodyGuideDecodedMetadata = {
  * non-scoring.
  */
 export type LocalMelodyGuideAudioSource = {
+  sourceId: string;
   fileName: string;
   fileType: string;
   fileSizeBytes: number;
@@ -79,6 +80,7 @@ export const formatLocalMelodyGuideFileSize = (sizeBytes: number) => {
 
 export const createLocalMelodyGuideFileSummary = (
   file: LocalMelodyGuideFileLike,
+  sourceId = "local-melody-guide-source",
 ): LocalMelodyGuideAudioSource => {
   const fileName = file.name?.trim() || "Unnamed local audio file";
   const fileType = file.type?.trim() || unknownFileTypeLabel;
@@ -100,6 +102,7 @@ export const createLocalMelodyGuideFileSummary = (
   }
 
   return {
+    sourceId,
     fileName,
     fileType,
     fileSizeBytes,
