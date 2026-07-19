@@ -3,6 +3,7 @@ import { isLocalEarTrainingMelodyVariantId } from "./localEarTrainingMelodyDicta
 import { isLocalEarTrainingRhythmVariantId } from "./localEarTrainingRhythm";
 import { isLocalEarTrainingSinglePitchVariantId } from "./localEarTrainingSinglePitch";
 import { isLocalEarTrainingChordVariantId, type ChordPlaybackMode } from "./localEarTrainingChords";
+import { isLocalHarmonyProgressionVariantId } from "./localHarmonyProgressionCatalog";
 import {
   getLegacyLocalPracticeVariantId,
   LOCAL_PRACTICE_CATALOG_VERSION,
@@ -10,7 +11,7 @@ import {
   type LocalPracticeDifficulty,
 } from "./localPracticeCatalog";
 
-export const LOCAL_PRACTICE_REVIEW_QUEUE_SCHEMA_VERSION = 3 as const;
+export const LOCAL_PRACTICE_REVIEW_QUEUE_SCHEMA_VERSION = 4 as const;
 export { LOCAL_PRACTICE_CATALOG_VERSION };
 export const LOCAL_PRACTICE_REVIEW_QUEUE_MAX_ITEMS = 12;
 export const LOCAL_PRACTICE_REVIEW_QUEUE_MAX_SERIALIZED_LENGTH = 8 * 1024;
@@ -32,6 +33,7 @@ export type LocalPracticeReviewTarget =
       kind: "chord-inversion";
       playbackMode: ChordPlaybackMode;
     })
+  | (LocalPracticeReviewTargetBase & { kind: "harmony-progression" })
   | (LocalPracticeReviewTargetBase & { kind: "rhythm" })
   | (LocalPracticeReviewTargetBase & { kind: "melody-dictation" });
 
@@ -92,6 +94,9 @@ const isKnownVariantId = (
   if (kind === "chord-inversion") {
     return isLocalEarTrainingChordVariantId(difficulty, variantId);
   }
+  if (kind === "harmony-progression") {
+    return isLocalHarmonyProgressionVariantId(difficulty, variantId);
+  }
   if (kind === "rhythm") {
     return isLocalEarTrainingRhythmVariantId(difficulty, variantId);
   }
@@ -141,7 +146,7 @@ const parseTarget = (value: unknown): LocalPracticeReviewTarget | null => {
   }
 
   if (!hasExactKeys(value, ["kind", "difficulty", "seed", "sequence", "variantId"])) return null;
-  if (value.kind !== "single-pitch" && value.kind !== "rhythm" && value.kind !== "melody-dictation") {
+  if (value.kind !== "single-pitch" && value.kind !== "harmony-progression" && value.kind !== "rhythm" && value.kind !== "melody-dictation") {
     return null;
   }
   if (!isKnownVariantId(value.kind, difficulty, variantId)) return null;
@@ -277,16 +282,18 @@ export const deserializeLocalPracticeReviewQueue = (
 
   const isCurrent = value.schemaVersion === LOCAL_PRACTICE_REVIEW_QUEUE_SCHEMA_VERSION
     && value.catalogVersion === LOCAL_PRACTICE_CATALOG_VERSION;
+  const isPreviousChord = value.schemaVersion === 3 && value.catalogVersion === 3;
   const isPrevious = value.schemaVersion === 2 && value.catalogVersion === 2;
   const isLegacy = value.schemaVersion === 1 && value.catalogVersion === 1;
-  if (!isCurrent && !isPrevious && !isLegacy) return null;
+  if (!isCurrent && !isPreviousChord && !isPrevious && !isLegacy) return null;
 
   const targets: LocalPracticeReviewQueue = [];
   const targetKeys = new Set<string>();
   for (const item of value.targets) {
     const target = isLegacy ? parseLegacyTarget(item) : parseTarget(item);
     if (!target) return null;
-    if (isPrevious && target.kind === "chord-inversion") return null;
+    if (isPrevious && (target.kind === "chord-inversion" || target.kind === "harmony-progression")) return null;
+    if (isPreviousChord && target.kind === "harmony-progression") return null;
     const targetKey = getLocalPracticeReviewTargetKey(target);
     if (targetKeys.has(targetKey)) {
       if (isLegacy) continue;
@@ -295,7 +302,7 @@ export const deserializeLocalPracticeReviewQueue = (
     targetKeys.add(targetKey);
     targets.push(target);
   }
-  return { queue: targets, migrated: isLegacy || isPrevious };
+  return { queue: targets, migrated: isLegacy || isPrevious || isPreviousChord };
 };
 
 export const parseLocalPracticeReviewQueue = (input: string): LocalPracticeReviewQueue | null =>
