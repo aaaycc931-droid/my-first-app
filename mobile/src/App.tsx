@@ -21,6 +21,14 @@ import {
   type LocalPracticeReviewTarget,
 } from "../../lib/practice/localPracticeReviewQueue";
 import {
+  recordCheckedAnswerLearningEvent,
+  recordReviewStartedLearningEvent,
+  resetLocalLearningHistory,
+  resolveLocalLearningSuggestion,
+  setLearningSuggestionsEnabled,
+  type LocalLearningHistory,
+} from "../../lib/learning/learningEventProfile";
+import {
   createMobileLifecycleState,
   dismissMobileResetNotice,
   enterMobileBackground,
@@ -32,6 +40,11 @@ import {
   loadMobilePracticeReviewQueue,
   saveMobilePracticeReviewQueue,
 } from "./runtime/mobilePracticeReviewStorage";
+import {
+  clearMobileLearningHistory,
+  loadMobileLearningHistory,
+  saveMobileLearningHistory,
+} from "./runtime/mobileLearningProfileStorage";
 import type { GeneratedLocalVocalExercise } from "../../lib/practice/localVocalExercise";
 
 const screens = ["home", "monitor", "pitch", "interval", "rhythm", "melody", "piano"] as const;
@@ -133,7 +146,18 @@ export function App() {
   const [reviewNotice, setReviewNotice] = useState<string | null>(
     initialReviewStorageResult.notice,
   );
+  const [initialLearningStorageResult] = useState(() =>
+    loadMobileLearningHistory(getBrowserPracticeReviewStorage()),
+  );
+  const [learningHistory, setLearningHistory] = useState<LocalLearningHistory>(
+    initialLearningStorageResult.history,
+  );
+  const [learningNotice, setLearningNotice] = useState<string | null>(
+    initialLearningStorageResult.notice,
+  );
   const [isClearConfirmationVisible, setIsClearConfirmationVisible] =
+    useState(false);
+  const [isLearningResetConfirmationVisible, setIsLearningResetConfirmationVisible] =
     useState(false);
   const [lifecycle, setLifecycle] = useState(() =>
     createMobileLifecycleState(!document.hidden),
@@ -186,10 +210,19 @@ export function App() {
             ? wasInReviewQueue
               ? "本题已从本机复练中移除。"
               : "本题回答已核对，未加入本机复练。"
-            : "已加入本机复练，可从练习首页再次打开。"),
+              : "已加入本机复练，可从练习首页再次打开。"),
+      );
+      const nextHistory = recordCheckedAnswerLearningEvent({
+        history: learningHistory,
+        result,
+        practiceMode: activeReviewTarget ? "review" : "random",
+      });
+      setLearningHistory(nextHistory);
+      setLearningNotice(
+        saveMobileLearningHistory(getBrowserPracticeReviewStorage(), nextHistory).notice,
       );
     },
-    [reviewQueue],
+    [activeReviewTarget, learningHistory, reviewQueue],
   );
 
   const leaveReviewTarget = useCallback(() => {
@@ -200,6 +233,11 @@ export function App() {
   const startReviewTarget = useCallback(
     (target: LocalPracticeReviewTarget) => {
       stopActiveAudio();
+      const nextHistory = recordReviewStartedLearningEvent({ history: learningHistory, target });
+      setLearningHistory(nextHistory);
+      setLearningNotice(
+        saveMobileLearningHistory(getBrowserPracticeReviewStorage(), nextHistory).notice,
+      );
       setActiveReviewTarget(target);
       const targetScreen = screenForReviewTarget(target);
       if (screenFromHash() !== targetScreen) {
@@ -207,7 +245,7 @@ export function App() {
         window.location.hash = targetScreen;
       }
     },
-    [stopActiveAudio],
+    [learningHistory, stopActiveAudio],
   );
 
   const clearReviewQueue = useCallback(() => {
@@ -223,6 +261,38 @@ export function App() {
     setActiveReviewTarget(null);
     setReviewNotice("本机复练记录已清除。");
   }, []);
+
+  const toggleLearningSuggestions = useCallback(() => {
+    const nextHistory = setLearningSuggestionsEnabled(
+      learningHistory,
+      !learningHistory.profile.suggestionsEnabled,
+    );
+    setLearningHistory(nextHistory);
+    setLearningNotice(
+      saveMobileLearningHistory(getBrowserPracticeReviewStorage(), nextHistory).notice
+        ?? (nextHistory.profile.suggestionsEnabled ? "本机复练建议已开启。" : "本机复练建议已关闭。"),
+    );
+  }, [learningHistory]);
+
+  const resetLearningProfile = useCallback(() => {
+    const clearResult = clearMobileLearningHistory(getBrowserPracticeReviewStorage());
+    setIsLearningResetConfirmationVisible(false);
+    if (clearResult.notice) {
+      setLearningNotice(clearResult.notice);
+      return;
+    }
+    const resetHistory = resetLocalLearningHistory(learningHistory);
+    setLearningHistory(resetHistory);
+    setLearningNotice(
+      saveMobileLearningHistory(getBrowserPracticeReviewStorage(), resetHistory).notice
+        ?? "本机学习画像与事件已清空；复练题仍保留。建议开关保持不变。",
+    );
+  }, [learningHistory]);
+
+  const learningSuggestion = useMemo(
+    () => resolveLocalLearningSuggestion(learningHistory, reviewQueue),
+    [learningHistory, reviewQueue],
+  );
 
   useEffect(() => {
     const enterBackground = () => {
@@ -418,12 +488,55 @@ export function App() {
               ) : null}
             </section>
 
+            <section className="mt-5 rounded-3xl border border-emerald-200 bg-emerald-50 p-5 shadow-sm" aria-labelledby="learning-profile-heading">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <p className="text-sm font-semibold text-emerald-700">本机事实，不是能力评分</p>
+                  <h2 id="learning-profile-heading" className="text-xl font-black text-emerald-950">学习画像</h2>
+                </div>
+                <button type="button" aria-pressed={learningHistory.profile.suggestionsEnabled} onClick={toggleLearningSuggestions} className="min-h-11 rounded-xl border border-emerald-300 bg-white px-4 py-2 text-sm font-bold text-emerald-900">
+                  {learningHistory.profile.suggestionsEnabled ? "关闭建议" : "开启建议"}
+                </button>
+              </div>
+              <p className="mt-3 text-sm leading-6 text-emerald-950">
+                已核对 {learningHistory.profile.checkedCount} 次；其中正确 {learningHistory.profile.correctCount} 次、错误 {learningHistory.profile.incorrectCount} 次；已开始复练 {learningHistory.profile.reviewStartedCount} 次、复练答对 {learningHistory.profile.reviewResolvedCount} 次。
+              </p>
+              {learningSuggestion ? (
+                <div className="mt-3 rounded-2xl border border-emerald-200 bg-white p-4">
+                  <p className="font-bold text-emerald-950">建议下一步：{reviewTargetLabel(learningSuggestion.target)}</p>
+                  <p className="mt-1 text-sm leading-6 text-slate-600">{learningSuggestion.reason}</p>
+                  <button type="button" onClick={() => startReviewTarget(learningSuggestion.target)} className="mt-3 min-h-11 rounded-xl bg-emerald-700 px-4 py-2 text-sm font-bold text-white">开始这题复练</button>
+                </div>
+              ) : (
+                <p className="mt-3 text-sm leading-6 text-emerald-900">
+                  {learningHistory.profile.suggestionsEnabled ? "当前没有可建议的复练题。" : "复练建议已关闭；练习和复练队列不受影响。"}
+                </p>
+              )}
+              <div className="mt-4 flex flex-wrap items-center gap-3">
+                {learningHistory.profile.revision > 0 ? (
+                  <button type="button" onClick={() => setIsLearningResetConfirmationVisible(true)} className="min-h-11 rounded-xl border border-emerald-300 bg-white px-4 py-2 text-sm font-bold text-emerald-900">重置画像</button>
+                ) : null}
+                {learningNotice ? <p className="text-sm leading-6 text-emerald-900" aria-live="polite">{learningNotice}</p> : null}
+              </div>
+              {isLearningResetConfirmationVisible ? (
+                <div className="mt-4 rounded-2xl border border-rose-200 bg-white p-4" role="alert">
+                  <p className="font-bold text-rose-950">确认清空本机学习画像与事件？</p>
+                  <p className="mt-1 text-sm leading-6 text-slate-600">此操作不可恢复，但不会清除复练题、录音或其他本机数据。</p>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <button type="button" onClick={resetLearningProfile} className="min-h-11 rounded-xl bg-rose-700 px-4 py-2 text-sm font-bold text-white">确认重置</button>
+                    <button type="button" onClick={() => setIsLearningResetConfirmationVisible(false)} className="min-h-11 rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-bold text-slate-800">取消</button>
+                  </div>
+                </div>
+              ) : null}
+            </section>
+
             <section className="mt-5 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
               <h2 className="font-bold">当前测试边界</h2>
               <ul className="mt-3 grid gap-2 text-sm leading-6 text-slate-600">
                 <li>• 题目、答案和声音全部在手机本地运行。</li>
-                <li>• 当前作答与声音不保存；答错题的最小复现信息可加入本机复练。</li>
+                <li>• 不保存用户答案与声音；只保存题型、难度、核对结果和复练动作等最小事实。</li>
                 <li>• 本机复练最多保留 12 题，可随时清除；卸载或清除应用数据后消失。</li>
+                <li>• 学习画像只生成非评分复练建议，可关闭或单独重置，不影响核心练习。</li>
                 <li>• 暂不包含账号、云同步、上传和正式评分。</li>
               </ul>
             </section>

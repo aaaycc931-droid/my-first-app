@@ -10,8 +10,10 @@ const requiredSources = [
   "mobile/src/MobileErrorBoundary.tsx",
   "mobile/src/runtime/mobileLifecycle.ts",
   "mobile/src/runtime/mobilePracticeReviewStorage.ts",
+  "mobile/src/runtime/mobileLearningProfileStorage.ts",
   "mobile/src/stubs/supabaseBrowser.ts",
   "lib/practice/localPracticeReviewQueue.ts",
+  "lib/learning/learningEventProfile.ts",
   "lib/piano/localPianoKeyboard.ts",
   "lib/piano/pianoNoteEvents.ts",
   "lib/piano/pianoAudioProvider.ts",
@@ -63,6 +65,14 @@ const reviewQueueSource = readFileSync(
 );
 const reviewStorageSource = readFileSync(
   join(root, "mobile/src/runtime/mobilePracticeReviewStorage.ts"),
+  "utf8",
+);
+const learningProfileSource = readFileSync(
+  join(root, "lib/learning/learningEventProfile.ts"),
+  "utf8",
+);
+const learningProfileStorageSource = readFileSync(
+  join(root, "mobile/src/runtime/mobileLearningProfileStorage.ts"),
   "utf8",
 );
 const pianoModelSource = readFileSync(
@@ -142,6 +152,20 @@ if (
   || !reviewStorageSource.includes("clearMobilePracticeReviewQueue")
 ) {
   throw new Error("移动端缺少本机复练的读取、保存或清除边界");
+}
+if (
+  !learningProfileSource.includes('LEARNING_EVENT_SCHEMA_VERSION = "learning-event-v1"')
+  || !learningProfileSource.includes('LEARNING_PROFILE_SCHEMA_VERSION = "learning-profile-v1"')
+  || !learningProfileSource.includes("MAX_RECENT_LEARNING_EVENTS = 48")
+  || !learningProfileSource.includes("suggestionsEnabled")
+  || !learningProfileSource.includes("resetLocalLearningHistory")
+  || !learningProfileSource.includes("resolveLocalLearningSuggestion")
+  || !learningProfileStorageSource.includes("solfeggio.mobile.learning-profile.v1")
+  || !learningProfileStorageSource.includes("clearMobileLearningHistory")
+  || !mobileApp.includes("学习画像")
+  || !mobileApp.includes("本机事实，不是能力评分")
+) {
+  throw new Error("Android 本机学习事件、非评分画像、建议控制或独立清除边界不完整");
 }
 if (
   !pianoModelSource.includes('DEFAULT_LOCAL_PIANO_RANGE_ID: LocalPianoRangeId = "C4-C5"')
@@ -387,4 +411,4 @@ if (existsSync(manifestPath) && !existsSync(syncedIndex)) {
   throw new Error("Android 工程存在，但本地 Web 资源尚未同步");
 }
 
-console.log("Android 本地模式校验通过：固定包名、本地资源、四类练习、实时音高反馈、本机复练、本地参考钢琴、无远程运行时配置与生命周期保护。 ");
+console.log("Android 本地模式校验通过：固定包名、本地资源、四类练习、实时音高反馈、本机复练、非评分学习画像、本地参考钢琴、无远程运行时配置与生命周期保护。 ");
