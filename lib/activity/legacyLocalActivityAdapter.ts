@@ -3,6 +3,7 @@ import type { LocalEarTrainingSinglePitchQuestion, EarTrainingSinglePitchDifficu
 import type { LocalEarTrainingQuestion } from "../practice/localEarTrainingIntervals";
 import type { LocalEarTrainingRhythmQuestion } from "../practice/localEarTrainingRhythm";
 import type { LocalEarTrainingMelodyQuestion } from "../practice/localEarTrainingMelodyDictation";
+import type { LocalEarTrainingChordQuestion } from "../practice/localEarTrainingChords";
 
 const DIFFICULTY: Record<EarTrainingSinglePitchDifficulty, ActivityDifficulty> = {
   基础: "foundation", 进阶: "intermediate", 挑战: "challenge",
@@ -54,6 +55,30 @@ export const adaptIntervalQuestionToActivity = (
   },
   explanation: question.interval.explanation,
   music: { referenceTimbre: "web-audio-sine-compatibility" },
+});
+
+export const adaptChordQuestionToActivity = (
+  question: LocalEarTrainingChordQuestion,
+): ActivityDefinitionV1 => ({
+  schemaVersion: "activity-definition-v1",
+  activityId: `local.chord.${question.variantId}`,
+  activityVersion: "1",
+  contentVersion: "local-harmony-training-v1",
+  family: "chord",
+  title: "和弦性质与转位听辨",
+  instructions: "听三个音，选择三和弦性质与转位。",
+  skillTags: ["和弦", question.quality.label, question.inversionLabel, "听辨"],
+  difficulty: DIFFICULTY[question.difficulty],
+  assessmentMode: "non-scoring",
+  source: { kind: "built-in", reviewState: "confirmed" },
+  allowedInputModes: ["choice"],
+  target: {
+    targetId: `chord:${question.quality.id}:${question.inversionId}`,
+    label: `${question.quality.label} · ${question.inversionLabel}`,
+    expectedAnswer: { mode: "choice", optionIds: [question.answerOptionId] },
+  },
+  explanation: question.explanation,
+  music: { key: question.root.label, referenceTimbre: "web-audio-sine-compatibility" },
 });
 
 export const adaptRhythmQuestionToActivity = (
