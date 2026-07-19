@@ -46,7 +46,7 @@
 
 如果某个文件不存在，必须先说明，不要凭空假设其内容。
 
-截至 2026-07-19，P106–P113 与 P114a–P114h 已合并；P114i 已通过 PR #375 合并，当前 main 为 `a9a9b19510423ce0d8c036298be555b73b290360`，只冻结“共鸣之旅者”角色、世界观和最终头部资产，没有伙伴运行时。当前活动协议已有真实 `choice`、`tap`、屏幕 `piano`、固定唱名 `solfege`、固定 A4 `microphone` 和 Android 原生 `usb-midi` 输入，P114 仍未整体完成。P114j 是 Android 原生 `ble-midi` implementation candidate：只允许系统 MIDI 服务已经暴露且原生类型为 `TYPE_BLUETOOTH` 的设备，显式选择 `TYPE_OUTPUT` 端口、连接和开始；不扫描、不配对、不自动打开/重连，Web MIDI 不得冒充 BLE。不得把自动测试、候选代码、CI、设备类型声明或角色设定冒充 USB/BLE 真机、伙伴运行时、P104 真实数据或教育证据。
+截至 2026-07-19，P106–P113 与 P114a–P114j 已合并；P114j 通过 PR #376 合并，当前 main 为 `764e103111cd264c5714063445c6cd9e61438951`。P114i 只冻结“共鸣之旅者”角色、世界观和最终头部资产，没有伙伴运行时。当前活动协议已有真实 `choice`、`tap`、屏幕 `piano`、固定唱名 `solfege`、固定 A4 `microphone`、Android 原生 `usb-midi` 和系统已暴露端点的 `ble-midi` 输入，P114 仍未整体完成。P114k 是最小 `ScoreDocument` 与 `staff-notation` / `numbered-notation` 真实答案候选；必须引用用户已检查、校验并确认的会话内谱面修订，不得冒充完整制谱、正式 OMR 或评分。不得把自动测试、候选代码、CI、设备类型声明或角色设定冒充 USB/BLE 真机、伙伴运行时、P104 真实数据或教育证据。
 
 凡涉及五线谱、乐谱预览、notation draft、识谱、OCR / OMR、乐谱到练习目标、Stage A–F 的任务，除上述通用必读文档外，还必须读取：
 
