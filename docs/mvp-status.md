@@ -1,8 +1,14 @@
-## P114j — Android 原生 BLE MIDI Activity（本地验证中，2026-07-19）
+## P114k — 五线谱 / 简谱文档答案活动（本地验证中，2026-07-19）
+
+P114k 把 Stage E 中用户已检查、校验并明确确认的临时乐谱目标冻结为当前会话内的最小 `score-document-v1` 确认修订，包含稳定文档标识、revision、来源指纹、拍号和 part/staff/voice/measure/event 层级。用户可检查受控的五线谱或简谱表示预览，再主动提交 `staff-notation` / `numbered-notation` 答案；切换表示会重建本轮，检查只验证文档、修订和表示方式一致性，并支持重置新 attempt。
+
+本切片不是完整制谱、正式 OMR、出版级排版、MusicXML 编辑、持久谱面项目或评分。文档刷新后消失，不上传、不持久化；失效目标失败关闭。focused 逻辑、3 项真实挂载行为和完整 `npm run check` 已在本地通过；原生 Gradle/JUnit/APK 本地构建因环境禁止写入 `/root/.gradle` 而未执行，远端 CI 与浏览器手动视觉 QA 也尚未执行。Android 离线入口当前没有挂载 Stage A–E，不能把移动测试环境或构建通过冒充 APK 已交付此入口。完整边界见 `docs/p114k-notation-document-answer-acceptance.md`。QA level recommendation：**strict**。
+
+## P114j — Android 原生 BLE MIDI Activity（PR #376 已合并，2026-07-19）
 
 P114j 复用 P114h 原生 MIDI 会话和 P114g 共享事件/目标协议，只列出 Android 系统 MIDI 服务已经暴露且 `MidiDeviceInfo.getType()` 为 `TYPE_BLUETOOTH` 的端点。用户必须手动选择 USB 或 BLE、查找设备、选择应用接收用 `TYPE_OUTPUT` 端口、连接，再显式开始当前尝试；BLE 与 USB 答案严格隔离，Web MIDI 继续保持 unknown/unverified。根据 Android 官方 API 边界，普通配对不保证设备出现在 MIDI 列表；本切片不扫描、不配对、不请求附近设备/定位权限，也不调用 `openBluetoothDevice()`，完整边界见 `docs/p114j-android-native-ble-midi-bridge-acceptance.md`。
 
-bridge、adapter 与移动真实挂载 focused tests 已覆盖 BLE 来源、attempt/session/generation/sequence 陈旧事件拒绝、USB/BLE/Web 隔离和屏幕钢琴降级。Android bundle/sync 静态校验已通过；本地原生 Gradle/JUnit/APK 构建因执行环境不能写 Gradle 缓存且提升权限被平台拒绝而未执行，必须由远端 `android-local` 验证。实体 BLE MIDI 真机、延迟、断连、后台和教育证据未执行。QA level recommendation：**strict**。
+bridge、adapter 与移动真实挂载 focused tests 已覆盖 BLE 来源、attempt/session/generation/sequence 陈旧事件拒绝、USB/BLE/Web 隔离和屏幕钢琴降级。PR #376 已 squash merge，main commit 为 `764e103111cd264c5714063445c6cd9e61438951`；GitHub Actions run `29668765638` 的 `quality` 与 `android-local` 均通过，Debug APK 构建、独立工件复核与上传成功。实体 BLE MIDI 真机、延迟、断连、后台和教育证据未执行。QA level recommendation：**strict**。
 
 ## P114h — Android 原生 USB MIDI bridge（PR #374 已合并，2026-07-18）
 
