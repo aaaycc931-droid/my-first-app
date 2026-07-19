@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import {
   adaptIntervalQuestionToActivity,
   adaptChordQuestionToActivity,
+  adaptHarmonyProgressionQuestionToActivity,
   adaptMelodyDictationQuestionToActivity,
   adaptRhythmQuestionToActivity,
   adaptSinglePitchQuestionToActivity,
@@ -12,6 +13,7 @@ import { createLocalEarTrainingQuestion } from "../lib/practice/localEarTraining
 import { createLocalEarTrainingRhythmQuestion } from "../lib/practice/localEarTrainingRhythm";
 import { createLocalEarTrainingMelodyQuestion } from "../lib/practice/localEarTrainingMelodyDictation";
 import { createLocalEarTrainingChordQuestion } from "../lib/practice/localEarTrainingChords";
+import { createLocalHarmonyProgressionQuestion } from "../lib/practice/localEarTrainingHarmonyProgressions";
 
 const single = adaptSinglePitchQuestionToActivity(createLocalEarTrainingSinglePitchQuestion({
   difficulty: "基础", sequence: 0, questionIndex: 0, catalogMode: "expanded-local-v2",
@@ -41,6 +43,14 @@ assert.equal(chord.contentVersion, "local-harmony-training-v1");
 assert.deepEqual(chord.target.expectedAnswer, { mode: "choice", optionIds: ["minor-first"] });
 assert.match(chord.explanation, /第一转位/);
 
+const progressionQuestion = createLocalHarmonyProgressionQuestion({
+  difficulty: "挑战", sequence: 0, variantId: "progression:a3:minor-authentic",
+});
+const progression = adaptHarmonyProgressionQuestionToActivity(progressionQuestion);
+assert.equal(progression.family, "harmony-progression");
+assert.deepEqual(progression.target.expectedAnswer, { mode: "choice", optionIds: ["minor-authentic"] });
+assert.match(progression.explanation, /小调/);
+
 const rhythmQuestion = createLocalEarTrainingRhythmQuestion({
   difficulty: "进阶", sequence: 0, questionIndex: 0, catalogMode: "expanded-local-v2",
 });
@@ -61,7 +71,7 @@ assert.deepEqual(
   { mode: "choice", optionIds: melodyQuestion.melody.noteIds },
 );
 
-for (const activity of [single, interval, chord, rhythm, melody]) {
+for (const activity of [single, interval, chord, progression, rhythm, melody]) {
   assert.equal(activity.assessmentMode, "non-scoring");
   assert.equal(activity.source.reviewState, "confirmed");
   assert.equal("score" in activity, false);
