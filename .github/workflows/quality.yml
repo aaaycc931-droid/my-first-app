@@ -45,6 +45,8 @@ jobs:
           npm run test:mobile-practice-review-storage
           npm run test:mobile-practice-review-ui-contract
           npm run test:mobile-practice-review-behavior
+          npm run test:learning-event-profile
+          npm run test:mobile-learning-profile-storage
           npm run test:mobile-melody-solfege-behavior
           npm run test:mobile-piano-behavior
           npm run test:piano-audio-foundation

@@ -16,6 +16,8 @@ import {
 } from "../../lib/practice/localPracticeReviewQueue";
 import type { LegacyLocalPracticeDifficulty } from "../../lib/practice/localPracticeCatalog";
 import { App } from "./App";
+import { deserializeLocalLearningHistory } from "../../lib/learning/learningEventProfile";
+import { MOBILE_LEARNING_PROFILE_STORAGE_KEY } from "./runtime/mobileLearningProfileStorage";
 import { MOBILE_PRACTICE_REVIEW_STORAGE_KEY } from "./runtime/mobilePracticeReviewStorage";
 
 vi.mock("../../lib/practice/localQuestionScheduler", async (importOriginal) => {
@@ -317,6 +319,37 @@ describe("Android 本机复练行为", () => {
     expect(window.localStorage.getItem(MOBILE_PRACTICE_REVIEW_STORAGE_KEY)).toBeNull();
     expect(container.textContent).toContain("本机复练记录已清除");
     expect(container.textContent).toContain("本机复练（0）");
+  });
+
+  it("核对结果生成非评分本机画像，建议可关闭且画像可独立重置", async () => {
+    const container = await renderApp();
+    await click(findLink(container, "单音听辨"));
+    await waitFor(() => !findButton(container, "C4").disabled, "单音题目可回答");
+    await click(findButton(container, "C4"));
+    await click(findButton(container, "查看本题答案"));
+    await click(findLink(container, "返回练习首页"));
+
+    expect(container.textContent).toContain("已核对 1 次；其中正确 0 次、错误 1 次");
+    expect(container.textContent).toContain("本机事实，不是能力评分");
+    expect(container.textContent).toContain("建议下一步：单音听辨 · 基础");
+    const serialized = window.localStorage.getItem(MOBILE_LEARNING_PROFILE_STORAGE_KEY);
+    expect(serialized).not.toBeNull();
+    const history = deserializeLocalLearningHistory(serialized ?? "");
+    expect(history?.profile.incorrectCount).toBe(1);
+    expect(serialized).not.toMatch(/selected|recording|audio|email|score|grade|accuracyPercentage/i);
+
+    await click(findButton(container, "关闭建议"));
+    expect(container.textContent).toContain("复练建议已关闭；练习和复练队列不受影响");
+    await click(findButton(container, "重置画像"));
+    expect(container.textContent).toContain("确认清空本机学习画像与事件？");
+    await click(findButton(container, "确认重置"));
+
+    const resetSerialized = window.localStorage.getItem(MOBILE_LEARNING_PROFILE_STORAGE_KEY);
+    expect(deserializeLocalLearningHistory(resetSerialized ?? "")?.profile.checkedCount).toBe(0);
+    expect(container.textContent).toContain("已核对 0 次；其中正确 0 次、错误 0 次");
+    expect(container.textContent).toContain("本机复练（1）");
+    expect(getStoredQueue()).toHaveLength(1);
+    expect(findButton(container, "开启建议").getAttribute("aria-pressed")).toBe("false");
   });
 
   it("hash 前进后退不会复活已经离开的复练目标", async () => {

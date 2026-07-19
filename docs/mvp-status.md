@@ -1,8 +1,14 @@
-## P114l — 共享媒体项目、资源包与能力解析（本地验证中，2026-07-19）
+## P114m — 本机学习事件与非评分画像（本地验证中，2026-07-19）
+
+P114m 以 Android 四类本地练耳和复练队列为真实使用者，新增容量受限的 `learning-event-v1` 与派生 `learning-profile-v1`。查看答案后只记录题型、难度、稳定目标键、随机/复练模式和正确/错误事实；开始复练记录独立事件。画像只汇总已核对、正确、错误、开始复练与复练答对次数，建议只引用当前真实复练题，并展示基于本机事实的原因。
+
+用户可关闭建议，核心练习与复练队列不受影响；可二次确认后单独清空画像和近期事件而保留复练题。最多保留 48 个事件、序列化上限 24 KiB；严格解析损坏记录并失败关闭。不保存用户选择、答案内容、音频、录音、邮箱、账号、伙伴关系、分数、等级或通过/失败，不上传、不联网、不写数据库。本切片不等于正式自适应、跨设备同步、伙伴运行时、教育有效性或 Android 真机证据。完整边界见 `docs/p114m-learning-event-profile-acceptance.md`。QA level recommendation：**strict**。
+
+## P114l — 共享媒体项目、资源包与能力解析（PR #378 已合并，2026-07-19）
 
 P114l 把用户主动选择的本地旋律参考音频映射为会话内、非破坏的 `media-project-v1`，保留稳定项目身份、revision、draft/ready/error、只读 original asset 和空编辑图；不复制或上传 PCM/Blob。现有 36 个 Public Domain Splendid Grand Piano OGG 采样冻结为 `resource-package-v1`，记录来源、许可、文件数、1,940,745 bytes、设备要求、删除方式和基于实际文件清单的 package SHA-256。Android validator 会重新计算摘要与大小并交叉核对 manifest 和运行时声明。
 
-本地钢琴新增真实 `capability-resolution-v1` 使用者，明确区分本地采样可用、兼容合成音降级和 Web Audio 不可用；静态资源包有效不冒充单个资产已经解码，既有发声时失败降级继续保留。本切片不新增上传、云端、持久化、后台下载、权限或评分。focused 项目/资源/能力测试、本地旋律导入回归、30 项钢琴挂载行为和完整 `npm run check` 已通过；浏览器手动视觉与 Android 真机解码/听感 QA 未执行。完整边界见 `docs/p114l-media-resource-capability-acceptance.md`。QA level recommendation：**strict**。
+本地钢琴新增真实 `capability-resolution-v1` 使用者，明确区分本地采样可用、兼容合成音降级和 Web Audio 不可用；静态资源包有效不冒充单个资产已经解码，既有发声时失败降级继续保留。本切片不新增上传、云端、持久化、后台下载、权限或评分。focused 项目/资源/能力测试、本地旋律导入回归、30 项钢琴挂载行为和完整 `npm run check` 已通过。PR #378 已 squash merge，main commit 为 `4c03ffa0372a7519a1628b045b93632825fa60c6`；Actions run `29671705178` 的 quality、Android API 36 构建、独立验包、产物上传与 Vercel 均通过，artifact `8437539050` 的 ZIP digest 为 `96efea36ae3442ebc1a9a889819653333c27a3ac4c614435e8b2bb24728a0838`。浏览器手动视觉与 Android 真机解码/听感 QA 未执行。完整边界见 `docs/p114l-media-resource-capability-acceptance.md`。QA level recommendation：**strict**。
 
 ## P114k — 五线谱 / 简谱文档答案活动（PR #377 已合并，2026-07-19）
 

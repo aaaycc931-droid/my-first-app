@@ -20,7 +20,7 @@
 | V1-09 | 图片/PDF OMR | IN_PROGRESS | mock flow、Audiveris fixture/runner 研究基础 | 隔离 worker、私有上传、真实 OMR、草稿编辑、失败恢复 |
 | V1-10 | 私有音频素材 | IN_PROGRESS | 浏览器本地导入、decode、音高曲线草稿、检查与临时目标；P114l 会话内非破坏 MediaProject 候选 | 私有上传、worker、持久项目、保留/删除、任务恢复、版权说明 |
 | V1-11 | 私有云任务 | NOT_STARTED | 数据模型和架构蓝图 | Storage、队列 worker、取消/重试、审计、配额和运行手册 |
-| V1-12 | 学习历史与复习 | IN_PROGRESS | 私有 practice attempts、课程答案摘要；Android 本机最小错题队列，以及用户主动保存的练声曲线/可选录音记录（均非正式学习历史） | Web 历史 UI、技能画像、解释型跨会话 review queue；Android IndexedDB、跨版本/跨重启和配额真机验证 |
+| V1-12 | 学习历史与复习 | IN_PROGRESS | 私有 practice attempts、课程答案摘要；Android 本机最小错题队列；P114m 版本化最小学习事件、非评分事实画像、可解释复练建议及关闭/独立重置候选；用户主动保存的练声曲线/可选录音记录 | Web 历史 UI、正式技能画像、跨设备同步；Android 跨版本/跨重启和配额真机验证；教育审核 |
 | V1-13 | 音高算法基准 | IN_PROGRESS | P111 共同输入/分层基准基础、P112 多候选连续轨迹已合并；P113 `offline-note-alignment-v1` 独立分段、单调目标对齐、三阶段证据和局部拒答已通过 PR #365 合并；实时生产仍为 `autocorrelation-realtime-v1` | P113 真机/真实人声；200 合成/乐器、100 真实人声/20 位/4 类设备最低证据及专业扩展集、三档性能、量化结果和专家审核 |
 | V1-14 | 节奏算法基准 | IN_PROGRESS | DP 对齐回归、tap/onset/latency 测试 | 真实设备/人声/乐器集、量化报告、低置信度校准 |
 | V1-15 | RLS 与最小权限 | IN_PROGRESS | P78 最小权限；P84 生产 RPC 和跨用户事务 smoke QA | 覆盖所有 owner tables、Storage、签名 URL、删除后访问 |
@@ -31,8 +31,8 @@
 | V1-20 | 观测与事故响应 | NOT_STARTED | GitHub Actions、Vercel 状态 | 错误追踪、指标、隐私日志、告警接收人和故障手册 |
 | V1-21 | 内容与教学审核 | NOT_STARTED | 中文题目、答案解释和难度草案 | 2 名教育审核者、题量/正确率/难度递进验收 |
 | V1-22 | 用户可用性验收 | NOT_STARTED | 开发与所有者 QA | 5 名目标用户、核心任务成功率和误解检查 |
-| V1-23 | 发布证据包 | IN_PROGRESS | P114k PR #377 / run `29670599499` 的 quality、Android 原生构建、独立 APK 复核与 artifact `8437239995` 已核对；APK SHA-256 `318946390b1113c5b23e4a6c48949ef036757103f38fd6ed7b2cba16419a92ac`，ZIP digest `6ba0ae2af304ac3cdf6e1cbb303983b1fc64c3917de93ded315ccc908384d1a1` | 下一功能冻结候选、专用签名证据、P104 真实数据/设备/教育证据、删除/恢复与用户验收证据 |
-| V1-24 | Android 本地 APK | IN_PROGRESS | 离线题库、实时曲线/录音/目标/观察、本机记录/复练、P106–P114k 共享能力；P114k Debug APK 已构建、复核并上传 | P114 完整冻结后的新候选、P104 三档真机/真实人声、专用签名、升级与前向回滚 |
+| V1-23 | 发布证据包 | IN_PROGRESS | P114l PR #378 / run `29671705178` 的 quality、Android API 36 构建、独立 APK 复核与 artifact `8437539050` 已核对；ZIP digest `96efea36ae3442ebc1a9a889819653333c27a3ac4c614435e8b2bb24728a0838` | P114m 冻结候选、专用签名证据、P104 真实数据/设备/教育证据、删除/恢复与用户验收证据 |
+| V1-24 | Android 本地 APK | IN_PROGRESS | 离线题库、实时曲线/录音/目标/观察、本机记录/复练、P106–P114l 共享能力；P114l Debug APK 已构建、复核并上传 | P114m 完整冻结后的新候选、P104 三档真机/真实人声、专用签名、升级与前向回滚 |
 | V1-25 | 最终生产发布 | BLOCKED | 当前 P84 生产 Web 版本已部署 | V1-02 至 V1-24 的全部 MUST 门槛尚未通过 |
 
 ## 2. 已确认不阻塞 V1 的能力
@@ -49,7 +49,7 @@
 
 ## 3. 当前最高优先级
 
-产品所有者已明确恢复开发；P114a–P114k 已合并，P114k 通过 PR #377 squash merge，当前 main 为 `4300655455e1c98a86fac3858ac6200d2197fe60`。当前进入 P114l `MediaProject` / `ResourcePackage` / `CapabilityResolver` implementation candidate；角色设定不代表伙伴运行时，MIDI 合并也不代表真机证据。当前依赖顺序如下：
+产品所有者已明确恢复开发；P114a–P114l 已合并，P114l 通过 PR #378 squash merge，当前 main 为 `4c03ffa0372a7519a1628b045b93632825fa60c6`。当前进入 P114m `LearningEvent/Profile` implementation candidate；角色设定不代表伙伴运行时，MIDI 合并也不代表真机证据。当前依赖顺序如下：
 
 1. P106–P113 已合并；P104 最低真实证据、三档 Android、教育审核和竞品同机任务继续保留，不能用 PR 或路线文档替代。
 2. P113 已通过 PR #365 squash merge，merge commit 为 `2a786f1b66fee095224214430d12e96f78a5057e`；真机和真实人声证据继续单列，不因合并或自动测试通过而冒充完成。
@@ -60,10 +60,11 @@
 7. P114e 已通过 PR #371 squash merge，main commit 为 `b8cff79626af3267611291b13f020a24f5a55ff5`；现有三音旋律听写保留 `choice` 并增加固定唱名 `solfege` 有序答案，ordered、重复音、F♯4/C5 token 与复练边界见 `docs/p114e-fixed-solfege-answer-acceptance.md`。合并不替代 Web/Android 真机与教育证据。
 8. P114f 已通过 PR #372 合并，main commit 为 `5006e882676c0ac2c747286efaa34b0423526b3c`；固定 A4 单音真实复用 P112/P113 本机分析和 `AnalysisEvidence`，接入当前 attempt 的 `microphone` answer 与非评分检查，并共享挂载到 Web/Android。合并不替代 APK 真机、真实人声和 P104 证据。
 9. P114g 已通过 PR #373 合并；P114h Android 原生 USB MIDI 已通过 PR #374 合并；P114i 角色/世界观/最终形象已通过 PR #375 合并，但没有伙伴运行时。
-10. P114j 当前是 ACTIVE implementation candidate：补齐 Android 系统 MIDI 服务已暴露 `TYPE_BLUETOOTH` 端点的 `ble-midi` Activity，保持 USB/BLE/Web 来源隔离与显式控制；不扫描、不配对、不自动重连，验收见 `docs/p114j-android-native-ble-midi-bridge-acceptance.md`。P114 仍未整体完成。
-11. P115–P118 教学泳道与 S（制谱/OMR）、A（伴奏/歌曲）、必要 C（云端/内容/教师）泳道按依赖滚动；钢琴 P106–P110 只补真实体验和证据缺口。
-12. P119/Q 必须汇合算法、钢琴、教学、制谱、伴奏、云服务、教育和目标用户验收；P120 只是八产品范围明确的专业私测候选，不是公开最终版。
-13. V1-03 / V1-02 / V1-15 Web 数据生命周期继续是正式 Web 责任；最终产品同时建设本地与中国区合规云端能力，当前离线优先不是终局。
+10. P114j–P114l 已分别完成 BLE MIDI Activity 候选、五线谱/简谱文档答案，以及共享媒体项目/资源包/能力解析并合并；真机和正式产品证据继续单列。
+11. P114m 当前是 ACTIVE implementation candidate：以 Android 四类练耳核对与复练为真实使用者补齐 `LearningEvent/Profile`，不生成评分或能力标签；P114 仍未整体完成。
+12. P115–P118 教学泳道与 S（制谱/OMR）、A（伴奏/歌曲）、必要 C（云端/内容/教师）泳道按依赖滚动；钢琴 P106–P110 只补真实体验和证据缺口。
+13. P119/Q 必须汇合算法、钢琴、教学、制谱、伴奏、云服务、教育和目标用户验收；P120 只是八产品范围明确的专业私测候选，不是公开最终版。
+14. V1-03 / V1-02 / V1-15 Web 数据生命周期继续是正式 Web 责任；最终产品同时建设本地与中国区合规云端能力，当前离线优先不是终局。
 
 完整长期范围见 `docs/eight-product-unified-competitive-roadmap-2026-07-18.md`，P113 之后包含伙伴系统的滚动执行顺序见 `docs/unified-development-roadmap-with-ai-music-companion-2026-07-18.md`；旧执行路线与 P112 后暂停交接保留为历史依据，当前执行事实以本矩阵和 `docs/mvp-status.md` 为准。
 
