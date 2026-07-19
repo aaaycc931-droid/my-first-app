@@ -1,6 +1,6 @@
 # P115a：和弦性质与转位听辨验收标准
 
-状态：**IMPLEMENTATION CANDIDATE / 等待远端 PR 与 CI**
+状态：**PR #380 已合并 / 远端 CI 通过**
 日期：2026-07-19
 QA level recommendation：**strict**
 
@@ -62,3 +62,5 @@ QA level recommendation：**strict**
 - 麦克风回唱、MIDI 作答、正式课程、统一定制器或自适应出题；
 - 教师审核、五名目标用户、三档 Android 真机矩阵或教育有效性结论；
 - 正式签名、商店发布、跨设备同步或最终 V1 发布完成。
+
+后续 P115b 将复练队列升级到 v4、学习画像信封升级到 v3，并迁移本切片的 v3/v2 数据；该后续扩展不追溯改变 P115a 的合并证据。

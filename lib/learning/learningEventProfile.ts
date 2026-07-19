@@ -6,7 +6,7 @@ import {
 
 export const LEARNING_EVENT_SCHEMA_VERSION = "learning-event-v1" as const;
 export const LEARNING_PROFILE_SCHEMA_VERSION = "learning-profile-v1" as const;
-export const LEARNING_PROFILE_ENVELOPE_SCHEMA_VERSION = 2 as const;
+export const LEARNING_PROFILE_ENVELOPE_SCHEMA_VERSION = 3 as const;
 export const MAX_RECENT_LEARNING_EVENTS = 48;
 export const MAX_LEARNING_PROFILE_SERIALIZED_LENGTH = 24 * 1024;
 
@@ -57,6 +57,7 @@ const skillKinds: LearningSkillKind[] = [
   "single-pitch",
   "interval",
   "chord-inversion",
+  "harmony-progression",
   "rhythm",
   "melody-dictation",
 ];
@@ -321,20 +322,15 @@ export const deserializeLocalLearningHistory = (input: string): LocalLearningHis
   }
   if (!isRecord(value) || !hasExactKeys(value, ["schemaVersion", "nextSequence", "profile", "recentEvents"])) return null;
   const isCurrent = value.schemaVersion === LEARNING_PROFILE_ENVELOPE_SCHEMA_VERSION;
+  const isPreviousChord = value.schemaVersion === 2;
   const isPrevious = value.schemaVersion === 1;
-  if ((!isCurrent && !isPrevious) || !isCount(value.nextSequence) || value.nextSequence < 1) return null;
+  if ((!isCurrent && !isPreviousChord && !isPrevious) || !isCount(value.nextSequence) || value.nextSequence < 1) return null;
   const nextSequence = value.nextSequence;
-  const rawProfile = isPrevious && isRecord(value.profile) && Array.isArray(value.profile.skillFacts)
+  const rawProfile = (isPrevious || isPreviousChord) && isRecord(value.profile) && Array.isArray(value.profile.skillFacts)
     ? { ...value.profile, skillFacts: [
       ...value.profile.skillFacts,
-      {
-        skillKind: "chord-inversion",
-        checkedCount: 0,
-        correctCount: 0,
-        incorrectCount: 0,
-        reviewStartedCount: 0,
-        reviewResolvedCount: 0,
-      },
+      ...(isPrevious ? [{ skillKind: "chord-inversion", checkedCount: 0, correctCount: 0, incorrectCount: 0, reviewStartedCount: 0, reviewResolvedCount: 0 }] : []),
+      { skillKind: "harmony-progression", checkedCount: 0, correctCount: 0, incorrectCount: 0, reviewStartedCount: 0, reviewResolvedCount: 0 },
     ] }
     : value.profile;
   const profile = parseProfile(rawProfile);
