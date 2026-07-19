@@ -718,6 +718,18 @@ describe("本地钢琴面板行为", () => {
     expect(audio.oscillators).toHaveLength(1);
   });
 
+  it("原生 MIDI 明确区分 USB 与 BLE，Web 环境不冒充设备可用", async () => {
+    const audio = createAudioHarness();
+    const container = await renderPanel(audio.factory);
+    expect(container.textContent).toContain("Android 原生 USB / BLE MIDI 跟弹");
+    expect(container.textContent).toContain("普通蓝牙配对不保证可见");
+    await click(buttonWithText(container, "BLE MIDI"));
+    expect(container.textContent).toContain("手动查找 BLE MIDI");
+    expect(buttonWithText(container, "手动查找 BLE MIDI").disabled).toBe(true);
+    await pointer(pianoKey(container, "c4"), "pointerdown", 301);
+    expect(audio.oscillators).toHaveLength(1);
+  });
+
   it("MIDI 音符、力度、延音与设备断连映射到钢琴并清理状态", async () => {
     const audio = createAudioHarness();
     const input = {
