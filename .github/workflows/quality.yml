@@ -97,6 +97,7 @@ jobs:
           npm run test:local-ear-training-single-pitch
           npm run test:local-ear-training-intervals
           npm run test:local-ear-training-chords
+          npm run test:local-harmony-progressions
           npm run test:local-ear-training-rhythm
           npm run test:local-ear-training-melody-dictation
           npm run test:local-piano-keyboard
