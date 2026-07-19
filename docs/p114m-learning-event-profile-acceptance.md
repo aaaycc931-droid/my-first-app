@@ -1,7 +1,7 @@
 # P114m：本机学习事件与非评分画像验收标准
 
-状态：**IMPLEMENTATION CANDIDATE / 等待远端 PR 与 CI**  
-日期：2026-07-19  
+状态：**PR #379 已合并 / 远端 CI 通过**
+日期：2026-07-19
 QA level recommendation：**strict**
 
 ## 1. 目标
@@ -52,3 +52,6 @@ QA level recommendation：**strict**
 
 源码、自动测试、CI 与 Debug APK 构建不等于 Android 真机可用性、跨重启/升级可靠性、教育有效性、正式自适应或最终发布完成。P104 的三档 Android、真实人声、教师审核和目标用户证据仍独立保留。
 
+## 8. 后续兼容扩展
+
+P115a 在不改变 `learning-profile-v1` 非评分语义的前提下新增 `chord-inversion` 事实，并把存储信封升级为 schema v2。既有 schema v1 读取后为新事实补零，后续保存时规范化为 v2；该扩展不把 P114m 的合并证据追溯改写为 P115a 证据。
