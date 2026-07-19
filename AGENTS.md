@@ -46,7 +46,7 @@
 
 如果某个文件不存在，必须先说明，不要凭空假设其内容。
 
-截至 2026-07-18，P106–P113 已合并，P113 merge commit 为 `2a786f1b66fee095224214430d12e96f78a5057e`；伙伴总路线与单伙伴细化路线已入库，但没有伙伴运行时实现。产品所有者已明确恢复 P114：P114a–P114f 均已合并，P114f 通过 PR #372 合并；P114g 已通过 PR #373 合并，当前 main 为 `3d8486a1980cba534872614b384e81ee97c41103`。当前活动协议已有真实 `choice`、`tap`、屏幕 `piano`、固定唱名 `solfege` 和固定 A4 `microphone` 输入，P114 仍未整体完成。P114h Android 原生 USB MIDI bridge 是本地验证候选，尚未创建 PR 或通过远端 Android 门禁：只允许 Android 系统 `TYPE_USB` 且显式选择 `TYPE_OUTPUT` 的设备/端口，保持屏幕钢琴降级，禁止自动打开/重连；Web MIDI 端口、设备名、蓝牙或虚拟端口不能冒充 USB。不得把自动测试、候选代码、CI、Web MIDI 或设备类型声明冒充 USB OTG 真机、P104 真实数据或教育证据，也不得自行开始伙伴 UI。
+截至 2026-07-19，P106–P113 与 P114a–P114h 已合并；P114i 已通过 PR #375 合并，当前 main 为 `a9a9b19510423ce0d8c036298be555b73b290360`，只冻结“共鸣之旅者”角色、世界观和最终头部资产，没有伙伴运行时。当前活动协议已有真实 `choice`、`tap`、屏幕 `piano`、固定唱名 `solfege`、固定 A4 `microphone` 和 Android 原生 `usb-midi` 输入，P114 仍未整体完成。P114j 是 Android 原生 `ble-midi` implementation candidate：只允许系统 MIDI 服务已经暴露且原生类型为 `TYPE_BLUETOOTH` 的设备，显式选择 `TYPE_OUTPUT` 端口、连接和开始；不扫描、不配对、不自动打开/重连，Web MIDI 不得冒充 BLE。不得把自动测试、候选代码、CI、设备类型声明或角色设定冒充 USB/BLE 真机、伙伴运行时、P104 真实数据或教育证据。
 
 凡涉及五线谱、乐谱预览、notation draft、识谱、OCR / OMR、乐谱到练习目标、Stage A–F 的任务，除上述通用必读文档外，还必须读取：
 

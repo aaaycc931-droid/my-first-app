@@ -27,6 +27,7 @@ public final class UsbMidiPlugin extends Plugin {
   private MidiDevice activeDevice;
   private MidiOutputPort activeOutputPort;
   private int activeDeviceId = -1;
+  private int activeDeviceType = -1;
   private int bridgeGeneration = 0;
   private long connectionEpoch = 0;
   private PluginCall pendingConnectCall;
@@ -39,19 +40,19 @@ public final class UsbMidiPlugin extends Plugin {
   private final MidiManager.DeviceCallback deviceCallback = new MidiManager.DeviceCallback() {
     @Override
     public void onDeviceAdded(MidiDeviceInfo info) {
-      if (info.getType() == MidiDeviceInfo.TYPE_USB) notifyDeviceListChanged();
+      if (isSupportedDeviceType(info.getType())) notifyDeviceListChanged(info.getType());
     }
 
     @Override
     public void onDeviceRemoved(MidiDeviceInfo info) {
       if (info.getId() == activeDeviceId) closeActiveConnection("device-removed", true);
-      if (info.getType() == MidiDeviceInfo.TYPE_USB) notifyDeviceListChanged();
+      if (isSupportedDeviceType(info.getType())) notifyDeviceListChanged(info.getType());
     }
 
     @Override
     public void onDeviceStatusChanged(android.media.midi.MidiDeviceStatus status) {
       MidiDeviceInfo info = status.getDeviceInfo();
-      if (info.getType() == MidiDeviceInfo.TYPE_USB) notifyDeviceListChanged();
+      if (isSupportedDeviceType(info.getType())) notifyDeviceListChanged(info.getType());
     }
   };
 
@@ -66,14 +67,23 @@ public final class UsbMidiPlugin extends Plugin {
 
   @PluginMethod
   public void listUsbDevices(PluginCall call) {
+    listDevices(call, MidiDeviceInfo.TYPE_USB);
+  }
+
+  @PluginMethod
+  public void listBleDevices(PluginCall call) {
+    listDevices(call, MidiDeviceInfo.TYPE_BLUETOOTH);
+  }
+
+  private void listDevices(PluginCall call, int deviceType) {
     Integer requestedGeneration = call.getInt("generation");
     if (requestedGeneration == null || requestedGeneration < 0
         || activeDevice != null || pendingConnectCall != null) {
-      call.reject("USB MIDI 设备刷新请求已过期或当前仍有活动连接。");
+      call.reject("Android MIDI 设备刷新请求已过期或当前仍有活动连接。");
       return;
     }
     bridgeGeneration = requestedGeneration;
-    call.resolve(deviceListPayload(bridgeGeneration));
+    call.resolve(deviceListPayload(bridgeGeneration, deviceType));
   }
 
   @PluginMethod
@@ -86,19 +96,21 @@ public final class UsbMidiPlugin extends Plugin {
     Integer requestedOutputPort = call.getInt("outputPort");
     Integer requestedGeneration = call.getInt("generation");
     String commandId = call.getString("commandId");
+    String requestedTransport = call.getString("transport", "usb");
+    int requestedDeviceType = deviceTypeForTransport(requestedTransport);
     if (requestedDeviceId == null || requestedOutputPort == null || requestedGeneration == null
-        || commandId == null || commandId.trim().isEmpty()) {
-      call.reject("必须明确选择 USB MIDI 设备和输出端口。");
+        || commandId == null || commandId.trim().isEmpty() || requestedDeviceType < 0) {
+      call.reject("必须明确选择 Android 已验证的 USB 或 BLE MIDI 设备和输出端口。");
       return;
     }
     if (activeDevice != null || pendingConnectCall != null
         || requestedGeneration != bridgeGeneration + 1) {
-      call.reject("USB MIDI 连接 generation 已过期，请重新刷新设备。");
+      call.reject("Android MIDI 连接 generation 已过期，请重新刷新设备。");
       return;
     }
-    MidiDeviceInfo selected = findUsbDevice(requestedDeviceId);
+    MidiDeviceInfo selected = findDevice(requestedDeviceId, requestedDeviceType);
     if (selected == null || !hasOutputPort(selected, requestedOutputPort)) {
-      call.reject("选择的 USB MIDI 设备或输出端口已不可用。");
+      call.reject("选择的 Android MIDI 设备或输出端口已不可用。");
       return;
     }
 
@@ -115,20 +127,22 @@ public final class UsbMidiPlugin extends Plugin {
         }
         if (device == null) {
           pendingConnectCall = null;
-          call.reject("无法打开所选 USB MIDI 设备；系统 MIDI 服务未授予可用端口。");
+          call.reject("无法打开所选 Android MIDI 设备；系统 MIDI 服务未授予可用端口。");
           return;
         }
         MidiOutputPort outputPort = device.openOutputPort(requestedOutputPort);
         if (outputPort == null) {
           closeQuietly(device);
           pendingConnectCall = null;
-          call.reject("无法打开所选 USB MIDI 输出端口。");
+          call.reject("无法打开所选 Android MIDI 输出端口。");
           return;
         }
         activeDevice = device;
         activeOutputPort = outputPort;
         activeDeviceId = selected.getId();
-        deviceSessionId = "android-usb-midi-" + UUID.randomUUID();
+        activeDeviceType = selected.getType();
+        String transport = transportForDeviceType(activeDeviceType);
+        deviceSessionId = "android-" + transport + "-midi-" + UUID.randomUUID();
         originId = deviceSessionId + ":elapsed-realtime";
         sessionStartedNs = SystemClock.elapsedRealtimeNanos();
         sequence = 0;
@@ -138,7 +152,7 @@ public final class UsbMidiPlugin extends Plugin {
         } catch (RuntimeException error) {
           pendingConnectCall = null;
           closeActiveConnection("open-failed", false);
-          call.reject("无法接收所选 USB MIDI 输出端口的数据。");
+          call.reject("无法接收所选 Android MIDI 输出端口的数据。");
           return;
         }
         JSObject result = bridgeBase("session-started", generation);
@@ -146,7 +160,7 @@ public final class UsbMidiPlugin extends Plugin {
         result.put("nativeDeviceId", String.valueOf(activeDeviceId));
         result.put("outputPort", requestedOutputPort);
         result.put("deviceSessionId", deviceSessionId);
-        result.put("transport", "usb");
+        result.put("transport", transport);
         result.put("verification", "android-device-type");
         pendingConnectCall = null;
         call.resolve(result);
@@ -154,7 +168,7 @@ public final class UsbMidiPlugin extends Plugin {
       }, midiHandler);
     } catch (RuntimeException error) {
       if (pendingConnectCall == call) pendingConnectCall = null;
-      call.reject("系统拒绝打开所选 USB MIDI 设备。");
+      call.reject("系统拒绝打开所选 Android MIDI 设备。");
     }
   }
 
@@ -189,7 +203,7 @@ public final class UsbMidiPlugin extends Plugin {
     if (!hadPendingConnection && !hadConnection) return;
     connectionEpoch += 1;
     if (pendingConnectCall != null) {
-      pendingConnectCall.reject("USB MIDI 连接已取消：" + reason);
+      pendingConnectCall.reject("Android MIDI 连接已取消：" + reason);
       pendingConnectCall = null;
     }
     if (emitAllNotesOff && deviceSessionId != null && originId != null) {
@@ -207,6 +221,7 @@ public final class UsbMidiPlugin extends Plugin {
     activeOutputPort = null;
     activeDevice = null;
     activeDeviceId = -1;
+    activeDeviceType = -1;
     String closedSessionId = deviceSessionId;
     deviceSessionId = null;
     originId = null;
@@ -235,9 +250,9 @@ public final class UsbMidiPlugin extends Plugin {
     super.handleOnDestroy();
   }
 
-  private MidiDeviceInfo findUsbDevice(int deviceId) {
+  private MidiDeviceInfo findDevice(int deviceId, int deviceType) {
     for (MidiDeviceInfo info : midiManager.getDevices()) {
-      if (info.getId() == deviceId && info.getType() == MidiDeviceInfo.TYPE_USB) return info;
+      if (info.getId() == deviceId && info.getType() == deviceType) return info;
     }
     return null;
   }
@@ -249,16 +264,17 @@ public final class UsbMidiPlugin extends Plugin {
     return false;
   }
 
-  private JSArray usbDeviceArray() {
+  private JSArray deviceArray(int deviceType) {
     JSArray devices = new JSArray();
     if (midiManager == null) return devices;
     for (MidiDeviceInfo info : midiManager.getDevices()) {
-      if (info.getType() != MidiDeviceInfo.TYPE_USB) continue;
+      if (info.getType() != deviceType) continue;
+      String transport = transportForDeviceType(deviceType);
       JSObject device = new JSObject();
       device.put("nativeDeviceId", String.valueOf(info.getId()));
-      device.put("transport", "usb");
+      device.put("transport", transport);
       device.put("verification", "android-device-type");
-      device.put("name", info.getProperties().getString(MidiDeviceInfo.PROPERTY_NAME, "USB MIDI 设备 " + info.getId()));
+      device.put("name", info.getProperties().getString(MidiDeviceInfo.PROPERTY_NAME, transport.toUpperCase() + " MIDI 设备 " + info.getId()));
       device.put("manufacturer", info.getProperties().getString(MidiDeviceInfo.PROPERTY_MANUFACTURER, ""));
       JSArray outputPorts = new JSArray();
       for (MidiDeviceInfo.PortInfo port : info.getPorts()) {
@@ -289,9 +305,9 @@ public final class UsbMidiPlugin extends Plugin {
     return payload;
   }
 
-  private JSObject deviceListPayload(int generation) {
+  private JSObject deviceListPayload(int generation, int deviceType) {
     JSObject payload = bridgeBase("devices", generation);
-    payload.put("devices", usbDeviceArray());
+    payload.put("devices", deviceArray(deviceType));
     return payload;
   }
 
@@ -303,8 +319,22 @@ public final class UsbMidiPlugin extends Plugin {
     return payload;
   }
 
-  private void notifyDeviceListChanged() {
-    notifyListeners("deviceListChanged", deviceListPayload(bridgeGeneration));
+  private void notifyDeviceListChanged(int deviceType) {
+    notifyListeners("deviceListChanged", deviceListPayload(bridgeGeneration, deviceType));
+  }
+
+  private static boolean isSupportedDeviceType(int deviceType) {
+    return deviceType == MidiDeviceInfo.TYPE_USB || deviceType == MidiDeviceInfo.TYPE_BLUETOOTH;
+  }
+
+  private static int deviceTypeForTransport(String transport) {
+    if ("usb".equals(transport)) return MidiDeviceInfo.TYPE_USB;
+    if ("ble".equals(transport)) return MidiDeviceInfo.TYPE_BLUETOOTH;
+    return -1;
+  }
+
+  private static String transportForDeviceType(int deviceType) {
+    return deviceType == MidiDeviceInfo.TYPE_BLUETOOTH ? "ble" : "usb";
   }
 
   private static void closeQuietly(AutoCloseable closeable) {

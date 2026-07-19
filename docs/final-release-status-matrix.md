@@ -15,7 +15,7 @@
 | V1-04 | 系统课程与题库 | IN_PROGRESS | 基础课程；单音、音程、节奏持久化；Android 四类听辨已有三难度、每档至少 20 个版本化组合 | 基础视唱、课程三难度与进度、教育审核；Android 难度仍待审核校准 |
 | V1-05 | 视唱与录音闭环 | IN_PROGRESS | Web 本地录音/回放；Android 实时曲线、录音、本机记录与 P103 观察；P112 独立后分析与 P113 分段、目标对齐、逐音/逐句证据、片段复练已合并；P114f 固定 A4 麦克风 Activity 已通过 PR #372 合并 | Web/Android 真麦克风 QA；P113/P114f 真实人声；正式课程/云端记录；P104 真机同步/延迟/录音设备矩阵 |
 | V1-06 | 节奏练习与反馈 | IN_PROGRESS | 节拍器、tap/onset、延迟校准、DP 对齐、课程节奏听辨 | 真实数据基准、录音闭环、长期记录与复练 |
-| V1-07 | 钢琴辅助 | IN_PROGRESS | P106–P110 已合并：统一 note event/provider、三层离线采样与 A0–C8 映射、移动钢琴交互、节拍器/事件录制/循环、多音色、条件 Web MIDI 与 MusicXML 学习基础 | P114g 共享事件/目标迁移；三档真机低延迟/听感/10 指/32 音与设备断连证据；USB/BLE 与 Android 原生 bridge 独立验收；对照完美钢琴和来音钢琴的完整任务差距闭环 |
+| V1-07 | 钢琴辅助 | IN_PROGRESS | P106–P110 已合并；P114g 共享事件/目标与 P114h Android 原生 USB MIDI 已合并；P114j 已有原生 TYPE_BLUETOOTH 候选 | P114j 远端门禁与 BLE 真机；三档真机低延迟/听感/10 指/32 音与设备断连证据；完整应用内 BLE 扫描/选择另行决策；竞品完整任务差距闭环 |
 | V1-08 | MusicXML/MXL | IN_PROGRESS | parser、fixture、dev import、草稿与临时目标链路 | 正式用户入口、编辑确认、错误恢复、私有持久化 |
 | V1-09 | 图片/PDF OMR | IN_PROGRESS | mock flow、Audiveris fixture/runner 研究基础 | 隔离 worker、私有上传、真实 OMR、草稿编辑、失败恢复 |
 | V1-10 | 私有音频素材 | IN_PROGRESS | 浏览器本地导入、decode、音高曲线草稿、检查与临时目标 | 私有上传、worker、保留/删除、任务恢复、版权说明 |
@@ -49,7 +49,7 @@
 
 ## 3. 当前最高优先级
 
-产品所有者已明确恢复开发；P114a–P114f 均已合并，P114f 已通过 PR #372 合并，当前 main 为 `5006e882676c0ac2c747286efaa34b0423526b3c`。当前进入 P114g 共享音乐事件与练习目标协议 implementation candidate；它迁移现有真实钢琴活动，但不代表 USB/BLE MIDI 或 Android 原生 bridge 已交付。当前依赖顺序如下：
+产品所有者已明确恢复开发；P114a–P114h 已合并，P114i 角色设定通过 PR #375 合并，当前 main 为 `a9a9b19510423ce0d8c036298be555b73b290360`。当前进入 P114j Android 原生 BLE MIDI implementation candidate；角色设定不代表伙伴运行时，BLE 候选也不代表真机证据。当前依赖顺序如下：
 
 1. P106–P113 已合并；P104 最低真实证据、三档 Android、教育审核和竞品同机任务继续保留，不能用 PR 或路线文档替代。
 2. P113 已通过 PR #365 squash merge，merge commit 为 `2a786f1b66fee095224214430d12e96f78a5057e`；真机和真实人声证据继续单列，不因合并或自动测试通过而冒充完成。
@@ -59,10 +59,11 @@
 6. P114d 已通过 PR #370 合并，main commit 为 `0e1d7ee107ec1e8c0131e972031b27d408f5dade`；它只接项目原创确认谱面的屏幕 `piano` 输入，本机 MusicXML 草稿、USB/BLE MIDI、正式评分和持久活动历史不在该切片。
 7. P114e 已通过 PR #371 squash merge，main commit 为 `b8cff79626af3267611291b13f020a24f5a55ff5`；现有三音旋律听写保留 `choice` 并增加固定唱名 `solfege` 有序答案，ordered、重复音、F♯4/C5 token 与复练边界见 `docs/p114e-fixed-solfege-answer-acceptance.md`。合并不替代 Web/Android 真机与教育证据。
 8. P114f 已通过 PR #372 合并，main commit 为 `5006e882676c0ac2c747286efaa34b0423526b3c`；固定 A4 单音真实复用 P112/P113 本机分析和 `AnalysisEvidence`，接入当前 attempt 的 `microphone` answer 与非评分检查，并共享挂载到 Web/Android。合并不替代 APK 真机、真实人声和 P104 证据。
-9. P114g 当前是 ACTIVE implementation candidate：冻结共享音乐事件与练习目标协议，并迁移 P110/P114d 项目原创确认谱面和屏幕钢琴活动作为真实使用者，验收边界见 `docs/p114g-shared-musical-event-practice-target-acceptance.md`。Web MIDI 传输类型未知，不能由设备名或端口推断 USB/BLE；Android 原生 USB bridge 后续独立实施，P114 仍未整体完成。
-10. P115–P118 教学泳道与 S（制谱/OMR）、A（伴奏/歌曲）、必要 C（云端/内容/教师）泳道按依赖滚动；钢琴 P106–P110 只补真实体验和证据缺口。
-11. P119/Q 必须汇合算法、钢琴、教学、制谱、伴奏、云服务、教育和目标用户验收；P120 只是八产品范围明确的专业私测候选，不是公开最终版。
-12. V1-03 / V1-02 / V1-15 Web 数据生命周期继续是正式 Web 责任；最终产品同时建设本地与中国区合规云端能力，当前离线优先不是终局。
+9. P114g 已通过 PR #373 合并；P114h Android 原生 USB MIDI 已通过 PR #374 合并；P114i 角色/世界观/最终形象已通过 PR #375 合并，但没有伙伴运行时。
+10. P114j 当前是 ACTIVE implementation candidate：补齐 Android 系统 MIDI 服务已暴露 `TYPE_BLUETOOTH` 端点的 `ble-midi` Activity，保持 USB/BLE/Web 来源隔离与显式控制；不扫描、不配对、不自动重连，验收见 `docs/p114j-android-native-ble-midi-bridge-acceptance.md`。P114 仍未整体完成。
+11. P115–P118 教学泳道与 S（制谱/OMR）、A（伴奏/歌曲）、必要 C（云端/内容/教师）泳道按依赖滚动；钢琴 P106–P110 只补真实体验和证据缺口。
+12. P119/Q 必须汇合算法、钢琴、教学、制谱、伴奏、云服务、教育和目标用户验收；P120 只是八产品范围明确的专业私测候选，不是公开最终版。
+13. V1-03 / V1-02 / V1-15 Web 数据生命周期继续是正式 Web 责任；最终产品同时建设本地与中国区合规云端能力，当前离线优先不是终局。
 
 完整长期范围见 `docs/eight-product-unified-competitive-roadmap-2026-07-18.md`，P113 之后包含伙伴系统的滚动执行顺序见 `docs/unified-development-roadmap-with-ai-music-companion-2026-07-18.md`；旧执行路线与 P112 后暂停交接保留为历史依据，当前执行事实以本矩阵和 `docs/mvp-status.md` 为准。
 

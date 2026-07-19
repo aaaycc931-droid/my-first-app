@@ -19,6 +19,14 @@ const usbDevice = {
   transport: "usb",
   verification: "android-device-type",
 } as const;
+const bleDevice = {
+  nativeDeviceId: "device-ble-1",
+  name: "BLE keyboard",
+  manufacturer: null,
+  outputPorts: [1],
+  transport: "ble",
+  verification: "android-device-type",
+} as const;
 
 let state = createAndroidMidiBridgeState();
 state = reduceAndroidMidiBridge(state, { type: "request-devices", generation: 1 });
@@ -242,5 +250,43 @@ result = applyAndroidMidiBridgePayload(state, {
 });
 assert.equal(result.state.status, "disconnected");
 assert.equal(result.state.activeSession, null);
+
+let bleState = createAndroidMidiBridgeState();
+bleState = reduceAndroidMidiBridge(bleState, { type: "request-devices", generation: 1 });
+bleState = applyAndroidMidiBridgePayload(bleState, { ...envelope, type: "devices", devices: [bleDevice] }).state;
+bleState = reduceAndroidMidiBridge(bleState, { type: "select-device", nativeDeviceId: bleDevice.nativeDeviceId });
+bleState = reduceAndroidMidiBridge(bleState, { type: "select-output-port", outputPort: 1 });
+bleState = reduceAndroidMidiBridge(bleState, { type: "request-start", commandId: "start-ble" });
+bleState = applyAndroidMidiBridgePayload(bleState, {
+  ...activeEnvelope,
+  type: "session-started",
+  commandId: "start-ble",
+  nativeDeviceId: bleDevice.nativeDeviceId,
+  outputPort: 1,
+  deviceSessionId: "session-ble",
+  transport: "ble",
+  verification: "android-device-type",
+}).state;
+bleState = reduceAndroidMidiBridge(bleState, {
+  type: "bind-attempt",
+  attemptId: "attempt-ble",
+  eventOriginId: "piano:p114j:attempt-ble",
+});
+const bleResult = applyAndroidMidiBridgePayload(bleState, {
+  ...activeEnvelope,
+  type: "note-on",
+  deviceSessionId: "session-ble",
+  sequence: 0,
+  sessionPositionMs: 8,
+  channel: 0,
+  note: 64,
+  velocity: 0.75,
+});
+assert.deepEqual(bleResult.event?.source, {
+  producer: "android-midi",
+  transport: "ble",
+  verification: "android-device-type",
+  deviceSessionId: "session-ble",
+});
 
 console.log("Android MIDI bridge tests passed.");

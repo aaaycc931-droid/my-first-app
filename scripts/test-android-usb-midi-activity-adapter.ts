@@ -2,7 +2,9 @@ import assert from "node:assert/strict";
 
 import {
   adaptAndroidUsbMidiSequenceToEvidence,
+  appendVerifiedAndroidBleNoteId,
   appendVerifiedAndroidUsbNoteId,
+  createAndroidBleMidiActivityDefinition,
   createAndroidUsbMidiActivityDefinition,
 } from "../lib/activity/androidUsbMidiActivityAdapter";
 import { P110_ORIGINAL_PIANO_EXERCISE } from "../lib/piano/pianoLearningScore";
@@ -13,6 +15,10 @@ assert.deepEqual(definition.allowedInputModes, ["usb-midi"]);
 assert.equal(definition.target.expectedAnswer.mode, "usb-midi");
 if (definition.target.expectedAnswer.mode !== "usb-midi") throw new Error("USB MIDI answer mode 异常");
 assert.deepEqual(definition.target.expectedAnswer.noteIds, ["C4", "D4", "E4", "G4", "E4", "D4", "C4", "C4"]);
+
+const bleDefinition = createAndroidBleMidiActivityDefinition(P110_ORIGINAL_PIANO_EXERCISE);
+assert.deepEqual(bleDefinition.allowedInputModes, ["ble-midi"]);
+assert.equal(bleDefinition.target.expectedAnswer.mode, "ble-midi");
 
 const usbNote: NoteEventV1 = {
   schemaVersion: "note-event-v1",
@@ -47,8 +53,26 @@ assert.deepEqual(appendVerifiedAndroidUsbNoteId([], {
   source: { producer: "web-midi", transport: "unknown", verification: "unverified", deviceSessionId: "web-1" },
 }), [], "Web MIDI 不得冒充 USB MIDI answer");
 
+const bleNote: NoteEventV1 = {
+  ...usbNote,
+  eventId: "attempt-ble:session-ble:event-0",
+  source: {
+    producer: "android-midi",
+    transport: "ble",
+    verification: "android-device-type",
+    deviceSessionId: "session-ble",
+  },
+};
+assert.deepEqual(appendVerifiedAndroidBleNoteId([], bleNote), ["C4"]);
+assert.deepEqual(appendVerifiedAndroidBleNoteId([], usbNote), [], "USB 不得进入 BLE MIDI answer");
+assert.deepEqual(appendVerifiedAndroidUsbNoteId([], bleNote), [], "BLE 不得进入 USB MIDI answer");
+assert.deepEqual(appendVerifiedAndroidBleNoteId([], {
+  ...bleNote,
+  source: { producer: "web-midi", transport: "unknown", verification: "unverified", deviceSessionId: "web-ble" },
+}), [], "Web MIDI 不得冒充 BLE MIDI answer");
+
 assert.equal(adaptAndroidUsbMidiSequenceToEvidence({ expectedNoteIds: ["C4"], actualNoteIds: [] }).state, "insufficient");
 assert.equal(adaptAndroidUsbMidiSequenceToEvidence({ expectedNoteIds: ["C4"], actualNoteIds: ["C4"] }).state, "consistent");
 assert.equal(adaptAndroidUsbMidiSequenceToEvidence({ expectedNoteIds: ["C4"], actualNoteIds: ["D4"] }).state, "different");
 
-console.log("Android USB MIDI activity adapter tests passed.");
+console.log("Android USB/BLE MIDI activity adapter tests passed.");

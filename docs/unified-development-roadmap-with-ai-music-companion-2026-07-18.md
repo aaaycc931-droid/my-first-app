@@ -4,7 +4,7 @@
 
 状态：**Canonical integrated roadmap / 统一长期开发主路线**
 
-当前执行状态：**ACTIVE AT P114g / 共享音乐事件与练习目标协议 implementation candidate**
+当前执行状态：**ACTIVE AT P114j / Android 原生 BLE MIDI Activity implementation candidate**
 
 适用项目：`aaaycc931-droid/my-first-app`
 
@@ -23,7 +23,10 @@
 - P114d 已通过 PR #370 合并，main commit 为 `0e1d7ee107ec1e8c0131e972031b27d408f5dade`；项目原创确认谱面的屏幕 `piano` 输入已接入，但 MusicXML 草稿和 USB/BLE MIDI 仍未适配；
 - P114e 已通过 PR #371 squash merge，main commit 为 `b8cff79626af3267611291b13f020a24f5a55ff5`；现有三音旋律听写保留 `choice` 并增加固定唱名 `solfege` 有序答案，ordered、重复音、F♯4/C5 token 与 strict QA 边界见 `docs/p114e-fixed-solfege-answer-acceptance.md`；
 - P114f 已通过 PR #372 合并，main commit 为 `5006e882676c0ac2c747286efaa34b0423526b3c`；固定 A4 单音把用户主动录音、二次确认后的 P112/P113 本机分析与 `AnalysisEvidence` 接入当前 attempt 的 `microphone` answer，并共享挂载到 Android 与 Web `/practice` 手动入口；合并不替代 APK 真机、真实人声或 P104 证据；
-- P114g 当前为 ACTIVE implementation candidate：冻结共享音乐事件与练习目标协议，并迁移项目原创确认谱面与现有屏幕钢琴活动作为真实使用者，验收标准见 `docs/p114g-shared-musical-event-practice-target-acceptance.md`。P114g 不交付 USB/BLE Activity；Web MIDI 不能证明物理传输类型，Android 原生 USB MIDI bridge 后续独立实施。
+- P114g 已通过 PR #373 合并，共享音乐事件与练习目标已有真实钢琴使用者；
+- P114h 已通过 PR #374 合并，交付 Android 原生 `TYPE_USB` MIDI bridge；
+- P114i 已通过 PR #375 合并，只冻结“共鸣之旅者”角色、世界观和最终形象，不包含伙伴运行时；
+- P114j 当前为 ACTIVE implementation candidate：交付 Android 系统 MIDI 服务已暴露 `TYPE_BLUETOOTH` 端点的 `ble-midi` Activity。它不扫描、不配对、不自动重连，Web MIDI 仍不能证明物理传输类型，验收标准见 `docs/p114j-android-native-ble-midi-bridge-acceptance.md`。
 
 本次产品决策是：
 
@@ -191,7 +194,7 @@ flowchart TD
 - P113 真机音频/录音/生命周期与目标用户证据；
 - 伙伴运行时、P114 统一活动模型和共享协议。
 
-该暂停点已由产品所有者在 2026-07-18 明确解除；P114a–P114f 已合并，其中 P114f 为 PR #372 / `5006e882676c0ac2c747286efaa34b0423526b3c`。当前继续 R1 的 P114g 共享音乐事件与练习目标 implementation candidate；USB/BLE Activity、Android 原生 USB bridge 与真机证据仍待独立完成，P114 尚未整体完成。
+该暂停点已由产品所有者在 2026-07-18 明确解除；P114a–P114h 已合并，P114i 角色设定也已合并但没有运行时。当前继续 R1 的 P114j Android 原生 BLE MIDI implementation candidate；BLE/USB 真机证据、五线谱/简谱答案和其余共享对象仍待独立完成，P114 尚未整体完成。
 
 ### R1：P114 + F1/F2 + M0——统一活动与伙伴安全接入点
 

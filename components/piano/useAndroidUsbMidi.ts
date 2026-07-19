@@ -14,11 +14,13 @@ import type { NoteEventV1 } from "../../lib/music/noteEvent";
 
 type UsbMidiNativePlugin = {
   listUsbDevices(options: { generation: number }): Promise<unknown>;
+  listBleDevices(options: { generation: number }): Promise<unknown>;
   connect(options: {
     deviceId: number;
     outputPort: number;
     generation: number;
     commandId: string;
+    transport: "usb" | "ble";
   }): Promise<unknown>;
   disconnect(): Promise<void>;
   addListener(
@@ -39,8 +41,8 @@ export function useAndroidUsbMidi({
   const [state, setState] = useState<AndroidMidiBridgeState>(() => createAndroidMidiBridgeState());
   const [notice, setNotice] = useState(
     Capacitor.getPlatform() === "android"
-      ? "请先手动查找 USB MIDI 设备；不会自动打开或重连。"
-      : "Android 原生 USB MIDI 仅在已安装 APK 中可用；屏幕钢琴和 Web MIDI 仍可使用。",
+      ? "请先选择 USB 或 BLE，再手动查找 Android MIDI 设备；不会自动打开或重连。"
+      : "Android 原生 USB / BLE MIDI 仅在已安装 APK 中可用；屏幕钢琴和 Web MIDI 仍可使用。",
   );
   const stateRef = useRef(state);
   const commandSequenceRef = useRef(0);
@@ -61,7 +63,7 @@ export function useAndroidUsbMidi({
       : "";
     const result = applyAndroidMidiBridgePayload(stateRef.current, payload);
     if (result.rejection) {
-      if (parsedType !== "all-notes-off") setNotice(`USB MIDI 事件已拒绝：${result.rejection}`);
+      if (parsedType !== "all-notes-off") setNotice(`Android MIDI 事件已拒绝：${result.rejection}`);
       return;
     }
     commit(result.state);
@@ -69,8 +71,8 @@ export function useAndroidUsbMidi({
     if (parsedType === "session-stopped" || parsedType === "device-disconnected") {
       onSessionInvalidatedRef.current(parsedType);
       setNotice(parsedType === "device-disconnected"
-        ? "USB MIDI 设备已移除；旧输入已清除，请重新查找并连接。"
-        : "USB MIDI 已断开；不会自动重连，屏幕钢琴仍可使用。");
+        ? "Android MIDI 设备已移除；旧输入已清除，请重新查找并连接。"
+        : "Android MIDI 已断开；不会自动重连，屏幕钢琴仍可使用。");
     }
   }, [commit]);
 
@@ -84,7 +86,7 @@ export function useAndroidUsbMidi({
     void UsbMidi.addListener("bridgeEvent", applyPayload).then((nextHandle) => {
       if (disposed) void nextHandle.remove();
       else handle = nextHandle;
-    }).catch(() => setNotice("无法监听 Android USB MIDI 事件；屏幕钢琴仍可使用。"));
+    }).catch(() => setNotice("无法监听 Android 原生 MIDI 事件；屏幕钢琴仍可使用。"));
     const lifecycle = (event: Event) => {
       const lifecycleState = (event as CustomEvent<{ state?: string }>).detail?.state;
       if (lifecycleState === "pause") {
@@ -103,19 +105,23 @@ export function useAndroidUsbMidi({
     };
   }, [applyPayload, commit]);
 
-  const discover = useCallback(async () => {
+  const discover = useCallback(async (transport: "usb" | "ble") => {
     if (Capacitor.getPlatform() !== "android") return;
     const generation = stateRef.current.generation + 1;
     const next = reduceAndroidMidiBridge(stateRef.current, { type: "request-devices", generation });
     if (next === stateRef.current) return;
     commit(next);
-    setNotice("正在读取 Android 已识别的 USB MIDI 设备；不会自动连接。");
+    const label = transport === "ble" ? "BLE" : "USB";
+    setNotice(`正在读取 Android 已识别的 ${label} MIDI 设备；不会扫描、配对或自动连接。`);
     try {
-      applyPayload(await UsbMidi.listUsbDevices({ generation }));
+      const payload = transport === "ble"
+        ? await UsbMidi.listBleDevices({ generation })
+        : await UsbMidi.listUsbDevices({ generation });
+      applyPayload(payload);
       setNotice("请选择设备和设备输出端口（应用接收），再手动连接。");
     } catch (error) {
       commit({ ...stateRef.current, status: "error", error: "list-failed" });
-      setNotice(error instanceof Error ? error.message : "无法读取 USB MIDI 设备；屏幕钢琴仍可使用。");
+      setNotice(error instanceof Error ? error.message : "无法读取 Android MIDI 设备；屏幕钢琴仍可使用。");
     }
   }, [applyPayload, commit]);
 
@@ -130,22 +136,27 @@ export function useAndroidUsbMidi({
   const connect = useCallback(async () => {
     const current = stateRef.current;
     if (!current.selectedDeviceId || current.selectedOutputPort === null) return;
-    const commandId = `usb-midi-connect-${++commandSequenceRef.current}`;
+    const selectedDevice = current.devices.find((device) => device.nativeDeviceId === current.selectedDeviceId);
+    if (!selectedDevice || (selectedDevice.transport !== "usb" && selectedDevice.transport !== "ble")) return;
+    const transport = selectedDevice.transport;
+    const label = transport === "ble" ? "BLE" : "USB";
+    const commandId = `${transport}-midi-connect-${++commandSequenceRef.current}`;
     const next = reduceAndroidMidiBridge(current, { type: "request-start", commandId });
     if (next === current) return;
     commit(next);
-    setNotice("正在打开所选 USB MIDI 设备输出端口…");
+    setNotice(`正在打开所选 ${label} MIDI 设备输出端口…`);
     try {
       await UsbMidi.connect({
         deviceId: Number(current.selectedDeviceId),
         outputPort: current.selectedOutputPort,
         generation: next.generation,
         commandId,
+        transport,
       }).then(applyPayload);
-      setNotice("Android 已验证 USB MIDI 连接；连接不会自动开始练习。");
+      setNotice(`Android 已验证 ${label} MIDI 连接；连接不会自动开始练习。`);
     } catch (error) {
       commit({ ...createAndroidMidiBridgeState(), status: "error", generation: next.generation, error: "open-failed" });
-      setNotice(error instanceof Error ? error.message : "USB MIDI 设备打开失败；屏幕钢琴仍可使用。");
+      setNotice(error instanceof Error ? error.message : "Android MIDI 设备打开失败；屏幕钢琴仍可使用。");
     }
   }, [applyPayload, commit]);
 
@@ -155,9 +166,9 @@ export function useAndroidUsbMidi({
       onSessionInvalidatedRef.current("cancel-start");
       try {
         await UsbMidi.disconnect();
-        setNotice("USB MIDI 连接已取消；不会自动重连，屏幕钢琴仍可使用。");
+        setNotice("Android MIDI 连接已取消；不会自动重连，屏幕钢琴仍可使用。");
       } catch {
-        setNotice("USB MIDI 连接取消确认失败；请重新进入页面后再连接。");
+        setNotice("Android MIDI 连接取消确认失败；请重新进入页面后再连接。");
       }
       return;
     }
@@ -177,7 +188,7 @@ export function useAndroidUsbMidi({
         switchTargetDeviceId: null,
         error: "close-failed",
       });
-      setNotice("USB MIDI 关闭确认失败；原生生命周期仍会释放端口，请重新进入页面后再连接。");
+      setNotice("Android MIDI 关闭确认失败；原生生命周期仍会释放端口，请重新进入页面后再连接。");
     }
   }, [commit]);
 

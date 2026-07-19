@@ -232,7 +232,10 @@ const deviceCallbackSource = usbMidiPluginSource.slice(
 if (
   !usbMidiPluginSource.includes('@CapacitorPlugin(name = "UsbMidi")')
   || !usbMidiPluginSource.includes('BRIDGE_PROTOCOL_VERSION = "android-midi-bridge-v1"')
-  || !usbMidiPluginSource.includes("info.getType() == MidiDeviceInfo.TYPE_USB")
+  || !usbMidiPluginSource.includes("deviceType == MidiDeviceInfo.TYPE_USB")
+  || !usbMidiPluginSource.includes("deviceType == MidiDeviceInfo.TYPE_BLUETOOTH")
+  || !usbMidiPluginSource.includes("listBleDevices")
+  || !usbMidiPluginSource.includes('call.getString("transport", "usb")')
   || !usbMidiPluginSource.includes("port.getType() == MidiDeviceInfo.PortInfo.TYPE_OUTPUT")
   || !usbMidiPluginSource.includes('call.getInt("deviceId")')
   || !usbMidiPluginSource.includes('call.getInt("outputPort")')
@@ -241,7 +244,7 @@ if (
   || !usbMidiPluginSource.includes("handleOnDestroy()")
   || !usbMidiPluginSource.includes("unregisterDeviceCallback(deviceCallback)")
 ) {
-  throw new Error("Android USB MIDI bridge 缺少 TYPE_USB、显式设备/端口选择、协议或生命周期关闭边界");
+  throw new Error("Android USB/BLE MIDI bridge 缺少原生设备类型、显式设备/端口选择、协议或生命周期关闭边界");
 }
 if (
   deviceCallbackEnd < 0
