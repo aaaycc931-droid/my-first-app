@@ -4,6 +4,7 @@ import type { LocalEarTrainingQuestion } from "../practice/localEarTrainingInter
 import type { LocalEarTrainingRhythmQuestion } from "../practice/localEarTrainingRhythm";
 import type { LocalEarTrainingMelodyQuestion } from "../practice/localEarTrainingMelodyDictation";
 import type { LocalEarTrainingChordQuestion } from "../practice/localEarTrainingChords";
+import type { LocalEarTrainingHarmonyProgressionQuestion } from "../practice/localEarTrainingHarmonyProgressions";
 
 const DIFFICULTY: Record<EarTrainingSinglePitchDifficulty, ActivityDifficulty> = {
   基础: "foundation", 进阶: "intermediate", 挑战: "challenge",
@@ -79,6 +80,30 @@ export const adaptChordQuestionToActivity = (
   },
   explanation: question.explanation,
   music: { key: question.root.label, referenceTimbre: "web-audio-sine-compatibility" },
+});
+
+export const adaptHarmonyProgressionQuestionToActivity = (
+  question: LocalEarTrainingHarmonyProgressionQuestion,
+): ActivityDefinitionV1 => ({
+  schemaVersion: "activity-definition-v1",
+  activityId: `local.harmony-progression.${question.variantId}`,
+  activityVersion: "1",
+  contentVersion: "local-harmony-progression-v1",
+  family: "harmony-progression",
+  title: "和声进行与终止式听辨",
+  instructions: "听一组依次播放的和弦，选择级数进行。",
+  skillTags: ["和声进行", "终止式", question.pattern.label, "听辨"],
+  difficulty: DIFFICULTY[question.difficulty],
+  assessmentMode: "non-scoring",
+  source: { kind: "built-in", reviewState: "confirmed" },
+  allowedInputModes: ["choice"],
+  target: {
+    targetId: `harmony-progression:${question.pattern.id}`,
+    label: question.pattern.label,
+    expectedAnswer: { mode: "choice", optionIds: [question.answerOptionId] },
+  },
+  explanation: question.explanation,
+  music: { key: question.key.label, referenceTimbre: "web-audio-sine-compatibility" },
 });
 
 export const adaptRhythmQuestionToActivity = (
