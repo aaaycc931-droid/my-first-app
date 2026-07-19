@@ -15,6 +15,10 @@ const accentClasses = {
     selected: "border-violet-600 bg-violet-50 text-violet-900 ring-violet-200",
     idle: "border-slate-200 bg-white text-slate-800 hover:border-violet-300",
   },
+  fuchsia: {
+    selected: "border-fuchsia-600 bg-fuchsia-50 text-fuchsia-900 ring-fuchsia-200",
+    idle: "border-slate-200 bg-white text-slate-800 hover:border-fuchsia-300",
+  },
 } as const;
 
 export function ActivityChoiceAnswerPanel({
@@ -35,7 +39,7 @@ export function ActivityChoiceAnswerPanel({
   const colors = accentClasses[accent];
   return (
     <fieldset disabled={disabled} className="mt-4">
-      <legend className="sr-only">选择听到的音名</legend>
+      <legend className="sr-only">选择答案</legend>
       <div className={`grid gap-2 ${columns === 2 ? "sm:grid-cols-2" : "sm:grid-cols-3"}`}>
         {options.map((option) => (
           <button
