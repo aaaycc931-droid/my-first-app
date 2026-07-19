@@ -16,12 +16,16 @@ import { getRhythmLatencyCalibration } from "../lib/rhythm/rhythmLatencyCalibrat
 import { createMetronomeBeatGrid } from "../lib/metronome/metronomeGrid";
 import { getNonScoringImportedTargetPitchFeedback } from "../lib/practice/nonScoringImportedTargetPitchFeedback";
 
-const summary = createLocalMelodyGuideFileSummary({
-  name: "teacher-guide.m4a",
-  type: "audio/mp4",
-  size: 2_097_152,
-});
+const summary = createLocalMelodyGuideFileSummary(
+  {
+    name: "teacher-guide.m4a",
+    type: "audio/mp4",
+    size: 2_097_152,
+  },
+  "local-melody-guide-test-source",
+);
 
+assert.equal(summary.sourceId, "local-melody-guide-test-source");
 assert.equal(summary.fileName, "teacher-guide.m4a");
 assert.equal(summary.fileType, "audio/mp4");
 assert.equal(summary.fileSizeBytes, 2_097_152);
