@@ -3,11 +3,11 @@ import {
   getScheduledQuestionIndex,
 } from "./localQuestionScheduler";
 
-export const LOCAL_PRACTICE_CATALOG_VERSION = 2 as const;
+export const LOCAL_PRACTICE_CATALOG_VERSION = 3 as const;
 
 /**
- * Catalog 2 is an append-only semantic namespace. New local variants may be
- * added without changing the meaning of an existing variantId.
+ * Catalog 3 extends the append-only catalog-2 namespace with chord/inversion
+ * targets. Existing variantIds keep their earlier meaning.
  */
 export const LOCAL_PRACTICE_CATALOG_MODES = ["legacy-v1", "expanded-local-v2"] as const;
 export type LocalPracticeCatalogMode = (typeof LOCAL_PRACTICE_CATALOG_MODES)[number];
@@ -15,6 +15,7 @@ export type LocalPracticeCatalogMode = (typeof LOCAL_PRACTICE_CATALOG_MODES)[num
 export type LocalPracticeKind =
   | "single-pitch"
   | "interval"
+  | "chord-inversion"
   | "rhythm"
   | "melody-dictation";
 
@@ -22,7 +23,7 @@ export type LegacyLocalPracticeDifficulty = "基础" | "进阶";
 export type LocalPracticeDifficulty = LegacyLocalPracticeDifficulty | "挑战";
 
 type LegacyCatalogTarget = {
-  kind: LocalPracticeKind;
+  kind: Exclude<LocalPracticeKind, "chord-inversion">;
   difficulty: LegacyLocalPracticeDifficulty;
   seed: number;
   sequence: number;
