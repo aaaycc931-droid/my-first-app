@@ -6,6 +6,7 @@ import {
 } from "../../lib/practice/localNotationDraftPracticeTarget";
 import type { NotationFragmentDraft } from "../../lib/practice/localNotationFragmentDraft";
 import type { NotationDraftValidationResult } from "../../lib/practice/localNotationDraftValidation";
+import { NotationDocumentActivityPanel } from "./NotationDocumentActivityPanel";
 
 type Props = {
   draft: NotationFragmentDraft;
@@ -101,6 +102,7 @@ export function NotationDraftPracticeTargetPanel({
           <button type="button" onClick={onEnterPractice} className="mt-4 rounded-full bg-fuchsia-700 px-4 py-2 text-sm font-semibold text-white">
             进入临时乐谱练习
           </button>
+          <NotationDocumentActivityPanel key={target.id} target={target} />
         </div>
       )}
       <p className="mt-4 text-sm text-slate-600">会话边界：目标刷新后消失，不上传，不调用 /api/recognize，不读取图片内容，不写入 localStorage、IndexedDB 或数据库，也不产生分数、等级或正式成绩。</p>
