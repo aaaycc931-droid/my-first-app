@@ -2,6 +2,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { LocalEarTrainingIntervalPanel } from "../../components/practice/LocalEarTrainingIntervalPanel";
+import { LocalEarTrainingChordPanel } from "../../components/practice/LocalEarTrainingChordPanel";
 import { LocalEarTrainingMelodyDictationPanel } from "../../components/practice/LocalEarTrainingMelodyDictationPanel";
 import { LocalEarTrainingRhythmPanel } from "../../components/practice/LocalEarTrainingRhythmPanel";
 import { LocalEarTrainingSinglePitchPanel } from "../../components/practice/LocalEarTrainingSinglePitchPanel";
@@ -47,7 +48,7 @@ import {
 } from "./runtime/mobileLearningProfileStorage";
 import type { GeneratedLocalVocalExercise } from "../../lib/practice/localVocalExercise";
 
-const screens = ["home", "monitor", "pitch", "interval", "rhythm", "melody", "piano"] as const;
+const screens = ["home", "monitor", "pitch", "interval", "chord", "rhythm", "melody", "piano"] as const;
 type Screen = (typeof screens)[number];
 type PracticeScreenName = Exclude<Screen, "home" | "piano" | "monitor">;
 
@@ -69,6 +70,11 @@ const screenDetails: Record<
     title: "音程听辨",
     summary: "听两个依次播放的音，辨认上行或下行音程。",
     tone: "bg-emerald-50 text-emerald-900 ring-emerald-200",
+  },
+  chord: {
+    title: "和弦与转位",
+    summary: "听三和弦同时或分解发声，辨认和弦性质与最低音位置。",
+    tone: "bg-fuchsia-50 text-fuchsia-950 ring-fuchsia-200",
   },
   rhythm: {
     title: "节奏听辨",
@@ -95,6 +101,7 @@ function screenFromHash(): Screen {
 const screenForReviewTarget = (target: LocalPracticeReviewTarget): PracticeScreenName => {
   if (target.kind === "single-pitch") return "pitch";
   if (target.kind === "melody-dictation") return "melody";
+  if (target.kind === "chord-inversion") return "chord";
   return target.kind;
 };
 
@@ -123,6 +130,10 @@ function PracticeScreen({
   if (screen === "interval") {
     const target = reviewTarget?.kind === "interval" ? reviewTarget : undefined;
     return <LocalEarTrainingIntervalPanel key={target ? getLocalPracticeReviewTargetKey(target) : "random-interval"} initialReviewTarget={target} showLocalPiano expandedLocalCatalog {...sharedProps} />;
+  }
+  if (screen === "chord") {
+    const target = reviewTarget?.kind === "chord-inversion" ? reviewTarget : undefined;
+    return <LocalEarTrainingChordPanel key={target ? getLocalPracticeReviewTargetKey(target) : "random-chord"} initialReviewTarget={target} showLocalPiano {...sharedProps} />;
   }
   if (screen === "rhythm") {
     const target = reviewTarget?.kind === "rhythm" ? reviewTarget : undefined;

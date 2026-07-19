@@ -15,6 +15,11 @@ import {
   type LocalPracticeReviewTarget,
 } from "../../lib/practice/localPracticeReviewQueue";
 import type { LegacyLocalPracticeDifficulty } from "../../lib/practice/localPracticeCatalog";
+import {
+  createLocalEarTrainingChordQuestion,
+  getLocalChordAnswerOptions,
+  getLocalEarTrainingChordVariantCount,
+} from "../../lib/practice/localEarTrainingChords";
 import { App } from "./App";
 import { deserializeLocalLearningHistory } from "../../lib/learning/learningEventProfile";
 import { MOBILE_LEARNING_PROFILE_STORAGE_KEY } from "./runtime/mobileLearningProfileStorage";
@@ -212,8 +217,8 @@ describe("Android 本机复练行为", () => {
     const migratedEnvelope = JSON.parse(
       window.localStorage.getItem(MOBILE_PRACTICE_REVIEW_STORAGE_KEY) ?? "{}",
     ) as { schemaVersion?: number; catalogVersion?: number; targets?: Array<Record<string, unknown>> };
-    expect(migratedEnvelope.schemaVersion).toBe(2);
-    expect(migratedEnvelope.catalogVersion).toBe(2);
+    expect(migratedEnvelope.schemaVersion).toBe(3);
+    expect(migratedEnvelope.catalogVersion).toBe(3);
     expect(migratedEnvelope.targets?.[0]?.variantId).toBe("pitch:g4");
 
     expect(container.textContent).toContain("本机复练（1）");
@@ -277,8 +282,8 @@ describe("Android 本机复练行为", () => {
 
   it("答对移除保存失败时不伪称已持久移除", async () => {
     const original = JSON.stringify({
-      schemaVersion: 2,
-      catalogVersion: 2,
+      schemaVersion: 3,
+      catalogVersion: 3,
       targets: [{
         kind: "single-pitch",
         difficulty: "基础",
@@ -350,6 +355,57 @@ describe("Android 本机复练行为", () => {
     expect(container.textContent).toContain("本机复练（1）");
     expect(getStoredQueue()).toHaveLength(1);
     expect(findButton(container, "开启建议").getAttribute("aria-pressed")).toBe("false");
+  });
+
+  it("和弦与转位完成三难度作答、解释、复练和画像闭环", async () => {
+    const count = getLocalEarTrainingChordVariantCount("基础");
+    const questionIndex = getScheduledQuestionIndex(createLocalQuestionSchedule(count, 0), 0) ?? 0;
+    const question = createLocalEarTrainingChordQuestion({
+      difficulty: "基础",
+      sequence: 0,
+      questionIndex,
+    });
+    const options = getLocalChordAnswerOptions("基础");
+    const wrongOption = options.find((option) => option.id !== question.answerOptionId);
+    expect(wrongOption).toBeDefined();
+
+    const container = await renderApp();
+    await click(findLink(container, "和弦与转位"));
+    const difficulty = container.querySelector<HTMLSelectElement>("#chord-training-difficulty");
+    expect(Array.from(difficulty?.options ?? []).map((option) => option.value)).toEqual([
+      "基础", "进阶", "挑战",
+    ]);
+    expect(container.textContent).toContain("本难度共 8 个版本化组合");
+    await waitFor(
+      () => !findButton(container, wrongOption?.label ?? "").disabled,
+      "和弦题目可回答",
+    );
+    await click(findButton(container, wrongOption?.label ?? ""));
+    await click(findButton(container, "查看本题答案"));
+    expect(container.textContent).toContain(`本题答案：${options.find((option) => option.id === question.answerOptionId)?.label}`);
+    expect(container.textContent).toContain("非评分答案说明");
+    await click(findLink(container, "返回练习首页"));
+
+    const queue = getStoredQueue();
+    expect(queue[0]).toMatchObject({
+      kind: "chord-inversion",
+      difficulty: "基础",
+      playbackMode: "和声",
+      variantId: question.variantId,
+    });
+    const storedHistory = deserializeLocalLearningHistory(
+      window.localStorage.getItem(MOBILE_LEARNING_PROFILE_STORAGE_KEY) ?? "",
+    );
+    expect(storedHistory?.profile.skillFacts.find(
+      (fact) => fact.skillKind === "chord-inversion",
+    )?.incorrectCount).toBe(1);
+
+    await click(findButton(container, "和弦与转位 · 基础复练 1"));
+    expect(container.querySelector<HTMLSelectElement>("#chord-training-difficulty")?.disabled).toBe(true);
+    await click(findButton(container, options.find((option) => option.id === question.answerOptionId)?.label ?? ""));
+    await click(findButton(container, "查看本题答案"));
+    expect(getStoredQueue()).toHaveLength(0);
+    expect(container.textContent).toContain("本题已从本机复练中移除");
   });
 
   it("hash 前进后退不会复活已经离开的复练目标", async () => {

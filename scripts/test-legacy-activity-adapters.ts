@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 
 import {
   adaptIntervalQuestionToActivity,
+  adaptChordQuestionToActivity,
   adaptMelodyDictationQuestionToActivity,
   adaptRhythmQuestionToActivity,
   adaptSinglePitchQuestionToActivity,
@@ -10,6 +11,7 @@ import { createLocalEarTrainingSinglePitchQuestion } from "../lib/practice/local
 import { createLocalEarTrainingQuestion } from "../lib/practice/localEarTrainingIntervals";
 import { createLocalEarTrainingRhythmQuestion } from "../lib/practice/localEarTrainingRhythm";
 import { createLocalEarTrainingMelodyQuestion } from "../lib/practice/localEarTrainingMelodyDictation";
+import { createLocalEarTrainingChordQuestion } from "../lib/practice/localEarTrainingChords";
 
 const single = adaptSinglePitchQuestionToActivity(createLocalEarTrainingSinglePitchQuestion({
   difficulty: "基础", sequence: 0, questionIndex: 0, catalogMode: "expanded-local-v2",
@@ -29,6 +31,15 @@ assert.equal(interval.family, "interval");
 assert.equal(interval.activityId, repeatedInterval.activityId, "sequence must not change stable activity identity");
 assert.notEqual(interval.activityId, descendingInterval.activityId, "direction is part of the interval target identity");
 assert.deepEqual(interval.target.expectedAnswer, { mode: "choice", optionIds: [intervalQuestion.interval.id] });
+
+const chordQuestion = createLocalEarTrainingChordQuestion({
+  difficulty: "进阶", sequence: 0, variantId: "chord:c4:minor:first",
+});
+const chord = adaptChordQuestionToActivity(chordQuestion);
+assert.equal(chord.family, "chord");
+assert.equal(chord.contentVersion, "local-harmony-training-v1");
+assert.deepEqual(chord.target.expectedAnswer, { mode: "choice", optionIds: ["minor-first"] });
+assert.match(chord.explanation, /第一转位/);
 
 const rhythmQuestion = createLocalEarTrainingRhythmQuestion({
   difficulty: "进阶", sequence: 0, questionIndex: 0, catalogMode: "expanded-local-v2",
@@ -50,7 +61,7 @@ assert.deepEqual(
   { mode: "choice", optionIds: melodyQuestion.melody.noteIds },
 );
 
-for (const activity of [single, interval, rhythm, melody]) {
+for (const activity of [single, interval, chord, rhythm, melody]) {
   assert.equal(activity.assessmentMode, "non-scoring");
   assert.equal(activity.source.reviewState, "confirmed");
   assert.equal("score" in activity, false);

@@ -4,13 +4,13 @@
 
 状态：**Canonical integrated roadmap / 统一长期开发主路线**
 
-当前执行状态：**ACTIVE AT P114m / LearningEvent and LearningProfile implementation candidate**
+当前执行状态：**ACTIVE AT P115a / chord quality and inversion ear-training implementation candidate**
 
 适用项目：`aaaycc931-droid/my-first-app`
 
 ## 1. 当前事实与本次决策
 
-当前远端检查点已更新到 `main@5006e882676c0ac2c747286efaa34b0423526b3c`：
+当前远端检查点已更新到 `main@99d2313f8c8bc679f3328515e8b0ee844f84569a`：
 
 - P106–P112 已合并；
 - P113 已通过 PR #365 squash merge，merge commit 为 `2a786f1b66fee095224214430d12e96f78a5057e`；
@@ -29,11 +29,12 @@
 - P114j 已通过 PR #376 squash merge，main commit 为 `764e103111cd264c5714063445c6cd9e61438951`；它交付 Android 系统 MIDI 服务已暴露 `TYPE_BLUETOOTH` 端点的 `ble-midi` Activity，但合并与 CI 不等于 BLE 真机证据；
 - P114k 已通过 PR #377 squash merge，main commit 为 `4300655455e1c98a86fac3858ac6200d2197fe60`；五线谱/简谱文档答案已有真实使用者，但 Android 离线入口仍未挂载 Stage A–E；
 - P114l 已通过 PR #378 squash merge，main commit 为 `4c03ffa0372a7519a1628b045b93632825fa60c6`；本地旋律参考音频、钢琴采样资源包与本地钢琴能力解析已成为 `MediaProject`、`ResourcePackage`、`CapabilityResolver` 的真实使用者；
-- P114m 当前为 ACTIVE implementation candidate：让 Android 四类练耳的答案核对与本机复练成为 `LearningEvent/Profile` 的真实使用者，保持非评分、最小数据、建议可关闭和画像可独立重置，验收标准见 `docs/p114m-learning-event-profile-acceptance.md`。
+- P114m 已通过 PR #379 squash merge，main commit 为 `99d2313f8c8bc679f3328515e8b0ee844f84569a`；Android 四类练耳的答案核对与本机复练已成为 `LearningEvent/Profile` 的真实使用者，保持非评分、最小数据、建议可关闭和画像可独立重置；
+- P115a 当前为 ACTIVE implementation candidate：新增和弦性质与三和弦转位的三难度题库、和声/分解播放、Activity 答案、复练与学习事实闭环；和声进行、七和弦、音阶/调式、完整题量与教育审核仍未完成，验收标准见 `docs/p115a-chord-inversion-ear-training-acceptance.md`。
 
 本次产品决策是：
 
-> AI 音乐伙伴正式进入全能音乐学习系统的长期产品终局和开发主路线，但伙伴不能先于可信音乐能力成为装饰性聊天壳。下一运行时切片仍是 P114；伙伴协议预留与 P114/F1/F2 的真实使用者一同落地，首发伙伴在可信证据和活动状态机可用后作为完整 vertical slice 进入。
+> AI 音乐伙伴正式进入全能音乐学习系统的长期产品终局和开发主路线，但伙伴不能先于可信音乐能力成为装饰性聊天壳。P114 共享协议切片已经合并，当前按 R2 从 P115 教学能力向前滚动；首发伙伴仍须在可信证据和活动状态机可用后作为完整 vertical slice 进入。
 
 ## 2. 文件职责与规范优先级
 
@@ -197,7 +198,7 @@ flowchart TD
 - P113 真机音频/录音/生命周期与目标用户证据；
 - 伙伴运行时、P114 统一活动模型和共享协议。
 
-该暂停点已由产品所有者在 2026-07-18 明确解除；P114a–P114l 已合并，P114i 角色设定没有伙伴运行时。当前继续 R1 的 P114m `LearningEvent/Profile` implementation candidate；BLE/USB 真机证据和后续发布门槛仍待独立完成，P114 尚未整体完成。
+该暂停点已由产品所有者在 2026-07-18 明确解除；P114a–P114m 已合并，P114i 角色设定没有伙伴运行时。当前进入 R2 的 P115a 和弦性质与三和弦转位 implementation candidate；BLE/USB 真机证据和后续发布门槛仍待独立完成，P114 的共享运行时交付不等于伙伴、设备或教育证据完成。
 
 ### R1：P114 + F1/F2 + M0——统一活动与伙伴安全接入点
 
@@ -498,11 +499,11 @@ P120 仍是专业私测候选，不是全能公开最终版。
 
 产品所有者再次明确恢复运行时开发后：
 
-1. 从 P114f 已合并的远端 `main@5006e882676c0ac2c747286efaa34b0423526b3c` 建立新分支，先核对本路线、DoD、状态矩阵和 P114g 验收文档；
+1. 从 P114m 已合并的远端 `main@99d2313f8c8bc679f3328515e8b0ee844f84569a` 建立 P115 分支，先核对本路线、DoD、状态矩阵和当前 P115 验收文档；
 2. 继续把 P104/P113 的真实人声、三档 Android、延迟/同步和教育证据列为独立缺口；
-3. 实现 P114g 共享音乐事件与练习目标 vertical slice：版本化事件、稳定确认目标、现有屏幕钢琴 Activity 真实迁移、来源隔离与 stale 清理必须同一切片闭合；Web MIDI 只标记为 Web MIDI，不推断 USB/BLE；
+3. 先完成 P115a 和弦性质与三和弦转位 vertical slice：三难度稳定题库、正确和弦结构、和声/分解播放、统一 Activity 答案、复练/画像迁移和隐私边界必须同一切片闭合；
 4. 不先做伙伴形象、首页悬浮物或自由聊天；
-5. P114 完整合并并证明所有计划输入与共享证据协议有真实使用者后，才启动 M1a 单伙伴可信反馈闭环；
+5. P115 的和声进行、音阶/调式、完整题量与教育审核继续拆成后续可验证切片；M1a 单伙伴可信反馈闭环仍按证据和依赖门槛启动；
 6. 后续按 R2–R9 滚动推进，每个切片完成“实现 → focused tests → 完整检查 → 提交 → 推送 → PR → CI → 审查 → squash merge → 状态更新”；
 7. 只在最终交付完成或必须由产品所有者、真实设备参与者、教育专家、合法数据/许可方处理的外部硬阻塞时暂停。
 

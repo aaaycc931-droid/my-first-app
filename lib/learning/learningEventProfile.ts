@@ -6,7 +6,7 @@ import {
 
 export const LEARNING_EVENT_SCHEMA_VERSION = "learning-event-v1" as const;
 export const LEARNING_PROFILE_SCHEMA_VERSION = "learning-profile-v1" as const;
-export const LEARNING_PROFILE_ENVELOPE_SCHEMA_VERSION = 1 as const;
+export const LEARNING_PROFILE_ENVELOPE_SCHEMA_VERSION = 2 as const;
 export const MAX_RECENT_LEARNING_EVENTS = 48;
 export const MAX_LEARNING_PROFILE_SERIALIZED_LENGTH = 24 * 1024;
 
@@ -56,6 +56,7 @@ export type LocalLearningHistory = {
 const skillKinds: LearningSkillKind[] = [
   "single-pitch",
   "interval",
+  "chord-inversion",
   "rhythm",
   "melody-dictation",
 ];
@@ -319,9 +320,24 @@ export const deserializeLocalLearningHistory = (input: string): LocalLearningHis
     return null;
   }
   if (!isRecord(value) || !hasExactKeys(value, ["schemaVersion", "nextSequence", "profile", "recentEvents"])) return null;
-  if (value.schemaVersion !== LEARNING_PROFILE_ENVELOPE_SCHEMA_VERSION || !isCount(value.nextSequence) || value.nextSequence < 1) return null;
+  const isCurrent = value.schemaVersion === LEARNING_PROFILE_ENVELOPE_SCHEMA_VERSION;
+  const isPrevious = value.schemaVersion === 1;
+  if ((!isCurrent && !isPrevious) || !isCount(value.nextSequence) || value.nextSequence < 1) return null;
   const nextSequence = value.nextSequence;
-  const profile = parseProfile(value.profile);
+  const rawProfile = isPrevious && isRecord(value.profile) && Array.isArray(value.profile.skillFacts)
+    ? { ...value.profile, skillFacts: [
+      ...value.profile.skillFacts,
+      {
+        skillKind: "chord-inversion",
+        checkedCount: 0,
+        correctCount: 0,
+        incorrectCount: 0,
+        reviewStartedCount: 0,
+        reviewResolvedCount: 0,
+      },
+    ] }
+    : value.profile;
+  const profile = parseProfile(rawProfile);
   if (!profile || !Array.isArray(value.recentEvents) || value.recentEvents.length > MAX_RECENT_LEARNING_EVENTS) return null;
   const recentEvents = value.recentEvents.map(parseEvent);
   if (recentEvents.some((event) => event === null)) return null;

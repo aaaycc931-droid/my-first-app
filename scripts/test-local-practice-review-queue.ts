@@ -33,6 +33,14 @@ const rhythm: LocalPracticeReviewTarget = {
   sequence: 2,
   variantId: "rhythm:even-quarters",
 };
+const chord: LocalPracticeReviewTarget = {
+  kind: "chord-inversion",
+  difficulty: "进阶",
+  playbackMode: "分解",
+  seed: 115,
+  sequence: 6,
+  variantId: "chord:c4:minor:first",
+};
 const melody: LocalPracticeReviewTarget = {
   kind: "melody-dictation",
   difficulty: "进阶",
@@ -44,16 +52,17 @@ const melody: LocalPracticeReviewTarget = {
 let queue = createLocalPracticeReviewQueue();
 queue = updateLocalPracticeReviewQueue({ queue, target: pitch, isCorrect: false });
 queue = updateLocalPracticeReviewQueue({ queue, target: interval, isCorrect: false });
+queue = updateLocalPracticeReviewQueue({ queue, target: chord, isCorrect: false });
 queue = updateLocalPracticeReviewQueue({ queue, target: rhythm, isCorrect: false });
 queue = updateLocalPracticeReviewQueue({ queue, target: melody, isCorrect: false });
-assert.deepEqual(queue, [melody, rhythm, interval, pitch]);
+assert.deepEqual(queue, [melody, rhythm, chord, interval, pitch]);
 
 queue = updateLocalPracticeReviewQueue({ queue, target: interval, isCorrect: false });
-assert.deepEqual(queue, [interval, melody, rhythm, pitch], "a repeated wrong answer moves to the MRU front");
+assert.deepEqual(queue, [interval, melody, rhythm, chord, pitch], "a repeated wrong answer moves to the MRU front");
 assert.equal(queue.filter((target) => target === interval).length, 1, "MRU targets stay unique");
 
 queue = updateLocalPracticeReviewQueue({ queue, target: interval, isCorrect: true });
-assert.deepEqual(queue, [melody, rhythm, pitch], "a correct answer removes the review target");
+assert.deepEqual(queue, [melody, rhythm, chord, pitch], "a correct answer removes the review target");
 
 let cappedQueue = createLocalPracticeReviewQueue();
 for (let sequence = 0; sequence < LOCAL_PRACTICE_REVIEW_QUEUE_MAX_ITEMS + 3; sequence += 1) {
@@ -67,13 +76,14 @@ assert.equal(cappedQueue.length, LOCAL_PRACTICE_REVIEW_QUEUE_MAX_ITEMS);
 assert.equal(cappedQueue[0]?.sequence, 14);
 assert.equal(cappedQueue.at(-1)?.sequence, 3);
 
-const allKinds = [pitch, interval, rhythm, melody];
+const allKinds = [pitch, interval, chord, rhythm, melody];
+const legacyKinds = [pitch, interval, rhythm, melody];
 const serialized = serializeLocalPracticeReviewQueue(allKinds);
 assert.deepEqual(parseLocalPracticeReviewQueue(serialized), allKinds);
 const serializedValue = JSON.parse(serialized) as Record<string, unknown>;
 assert.deepEqual(Object.keys(serializedValue).sort(), ["catalogVersion", "schemaVersion", "targets"]);
-assert.equal(serializedValue.schemaVersion, 2);
-assert.equal(serializedValue.catalogVersion, 2);
+assert.equal(serializedValue.schemaVersion, 3);
+assert.equal(serializedValue.catalogVersion, 3);
 assert.equal(serialized.includes("selection"), false);
 assert.equal(serialized.includes("answer"), false);
 assert.equal(serialized.includes("score"), false);
@@ -95,7 +105,7 @@ const challengePitch: LocalPracticeReviewTarget = {
 assert.deepEqual(
   parseLocalPracticeReviewQueue(serializeLocalPracticeReviewQueue([challengePitch])),
   [challengePitch],
-  "catalog v2 challenge targets round-trip with a stable variant id",
+  "catalog v3 challenge targets round-trip with a stable variant id",
 );
 
 const validEnvelope = JSON.parse(serialized) as {
@@ -114,7 +124,17 @@ const legacyEnvelope = {
   ],
 };
 assert.deepEqual(deserializeLocalPracticeReviewQueue(JSON.stringify(legacyEnvelope)), {
-  queue: allKinds,
+  queue: legacyKinds,
+  migrated: true,
+});
+
+const previousEnvelope = {
+  schemaVersion: 2,
+  catalogVersion: 2,
+  targets: legacyKinds,
+};
+assert.deepEqual(deserializeLocalPracticeReviewQueue(JSON.stringify(previousEnvelope)), {
+  queue: legacyKinds,
   migrated: true,
 });
 
@@ -155,6 +175,7 @@ const rejects = [
     variantId: "interval:c4:minor-second",
   }] }),
   JSON.stringify({ ...validEnvelope, targets: [{ ...validEnvelope.targets[1], direction: "横向" }] }),
+  JSON.stringify({ ...validEnvelope, targets: [{ ...validEnvelope.targets[2], playbackMode: "倒放" }] }),
   "x".repeat(LOCAL_PRACTICE_REVIEW_QUEUE_MAX_SERIALIZED_LENGTH + 1),
 ];
 for (const invalid of rejects) assert.equal(parseLocalPracticeReviewQueue(invalid), null);
