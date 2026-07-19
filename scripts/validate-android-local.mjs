@@ -13,6 +13,7 @@ const requiredSources = [
   "mobile/src/runtime/mobileLearningProfileStorage.ts",
   "mobile/src/stubs/supabaseBrowser.ts",
   "lib/practice/localPracticeReviewQueue.ts",
+  "lib/practice/localEarTrainingChords.ts",
   "lib/learning/learningEventProfile.ts",
   "lib/piano/localPianoKeyboard.ts",
   "lib/piano/pianoNoteEvents.ts",
@@ -29,6 +30,7 @@ const requiredSources = [
   "components/piano/useLocalPianoMidi.ts",
   "components/piano/LocalPianoLearningPanel.tsx",
   "components/practice/RealtimePitchMonitorPanel.tsx",
+  "components/practice/LocalEarTrainingChordPanel.tsx",
   "components/practice/RealtimePitchCurveChart.tsx",
   "components/practice/LocalVocalExercisePanel.tsx",
   "components/practice/useRealtimePitchMonitor.ts",
@@ -73,6 +75,14 @@ const learningProfileSource = readFileSync(
 );
 const learningProfileStorageSource = readFileSync(
   join(root, "mobile/src/runtime/mobileLearningProfileStorage.ts"),
+  "utf8",
+);
+const chordTrainingSource = readFileSync(
+  join(root, "lib/practice/localEarTrainingChords.ts"),
+  "utf8",
+);
+const chordTrainingPanelSource = readFileSync(
+  join(root, "components/practice/LocalEarTrainingChordPanel.tsx"),
   "utf8",
 );
 const pianoModelSource = readFileSync(
@@ -166,6 +176,18 @@ if (
   || !mobileApp.includes("本机事实，不是能力评分")
 ) {
   throw new Error("Android 本机学习事件、非评分画像、建议控制或独立清除边界不完整");
+}
+if (
+  !chordTrainingSource.includes('type ChordQualityId = "major" | "minor" | "diminished" | "augmented"')
+  || !chordTrainingSource.includes('type ChordInversionId = "root" | "first" | "second"')
+  || !chordTrainingSource.includes("getLocalEarTrainingChordVariantCount")
+  || !chordTrainingPanelSource.includes("和弦性质与转位听辨")
+  || !chordTrainingPanelSource.includes("同时发声")
+  || !chordTrainingPanelSource.includes("从低到高")
+  || !mobileApp.includes('"chord"')
+  || !mobileApp.includes("和弦与转位")
+) {
+  throw new Error("Android P115 和弦性质、转位、三难度或和声/分解播放闭环不完整");
 }
 if (
   !pianoModelSource.includes('DEFAULT_LOCAL_PIANO_RANGE_ID: LocalPianoRangeId = "C4-C5"')
@@ -411,4 +433,4 @@ if (existsSync(manifestPath) && !existsSync(syncedIndex)) {
   throw new Error("Android 工程存在，但本地 Web 资源尚未同步");
 }
 
-console.log("Android 本地模式校验通过：固定包名、本地资源、四类练习、实时音高反馈、本机复练、非评分学习画像、本地参考钢琴、无远程运行时配置与生命周期保护。 ");
+console.log("Android 本地模式校验通过：固定包名、本地资源、五类练习（含和弦/转位）、实时音高反馈、本机复练、非评分学习画像、本地参考钢琴、无远程运行时配置与生命周期保护。 ");
