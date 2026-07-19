@@ -1,8 +1,14 @@
-## P115a — 和弦性质与转位听辨（本地验证中，2026-07-19）
+## P115b — 和声进行与终止式听辨（本地验证中，2026-07-19）
+
+P115b 在 Android 离线入口新增和声进行与终止式听辨。基础档覆盖正格/变格收束 8 个稳定变体，进阶档覆盖四类常见大调进行 24 个变体，挑战档加入阻碍进行与两类小调收束共 42 个变体；三和弦按确定性音程与受控转位生成并逐和弦播放。活动接入统一非评分答案、中文功能解释、本机复练和学习事实画像。
+
+复练队列升级到 schema/catalog v4 并迁移 v1–v3；学习画像信封升级到 schema v3 并迁移 v1/v2。本切片不保存声音、具体选择、账号、分数或能力标签，不上传、不联网。七和弦、调制、完整四部和声、音阶/调式、基础/进阶长期题量、教师审核和真机证据仍未完成。完整边界见 `docs/p115b-harmony-progression-ear-training-acceptance.md`。QA level recommendation：**strict**。
+
+## P115a — 和弦性质与转位听辨（PR #380 已合并，2026-07-19）
 
 P115a 在 Android 离线入口新增和弦性质与三和弦转位听辨：基础档覆盖大/小三和弦原位 8 个稳定变体，进阶档覆盖大/小/减/增三和弦的原位与第一转位 48 个变体，挑战档加入第二转位共 72 个变体。用户可选择和声同时发声或由低到高分解播放；题目按真实和弦音程与转位最低音生成，并接入统一 Activity 选择答案、中文非评分解释、本机复练和 P114m 学习事实画像。
 
-复练队列升级到 schema/catalog v3，并严格迁移 v1/v2；学习事件存储信封升级到 schema v2，并为旧画像补入零值 `chord-inversion` 事实。数据仍不含音频、录音、账号、分数或能力标签，不上传、不联网。本切片不包含七和弦、和声进行、音阶/调式听辨、统一定制器、教师审核或真机证据；基础档 8 个变体也尚未达到完整 P115 的长期题量门槛。完整边界见 `docs/p115a-chord-inversion-ear-training-acceptance.md`。QA level recommendation：**strict**。
+复练队列升级到 schema/catalog v3，并严格迁移 v1/v2；学习事件存储信封升级到 schema v2，并为旧画像补入零值 `chord-inversion` 事实。数据仍不含音频、录音、账号、分数或能力标签，不上传、不联网。本切片不包含七和弦、和声进行、音阶/调式听辨、统一定制器、教师审核或真机证据；基础档 8 个变体也尚未达到完整 P115 的长期题量门槛。PR #380 已 squash merge，main commit 为 `a42ff681278816ab3cd277a4a6e403dc77f457be`；Actions run `29682428365` 的 `quality` 与 `android-local`、Android API 36 构建、独立验包、artifact `8441012329` 和 Vercel 均通过。完整边界见 `docs/p115a-chord-inversion-ear-training-acceptance.md`。QA level recommendation：**strict**。
 
 ## P114m — 本机学习事件与非评分画像（PR #379 已合并，2026-07-19）
 
