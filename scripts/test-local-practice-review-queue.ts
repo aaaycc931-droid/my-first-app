@@ -69,6 +69,13 @@ const seventhSpacing: LocalPracticeReviewTarget = {
   sequence: 5,
   variantId: "seventh-chord-spacing:c3:dominant-seventh:third:open",
 };
+const modulation: LocalPracticeReviewTarget = {
+  kind: "modulation",
+  difficulty: "挑战",
+  seed: 1155,
+  sequence: 6,
+  variantId: "modulation:c3:parallel-minor:alternate-predominant",
+};
 const melody: LocalPracticeReviewTarget = {
   kind: "melody-dictation",
   difficulty: "进阶",
@@ -85,16 +92,17 @@ queue = updateLocalPracticeReviewQueue({ queue, target: progression, isCorrect: 
 queue = updateLocalPracticeReviewQueue({ queue, target: scale, isCorrect: false });
 queue = updateLocalPracticeReviewQueue({ queue, target: seventh, isCorrect: false });
 queue = updateLocalPracticeReviewQueue({ queue, target: seventhSpacing, isCorrect: false });
+queue = updateLocalPracticeReviewQueue({ queue, target: modulation, isCorrect: false });
 queue = updateLocalPracticeReviewQueue({ queue, target: rhythm, isCorrect: false });
 queue = updateLocalPracticeReviewQueue({ queue, target: melody, isCorrect: false });
-assert.deepEqual(queue, [melody, rhythm, seventhSpacing, seventh, scale, progression, chord, interval, pitch]);
+assert.deepEqual(queue, [melody, rhythm, modulation, seventhSpacing, seventh, scale, progression, chord, interval, pitch]);
 
 queue = updateLocalPracticeReviewQueue({ queue, target: interval, isCorrect: false });
-assert.deepEqual(queue, [interval, melody, rhythm, seventhSpacing, seventh, scale, progression, chord, pitch], "a repeated wrong answer moves to the MRU front");
+assert.deepEqual(queue, [interval, melody, rhythm, modulation, seventhSpacing, seventh, scale, progression, chord, pitch], "a repeated wrong answer moves to the MRU front");
 assert.equal(queue.filter((target) => target === interval).length, 1, "MRU targets stay unique");
 
 queue = updateLocalPracticeReviewQueue({ queue, target: interval, isCorrect: true });
-assert.deepEqual(queue, [melody, rhythm, seventhSpacing, seventh, scale, progression, chord, pitch], "a correct answer removes the review target");
+assert.deepEqual(queue, [melody, rhythm, modulation, seventhSpacing, seventh, scale, progression, chord, pitch], "a correct answer removes the review target");
 
 let cappedQueue = createLocalPracticeReviewQueue();
 for (let sequence = 0; sequence < LOCAL_PRACTICE_REVIEW_QUEUE_MAX_ITEMS + 3; sequence += 1) {
@@ -108,14 +116,14 @@ assert.equal(cappedQueue.length, LOCAL_PRACTICE_REVIEW_QUEUE_MAX_ITEMS);
 assert.equal(cappedQueue[0]?.sequence, 14);
 assert.equal(cappedQueue.at(-1)?.sequence, 3);
 
-const allKinds = [pitch, interval, chord, progression, scale, seventh, seventhSpacing, rhythm, melody];
+const allKinds = [pitch, interval, chord, progression, scale, seventh, seventhSpacing, modulation, rhythm, melody];
 const legacyKinds = [pitch, interval, rhythm, melody];
 const serialized = serializeLocalPracticeReviewQueue(allKinds);
 assert.deepEqual(parseLocalPracticeReviewQueue(serialized), allKinds);
 const serializedValue = JSON.parse(serialized) as Record<string, unknown>;
 assert.deepEqual(Object.keys(serializedValue).sort(), ["catalogVersion", "schemaVersion", "targets"]);
-assert.equal(serializedValue.schemaVersion, 7);
-assert.equal(serializedValue.catalogVersion, 7);
+assert.equal(serializedValue.schemaVersion, 8);
+assert.equal(serializedValue.catalogVersion, 8);
 assert.equal(serialized.includes("selection"), false);
 assert.equal(serialized.includes("answer"), false);
 assert.equal(serialized.includes("score"), false);
@@ -137,7 +145,7 @@ const challengePitch: LocalPracticeReviewTarget = {
 assert.deepEqual(
   parseLocalPracticeReviewQueue(serializeLocalPracticeReviewQueue([challengePitch])),
   [challengePitch],
-  "catalog v6 challenge targets round-trip with a stable variant id",
+  "catalog v8 challenge targets round-trip with a stable variant id",
 );
 
 const validEnvelope = JSON.parse(serialized) as {
@@ -209,6 +217,19 @@ assert.equal(parseLocalPracticeReviewQueue(JSON.stringify({
   ...previousSeventhEnvelope,
   targets: [seventhSpacing],
 })), null, "v6 envelope rejects the future seventh-chord-spacing kind");
+const previousSpacingEnvelope = {
+  schemaVersion: 7,
+  catalogVersion: 7,
+  targets: [...legacyKinds, chord, progression, scale, seventh, seventhSpacing],
+};
+assert.deepEqual(deserializeLocalPracticeReviewQueue(JSON.stringify(previousSpacingEnvelope)), {
+  queue: [...legacyKinds, chord, progression, scale, seventh, seventhSpacing],
+  migrated: true,
+}, "v7 seventh-chord-spacing review targets must survive the v8 migration");
+assert.equal(parseLocalPracticeReviewQueue(JSON.stringify({
+  ...previousSpacingEnvelope,
+  targets: [seventhSpacing, modulation],
+})), null, "one forged modulation target atomically rejects the whole v7 queue");
 
 const duplicateLegacyEnvelope = {
   schemaVersion: 1,

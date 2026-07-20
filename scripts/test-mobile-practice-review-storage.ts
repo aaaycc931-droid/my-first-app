@@ -82,15 +82,55 @@ assert.deepEqual(migratedLoad, {
 const migratedEnvelope = JSON.parse(
   legacyStorage.values.get(MOBILE_PRACTICE_REVIEW_STORAGE_KEY) ?? "{}",
 ) as { schemaVersion?: number; catalogVersion?: number };
-assert.equal(migratedEnvelope.schemaVersion, 7);
-assert.equal(migratedEnvelope.catalogVersion, 7);
+assert.equal(migratedEnvelope.schemaVersion, 8);
+assert.equal(migratedEnvelope.catalogVersion, 8);
 const setCallsAfterMigration = legacyStorage.getSetCallCount();
 assert.deepEqual(loadMobilePracticeReviewQueue(legacyStorage), migratedLoad);
 assert.equal(
   legacyStorage.getSetCallCount(),
   setCallsAfterMigration,
-  "a second load of the rewritten v7 queue must not rewrite storage again",
+  "a second load of the rewritten v8 queue must not rewrite storage again",
 );
+
+const spacingTarget = {
+  kind: "seventh-chord-spacing" as const,
+  difficulty: "挑战" as const,
+  seed: 1154,
+  sequence: 5,
+  variantId: "seventh-chord-spacing:c3:dominant-seventh:third:open",
+};
+const previousSpacingStorage = createMemoryStorage();
+previousSpacingStorage.values.set(MOBILE_PRACTICE_REVIEW_STORAGE_KEY, JSON.stringify({
+  schemaVersion: 7,
+  catalogVersion: 7,
+  targets: [spacingTarget],
+}));
+assert.deepEqual(loadMobilePracticeReviewQueue(previousSpacingStorage), {
+  queue: [spacingTarget],
+  notice: null,
+});
+const rewrittenSpacingEnvelope = JSON.parse(
+  previousSpacingStorage.values.get(MOBILE_PRACTICE_REVIEW_STORAGE_KEY) ?? "{}",
+) as { schemaVersion?: number; catalogVersion?: number };
+assert.equal(rewrittenSpacingEnvelope.schemaVersion, 8);
+assert.equal(rewrittenSpacingEnvelope.catalogVersion, 8);
+
+const forgedModulationStorage = createMemoryStorage();
+forgedModulationStorage.values.set(MOBILE_PRACTICE_REVIEW_STORAGE_KEY, JSON.stringify({
+  schemaVersion: 7,
+  catalogVersion: 7,
+  targets: [spacingTarget, {
+    kind: "modulation",
+    difficulty: "挑战",
+    seed: 1155,
+    sequence: 6,
+    variantId: "modulation:c3:parallel-minor:alternate-predominant",
+  }],
+}));
+const forgedModulationLoad = loadMobilePracticeReviewQueue(forgedModulationStorage);
+assert.deepEqual(forgedModulationLoad.queue, createEmptyLocalPracticeReviewQueue());
+assert.match(forgedModulationLoad.notice ?? "", /已自动清除/);
+assert.equal(forgedModulationStorage.values.has(MOBILE_PRACTICE_REVIEW_STORAGE_KEY), false);
 
 const migrationWriteFailure: StorageLike = {
   getItem: () => JSON.stringify({

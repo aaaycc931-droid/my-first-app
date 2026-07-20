@@ -6,7 +6,7 @@ import {
 
 export const LEARNING_EVENT_SCHEMA_VERSION = "learning-event-v1" as const;
 export const LEARNING_PROFILE_SCHEMA_VERSION = "learning-profile-v1" as const;
-export const LEARNING_PROFILE_ENVELOPE_SCHEMA_VERSION = 6 as const;
+export const LEARNING_PROFILE_ENVELOPE_SCHEMA_VERSION = 7 as const;
 export const MAX_RECENT_LEARNING_EVENTS = 48;
 export const MAX_LEARNING_PROFILE_SERIALIZED_LENGTH = 24 * 1024;
 
@@ -61,6 +61,7 @@ const skillKinds: LearningSkillKind[] = [
   "scale-mode",
   "seventh-chord",
   "seventh-chord-spacing",
+  "modulation",
   "rhythm",
   "melody-dictation",
 ];
@@ -359,12 +360,13 @@ export const deserializeLocalLearningHistory = (input: string): LocalLearningHis
   }
   if (!isRecord(value) || !hasExactKeys(value, ["schemaVersion", "nextSequence", "profile", "recentEvents"])) return null;
   const isCurrent = value.schemaVersion === LEARNING_PROFILE_ENVELOPE_SCHEMA_VERSION;
+  const isPreviousSpacing = value.schemaVersion === 6;
   const isPreviousSeventh = value.schemaVersion === 5;
   const isPreviousScaleMode = value.schemaVersion === 4;
   const isPreviousProgression = value.schemaVersion === 3;
   const isPreviousChord = value.schemaVersion === 2;
   const isPrevious = value.schemaVersion === 1;
-  if ((!isCurrent && !isPreviousSeventh && !isPreviousScaleMode && !isPreviousProgression && !isPreviousChord && !isPrevious) || !isCount(value.nextSequence) || value.nextSequence < 1) return null;
+  if ((!isCurrent && !isPreviousSpacing && !isPreviousSeventh && !isPreviousScaleMode && !isPreviousProgression && !isPreviousChord && !isPrevious) || !isCount(value.nextSequence) || value.nextSequence < 1) return null;
   const nextSequence = value.nextSequence;
   const rawProfile = !isCurrent && isRecord(value.profile) && Array.isArray(value.profile.skillFacts)
     ? { ...value.profile, skillFacts: [
@@ -372,8 +374,9 @@ export const deserializeLocalLearningHistory = (input: string): LocalLearningHis
       ...(isPrevious ? [{ skillKind: "chord-inversion", checkedCount: 0, correctCount: 0, incorrectCount: 0, reviewStartedCount: 0, reviewResolvedCount: 0 }] : []),
       ...((isPrevious || isPreviousChord) ? [{ skillKind: "harmony-progression", checkedCount: 0, correctCount: 0, incorrectCount: 0, reviewStartedCount: 0, reviewResolvedCount: 0 }] : []),
       ...((isPrevious || isPreviousChord || isPreviousProgression) ? [{ skillKind: "scale-mode", checkedCount: 0, correctCount: 0, incorrectCount: 0, reviewStartedCount: 0, reviewResolvedCount: 0 }] : []),
-      ...(!isPreviousSeventh ? [{ skillKind: "seventh-chord", checkedCount: 0, correctCount: 0, incorrectCount: 0, reviewStartedCount: 0, reviewResolvedCount: 0 }] : []),
-      { skillKind: "seventh-chord-spacing", checkedCount: 0, correctCount: 0, incorrectCount: 0, reviewStartedCount: 0, reviewResolvedCount: 0 },
+      ...(!(isPreviousSpacing || isPreviousSeventh) ? [{ skillKind: "seventh-chord", checkedCount: 0, correctCount: 0, incorrectCount: 0, reviewStartedCount: 0, reviewResolvedCount: 0 }] : []),
+      ...(!isPreviousSpacing ? [{ skillKind: "seventh-chord-spacing", checkedCount: 0, correctCount: 0, incorrectCount: 0, reviewStartedCount: 0, reviewResolvedCount: 0 }] : []),
+      { skillKind: "modulation", checkedCount: 0, correctCount: 0, incorrectCount: 0, reviewStartedCount: 0, reviewResolvedCount: 0 },
     ] }
     : value.profile;
   const profile = parseProfile(rawProfile);
@@ -391,6 +394,8 @@ export const deserializeLocalLearningHistory = (input: string): LocalLearningHis
           ? new Set<LearningSkillKind>(["single-pitch", "interval", "chord-inversion", "harmony-progression", "scale-mode", "rhythm", "melody-dictation"])
           : isPreviousSeventh
             ? new Set<LearningSkillKind>(["single-pitch", "interval", "chord-inversion", "harmony-progression", "scale-mode", "seventh-chord", "rhythm", "melody-dictation"])
+            : isPreviousSpacing
+              ? new Set<LearningSkillKind>(["single-pitch", "interval", "chord-inversion", "harmony-progression", "scale-mode", "seventh-chord", "seventh-chord-spacing", "rhythm", "melody-dictation"])
             : null;
   if (allowedPreviousKinds && events.some((event) => !allowedPreviousKinds.has(event.skillKind))) return null;
   for (let index = 1; index < events.length; index += 1) {

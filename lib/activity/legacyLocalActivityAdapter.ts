@@ -8,6 +8,7 @@ import type { LocalEarTrainingHarmonyProgressionQuestion } from "../practice/loc
 import type { LocalEarTrainingScaleModeQuestion } from "../practice/localEarTrainingScaleModes";
 import type { LocalEarTrainingSeventhChordQuestion } from "../practice/localEarTrainingSeventhChords";
 import type { LocalEarTrainingSeventhChordSpacingQuestion } from "../practice/localEarTrainingSeventhChordSpacing";
+import type { LocalEarTrainingModulationQuestion } from "../practice/localEarTrainingModulations";
 
 const DIFFICULTY: Record<EarTrainingSinglePitchDifficulty, ActivityDifficulty> = {
   基础: "foundation", 进阶: "intermediate", 挑战: "challenge",
@@ -153,6 +154,30 @@ export const adaptSeventhChordSpacingQuestionToActivity = (question: LocalEarTra
   target: { targetId: question.variantId, label: question.spacingLabel, expectedAnswer: { mode: "choice", optionIds: [question.answerOptionId] } },
   explanation: question.explanation,
   music: { key: question.root.label, referenceTimbre: "web-audio-sine-compatibility" },
+});
+
+export const adaptModulationQuestionToActivity = (
+  question: LocalEarTrainingModulationQuestion,
+): ActivityDefinitionV1 => ({
+  schemaVersion: "activity-definition-v1",
+  activityId: `local.modulation.${question.variantId}`,
+  activityVersion: "1",
+  contentVersion: "local-modulation-v1",
+  family: "harmony-progression",
+  title: "调制关系听辨",
+  instructions: "听一组先建立原调、再确认调性去向的和弦，选择调性关系。",
+  skillTags: ["调制", question.destination.label, question.route.label, "听辨"],
+  difficulty: DIFFICULTY[question.difficulty],
+  assessmentMode: "non-scoring",
+  source: { kind: "built-in", reviewState: "confirmed" },
+  allowedInputModes: ["choice"],
+  target: {
+    targetId: question.variantId,
+    label: question.destination.label,
+    expectedAnswer: { mode: "choice", optionIds: [question.answerOptionId] },
+  },
+  explanation: question.explanation,
+  music: { key: question.tonic.label, referenceTimbre: "web-audio-sine-compatibility" },
 });
 
 export const adaptRhythmQuestionToActivity = (

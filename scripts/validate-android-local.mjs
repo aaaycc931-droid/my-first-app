@@ -125,6 +125,14 @@ const seventhChordSpacingPanelSource = readFileSync(
   join(root, "components/practice/LocalEarTrainingSeventhChordSpacingPanel.tsx"),
   "utf8",
 );
+const modulationSource = readFileSync(
+  join(root, "lib/practice/localEarTrainingModulations.ts"),
+  "utf8",
+);
+const modulationPanelSource = readFileSync(
+  join(root, "components/practice/LocalEarTrainingModulationPanel.tsx"),
+  "utf8",
+);
 const pianoModelSource = readFileSync(
   join(root, "lib/piano/localPianoKeyboard.ts"),
   "utf8",
@@ -278,6 +286,21 @@ if (
   || !mobileApp.includes("七和弦排列")
 ) {
   throw new Error("Android P115 七和弦密集/开放排列、三难度、稳定目标或播放闭环不完整");
+}
+if (
+  !modulationSource.includes("getLocalModulationVariantCount")
+  || !modulationSource.includes("modulation:")
+  || !modulationSource.includes('"relative-minor"')
+  || !modulationSource.includes('"parallel-minor"')
+  || !modulationPanelSource.includes("调制方向听辨")
+  || !modulationPanelSource.includes("播放调制进行")
+  || !mobileApp.includes('"modulation"')
+  || !mobileApp.includes('if (screen === "modulation")')
+  || !mobileApp.includes('target.kind === "modulation"')
+  || !mobileApp.includes("LocalEarTrainingModulationPanel")
+  || !mobileApp.includes("调制听辨")
+) {
+  throw new Error("Android P115 调制关系、三难度、稳定目标或播放闭环不完整");
 }
 if (
   !pianoModelSource.includes('DEFAULT_LOCAL_PIANO_RANGE_ID: LocalPianoRangeId = "C4-C5"')
@@ -525,4 +548,4 @@ if (existsSync(manifestPath) && !existsSync(syncedIndex)) {
   throw new Error("Android 工程存在，但本地 Web 资源尚未同步");
 }
 
-console.log("Android 本地模式校验通过：固定包名、本地资源、九类练习（含三和弦/转位、七和弦性质/转位、七和弦密集/开放排列、和声进行与音阶/调式）、实时音高反馈、本机复练、非评分学习画像、本地参考钢琴、无远程运行时配置与生命周期保护。");
+console.log("Android 本地模式校验通过：固定包名、本地资源、十类练习（含三和弦/转位、七和弦性质/转位、七和弦密集/开放排列、和声进行、调制与音阶/调式）、实时音高反馈、本机复练、非评分学习画像、本地参考钢琴、无远程运行时配置与生命周期保护。");
