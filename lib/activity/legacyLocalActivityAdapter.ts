@@ -9,6 +9,7 @@ import type { LocalEarTrainingScaleModeQuestion } from "../practice/localEarTrai
 import type { LocalEarTrainingSeventhChordQuestion } from "../practice/localEarTrainingSeventhChords";
 import type { LocalEarTrainingSeventhChordSpacingQuestion } from "../practice/localEarTrainingSeventhChordSpacing";
 import type { LocalEarTrainingModulationQuestion } from "../practice/localEarTrainingModulations";
+import { getLocalIntervalComparisonAnswer, type LocalIntervalComparisonQuestion } from "../practice/localIntervalComparisons";
 
 const DIFFICULTY: Record<EarTrainingSinglePitchDifficulty, ActivityDifficulty> = {
   基础: "foundation", 进阶: "intermediate", 挑战: "challenge",
@@ -59,6 +60,31 @@ export const adaptIntervalQuestionToActivity = (
     expectedAnswer: { mode: "choice", optionIds: [question.interval.id] },
   },
   explanation: question.interval.explanation,
+  music: { referenceTimbre: "web-audio-sine-compatibility" },
+});
+
+export const adaptIntervalComparisonQuestionToActivity = (
+  question: LocalIntervalComparisonQuestion,
+): ActivityDefinitionV1 => ({
+  schemaVersion: "activity-definition-v1",
+  activityId: `local.interval-comparison.${question.variantId}`,
+  activityVersion: "1",
+  contentVersion: "local-interval-comparison-v1",
+  family: "interval",
+  title: "音程大小与方向比较",
+  instructions: "听两组旋律音程，分别判断大小关系和方向关系。",
+  skillTags: ["音程", "大小比较", "方向比较", "听辨"],
+  difficulty: DIFFICULTY[question.difficulty],
+  assessmentMode: "non-scoring",
+  source: { kind: "built-in", reviewState: "confirmed" },
+  allowedInputModes: ["choice"],
+  target: {
+    targetId: question.variantId,
+    label: "两组音程比较",
+    expectedAnswer: { mode: "choice", optionIds: getLocalIntervalComparisonAnswer(question).optionIds },
+    answerPolicy: { choiceOrder: "ordered" },
+  },
+  explanation: getLocalIntervalComparisonAnswer(question).explanation,
   music: { referenceTimbre: "web-audio-sine-compatibility" },
 });
 

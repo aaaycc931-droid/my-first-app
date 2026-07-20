@@ -61,30 +61,34 @@ const previousSpacingEnvelope = JSON.parse(serializeLocalLearningHistory(spacing
 };
 previousSpacingEnvelope.schemaVersion = 6;
 previousSpacingEnvelope.profile.skillFacts = previousSpacingEnvelope.profile.skillFacts.filter(
-  (fact) => fact.skillKind !== "modulation",
+  (fact) => fact.skillKind !== "modulation" && fact.skillKind !== "interval-comparison",
 );
 values.set(MOBILE_LEARNING_PROFILE_STORAGE_KEY, JSON.stringify(previousSpacingEnvelope));
 const migratedSpacing = loadMobileLearningHistory(storage);
 assert.equal(migratedSpacing.notice, null);
-assert.equal(migratedSpacing.history.schemaVersion, 8);
+assert.equal(migratedSpacing.history.schemaVersion, 9);
 assert.equal(migratedSpacing.history.profile.skillFacts.find((fact) => fact.skillKind === "seventh-chord-spacing")?.incorrectCount, 1);
 assert.equal(migratedSpacing.history.profile.skillFacts.find((fact) => fact.skillKind === "modulation")?.checkedCount, 0);
+assert.equal(migratedSpacing.history.profile.skillFacts.find((fact) => fact.skillKind === "interval-comparison")?.checkedCount, 0);
 assert.equal(migratedSpacing.history.recentEvents[0]?.skillKind, "seventh-chord-spacing");
 assert.equal((JSON.parse(values.get(MOBILE_LEARNING_PROFILE_STORAGE_KEY) ?? "{}") as { schemaVersion?: number }).schemaVersion, 6);
 assert.deepEqual(saveMobileLearningHistory(storage, migratedSpacing.history), { notice: null });
-assert.equal((JSON.parse(values.get(MOBILE_LEARNING_PROFILE_STORAGE_KEY) ?? "{}") as { schemaVersion?: number }).schemaVersion, 8);
+assert.equal((JSON.parse(values.get(MOBILE_LEARNING_PROFILE_STORAGE_KEY) ?? "{}") as { schemaVersion?: number }).schemaVersion, 9);
 
 const previousModulationEnvelope = JSON.parse(serializeLocalLearningHistory(history)) as {
   schemaVersion: number;
-  profile: { suggestionsEnabled: boolean; checkedCount: number };
+  profile: { suggestionsEnabled: boolean; checkedCount: number; skillFacts: Array<{ skillKind: string }> };
   recentEvents: Array<{ practiceMode: string }>;
 };
 previousModulationEnvelope.schemaVersion = 7;
 previousModulationEnvelope.profile.suggestionsEnabled = false;
+previousModulationEnvelope.profile.skillFacts = previousModulationEnvelope.profile.skillFacts.filter(
+  (fact) => fact.skillKind !== "interval-comparison",
+);
 values.set(MOBILE_LEARNING_PROFILE_STORAGE_KEY, JSON.stringify(previousModulationEnvelope));
 const migratedModulation = loadMobileLearningHistory(storage);
 assert.equal(migratedModulation.notice, null);
-assert.equal(migratedModulation.history.schemaVersion, 8);
+assert.equal(migratedModulation.history.schemaVersion, 9);
 assert.equal(migratedModulation.history.profile.checkedCount, history.profile.checkedCount);
 assert.equal(migratedModulation.history.profile.suggestionsEnabled, false);
 assert.deepEqual(migratedModulation.history.recentEvents, history.recentEvents);

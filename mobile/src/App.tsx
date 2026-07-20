@@ -2,6 +2,7 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { LocalEarTrainingIntervalPanel } from "../../components/practice/LocalEarTrainingIntervalPanel";
+import { LocalIntervalComparisonPanel } from "../../components/practice/LocalIntervalComparisonPanel";
 import { LocalEarTrainingMelodyDictationPanel } from "../../components/practice/LocalEarTrainingMelodyDictationPanel";
 import { LocalEarTrainingRhythmPanel } from "../../components/practice/LocalEarTrainingRhythmPanel";
 import { LocalEarTrainingSinglePitchPanel } from "../../components/practice/LocalEarTrainingSinglePitchPanel";
@@ -79,7 +80,7 @@ const LocalEarTrainingChordPanel = lazy(() =>
   })),
 );
 
-const screens = ["home", "custom", "monitor", "pitch", "interval", "chord", "seventh", "seventh-spacing", "progression", "modulation", "scale", "rhythm", "melody", "piano"] as const;
+const screens = ["home", "custom", "monitor", "pitch", "interval", "compare", "chord", "seventh", "seventh-spacing", "progression", "modulation", "scale", "rhythm", "melody", "piano"] as const;
 type Screen = (typeof screens)[number];
 type PracticeScreenName = Exclude<Screen, "home" | "custom" | "piano" | "monitor">;
 
@@ -106,6 +107,11 @@ const screenDetails: Record<
     title: "音程听辨",
     summary: "听两个依次播放的音，辨认上行或下行音程。",
     tone: "bg-emerald-50 text-emerald-900 ring-emerald-200",
+  },
+  compare: {
+    title: "音程比较与模唱",
+    summary: "比较两组音程的大小和方向，再选择是否查看非评分模唱反馈。",
+    tone: "bg-emerald-50 text-emerald-950 ring-emerald-200",
   },
   chord: {
     title: "和弦与转位",
@@ -160,6 +166,7 @@ const screenForReviewTarget = (target: LocalPracticeReviewTarget): PracticeScree
   if (target.kind === "harmony-progression") return "progression";
   if (target.kind === "modulation") return "modulation";
   if (target.kind === "scale-mode") return "scale";
+  if (target.kind === "interval-comparison") return "compare";
   return target.kind;
 };
 
@@ -205,6 +212,10 @@ function PracticeScreen({
   if (screen === "interval") {
     const target = reviewTarget?.kind === "interval" ? reviewTarget : undefined;
     return <LocalEarTrainingIntervalPanel key={target ? getLocalPracticeReviewTargetKey(target) : "random-interval"} initialReviewTarget={target} showLocalPiano expandedLocalCatalog {...sharedProps} />;
+  }
+  if (screen === "compare") {
+    const target = reviewTarget?.kind === "interval-comparison" ? reviewTarget : undefined;
+    return <LocalIntervalComparisonPanel key={target ? getLocalPracticeReviewTargetKey(target) : "random-interval-comparison"} initialReviewTarget={target} onLocalAnswerResult={onLocalAnswerResult} onLeaveReviewTarget={onLeaveReviewTarget} />;
   }
   if (screen === "chord") {
     const target = reviewTarget?.kind === "chord-inversion" ? reviewTarget : undefined;

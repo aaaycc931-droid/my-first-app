@@ -14,6 +14,8 @@ const requiredSources = [
   "mobile/src/stubs/supabaseBrowser.ts",
   "lib/practice/localPracticeReviewQueue.ts",
   "lib/practice/localPracticeCustomizer.ts",
+  "lib/practice/localIntervalComparisons.ts",
+  "lib/activity/localVocalMicrophoneActivityAdapter.ts",
   "lib/practice/localEarTrainingChords.ts",
   "lib/practice/localEarTrainingHarmonyProgressions.ts",
   "lib/practice/localEarTrainingScaleModes.ts",
@@ -41,6 +43,8 @@ const requiredSources = [
   "components/practice/LocalEarTrainingSeventhChordPanel.tsx",
   "components/practice/LocalEarTrainingSeventhChordSpacingPanel.tsx",
   "components/practice/LocalPracticeCustomizerPanel.tsx",
+  "components/practice/LocalIntervalComparisonPanel.tsx",
+  "components/practice/LocalIntervalImitationPanel.tsx",
   "components/practice/RealtimePitchCurveChart.tsx",
   "components/practice/LocalVocalExercisePanel.tsx",
   "components/practice/useRealtimePitchMonitor.ts",
@@ -141,6 +145,22 @@ const customizerSource = readFileSync(
 );
 const customizerPanelSource = readFileSync(
   join(root, "components/practice/LocalPracticeCustomizerPanel.tsx"),
+  "utf8",
+);
+const intervalComparisonSource = readFileSync(
+  join(root, "lib/practice/localIntervalComparisons.ts"),
+  "utf8",
+);
+const intervalComparisonPanelSource = readFileSync(
+  join(root, "components/practice/LocalIntervalComparisonPanel.tsx"),
+  "utf8",
+);
+const intervalImitationPanelSource = readFileSync(
+  join(root, "components/practice/LocalIntervalImitationPanel.tsx"),
+  "utf8",
+);
+const vocalActivityAdapterSource = readFileSync(
+  join(root, "lib/activity/localVocalMicrophoneActivityAdapter.ts"),
   "utf8",
 );
 const pianoModelSource = readFileSync(
@@ -325,6 +345,25 @@ if (
   || !learningProfileSource.includes('"random" | "review" | "custom"')
 ) {
   throw new Error("Android P115 统一定制练习入口、稳定子集或非评分学习事实闭环不完整");
+}
+if (
+  !intervalComparisonSource.includes("getLocalIntervalComparisonVariantCount")
+  || !intervalComparisonSource.includes("interval-comparison:")
+  || !intervalComparisonPanelSource.includes("音程大小与方向比较")
+  || !intervalComparisonPanelSource.includes("哪一组音程更大？")
+  || !intervalComparisonPanelSource.includes("两组分别是什么方向？")
+  || !intervalComparisonPanelSource.includes("不保存选择、录音、模唱证据")
+  || !intervalImitationPanelSource.includes("反馈仅表达接近、偏高、偏低或证据不足")
+  || !intervalImitationPanelSource.includes("pending.recording !== monitor.recordingBlob")
+  || !vocalActivityAdapterSource.includes("adaptLocalIntervalImitationActivityEvidence")
+  || !vocalActivityAdapterSource.includes("local.interval-imitation")
+  || !mobileApp.includes('if (screen === "compare")')
+  || !mobileApp.includes('target.kind === "interval-comparison"')
+  || !mobileApp.includes("LocalIntervalComparisonPanel")
+  || !learningProfileSource.includes('"interval-comparison"')
+  || !reviewQueueSource.includes('LOCAL_PRACTICE_REVIEW_QUEUE_SCHEMA_VERSION = 9')
+) {
+  throw new Error("Android P115h 音程大小/方向比较、非评分模唱反馈或 fail-closed 本地证据闭环不完整");
 }
 if (
   !pianoModelSource.includes('DEFAULT_LOCAL_PIANO_RANGE_ID: LocalPianoRangeId = "C4-C5"')
@@ -572,4 +611,4 @@ if (existsSync(manifestPath) && !existsSync(syncedIndex)) {
   throw new Error("Android 工程存在，但本地 Web 资源尚未同步");
 }
 
-console.log("Android 本地模式校验通过：固定包名、本地资源、十类练习（含三和弦/转位、七和弦性质/转位、七和弦密集/开放排列、和声进行、调制与音阶/调式）、实时音高反馈、本机复练、非评分学习画像、本地参考钢琴、无远程运行时配置与生命周期保护。");
+console.log("Android 本地模式校验通过：固定包名、本地资源、既有十类练习与音程比较/非评分模唱反馈、实时音高反馈、本机复练、非评分学习画像、本地参考钢琴、无远程运行时配置与生命周期保护。");

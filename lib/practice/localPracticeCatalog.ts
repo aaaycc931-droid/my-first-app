@@ -3,10 +3,10 @@ import {
   getScheduledQuestionIndex,
 } from "./localQuestionScheduler";
 
-export const LOCAL_PRACTICE_CATALOG_VERSION = 8 as const;
+export const LOCAL_PRACTICE_CATALOG_VERSION = 9 as const;
 
 /**
- * Catalog 8 extends the append-only namespace with modulation targets.
+ * Catalog 9 extends the append-only namespace with interval-comparison targets.
  * Existing variantIds keep their earlier meaning.
  */
 export const LOCAL_PRACTICE_CATALOG_MODES = ["legacy-v1", "expanded-local-v2"] as const;
