@@ -98,6 +98,7 @@ jobs:
           npm run test:local-ear-training-intervals
           npm run test:local-ear-training-chords
           npm run test:local-seventh-chords
+          npm run test:local-seventh-chord-spacing
           npm run test:local-harmony-progressions
           npm run test:local-scale-modes
           npm run test:local-ear-training-rhythm

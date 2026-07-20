@@ -3,7 +3,7 @@ import {
   getScheduledQuestionIndex,
 } from "./localQuestionScheduler";
 
-export const LOCAL_PRACTICE_CATALOG_VERSION = 6 as const;
+export const LOCAL_PRACTICE_CATALOG_VERSION = 7 as const;
 
 /**
  * Catalog 5 extends the append-only catalog-4 namespace with scale and mode
@@ -19,6 +19,7 @@ export type LocalPracticeKind =
   | "harmony-progression"
   | "scale-mode"
   | "seventh-chord"
+  | "seventh-chord-spacing"
   | "rhythm"
   | "melody-dictation";
 
@@ -26,7 +27,7 @@ export type LegacyLocalPracticeDifficulty = "基础" | "进阶";
 export type LocalPracticeDifficulty = LegacyLocalPracticeDifficulty | "挑战";
 
 type LegacyCatalogTarget = {
-  kind: Exclude<LocalPracticeKind, "chord-inversion" | "harmony-progression" | "scale-mode" | "seventh-chord">;
+  kind: Exclude<LocalPracticeKind, "chord-inversion" | "harmony-progression" | "scale-mode" | "seventh-chord" | "seventh-chord-spacing">;
   difficulty: LegacyLocalPracticeDifficulty;
   seed: number;
   sequence: number;

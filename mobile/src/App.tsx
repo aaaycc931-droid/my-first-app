@@ -60,13 +60,16 @@ const LocalEarTrainingScaleModePanel = lazy(() =>
 const LocalEarTrainingSeventhChordPanel = lazy(() =>
   import("../../components/practice/LocalEarTrainingSeventhChordPanel").then((module) => ({ default: module.LocalEarTrainingSeventhChordPanel })),
 );
+const LocalEarTrainingSeventhChordSpacingPanel = lazy(() =>
+  import("../../components/practice/LocalEarTrainingSeventhChordSpacingPanel").then((module) => ({ default: module.LocalEarTrainingSeventhChordSpacingPanel })),
+);
 const LocalEarTrainingChordPanel = lazy(() =>
   import("../../components/practice/LocalEarTrainingChordPanel").then((module) => ({
     default: module.LocalEarTrainingChordPanel,
   })),
 );
 
-const screens = ["home", "monitor", "pitch", "interval", "chord", "seventh", "progression", "scale", "rhythm", "melody", "piano"] as const;
+const screens = ["home", "monitor", "pitch", "interval", "chord", "seventh", "seventh-spacing", "progression", "scale", "rhythm", "melody", "piano"] as const;
 type Screen = (typeof screens)[number];
 type PracticeScreenName = Exclude<Screen, "home" | "piano" | "monitor">;
 
@@ -95,6 +98,7 @@ const screenDetails: Record<
     tone: "bg-fuchsia-50 text-fuchsia-950 ring-fuchsia-200",
   },
   seventh: { title: "七和弦听辨", summary: "听四个音，辨认七和弦性质与最低音位置。", tone: "bg-indigo-50 text-indigo-950 ring-indigo-200" },
+  "seventh-spacing": { title: "七和弦排列", summary: "听四个音，辨认低音上方声部的开放或密集排列。", tone: "bg-amber-50 text-amber-950 ring-amber-200" },
   progression: {
     title: "和声进行",
     summary: "听依次播放的三和弦，辨认级数进行与终止式。",
@@ -132,6 +136,7 @@ const screenForReviewTarget = (target: LocalPracticeReviewTarget): PracticeScree
   if (target.kind === "melody-dictation") return "melody";
   if (target.kind === "chord-inversion") return "chord";
   if (target.kind === "seventh-chord") return "seventh";
+  if (target.kind === "seventh-chord-spacing") return "seventh-spacing";
   if (target.kind === "harmony-progression") return "progression";
   if (target.kind === "scale-mode") return "scale";
   return target.kind;
@@ -170,6 +175,10 @@ function PracticeScreen({
   if (screen === "seventh") {
     const target = reviewTarget?.kind === "seventh-chord" ? reviewTarget : undefined;
     return <Suspense fallback={<p className="rounded-2xl bg-indigo-50 p-4 text-sm text-indigo-900">正在载入七和弦练习…</p>}><LocalEarTrainingSeventhChordPanel key={target ? getLocalPracticeReviewTargetKey(target) : "random-seventh"} initialReviewTarget={target} {...sharedProps} /></Suspense>;
+  }
+  if (screen === "seventh-spacing") {
+    const target = reviewTarget?.kind === "seventh-chord-spacing" ? reviewTarget : undefined;
+    return <Suspense fallback={<p className="rounded-2xl bg-amber-50 p-4 text-sm text-amber-900">正在载入七和弦排列练习…</p>}><LocalEarTrainingSeventhChordSpacingPanel key={target ? getLocalPracticeReviewTargetKey(target) : "random-seventh-spacing"} initialReviewTarget={target} {...sharedProps} /></Suspense>;
   }
   if (screen === "progression") {
     const target = reviewTarget?.kind === "harmony-progression" ? reviewTarget : undefined;
@@ -638,7 +647,7 @@ export function App() {
         className="mobile-bottom-nav fixed inset-x-0 bottom-0 z-20 border-t border-slate-200 bg-white/95 px-2 pt-2 shadow-[0_-8px_30px_rgba(15,23,42,0.08)] backdrop-blur"
         aria-label="主要练习"
       >
-        <div className="mx-auto grid max-w-3xl grid-cols-5 gap-1">
+        <div className="mx-auto flex max-w-3xl gap-1 overflow-x-auto pb-1">
           {screens.map((screen) => {
             const label = screen === "home"
               ? "首页"
@@ -653,7 +662,7 @@ export function App() {
                 href={`#${screen}`}
                 onClick={() => setActiveReviewTarget(null)}
                 aria-current={activeScreen === screen ? "page" : undefined}
-                className={`min-h-12 rounded-xl px-1 py-2 text-xs font-bold ${
+                className={`min-h-12 min-w-16 flex-1 rounded-xl px-1 py-2 text-xs font-bold ${
                   activeScreen === screen
                     ? "bg-indigo-100 text-indigo-950"
                     : "text-slate-500"

@@ -17,6 +17,7 @@ const requiredSources = [
   "lib/practice/localEarTrainingHarmonyProgressions.ts",
   "lib/practice/localEarTrainingScaleModes.ts",
   "lib/practice/localEarTrainingSeventhChords.ts",
+  "lib/practice/localEarTrainingSeventhChordSpacing.ts",
   "lib/learning/learningEventProfile.ts",
   "lib/piano/localPianoKeyboard.ts",
   "lib/piano/pianoNoteEvents.ts",
@@ -37,6 +38,7 @@ const requiredSources = [
   "components/practice/LocalEarTrainingHarmonyProgressionPanel.tsx",
   "components/practice/LocalEarTrainingScaleModePanel.tsx",
   "components/practice/LocalEarTrainingSeventhChordPanel.tsx",
+  "components/practice/LocalEarTrainingSeventhChordSpacingPanel.tsx",
   "components/practice/RealtimePitchCurveChart.tsx",
   "components/practice/LocalVocalExercisePanel.tsx",
   "components/practice/useRealtimePitchMonitor.ts",
@@ -113,6 +115,14 @@ const seventhChordSource = readFileSync(
 );
 const seventhChordPanelSource = readFileSync(
   join(root, "components/practice/LocalEarTrainingSeventhChordPanel.tsx"),
+  "utf8",
+);
+const seventhChordSpacingSource = readFileSync(
+  join(root, "lib/practice/localEarTrainingSeventhChordSpacing.ts"),
+  "utf8",
+);
+const seventhChordSpacingPanelSource = readFileSync(
+  join(root, "components/practice/LocalEarTrainingSeventhChordSpacingPanel.tsx"),
   "utf8",
 );
 const pianoModelSource = readFileSync(
@@ -253,6 +263,21 @@ if (
   || !mobileApp.includes("七和弦听辨")
 ) {
   throw new Error("Android P115 七和弦性质、转位、三难度或播放闭环不完整");
+}
+if (
+  !seventhChordSpacingSource.includes('export type SeventhChordSpacingId = "close" | "open"')
+  || !seventhChordSpacingSource.includes("getLocalSeventhChordSpacingVariantCount")
+  || !seventhChordSpacingSource.includes("createOpenVoicing")
+  || !seventhChordSpacingSource.includes("seventh-chord-spacing:")
+  || !seventhChordSpacingPanelSource.includes("七和弦开放与密集排列听辨")
+  || !seventhChordSpacingPanelSource.includes("播放题目")
+  || !mobileApp.includes('"seventh-spacing"')
+  || !mobileApp.includes('if (screen === "seventh-spacing")')
+  || !mobileApp.includes('target.kind === "seventh-chord-spacing"')
+  || !mobileApp.includes("LocalEarTrainingSeventhChordSpacingPanel")
+  || !mobileApp.includes("七和弦排列")
+) {
+  throw new Error("Android P115 七和弦密集/开放排列、三难度、稳定目标或播放闭环不完整");
 }
 if (
   !pianoModelSource.includes('DEFAULT_LOCAL_PIANO_RANGE_ID: LocalPianoRangeId = "C4-C5"')
@@ -431,6 +456,8 @@ for (const expectedCopy of [
   "音程听辨",
   "节奏听辨",
   "旋律听写",
+  "七和弦排列",
+  "七和弦开放与密集排列听辨",
   "本地模式",
   "本机复练",
   "本地参考钢琴",
@@ -498,4 +525,4 @@ if (existsSync(manifestPath) && !existsSync(syncedIndex)) {
   throw new Error("Android 工程存在，但本地 Web 资源尚未同步");
 }
 
-console.log("Android 本地模式校验通过：固定包名、本地资源、八类练习（含三和弦/转位、七和弦、和声进行与音阶/调式）、实时音高反馈、本机复练、非评分学习画像、本地参考钢琴、无远程运行时配置与生命周期保护。 ");
+console.log("Android 本地模式校验通过：固定包名、本地资源、九类练习（含三和弦/转位、七和弦性质/转位、七和弦密集/开放排列、和声进行与音阶/调式）、实时音高反馈、本机复练、非评分学习画像、本地参考钢琴、无远程运行时配置与生命周期保护。");
