@@ -17,6 +17,8 @@ const requiredSources = [
   "lib/practice/localIntervalComparisons.ts",
   "lib/practice/localRhythmSightReading.ts",
   "lib/activity/rhythmSightReadingActivityAdapter.ts",
+  "lib/practice/localRhythmImitation.ts",
+  "lib/activity/rhythmImitationActivityAdapter.ts",
   "lib/activity/localVocalMicrophoneActivityAdapter.ts",
   "lib/practice/localEarTrainingChords.ts",
   "lib/practice/localEarTrainingHarmonyProgressions.ts",
@@ -48,6 +50,7 @@ const requiredSources = [
   "components/practice/LocalIntervalComparisonPanel.tsx",
   "components/practice/LocalIntervalImitationPanel.tsx",
   "components/practice/LocalRhythmSightReadingPanel.tsx",
+  "components/practice/LocalRhythmImitationPanel.tsx",
   "components/practice/RealtimePitchCurveChart.tsx",
   "components/practice/LocalVocalExercisePanel.tsx",
   "components/practice/useRealtimePitchMonitor.ts",
@@ -172,6 +175,18 @@ const rhythmSightReadingActivitySource = readFileSync(
 );
 const rhythmSightReadingPanelSource = readFileSync(
   join(root, "components/practice/LocalRhythmSightReadingPanel.tsx"),
+  "utf8",
+);
+const rhythmImitationSource = readFileSync(
+  join(root, "lib/practice/localRhythmImitation.ts"),
+  "utf8",
+);
+const rhythmImitationActivitySource = readFileSync(
+  join(root, "lib/activity/rhythmImitationActivityAdapter.ts"),
+  "utf8",
+);
+const rhythmImitationPanelSource = readFileSync(
+  join(root, "components/practice/LocalRhythmImitationPanel.tsx"),
   "utf8",
 );
 const vocalActivityAdapterSource = readFileSync(
@@ -321,6 +336,19 @@ if (
   || !rhythmSightReadingPanelSource.includes("runtimeTokenRef")
 ) {
   throw new Error("Android P116a 节奏视读、会话校准、非评分 Activity 或生命周期 fail-closed 边界不完整");
+}
+if (
+  !rhythmImitationSource.includes("createLocalRhythmImitationTargets")
+  || !rhythmImitationActivitySource.includes('family: "rhythm-imitation"')
+  || !rhythmImitationActivitySource.includes('assessmentMode: "non-scoring"')
+  || !rhythmImitationPanelSource.includes("P116b · 本地节奏回模")
+  || !rhythmImitationPanelSource.includes("听一遍隐藏节奏")
+  || !rhythmImitationPanelSource.includes("subscribeBrowserAudioStopAll")
+  || !rhythmImitationPanelSource.includes("runtimeTokenRef")
+  || !rhythmImitationPanelSource.includes("重播会清除旧输入与反馈")
+  || !rhythmImitationPanelSource.includes("不上传、不保存原始点击序列")
+) {
+  throw new Error("Android P116b 节奏回模、隐藏目标、非评分 Activity 或生命周期 fail-closed 边界不完整");
 }
 if (
   !seventhChordSource.includes("getLocalSeventhChordVariantCount")
@@ -645,4 +673,4 @@ if (existsSync(manifestPath) && !existsSync(syncedIndex)) {
   throw new Error("Android 工程存在，但本地 Web 资源尚未同步");
 }
 
-console.log("Android 本地模式校验通过：固定包名、本地资源、既有十类练习、P116a 节奏视读与会话校准、音程比较/非评分模唱反馈、实时音高反馈、本机复练、非评分学习画像、本地参考钢琴、无远程运行时配置与生命周期保护。");
+console.log("Android 本地模式校验通过：固定包名、本地资源、既有十类练习、P116a 节奏视读与会话校准、P116b 隐藏目标节奏回模、音程比较/非评分模唱反馈、实时音高反馈、本机复练、非评分学习画像、本地参考钢琴、无远程运行时配置与生命周期保护。");

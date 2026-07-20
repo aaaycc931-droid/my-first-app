@@ -249,6 +249,8 @@ describe("Android 本机复练行为", () => {
       if (practiceLabel === "节奏听辨") {
         expect(container.textContent).toContain("P116a · 本地节奏视读");
         expect(container.textContent).toContain("看节奏目标，预备拍后点击");
+        expect(container.textContent).toContain("P116b · 本地节奏回模");
+        expect(container.textContent).toContain("先完整听，再从记忆点击");
       }
 
       await click(findButton(container, answerLabel));
