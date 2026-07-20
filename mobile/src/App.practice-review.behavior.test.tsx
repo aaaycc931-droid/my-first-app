@@ -251,6 +251,8 @@ describe("Android 本机复练行为", () => {
         expect(container.textContent).toContain("看节奏目标，预备拍后点击");
         expect(container.textContent).toContain("P116b · 本地节奏回模");
         expect(container.textContent).toContain("先完整听，再从记忆点击");
+        expect(container.textContent).toContain("P116c · 本地节奏找错");
+        expect(container.textContent).toContain("对照可见目标，定位唯一变化");
       }
 
       await click(findButton(container, answerLabel));
