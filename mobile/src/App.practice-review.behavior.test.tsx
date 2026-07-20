@@ -618,10 +618,14 @@ describe("Android 本机复练行为", () => {
     await waitFor(() => Boolean(container.querySelector("#progression-training-difficulty")), "和声进行面板载入");
     expect(Array.from(container.querySelector<HTMLSelectElement>("#progression-training-difficulty")?.options ?? []).map((option) => option.value)).toEqual(["基础", "进阶", "挑战"]);
     expect(container.textContent).toContain("本难度共 8 个版本化组合");
+    expect(container.textContent).toContain("不改变答案，也不单独判分");
     await waitFor(() => !findButton(container, wrongOption?.label ?? "").disabled, "和声进行题目可回答");
+    expect(findButton(container, "只听低音线索").disabled).toBe(false);
+    expect(findButton(container, "只听高声部线索").disabled).toBe(false);
     await click(findButton(container, wrongOption?.label ?? ""));
     await click(findButton(container, "查看本题答案"));
     expect(container.textContent).toContain(`本题答案：${options.find((option) => option.id === question.answerOptionId)?.label}`);
+    expect(container.textContent).toContain(question.voiceLeadingCue.explanation);
     await click(findLink(container, "返回练习首页"));
 
     expect(getStoredQueue()[0]).toMatchObject({ kind: "harmony-progression", difficulty: "基础", variantId: question.variantId });
