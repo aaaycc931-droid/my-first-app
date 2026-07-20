@@ -57,13 +57,16 @@ const LocalEarTrainingScaleModePanel = lazy(() =>
     default: module.LocalEarTrainingScaleModePanel,
   })),
 );
+const LocalEarTrainingSeventhChordPanel = lazy(() =>
+  import("../../components/practice/LocalEarTrainingSeventhChordPanel").then((module) => ({ default: module.LocalEarTrainingSeventhChordPanel })),
+);
 const LocalEarTrainingChordPanel = lazy(() =>
   import("../../components/practice/LocalEarTrainingChordPanel").then((module) => ({
     default: module.LocalEarTrainingChordPanel,
   })),
 );
 
-const screens = ["home", "monitor", "pitch", "interval", "chord", "progression", "scale", "rhythm", "melody", "piano"] as const;
+const screens = ["home", "monitor", "pitch", "interval", "chord", "seventh", "progression", "scale", "rhythm", "melody", "piano"] as const;
 type Screen = (typeof screens)[number];
 type PracticeScreenName = Exclude<Screen, "home" | "piano" | "monitor">;
 
@@ -91,6 +94,7 @@ const screenDetails: Record<
     summary: "听三和弦同时或分解发声，辨认和弦性质与最低音位置。",
     tone: "bg-fuchsia-50 text-fuchsia-950 ring-fuchsia-200",
   },
+  seventh: { title: "七和弦听辨", summary: "听四个音，辨认七和弦性质与最低音位置。", tone: "bg-indigo-50 text-indigo-950 ring-indigo-200" },
   progression: {
     title: "和声进行",
     summary: "听依次播放的三和弦，辨认级数进行与终止式。",
@@ -127,6 +131,7 @@ const screenForReviewTarget = (target: LocalPracticeReviewTarget): PracticeScree
   if (target.kind === "single-pitch") return "pitch";
   if (target.kind === "melody-dictation") return "melody";
   if (target.kind === "chord-inversion") return "chord";
+  if (target.kind === "seventh-chord") return "seventh";
   if (target.kind === "harmony-progression") return "progression";
   if (target.kind === "scale-mode") return "scale";
   return target.kind;
@@ -161,6 +166,10 @@ function PracticeScreen({
   if (screen === "chord") {
     const target = reviewTarget?.kind === "chord-inversion" ? reviewTarget : undefined;
     return <Suspense fallback={<p className="rounded-2xl bg-fuchsia-50 p-4 text-sm text-fuchsia-900">正在载入和弦练习…</p>}><LocalEarTrainingChordPanel key={target ? getLocalPracticeReviewTargetKey(target) : "random-chord"} initialReviewTarget={target} showLocalPiano {...sharedProps} /></Suspense>;
+  }
+  if (screen === "seventh") {
+    const target = reviewTarget?.kind === "seventh-chord" ? reviewTarget : undefined;
+    return <Suspense fallback={<p className="rounded-2xl bg-indigo-50 p-4 text-sm text-indigo-900">正在载入七和弦练习…</p>}><LocalEarTrainingSeventhChordPanel key={target ? getLocalPracticeReviewTargetKey(target) : "random-seventh"} initialReviewTarget={target} {...sharedProps} /></Suspense>;
   }
   if (screen === "progression") {
     const target = reviewTarget?.kind === "harmony-progression" ? reviewTarget : undefined;

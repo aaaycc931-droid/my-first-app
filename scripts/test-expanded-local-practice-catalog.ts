@@ -30,6 +30,7 @@ import {
   createLocalScaleModeQuestion,
   getLocalScaleModeVariantCount,
 } from "../lib/practice/localEarTrainingScaleModes";
+import { createLocalSeventhChordQuestion, getLocalSeventhChordVariantCount } from "../lib/practice/localEarTrainingSeventhChords";
 import type { LocalPracticeDifficulty, LocalPracticeKind } from "../lib/practice/localPracticeCatalog";
 import { createLocalQuestionSchedule, getScheduledQuestionIndex } from "../lib/practice/localQuestionScheduler";
 
@@ -41,6 +42,7 @@ const expectedCounts: Record<LocalPracticeKind, Record<LocalPracticeDifficulty, 
   "chord-inversion": { 基础: 8, 进阶: 48, 挑战: 72 },
   "harmony-progression": { 基础: 8, 进阶: 24, 挑战: 42 },
   "scale-mode": { 基础: 48, 进阶: 96, 挑战: 144 },
+  "seventh-chord": { 基础: 48, 进阶: 96, 挑战: 192 },
   rhythm: { 基础: 20, 进阶: 24, 挑战: 20 },
   "melody-dictation": { 基础: 20, 进阶: 20, 挑战: 20 },
 };
@@ -51,6 +53,7 @@ const getCount = (kind: LocalPracticeKind, difficulty: LocalPracticeDifficulty):
   if (kind === "chord-inversion") return getLocalEarTrainingChordVariantCount(difficulty);
   if (kind === "harmony-progression") return getLocalHarmonyProgressionVariantCount(difficulty);
   if (kind === "scale-mode") return getLocalScaleModeVariantCount(difficulty);
+  if (kind === "seventh-chord") return getLocalSeventhChordVariantCount(difficulty);
   if (kind === "rhythm") return getLocalEarTrainingRhythmVariantCount(difficulty, mode);
   return getLocalEarTrainingMelodyVariantCount(difficulty, mode);
 };
@@ -95,6 +98,11 @@ const getVariantId = (
     const question = createLocalScaleModeQuestion({ difficulty, sequence: questionIndex, questionIndex });
     assert(question.frequenciesHz.length >= 6 && question.frequenciesHz.length <= 8);
     assert(question.frequenciesHz.every((frequencyHz) => Number.isFinite(frequencyHz) && frequencyHz > 0));
+    return question.variantId;
+  }
+  if (kind === "seventh-chord") {
+    const question = createLocalSeventhChordQuestion({ difficulty, sequence: questionIndex, questionIndex });
+    assert.equal(question.frequenciesHz.length, 4);
     return question.variantId;
   }
   const question = createLocalEarTrainingMelodyQuestion({ difficulty, sequence: questionIndex, questionIndex, catalogMode: mode });

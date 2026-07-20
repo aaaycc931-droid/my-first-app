@@ -21,6 +21,11 @@ import {
   getLocalEarTrainingChordVariantCount,
 } from "../../lib/practice/localEarTrainingChords";
 import {
+  createLocalSeventhChordQuestion,
+  getLocalSeventhChordAnswerOptions,
+  getLocalSeventhChordVariantCount,
+} from "../../lib/practice/localEarTrainingSeventhChords";
+import {
   createLocalHarmonyProgressionQuestion,
   getLocalHarmonyProgressionAnswerOptions,
   getLocalHarmonyProgressionVariantCount,
@@ -227,8 +232,8 @@ describe("Android 本机复练行为", () => {
     const migratedEnvelope = JSON.parse(
       window.localStorage.getItem(MOBILE_PRACTICE_REVIEW_STORAGE_KEY) ?? "{}",
     ) as { schemaVersion?: number; catalogVersion?: number; targets?: Array<Record<string, unknown>> };
-    expect(migratedEnvelope.schemaVersion).toBe(5);
-    expect(migratedEnvelope.catalogVersion).toBe(5);
+    expect(migratedEnvelope.schemaVersion).toBe(6);
+    expect(migratedEnvelope.catalogVersion).toBe(6);
     expect(migratedEnvelope.targets?.[0]?.variantId).toBe("pitch:g4");
 
     expect(container.textContent).toContain("本机复练（1）");
@@ -292,8 +297,8 @@ describe("Android 本机复练行为", () => {
 
   it("答对移除保存失败时不伪称已持久移除", async () => {
     const original = JSON.stringify({
-      schemaVersion: 5,
-      catalogVersion: 5,
+      schemaVersion: 6,
+      catalogVersion: 6,
       targets: [{
         kind: "single-pitch",
         difficulty: "基础",
@@ -414,6 +419,67 @@ describe("Android 本机复练行为", () => {
     await click(findButton(container, "和弦与转位 · 基础复练 1"));
     expect(container.querySelector<HTMLSelectElement>("#chord-training-difficulty")?.disabled).toBe(true);
     await click(findButton(container, options.find((option) => option.id === question.answerOptionId)?.label ?? ""));
+    await click(findButton(container, "查看本题答案"));
+    expect(getStoredQueue()).toHaveLength(0);
+    expect(container.textContent).toContain("本题已从本机复练中移除");
+  });
+
+  it("七和弦从 Android 中文入口完成答错入队、复练路由和答对移除", async () => {
+    const count = getLocalSeventhChordVariantCount("基础");
+    const questionIndex = getScheduledQuestionIndex(createLocalQuestionSchedule(count, 0), 0) ?? 0;
+    const question = createLocalSeventhChordQuestion({
+      difficulty: "基础",
+      sequence: 0,
+      questionIndex,
+    });
+    const options = getLocalSeventhChordAnswerOptions("基础");
+    const correctOption = options.find((option) => option.id === question.answerOptionId);
+    const wrongOption = options.find((option) => option.id !== question.answerOptionId);
+    expect(correctOption).toBeDefined();
+    expect(wrongOption).toBeDefined();
+
+    const container = await renderApp();
+    expect(container.textContent).toContain("七和弦听辨");
+    expect(container.textContent).toContain("听四个音，辨认七和弦性质与最低音位置");
+    await click(findLink(container, "七和弦听辨"));
+    await waitFor(
+      () => Boolean(container.querySelector("#seventh-difficulty")),
+      "七和弦面板载入",
+    );
+    expect(window.location.hash).toBe("#seventh");
+    expect(container.textContent).toContain("七和弦性质与转位听辨");
+    expect(Array.from(
+      container.querySelector<HTMLSelectElement>("#seventh-difficulty")?.options ?? [],
+    ).map((option) => option.value)).toEqual(["基础", "进阶", "挑战"]);
+    expect(container.textContent).toContain("本难度共 48 个稳定组合");
+    await waitFor(
+      () => !findButton(container, wrongOption?.label ?? "").disabled,
+      "七和弦题目可回答",
+    );
+    await click(findButton(container, wrongOption?.label ?? ""));
+    await click(findButton(container, "查看本题答案"));
+    expect(container.textContent).toContain(`本题答案：${correctOption?.label}`);
+    expect(container.textContent).toContain("非评分答案说明");
+    await click(findLink(container, "返回练习首页"));
+
+    expect(window.location.hash).toBe("#home");
+    expect(container.textContent).toContain("七和弦听辨 · 基础");
+    expect(getStoredQueue()).toEqual([
+      expect.objectContaining({
+        kind: "seventh-chord",
+        difficulty: "基础",
+        variantId: question.variantId,
+      }),
+    ]);
+
+    await click(findButton(container, "七和弦听辨 · 基础复练 1"));
+    await waitFor(
+      () => Boolean(container.querySelector("#seventh-difficulty")),
+      "七和弦复练路由载入",
+    );
+    expect(window.location.hash).toBe("#seventh");
+    expect(container.querySelector<HTMLSelectElement>("#seventh-difficulty")?.disabled).toBe(true);
+    await click(findButton(container, correctOption?.label ?? ""));
     await click(findButton(container, "查看本题答案"));
     expect(getStoredQueue()).toHaveLength(0);
     expect(container.textContent).toContain("本题已从本机复练中移除");
