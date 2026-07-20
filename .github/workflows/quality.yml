@@ -30,6 +30,9 @@ jobs:
       - name: Audit production dependencies
         run: npm audit --omit=dev --audit-level=high
 
+      - name: Validate documentation hygiene
+        run: npm run test:documentation-hygiene && npm run validate:documentation-hygiene
+
       - name: Lint
         run: npm run lint
 
