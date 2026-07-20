@@ -40,6 +40,11 @@ import {
   getLocalScaleModeAnswerOptions,
   getLocalScaleModeVariantCount,
 } from "../../lib/practice/localEarTrainingScaleModes";
+import {
+  createLocalModulationQuestion,
+  getLocalModulationAnswerOptions,
+  getLocalModulationVariantCount,
+} from "../../lib/practice/localEarTrainingModulations";
 import { App } from "./App";
 import { deserializeLocalLearningHistory } from "../../lib/learning/learningEventProfile";
 import { MOBILE_LEARNING_PROFILE_STORAGE_KEY } from "./runtime/mobileLearningProfileStorage";
@@ -237,8 +242,8 @@ describe("Android 本机复练行为", () => {
     const migratedEnvelope = JSON.parse(
       window.localStorage.getItem(MOBILE_PRACTICE_REVIEW_STORAGE_KEY) ?? "{}",
     ) as { schemaVersion?: number; catalogVersion?: number; targets?: Array<Record<string, unknown>> };
-    expect(migratedEnvelope.schemaVersion).toBe(7);
-    expect(migratedEnvelope.catalogVersion).toBe(7);
+    expect(migratedEnvelope.schemaVersion).toBe(8);
+    expect(migratedEnvelope.catalogVersion).toBe(8);
     expect(migratedEnvelope.targets?.[0]?.variantId).toBe("pitch:g4");
 
     expect(container.textContent).toContain("本机复练（1）");
@@ -302,8 +307,8 @@ describe("Android 本机复练行为", () => {
 
   it("答对移除保存失败时不伪称已持久移除", async () => {
     const original = JSON.stringify({
-      schemaVersion: 7,
-      catalogVersion: 7,
+      schemaVersion: 8,
+      catalogVersion: 8,
       targets: [{
         kind: "single-pitch",
         difficulty: "基础",
@@ -563,6 +568,66 @@ describe("Android 本机复练行为", () => {
     await click(findButton(container, options.find((option) => option.id === question.answerOptionId)?.label ?? ""));
     await click(findButton(container, "查看本题答案"));
     expect(getStoredQueue()).toHaveLength(0);
+  });
+
+  it("调制听辨完成中文入口、三难度、复练和画像闭环", async () => {
+    const count = getLocalModulationVariantCount("基础");
+    const questionIndex = getScheduledQuestionIndex(createLocalQuestionSchedule(count, 0), 0) ?? 0;
+    const question = createLocalModulationQuestion({ difficulty: "基础", sequence: 0, questionIndex });
+    const options = getLocalModulationAnswerOptions("基础");
+    const correctOption = options.find((option) => option.id === question.answerOptionId);
+    const wrongOption = options.find((option) => option.id !== question.answerOptionId);
+    expect(correctOption).toBeDefined();
+    expect(wrongOption).toBeDefined();
+
+    const container = await renderApp();
+    expect(container.textContent).toContain("调制听辨");
+    expect(container.textContent).toContain("听依次播放的和弦，判断音乐从当前调性转向哪里");
+    await click(findLink(container, "调制听辨"));
+    await waitFor(
+      () => Boolean(container.querySelector("#modulation-training-difficulty")),
+      "调制听辨面板载入",
+    );
+    expect(window.location.hash).toBe("#modulation");
+    expect(container.textContent).toContain("调制方向听辨");
+    expect(Array.from(
+      container.querySelector<HTMLSelectElement>("#modulation-training-difficulty")?.options ?? [],
+    ).map((option) => option.value)).toEqual(["基础", "进阶", "挑战"]);
+    expect(container.textContent).toContain("本难度共 48 个版本化组合");
+    await waitFor(
+      () => !findButton(container, wrongOption?.label ?? "").disabled,
+      "调制听辨题目可回答",
+    );
+    await click(findButton(container, wrongOption?.label ?? ""));
+    await click(findButton(container, "查看本题答案"));
+    expect(container.textContent).toContain(`本题答案：${correctOption?.label}`);
+    expect(container.textContent).toContain("非评分答案说明");
+    await click(findLink(container, "返回练习首页"));
+
+    expect(window.location.hash).toBe("#home");
+    expect(getStoredQueue()[0]).toMatchObject({
+      kind: "modulation",
+      difficulty: "基础",
+      variantId: question.variantId,
+    });
+    const storedHistory = deserializeLocalLearningHistory(
+      window.localStorage.getItem(MOBILE_LEARNING_PROFILE_STORAGE_KEY) ?? "",
+    );
+    expect(storedHistory?.profile.skillFacts.find(
+      (fact) => fact.skillKind === "modulation",
+    )?.incorrectCount).toBe(1);
+
+    await click(findButton(container, "调制听辨 · 基础复练 1"));
+    await waitFor(
+      () => Boolean(container.querySelector("#modulation-training-difficulty")),
+      "调制听辨复练路由载入",
+    );
+    expect(window.location.hash).toBe("#modulation");
+    expect(container.querySelector<HTMLSelectElement>("#modulation-training-difficulty")?.disabled).toBe(true);
+    await click(findButton(container, correctOption?.label ?? ""));
+    await click(findButton(container, "查看本题答案"));
+    expect(getStoredQueue()).toHaveLength(0);
+    expect(container.textContent).toContain("本题已从本机复练中移除");
   });
 
   it("音阶与调式完成三难度作答、解释、复练和画像闭环", async () => {

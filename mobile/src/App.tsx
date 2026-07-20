@@ -63,13 +63,18 @@ const LocalEarTrainingSeventhChordPanel = lazy(() =>
 const LocalEarTrainingSeventhChordSpacingPanel = lazy(() =>
   import("../../components/practice/LocalEarTrainingSeventhChordSpacingPanel").then((module) => ({ default: module.LocalEarTrainingSeventhChordSpacingPanel })),
 );
+const LocalEarTrainingModulationPanel = lazy(() =>
+  import("../../components/practice/LocalEarTrainingModulationPanel").then((module) => ({
+    default: module.LocalEarTrainingModulationPanel,
+  })),
+);
 const LocalEarTrainingChordPanel = lazy(() =>
   import("../../components/practice/LocalEarTrainingChordPanel").then((module) => ({
     default: module.LocalEarTrainingChordPanel,
   })),
 );
 
-const screens = ["home", "monitor", "pitch", "interval", "chord", "seventh", "seventh-spacing", "progression", "scale", "rhythm", "melody", "piano"] as const;
+const screens = ["home", "monitor", "pitch", "interval", "chord", "seventh", "seventh-spacing", "progression", "modulation", "scale", "rhythm", "melody", "piano"] as const;
 type Screen = (typeof screens)[number];
 type PracticeScreenName = Exclude<Screen, "home" | "piano" | "monitor">;
 
@@ -103,6 +108,11 @@ const screenDetails: Record<
     title: "和声进行",
     summary: "听依次播放的三和弦，辨认级数进行与终止式。",
     tone: "bg-cyan-50 text-cyan-950 ring-cyan-200",
+  },
+  modulation: {
+    title: "调制听辨",
+    summary: "听依次播放的和弦，判断音乐从当前调性转向哪里。",
+    tone: "bg-blue-50 text-blue-950 ring-blue-200",
   },
   scale: {
     title: "音阶与调式",
@@ -138,6 +148,7 @@ const screenForReviewTarget = (target: LocalPracticeReviewTarget): PracticeScree
   if (target.kind === "seventh-chord") return "seventh";
   if (target.kind === "seventh-chord-spacing") return "seventh-spacing";
   if (target.kind === "harmony-progression") return "progression";
+  if (target.kind === "modulation") return "modulation";
   if (target.kind === "scale-mode") return "scale";
   return target.kind;
 };
@@ -183,6 +194,10 @@ function PracticeScreen({
   if (screen === "progression") {
     const target = reviewTarget?.kind === "harmony-progression" ? reviewTarget : undefined;
     return <Suspense fallback={<p className="rounded-2xl bg-cyan-50 p-4 text-sm text-cyan-900">正在载入和声进行练习…</p>}><LocalEarTrainingHarmonyProgressionPanel key={target ? getLocalPracticeReviewTargetKey(target) : "random-progression"} initialReviewTarget={target} showLocalPiano {...sharedProps} /></Suspense>;
+  }
+  if (screen === "modulation") {
+    const target = reviewTarget?.kind === "modulation" ? reviewTarget : undefined;
+    return <Suspense fallback={<p className="rounded-2xl bg-blue-50 p-4 text-sm text-blue-900">正在载入调制听辨练习…</p>}><LocalEarTrainingModulationPanel key={target ? getLocalPracticeReviewTargetKey(target) : "random-modulation"} initialReviewTarget={target} showLocalPiano {...sharedProps} /></Suspense>;
   }
   if (screen === "scale") {
     const target = reviewTarget?.kind === "scale-mode" ? reviewTarget : undefined;

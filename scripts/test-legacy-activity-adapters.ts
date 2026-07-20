@@ -7,6 +7,7 @@ import {
   adaptScaleModeQuestionToActivity,
   adaptSeventhChordQuestionToActivity,
   adaptSeventhChordSpacingQuestionToActivity,
+  adaptModulationQuestionToActivity,
   adaptMelodyDictationQuestionToActivity,
   adaptRhythmQuestionToActivity,
   adaptSinglePitchQuestionToActivity,
@@ -20,6 +21,7 @@ import { createLocalHarmonyProgressionQuestion } from "../lib/practice/localEarT
 import { createLocalScaleModeQuestion } from "../lib/practice/localEarTrainingScaleModes";
 import { createLocalSeventhChordQuestion } from "../lib/practice/localEarTrainingSeventhChords";
 import { createLocalSeventhChordSpacingQuestion } from "../lib/practice/localEarTrainingSeventhChordSpacing";
+import { createLocalModulationQuestion } from "../lib/practice/localEarTrainingModulations";
 
 const single = adaptSinglePitchQuestionToActivity(createLocalEarTrainingSinglePitchQuestion({
   difficulty: "基础", sequence: 0, questionIndex: 0, catalogMode: "expanded-local-v2",
@@ -89,6 +91,20 @@ assert.equal(seventhSpacing.target.targetId, seventhSpacingQuestion.variantId);
 assert.deepEqual(seventhSpacing.target.expectedAnswer, { mode: "choice", optionIds: ["open"] });
 assert.match(seventhSpacing.explanation, /开放排列/);
 
+const modulationQuestion = createLocalModulationQuestion({
+  difficulty: "挑战", sequence: 0, variantId: "modulation:c3:parallel-minor:alternate-predominant",
+});
+const modulation = adaptModulationQuestionToActivity(modulationQuestion);
+const repeatedModulation = adaptModulationQuestionToActivity(createLocalModulationQuestion({
+  difficulty: "挑战", sequence: 99, variantId: modulationQuestion.variantId,
+}));
+assert.equal(modulation.family, "harmony-progression");
+assert.equal(modulation.contentVersion, "local-modulation-v1");
+assert.equal(modulation.activityId, repeatedModulation.activityId, "sequence must not change stable modulation activity identity");
+assert.equal(modulation.target.targetId, modulationQuestion.variantId);
+assert.deepEqual(modulation.target.expectedAnswer, { mode: "choice", optionIds: ["parallel-minor"] });
+assert.match(modulation.explanation, /同主音小调/);
+
 const rhythmQuestion = createLocalEarTrainingRhythmQuestion({
   difficulty: "进阶", sequence: 0, questionIndex: 0, catalogMode: "expanded-local-v2",
 });
@@ -109,7 +125,7 @@ assert.deepEqual(
   { mode: "choice", optionIds: melodyQuestion.melody.noteIds },
 );
 
-for (const activity of [single, interval, chord, progression, scale, seventh, seventhSpacing, rhythm, melody]) {
+for (const activity of [single, interval, chord, progression, scale, seventh, seventhSpacing, modulation, rhythm, melody]) {
   assert.equal(activity.assessmentMode, "non-scoring");
   assert.equal(activity.source.reviewState, "confirmed");
   assert.equal("score" in activity, false);
