@@ -26,6 +26,11 @@ import {
   getLocalSeventhChordVariantCount,
 } from "../../lib/practice/localEarTrainingSeventhChords";
 import {
+  createLocalSeventhChordSpacingQuestion,
+  getLocalSeventhChordSpacingAnswerOptions,
+  getLocalSeventhChordSpacingVariantCount,
+} from "../../lib/practice/localEarTrainingSeventhChordSpacing";
+import {
   createLocalHarmonyProgressionQuestion,
   getLocalHarmonyProgressionAnswerOptions,
   getLocalHarmonyProgressionVariantCount,
@@ -232,8 +237,8 @@ describe("Android 本机复练行为", () => {
     const migratedEnvelope = JSON.parse(
       window.localStorage.getItem(MOBILE_PRACTICE_REVIEW_STORAGE_KEY) ?? "{}",
     ) as { schemaVersion?: number; catalogVersion?: number; targets?: Array<Record<string, unknown>> };
-    expect(migratedEnvelope.schemaVersion).toBe(6);
-    expect(migratedEnvelope.catalogVersion).toBe(6);
+    expect(migratedEnvelope.schemaVersion).toBe(7);
+    expect(migratedEnvelope.catalogVersion).toBe(7);
     expect(migratedEnvelope.targets?.[0]?.variantId).toBe("pitch:g4");
 
     expect(container.textContent).toContain("本机复练（1）");
@@ -297,8 +302,8 @@ describe("Android 本机复练行为", () => {
 
   it("答对移除保存失败时不伪称已持久移除", async () => {
     const original = JSON.stringify({
-      schemaVersion: 6,
-      catalogVersion: 6,
+      schemaVersion: 7,
+      catalogVersion: 7,
       targets: [{
         kind: "single-pitch",
         difficulty: "基础",
@@ -479,6 +484,51 @@ describe("Android 本机复练行为", () => {
     );
     expect(window.location.hash).toBe("#seventh");
     expect(container.querySelector<HTMLSelectElement>("#seventh-difficulty")?.disabled).toBe(true);
+    await click(findButton(container, correctOption?.label ?? ""));
+    await click(findButton(container, "查看本题答案"));
+    expect(getStoredQueue()).toHaveLength(0);
+    expect(container.textContent).toContain("本题已从本机复练中移除");
+  });
+
+  it("七和弦排列完成中文入口、答错入队、复练锁定、答对移除与画像闭环", async () => {
+    const count = getLocalSeventhChordSpacingVariantCount("基础");
+    const questionIndex = getScheduledQuestionIndex(createLocalQuestionSchedule(count, 0), 0) ?? 0;
+    const question = createLocalSeventhChordSpacingQuestion({ difficulty: "基础", sequence: 0, questionIndex });
+    const options = getLocalSeventhChordSpacingAnswerOptions();
+    const correctOption = options.find((option) => option.id === question.answerOptionId);
+    const wrongOption = options.find((option) => option.id !== question.answerOptionId);
+    expect(correctOption).toBeDefined();
+    expect(wrongOption).toBeDefined();
+
+    const container = await renderApp();
+    expect(container.textContent).toContain("七和弦排列");
+    expect(container.textContent).toContain("听四个音，辨认低音上方声部的开放或密集排列");
+    await click(findLink(container, "七和弦排列"));
+    await waitFor(() => Boolean(container.querySelector("#seventh-spacing-difficulty")), "七和弦排列面板载入");
+    expect(window.location.hash).toBe("#seventh-spacing");
+    expect(container.textContent).toContain("七和弦开放与密集排列听辨");
+    expect(Array.from(container.querySelector<HTMLSelectElement>("#seventh-spacing-difficulty")?.options ?? []).map((option) => option.value)).toEqual(["基础", "进阶", "挑战"]);
+    expect(container.textContent).toContain("本难度共 48 个稳定组合");
+    await waitFor(() => !findButton(container, wrongOption?.label ?? "").disabled, "七和弦排列题目可回答");
+    await click(findButton(container, wrongOption?.label ?? ""));
+    await click(findButton(container, "查看本题答案"));
+    expect(container.textContent).toContain(`本题答案：${correctOption?.label}`);
+    expect(container.textContent).toContain("非评分答案说明");
+    await click(findLink(container, "返回练习首页"));
+
+    expect(window.location.hash).toBe("#home");
+    expect(getStoredQueue()).toEqual([expect.objectContaining({
+      kind: "seventh-chord-spacing",
+      difficulty: "基础",
+      variantId: question.variantId,
+    })]);
+    const storedHistory = deserializeLocalLearningHistory(window.localStorage.getItem(MOBILE_LEARNING_PROFILE_STORAGE_KEY) ?? "");
+    expect(storedHistory?.profile.skillFacts.find((fact) => fact.skillKind === "seventh-chord-spacing")?.incorrectCount).toBe(1);
+
+    await click(findButton(container, "七和弦排列 · 基础复练 1"));
+    await waitFor(() => Boolean(container.querySelector("#seventh-spacing-difficulty")), "七和弦排列复练路由载入");
+    expect(window.location.hash).toBe("#seventh-spacing");
+    expect(container.querySelector<HTMLSelectElement>("#seventh-spacing-difficulty")?.disabled).toBe(true);
     await click(findButton(container, correctOption?.label ?? ""));
     await click(findButton(container, "查看本题答案"));
     expect(getStoredQueue()).toHaveLength(0);

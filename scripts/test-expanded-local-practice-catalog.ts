@@ -31,6 +31,10 @@ import {
   getLocalScaleModeVariantCount,
 } from "../lib/practice/localEarTrainingScaleModes";
 import { createLocalSeventhChordQuestion, getLocalSeventhChordVariantCount } from "../lib/practice/localEarTrainingSeventhChords";
+import {
+  createLocalSeventhChordSpacingQuestion,
+  getLocalSeventhChordSpacingVariantCount,
+} from "../lib/practice/localEarTrainingSeventhChordSpacing";
 import type { LocalPracticeDifficulty, LocalPracticeKind } from "../lib/practice/localPracticeCatalog";
 import { createLocalQuestionSchedule, getScheduledQuestionIndex } from "../lib/practice/localQuestionScheduler";
 
@@ -43,6 +47,7 @@ const expectedCounts: Record<LocalPracticeKind, Record<LocalPracticeDifficulty, 
   "harmony-progression": { 基础: 8, 进阶: 24, 挑战: 42 },
   "scale-mode": { 基础: 48, 进阶: 96, 挑战: 144 },
   "seventh-chord": { 基础: 48, 进阶: 96, 挑战: 192 },
+  "seventh-chord-spacing": { 基础: 48, 进阶: 96, 挑战: 384 },
   rhythm: { 基础: 20, 进阶: 24, 挑战: 20 },
   "melody-dictation": { 基础: 20, 进阶: 20, 挑战: 20 },
 };
@@ -54,6 +59,7 @@ const getCount = (kind: LocalPracticeKind, difficulty: LocalPracticeDifficulty):
   if (kind === "harmony-progression") return getLocalHarmonyProgressionVariantCount(difficulty);
   if (kind === "scale-mode") return getLocalScaleModeVariantCount(difficulty);
   if (kind === "seventh-chord") return getLocalSeventhChordVariantCount(difficulty);
+  if (kind === "seventh-chord-spacing") return getLocalSeventhChordSpacingVariantCount(difficulty);
   if (kind === "rhythm") return getLocalEarTrainingRhythmVariantCount(difficulty, mode);
   return getLocalEarTrainingMelodyVariantCount(difficulty, mode);
 };
@@ -105,13 +111,20 @@ const getVariantId = (
     assert.equal(question.frequenciesHz.length, 4);
     return question.variantId;
   }
+  if (kind === "seventh-chord-spacing") {
+    const question = createLocalSeventhChordSpacingQuestion({ difficulty, sequence: questionIndex, questionIndex });
+    assert.equal(question.frequenciesHz.length, 4);
+    assert(question.frequenciesHz.every((frequencyHz, index, frequencies) =>
+      Number.isFinite(frequencyHz) && frequencyHz > 0 && (index === 0 || frequencyHz > frequencies[index - 1])));
+    return question.variantId;
+  }
   const question = createLocalEarTrainingMelodyQuestion({ difficulty, sequence: questionIndex, questionIndex, catalogMode: mode });
   assert.equal(question.melody.noteIds.length, 3);
   assert(question.melody.noteIds.every((noteId) => noteId in earTrainingMelodyNotes));
   return question.variantId;
 };
 
-for (const kind of ["single-pitch", "interval", "chord-inversion", "harmony-progression", "scale-mode", "rhythm", "melody-dictation"] as const) {
+for (const kind of ["single-pitch", "interval", "chord-inversion", "harmony-progression", "scale-mode", "seventh-chord", "seventh-chord-spacing", "rhythm", "melody-dictation"] as const) {
   for (const difficulty of difficulties) {
     const count = getCount(kind, difficulty);
     assert.equal(count, expectedCounts[kind][difficulty], `${kind}/${difficulty} count drifted`);
@@ -137,6 +150,10 @@ for (const kind of ["single-pitch", "interval", "chord-inversion", "harmony-prog
           ? createLocalHarmonyProgressionQuestion({ difficulty, sequence: 0, questionIndex: 0, variantId: replayed }).variantId
         : kind === "scale-mode"
           ? createLocalScaleModeQuestion({ difficulty, sequence: 0, questionIndex: 0, variantId: replayed }).variantId
+        : kind === "seventh-chord"
+          ? createLocalSeventhChordQuestion({ difficulty, sequence: 0, questionIndex: 0, variantId: replayed }).variantId
+        : kind === "seventh-chord-spacing"
+          ? createLocalSeventhChordSpacingQuestion({ difficulty, sequence: 0, questionIndex: 0, variantId: replayed }).variantId
         : kind === "rhythm"
           ? createLocalEarTrainingRhythmQuestion({ difficulty, sequence: 0, questionIndex: 0, variantId: replayed }).variantId
           : createLocalEarTrainingMelodyQuestion({ difficulty, sequence: 0, questionIndex: 0, variantId: replayed }).variantId;
@@ -149,6 +166,8 @@ assert.equal(createLocalEarTrainingQuestion({ difficulty: "基础", direction: "
 assert.equal(createLocalEarTrainingChordQuestion({ difficulty: "基础", sequence: 0 }).variantId, "chord:c4:major:root");
 assert.equal(createLocalHarmonyProgressionQuestion({ difficulty: "基础", sequence: 0 }).variantId, "progression:c3:authentic-three");
 assert.equal(createLocalScaleModeQuestion({ difficulty: "基础", sequence: 0 }).variantId, "scale:c4:major");
+assert.equal(createLocalSeventhChordQuestion({ difficulty: "基础", sequence: 0 }).variantId, "seventh-chord:c3:major-seventh:root");
+assert.equal(createLocalSeventhChordSpacingQuestion({ difficulty: "基础", sequence: 0 }).variantId, "seventh-chord-spacing:c3:major-seventh:root:close");
 assert.equal(createLocalEarTrainingRhythmQuestion({ difficulty: "基础", sequence: 0 }).variantId, "rhythm:even-quarters");
 assert.equal(createLocalEarTrainingMelodyQuestion({ difficulty: "基础", sequence: 0 }).variantId, "melody:up-step");
 

@@ -7,6 +7,7 @@ import type { LocalEarTrainingChordQuestion } from "../practice/localEarTraining
 import type { LocalEarTrainingHarmonyProgressionQuestion } from "../practice/localEarTrainingHarmonyProgressions";
 import type { LocalEarTrainingScaleModeQuestion } from "../practice/localEarTrainingScaleModes";
 import type { LocalEarTrainingSeventhChordQuestion } from "../practice/localEarTrainingSeventhChords";
+import type { LocalEarTrainingSeventhChordSpacingQuestion } from "../practice/localEarTrainingSeventhChordSpacing";
 
 const DIFFICULTY: Record<EarTrainingSinglePitchDifficulty, ActivityDifficulty> = {
   基础: "foundation", 进阶: "intermediate", 挑战: "challenge",
@@ -134,6 +135,24 @@ export const adaptScaleModeQuestionToActivity = (
 
 export const adaptSeventhChordQuestionToActivity = (question: LocalEarTrainingSeventhChordQuestion): ActivityDefinitionV1 => ({
   schemaVersion: "activity-definition-v1", activityId: `local.seventh-chord.${question.variantId}`, activityVersion: "1", contentVersion: "local-seventh-chord-v1", family: "chord", title: "七和弦性质与转位听辨", instructions: "听四个音，选择七和弦性质与转位。", skillTags: ["七和弦", question.quality.label, question.inversionLabel, "听辨"], difficulty: DIFFICULTY[question.difficulty], assessmentMode: "non-scoring", source: { kind: "built-in", reviewState: "confirmed" }, allowedInputModes: ["choice"], target: { targetId: `seventh-chord:${question.quality.id}:${question.inversionId}`, label: `${question.quality.label} · ${question.inversionLabel}`, expectedAnswer: { mode: "choice", optionIds: [question.answerOptionId] } }, explanation: question.explanation, music: { key: question.root.label, referenceTimbre: "web-audio-sine-compatibility" },
+});
+
+export const adaptSeventhChordSpacingQuestionToActivity = (question: LocalEarTrainingSeventhChordSpacingQuestion): ActivityDefinitionV1 => ({
+  schemaVersion: "activity-definition-v1",
+  activityId: `local.seventh-chord-spacing.${question.variantId}`,
+  activityVersion: "1",
+  contentVersion: "local-seventh-chord-spacing-v1",
+  family: "chord",
+  title: "七和弦开放与密集排列听辨",
+  instructions: "听四个音，选择七和弦的声部排列。",
+  skillTags: ["七和弦", "排列", question.spacingLabel, "听辨"],
+  difficulty: DIFFICULTY[question.difficulty],
+  assessmentMode: "non-scoring",
+  source: { kind: "built-in", reviewState: "confirmed" },
+  allowedInputModes: ["choice"],
+  target: { targetId: question.variantId, label: question.spacingLabel, expectedAnswer: { mode: "choice", optionIds: [question.answerOptionId] } },
+  explanation: question.explanation,
+  music: { key: question.root.label, referenceTimbre: "web-audio-sine-compatibility" },
 });
 
 export const adaptRhythmQuestionToActivity = (

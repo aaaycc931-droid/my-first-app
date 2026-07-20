@@ -6,6 +6,7 @@ import { isLocalEarTrainingChordVariantId, type ChordPlaybackMode } from "./loca
 import { isLocalHarmonyProgressionVariantId } from "./localHarmonyProgressionCatalog";
 import { isLocalScaleModeVariantId } from "./localScaleModeCatalog";
 import { isLocalSeventhChordVariantId } from "./localEarTrainingSeventhChords";
+import { isLocalSeventhChordSpacingVariantId } from "./localEarTrainingSeventhChordSpacing";
 import {
   getLegacyLocalPracticeVariantId,
   LOCAL_PRACTICE_CATALOG_VERSION,
@@ -13,7 +14,7 @@ import {
   type LocalPracticeDifficulty,
 } from "./localPracticeCatalog";
 
-export const LOCAL_PRACTICE_REVIEW_QUEUE_SCHEMA_VERSION = 6 as const;
+export const LOCAL_PRACTICE_REVIEW_QUEUE_SCHEMA_VERSION = 7 as const;
 export { LOCAL_PRACTICE_CATALOG_VERSION };
 export const LOCAL_PRACTICE_REVIEW_QUEUE_MAX_ITEMS = 12;
 export const LOCAL_PRACTICE_REVIEW_QUEUE_MAX_SERIALIZED_LENGTH = 8 * 1024;
@@ -38,6 +39,7 @@ export type LocalPracticeReviewTarget =
   | (LocalPracticeReviewTargetBase & { kind: "harmony-progression" })
   | (LocalPracticeReviewTargetBase & { kind: "scale-mode" })
   | (LocalPracticeReviewTargetBase & { kind: "seventh-chord" })
+  | (LocalPracticeReviewTargetBase & { kind: "seventh-chord-spacing" })
   | (LocalPracticeReviewTargetBase & { kind: "rhythm" })
   | (LocalPracticeReviewTargetBase & { kind: "melody-dictation" });
 
@@ -105,6 +107,7 @@ const isKnownVariantId = (
     return isLocalScaleModeVariantId(difficulty, variantId);
   }
   if (kind === "seventh-chord") return isLocalSeventhChordVariantId(difficulty, variantId);
+  if (kind === "seventh-chord-spacing") return isLocalSeventhChordSpacingVariantId(difficulty, variantId);
   if (kind === "rhythm") {
     return isLocalEarTrainingRhythmVariantId(difficulty, variantId);
   }
@@ -154,7 +157,7 @@ const parseTarget = (value: unknown): LocalPracticeReviewTarget | null => {
   }
 
   if (!hasExactKeys(value, ["kind", "difficulty", "seed", "sequence", "variantId"])) return null;
-  if (value.kind !== "single-pitch" && value.kind !== "harmony-progression" && value.kind !== "scale-mode" && value.kind !== "seventh-chord" && value.kind !== "rhythm" && value.kind !== "melody-dictation") {
+  if (value.kind !== "single-pitch" && value.kind !== "harmony-progression" && value.kind !== "scale-mode" && value.kind !== "seventh-chord" && value.kind !== "seventh-chord-spacing" && value.kind !== "rhythm" && value.kind !== "melody-dictation") {
     return null;
   }
   if (!isKnownVariantId(value.kind, difficulty, variantId)) return null;
@@ -290,12 +293,13 @@ export const deserializeLocalPracticeReviewQueue = (
 
   const isCurrent = value.schemaVersion === LOCAL_PRACTICE_REVIEW_QUEUE_SCHEMA_VERSION
     && value.catalogVersion === LOCAL_PRACTICE_CATALOG_VERSION;
+  const isPreviousSeventh = value.schemaVersion === 6 && value.catalogVersion === 6;
   const isPreviousScaleMode = value.schemaVersion === 5 && value.catalogVersion === 5;
   const isPreviousProgression = value.schemaVersion === 4 && value.catalogVersion === 4;
   const isPreviousChord = value.schemaVersion === 3 && value.catalogVersion === 3;
   const isPrevious = value.schemaVersion === 2 && value.catalogVersion === 2;
   const isLegacy = value.schemaVersion === 1 && value.catalogVersion === 1;
-  if (!isCurrent && !isPreviousScaleMode && !isPreviousProgression && !isPreviousChord && !isPrevious && !isLegacy) return null;
+  if (!isCurrent && !isPreviousSeventh && !isPreviousScaleMode && !isPreviousProgression && !isPreviousChord && !isPrevious && !isLegacy) return null;
 
   const targets: LocalPracticeReviewQueue = [];
   const targetKeys = new Set<string>();
@@ -304,8 +308,9 @@ export const deserializeLocalPracticeReviewQueue = (
     if (!target) return null;
     if (isPrevious && (target.kind === "chord-inversion" || target.kind === "harmony-progression")) return null;
     if (isPreviousChord && target.kind === "harmony-progression") return null;
-    if (!isCurrent && target.kind === "seventh-chord") return null;
-    if (!isCurrent && !isPreviousScaleMode && target.kind === "scale-mode") return null;
+    if (!isCurrent && target.kind === "seventh-chord-spacing") return null;
+    if (!isCurrent && !isPreviousSeventh && target.kind === "seventh-chord") return null;
+    if (!isCurrent && !isPreviousSeventh && !isPreviousScaleMode && target.kind === "scale-mode") return null;
     const targetKey = getLocalPracticeReviewTargetKey(target);
     if (targetKeys.has(targetKey)) {
       if (isLegacy) continue;

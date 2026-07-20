@@ -82,14 +82,14 @@ assert.deepEqual(migratedLoad, {
 const migratedEnvelope = JSON.parse(
   legacyStorage.values.get(MOBILE_PRACTICE_REVIEW_STORAGE_KEY) ?? "{}",
 ) as { schemaVersion?: number; catalogVersion?: number };
-assert.equal(migratedEnvelope.schemaVersion, 6);
-assert.equal(migratedEnvelope.catalogVersion, 6);
+assert.equal(migratedEnvelope.schemaVersion, 7);
+assert.equal(migratedEnvelope.catalogVersion, 7);
 const setCallsAfterMigration = legacyStorage.getSetCallCount();
 assert.deepEqual(loadMobilePracticeReviewQueue(legacyStorage), migratedLoad);
 assert.equal(
   legacyStorage.getSetCallCount(),
   setCallsAfterMigration,
-  "a second load of the rewritten v6 queue must not rewrite storage again",
+  "a second load of the rewritten v7 queue must not rewrite storage again",
 );
 
 const migrationWriteFailure: StorageLike = {
