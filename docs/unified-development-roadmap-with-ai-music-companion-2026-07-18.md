@@ -4,7 +4,7 @@
 
 状态：**Canonical integrated roadmap / 统一长期开发主路线**
 
-当前执行状态：**ACTIVE AT P115b / harmony progression and cadence ear-training implementation candidate**
+当前执行状态：**ACTIVE AT P115c / scale and mode ear-training implementation candidate**
 
 适用项目：`aaaycc931-droid/my-first-app`
 
@@ -31,7 +31,8 @@
 - P114l 已通过 PR #378 squash merge，main commit 为 `4c03ffa0372a7519a1628b045b93632825fa60c6`；本地旋律参考音频、钢琴采样资源包与本地钢琴能力解析已成为 `MediaProject`、`ResourcePackage`、`CapabilityResolver` 的真实使用者；
 - P114m 已通过 PR #379 squash merge，main commit 为 `99d2313f8c8bc679f3328515e8b0ee844f84569a`；Android 四类练耳的答案核对与本机复练已成为 `LearningEvent/Profile` 的真实使用者，保持非评分、最小数据、建议可关闭和画像可独立重置；
 - P115a 已通过 PR #380 squash merge，main commit 为 `a42ff681278816ab3cd277a4a6e403dc77f457be`；和弦性质与三和弦转位已有三难度、和声/分解播放、Activity 答案、复练与学习事实闭环；
-- P115b 当前为 ACTIVE implementation candidate：新增和声进行与终止式三难度题库、逐和弦播放、Activity 答案、复练与学习事实闭环；七和弦、调制、音阶/调式、完整题量与教育审核仍未完成，验收标准见 `docs/p115b-harmony-progression-ear-training-acceptance.md`。
+- P115b 已通过 PR #381 squash merge，main commit 为 `72b4ed0f371380e25c27d363c4306b0fa73b985b`；和声进行与终止式已有三难度、逐和弦播放、Activity 答案、复练与学习事实闭环；
+- P115c 当前为 ACTIVE implementation candidate：新增音阶与调式三难度题库、逐音播放、Activity 答案、复练与学习事实闭环；七和弦、调制、完整定制器与教育审核仍未完成，验收标准见 `docs/p115c-scale-mode-ear-training-acceptance.md`。
 
 本次产品决策是：
 
@@ -199,7 +200,7 @@ flowchart TD
 - P113 真机音频/录音/生命周期与目标用户证据；
 - 伙伴运行时、P114 统一活动模型和共享协议。
 
-该暂停点已由产品所有者在 2026-07-18 明确解除；P114a–P114m 与 P115a 已合并，P114i 角色设定没有伙伴运行时。当前进入 R2 的 P115b 和声进行与终止式 implementation candidate；BLE/USB 真机证据和后续发布门槛仍待独立完成，共享运行时交付不等于伙伴、设备或教育证据完成。
+该暂停点已由产品所有者在 2026-07-18 明确解除；P114a–P114m 与 P115a–P115b 已合并，P114i 角色设定没有伙伴运行时。当前进入 R2 的 P115c 音阶与调式 implementation candidate；BLE/USB 真机证据和后续发布门槛仍待独立完成，共享运行时交付不等于伙伴、设备或教育证据完成。
 
 ### R1：P114 + F1/F2 + M0——统一活动与伙伴安全接入点
 
@@ -500,11 +501,11 @@ P120 仍是专业私测候选，不是全能公开最终版。
 
 产品所有者再次明确恢复运行时开发后：
 
-1. 从 P115a 已合并的远端 `main@a42ff681278816ab3cd277a4a6e403dc77f457be` 建立后续 P115 分支，先核对本路线、DoD、状态矩阵和当前 P115 验收文档；
+1. 从 P115b 已合并的远端 `main@72b4ed0f371380e25c27d363c4306b0fa73b985b` 建立后续 P115 分支，先核对本路线、DoD、状态矩阵和当前 P115 验收文档；
 2. 继续把 P104/P113 的真实人声、三档 Android、延迟/同步和教育证据列为独立缺口；
-3. 当前完成 P115b 和声进行与终止式 vertical slice：三难度稳定题库、正确功能结构、逐和弦播放、统一 Activity 答案、复练/画像迁移和隐私边界必须同一切片闭合；
+3. 当前完成 P115c 音阶与调式 vertical slice：三难度稳定题库、正确半音结构、逐音播放、统一 Activity 答案、复练/画像迁移和隐私边界必须同一切片闭合；
 4. 不先做伙伴形象、首页悬浮物或自由聊天；
-5. P115 的和声进行、音阶/调式、完整题量与教育审核继续拆成后续可验证切片；M1a 单伙伴可信反馈闭环仍按证据和依赖门槛启动；
+5. P115 的七和弦、调制、定制集合与教育审核继续拆成后续可验证切片；M1a 单伙伴可信反馈闭环仍按证据和依赖门槛启动；
 6. 后续按 R2–R9 滚动推进，每个切片完成“实现 → focused tests → 完整检查 → 提交 → 推送 → PR → CI → 审查 → squash merge → 状态更新”；
 7. 只在最终交付完成或必须由产品所有者、真实设备参与者、教育专家、合法数据/许可方处理的外部硬阻塞时暂停。
 

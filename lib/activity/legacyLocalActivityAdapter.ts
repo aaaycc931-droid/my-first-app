@@ -5,6 +5,7 @@ import type { LocalEarTrainingRhythmQuestion } from "../practice/localEarTrainin
 import type { LocalEarTrainingMelodyQuestion } from "../practice/localEarTrainingMelodyDictation";
 import type { LocalEarTrainingChordQuestion } from "../practice/localEarTrainingChords";
 import type { LocalEarTrainingHarmonyProgressionQuestion } from "../practice/localEarTrainingHarmonyProgressions";
+import type { LocalEarTrainingScaleModeQuestion } from "../practice/localEarTrainingScaleModes";
 
 const DIFFICULTY: Record<EarTrainingSinglePitchDifficulty, ActivityDifficulty> = {
   基础: "foundation", 进阶: "intermediate", 挑战: "challenge",
@@ -104,6 +105,30 @@ export const adaptHarmonyProgressionQuestionToActivity = (
   },
   explanation: question.explanation,
   music: { key: question.key.label, referenceTimbre: "web-audio-sine-compatibility" },
+});
+
+export const adaptScaleModeQuestionToActivity = (
+  question: LocalEarTrainingScaleModeQuestion,
+): ActivityDefinitionV1 => ({
+  schemaVersion: "activity-definition-v1",
+  activityId: `local.scale-mode.${question.variantId}`,
+  activityVersion: "1",
+  contentVersion: "local-scale-mode-v1",
+  family: "scale-mode",
+  title: "音阶与调式听辨",
+  instructions: "听从主音开始的上行音阶，选择音阶或调式类型。",
+  skillTags: ["音阶", "调式", question.scaleMode.label, "听辨"],
+  difficulty: DIFFICULTY[question.difficulty],
+  assessmentMode: "non-scoring",
+  source: { kind: "built-in", reviewState: "confirmed" },
+  allowedInputModes: ["choice"],
+  target: {
+    targetId: `scale-mode:${question.scaleMode.id}`,
+    label: question.scaleMode.label,
+    expectedAnswer: { mode: "choice", optionIds: [question.answerOptionId] },
+  },
+  explanation: question.explanation,
+  music: { key: question.tonic.label, referenceTimbre: "web-audio-sine-compatibility" },
 });
 
 export const adaptRhythmQuestionToActivity = (

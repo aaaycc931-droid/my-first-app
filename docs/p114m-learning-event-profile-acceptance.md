@@ -57,3 +57,5 @@ QA level recommendation：**strict**
 P115a 在不改变 `learning-profile-v1` 非评分语义的前提下新增 `chord-inversion` 事实，并把存储信封升级为 schema v2。既有 schema v1 读取后为新事实补零，后续保存时规范化为 v2；该扩展不把 P114m 的合并证据追溯改写为 P115a 证据。
 
 P115b 候选继续保持相同非评分语义，新增 `harmony-progression` 事实并把信封升级为 schema v3。schema v1/v2 读取后会为缺失事实补零，后续保存时规范化为 v3；在 P115b 合并前，这只是兼容实现证据，不追溯改写 P114m/P115a 的既有合并证据。
+
+P115c 候选新增 `scale-mode` 事实并把信封升级为 schema v4。schema v1–v3 读取后会为缺失事实补零，后续保存时规范化为 v4；该迁移不改变非评分语义，也不追溯改写 P114m–P115b 的既有合并证据。
