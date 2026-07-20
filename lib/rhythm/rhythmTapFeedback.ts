@@ -10,16 +10,18 @@ import {
 } from "../metronome/metronomeGrid";
 
 export type RhythmPracticePhase = "idle" | "count-in" | "practice" | "stopped";
-export type RhythmTargetPattern = "quarter-note-pulse" | "eighth-note-pulse";
+export type RhythmTargetPattern = "quarter-note-pulse" | "eighth-note-pulse" | "sight-reading-question";
 
 export const rhythmTargetPatternLabels: Record<RhythmTargetPattern, string> = {
   "quarter-note-pulse": "Quarter-note pulse",
   "eighth-note-pulse": "Eighth-note pulse",
+  "sight-reading-question": "Visible rhythm question",
 };
 
 export const rhythmTargetPatternTapGuidance: Record<RhythmTargetPattern, string> = {
   "quarter-note-pulse": "Tap once per beat",
   "eighth-note-pulse": "Tap twice per beat",
+  "sight-reading-question": "Tap the visible onset positions",
 };
 
 export type RhythmTapFeedbackCategory =
@@ -262,6 +264,7 @@ export const alignRhythmTargetsAndTaps = ({
 const rhythmPatternSubdivisionCounts: Record<RhythmTargetPattern, number> = {
   "quarter-note-pulse": 1,
   "eighth-note-pulse": 2,
+  "sight-reading-question": 1,
 };
 
 export const createRhythmTargetPattern = ({
