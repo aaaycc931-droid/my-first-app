@@ -19,6 +19,8 @@ const requiredSources = [
   "lib/activity/rhythmSightReadingActivityAdapter.ts",
   "lib/practice/localRhythmImitation.ts",
   "lib/activity/rhythmImitationActivityAdapter.ts",
+  "lib/practice/localRhythmErrorFinding.ts",
+  "lib/activity/rhythmErrorFindingActivityAdapter.ts",
   "lib/activity/localVocalMicrophoneActivityAdapter.ts",
   "lib/practice/localEarTrainingChords.ts",
   "lib/practice/localEarTrainingHarmonyProgressions.ts",
@@ -51,6 +53,7 @@ const requiredSources = [
   "components/practice/LocalIntervalImitationPanel.tsx",
   "components/practice/LocalRhythmSightReadingPanel.tsx",
   "components/practice/LocalRhythmImitationPanel.tsx",
+  "components/practice/LocalRhythmErrorFindingPanel.tsx",
   "components/practice/RealtimePitchCurveChart.tsx",
   "components/practice/LocalVocalExercisePanel.tsx",
   "components/practice/useRealtimePitchMonitor.ts",
@@ -187,6 +190,18 @@ const rhythmImitationActivitySource = readFileSync(
 );
 const rhythmImitationPanelSource = readFileSync(
   join(root, "components/practice/LocalRhythmImitationPanel.tsx"),
+  "utf8",
+);
+const rhythmErrorFindingSource = readFileSync(
+  join(root, "lib/practice/localRhythmErrorFinding.ts"),
+  "utf8",
+);
+const rhythmErrorFindingActivitySource = readFileSync(
+  join(root, "lib/activity/rhythmErrorFindingActivityAdapter.ts"),
+  "utf8",
+);
+const rhythmErrorFindingPanelSource = readFileSync(
+  join(root, "components/practice/LocalRhythmErrorFindingPanel.tsx"),
   "utf8",
 );
 const vocalActivityAdapterSource = readFileSync(
@@ -349,6 +364,19 @@ if (
   || !rhythmImitationPanelSource.includes("不上传、不保存原始点击序列")
 ) {
   throw new Error("Android P116b 节奏回模、隐藏目标、非评分 Activity 或生命周期 fail-closed 边界不完整");
+}
+if (
+  !rhythmErrorFindingSource.includes("createLocalRhythmErrorFindingChallenge")
+  || !rhythmErrorFindingSource.includes('"missed" | "split" | "merged" | "shifted"')
+  || !rhythmErrorFindingActivitySource.includes('family: "rhythm-error-finding"')
+  || !rhythmErrorFindingActivitySource.includes('assessmentMode: "non-scoring"')
+  || !rhythmErrorFindingPanelSource.includes("P116c · 本地节奏找错")
+  || !rhythmErrorFindingPanelSource.includes("必须完整播放后才能标记")
+  || !rhythmErrorFindingPanelSource.includes("subscribeBrowserAudioStopAll")
+  || !rhythmErrorFindingPanelSource.includes("playbackTokenRef")
+  || !rhythmErrorFindingPanelSource.includes("不推断演奏能力")
+) {
+  throw new Error("Android P116c 节奏找错、单一事件变化、非评分 Activity 或生命周期 fail-closed 边界不完整");
 }
 if (
   !seventhChordSource.includes("getLocalSeventhChordVariantCount")
@@ -673,4 +701,4 @@ if (existsSync(manifestPath) && !existsSync(syncedIndex)) {
   throw new Error("Android 工程存在，但本地 Web 资源尚未同步");
 }
 
-console.log("Android 本地模式校验通过：固定包名、本地资源、既有十类练习、P116a 节奏视读与会话校准、P116b 隐藏目标节奏回模、音程比较/非评分模唱反馈、实时音高反馈、本机复练、非评分学习画像、本地参考钢琴、无远程运行时配置与生命周期保护。");
+console.log("Android 本地模式校验通过：固定包名、本地资源、既有十类练习、P116a 节奏视读与会话校准、P116b 隐藏目标节奏回模、P116c 单一事件节奏找错、音程比较/非评分模唱反馈、实时音高反馈、本机复练、非评分学习画像、本地参考钢琴、无远程运行时配置与生命周期保护。");

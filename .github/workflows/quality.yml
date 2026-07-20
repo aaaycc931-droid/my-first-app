@@ -111,6 +111,8 @@ jobs:
           npm run test:mobile-rhythm-sight-reading-behavior
           npm run test:local-rhythm-imitation
           npm run test:mobile-rhythm-imitation-behavior
+          npm run test:local-rhythm-error-finding
+          npm run test:mobile-rhythm-error-finding-behavior
           npm run test:local-ear-training-melody-dictation
           npm run test:local-piano-keyboard
 

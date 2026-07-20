@@ -30,6 +30,7 @@ import { useChoiceActivitySession } from "./useChoiceActivitySession";
 import { adaptRhythmQuestionToActivity } from "../../lib/activity/legacyLocalActivityAdapter";
 import { LocalRhythmSightReadingPanel } from "./LocalRhythmSightReadingPanel";
 import { LocalRhythmImitationPanel } from "./LocalRhythmImitationPanel";
+import { LocalRhythmErrorFindingPanel } from "./LocalRhythmErrorFindingPanel";
 
 export function LocalEarTrainingRhythmPanel({
   courseExerciseId,
@@ -264,6 +265,15 @@ export function LocalEarTrainingRhythmPanel({
       {expandedLocalCatalog && !courseExerciseId && !activeCustomPractice ? (
         <LocalRhythmImitationPanel
           key={`imitation:${question.id}`}
+          question={question}
+          sessionSeed={sessionSeed}
+          onLocalAnswerResult={onLocalAnswerResult}
+        />
+      ) : null}
+
+      {expandedLocalCatalog && !courseExerciseId && !activeCustomPractice ? (
+        <LocalRhythmErrorFindingPanel
+          key={`error-finding:${question.id}`}
           question={question}
           sessionSeed={sessionSeed}
           onLocalAnswerResult={onLocalAnswerResult}
