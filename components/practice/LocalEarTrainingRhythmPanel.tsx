@@ -28,6 +28,7 @@ import { ActivityChoiceAnswerPanel } from "./ActivityChoiceAnswerPanel";
 import { ActivityProtocolState } from "./ActivityProtocolState";
 import { useChoiceActivitySession } from "./useChoiceActivitySession";
 import { adaptRhythmQuestionToActivity } from "../../lib/activity/legacyLocalActivityAdapter";
+import { LocalRhythmSightReadingPanel } from "./LocalRhythmSightReadingPanel";
 
 export function LocalEarTrainingRhythmPanel({
   courseExerciseId,
@@ -249,6 +250,15 @@ export function LocalEarTrainingRhythmPanel({
           {courseExerciseId ? <CourseAttemptSaveNotice status={saveStatus} /> : null}
         </div>
       </div>
+
+      {expandedLocalCatalog && !courseExerciseId && !activeCustomPractice ? (
+        <LocalRhythmSightReadingPanel
+          key={`sight-reading:${question.id}`}
+          question={question}
+          sessionSeed={sessionSeed}
+          onLocalAnswerResult={onLocalAnswerResult}
+        />
+      ) : null}
 
       {showLocalPiano ? (
         <section className="mt-5 rounded-2xl border border-rose-200 bg-rose-50 p-4" aria-label="节奏听辨参考钢琴">

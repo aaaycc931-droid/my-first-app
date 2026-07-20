@@ -107,6 +107,8 @@ jobs:
           npm run test:local-harmony-progressions
           npm run test:local-scale-modes
           npm run test:local-ear-training-rhythm
+          npm run test:local-rhythm-sight-reading
+          npm run test:mobile-rhythm-sight-reading-behavior
           npm run test:local-ear-training-melody-dictation
           npm run test:local-piano-keyboard
 

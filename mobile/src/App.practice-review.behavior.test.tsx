@@ -246,6 +246,11 @@ describe("Android 本机复练行为", () => {
       await click(findLink(container, practiceLabel));
       await waitFor(() => !findButton(container, answerLabel).disabled, `${practiceLabel}题目可回答`);
 
+      if (practiceLabel === "节奏听辨") {
+        expect(container.textContent).toContain("P116a · 本地节奏视读");
+        expect(container.textContent).toContain("看节奏目标，预备拍后点击");
+      }
+
       await click(findButton(container, answerLabel));
       expect(container.querySelector('[data-testid="activity-protocol-state"]')?.textContent)
         .toContain("已作答，等待检查");
