@@ -6,7 +6,7 @@ import {
 
 export const LEARNING_EVENT_SCHEMA_VERSION = "learning-event-v1" as const;
 export const LEARNING_PROFILE_SCHEMA_VERSION = "learning-profile-v1" as const;
-export const LEARNING_PROFILE_ENVELOPE_SCHEMA_VERSION = 4 as const;
+export const LEARNING_PROFILE_ENVELOPE_SCHEMA_VERSION = 5 as const;
 export const MAX_RECENT_LEARNING_EVENTS = 48;
 export const MAX_LEARNING_PROFILE_SERIALIZED_LENGTH = 24 * 1024;
 
@@ -59,6 +59,7 @@ const skillKinds: LearningSkillKind[] = [
   "chord-inversion",
   "harmony-progression",
   "scale-mode",
+  "seventh-chord",
   "rhythm",
   "melody-dictation",
 ];
@@ -311,7 +312,41 @@ const parseEvent = (value: unknown): LearningEvent | null => {
 };
 
 export const serializeLocalLearningHistory = (history: LocalLearningHistory): string =>
-  JSON.stringify(history);
+  JSON.stringify({
+    schemaVersion: LEARNING_PROFILE_ENVELOPE_SCHEMA_VERSION,
+    nextSequence: history.nextSequence,
+    profile: {
+      schemaVersion: LEARNING_PROFILE_SCHEMA_VERSION,
+      revision: history.profile.revision,
+      suggestionsEnabled: history.profile.suggestionsEnabled,
+      checkedCount: history.profile.checkedCount,
+      correctCount: history.profile.correctCount,
+      incorrectCount: history.profile.incorrectCount,
+      reviewStartedCount: history.profile.reviewStartedCount,
+      reviewResolvedCount: history.profile.reviewResolvedCount,
+      skillFacts: history.profile.skillFacts.map((fact) => ({
+        skillKind: fact.skillKind,
+        checkedCount: fact.checkedCount,
+        correctCount: fact.correctCount,
+        incorrectCount: fact.incorrectCount,
+        reviewStartedCount: fact.reviewStartedCount,
+        reviewResolvedCount: fact.reviewResolvedCount,
+      })),
+      updatedAt: history.profile.updatedAt,
+    },
+    recentEvents: history.recentEvents.map((event) => ({
+      schemaVersion: LEARNING_EVENT_SCHEMA_VERSION,
+      eventId: event.eventId,
+      sequence: event.sequence,
+      occurredAt: event.occurredAt,
+      kind: event.kind,
+      skillKind: event.skillKind,
+      difficulty: event.difficulty,
+      targetKey: event.targetKey,
+      practiceMode: event.practiceMode,
+      outcome: event.outcome,
+    })),
+  } satisfies LocalLearningHistory);
 
 export const deserializeLocalLearningHistory = (input: string): LocalLearningHistory | null => {
   if (input.length > MAX_LEARNING_PROFILE_SERIALIZED_LENGTH) return null;
@@ -323,17 +358,19 @@ export const deserializeLocalLearningHistory = (input: string): LocalLearningHis
   }
   if (!isRecord(value) || !hasExactKeys(value, ["schemaVersion", "nextSequence", "profile", "recentEvents"])) return null;
   const isCurrent = value.schemaVersion === LEARNING_PROFILE_ENVELOPE_SCHEMA_VERSION;
+  const isPreviousScaleMode = value.schemaVersion === 4;
   const isPreviousProgression = value.schemaVersion === 3;
   const isPreviousChord = value.schemaVersion === 2;
   const isPrevious = value.schemaVersion === 1;
-  if ((!isCurrent && !isPreviousProgression && !isPreviousChord && !isPrevious) || !isCount(value.nextSequence) || value.nextSequence < 1) return null;
+  if ((!isCurrent && !isPreviousScaleMode && !isPreviousProgression && !isPreviousChord && !isPrevious) || !isCount(value.nextSequence) || value.nextSequence < 1) return null;
   const nextSequence = value.nextSequence;
   const rawProfile = !isCurrent && isRecord(value.profile) && Array.isArray(value.profile.skillFacts)
     ? { ...value.profile, skillFacts: [
       ...value.profile.skillFacts,
       ...(isPrevious ? [{ skillKind: "chord-inversion", checkedCount: 0, correctCount: 0, incorrectCount: 0, reviewStartedCount: 0, reviewResolvedCount: 0 }] : []),
       ...((isPrevious || isPreviousChord) ? [{ skillKind: "harmony-progression", checkedCount: 0, correctCount: 0, incorrectCount: 0, reviewStartedCount: 0, reviewResolvedCount: 0 }] : []),
-      { skillKind: "scale-mode", checkedCount: 0, correctCount: 0, incorrectCount: 0, reviewStartedCount: 0, reviewResolvedCount: 0 },
+      ...((isPrevious || isPreviousChord || isPreviousProgression) ? [{ skillKind: "scale-mode", checkedCount: 0, correctCount: 0, incorrectCount: 0, reviewStartedCount: 0, reviewResolvedCount: 0 }] : []),
+      { skillKind: "seventh-chord", checkedCount: 0, correctCount: 0, incorrectCount: 0, reviewStartedCount: 0, reviewResolvedCount: 0 },
     ] }
     : value.profile;
   const profile = parseProfile(rawProfile);
@@ -341,6 +378,16 @@ export const deserializeLocalLearningHistory = (input: string): LocalLearningHis
   const recentEvents = value.recentEvents.map(parseEvent);
   if (recentEvents.some((event) => event === null)) return null;
   const events = recentEvents as LearningEvent[];
+  const allowedPreviousKinds = isPrevious
+    ? new Set<LearningSkillKind>(["single-pitch", "interval", "rhythm", "melody-dictation"])
+    : isPreviousChord
+      ? new Set<LearningSkillKind>(["single-pitch", "interval", "chord-inversion", "rhythm", "melody-dictation"])
+      : isPreviousProgression
+        ? new Set<LearningSkillKind>(["single-pitch", "interval", "chord-inversion", "harmony-progression", "rhythm", "melody-dictation"])
+        : isPreviousScaleMode
+          ? new Set<LearningSkillKind>(["single-pitch", "interval", "chord-inversion", "harmony-progression", "scale-mode", "rhythm", "melody-dictation"])
+          : null;
+  if (allowedPreviousKinds && events.some((event) => !allowedPreviousKinds.has(event.skillKind))) return null;
   for (let index = 1; index < events.length; index += 1) {
     if (events[index].sequence <= events[index - 1].sequence) return null;
   }

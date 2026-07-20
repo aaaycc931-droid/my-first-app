@@ -114,6 +114,11 @@ assert.match(resolveLocalLearningSuggestion(history, [pitch])?.reason ?? "", /1 
 
 const serialized = serializeLocalLearningHistory(history);
 assert.deepEqual(deserializeLocalLearningHistory(serialized), history);
+const tainted = { ...history, selection: "private", audio: "bytes", email: "user@example.com" };
+const sanitized = serializeLocalLearningHistory(tainted);
+for (const forbidden of ["selection", "private", "audio", "bytes", "email", "user@example.com"]) {
+  assert.equal(sanitized.includes(forbidden), false, `序列化不得保留污染字段 ${forbidden}`);
+}
 const previous = JSON.parse(serialized) as {
   schemaVersion: number;
   profile: {
@@ -129,33 +134,42 @@ previous.profile.checkedCount -= 3;
 previous.profile.incorrectCount -= 3;
 previous.profile.updatedAt = "2026-07-19T00:03:00.000Z";
 previous.profile.skillFacts = previous.profile.skillFacts.filter(
-  (fact) => fact.skillKind !== "chord-inversion" && fact.skillKind !== "harmony-progression" && fact.skillKind !== "scale-mode",
+  (fact) => fact.skillKind !== "chord-inversion" && fact.skillKind !== "harmony-progression" && fact.skillKind !== "scale-mode" && fact.skillKind !== "seventh-chord",
 );
 previous.recentEvents = previous.recentEvents.filter(
-  (event) => event.skillKind !== "chord-inversion" && event.skillKind !== "harmony-progression" && event.skillKind !== "scale-mode",
+  (event) => event.skillKind !== "chord-inversion" && event.skillKind !== "harmony-progression" && event.skillKind !== "scale-mode" && event.skillKind !== "seventh-chord",
 );
 const migrated = deserializeLocalLearningHistory(JSON.stringify(previous));
-assert.equal(migrated?.schemaVersion, 4);
-assert.equal(migrated?.profile.skillFacts.length, 7);
+assert.equal(migrated?.schemaVersion, 5);
+assert.equal(migrated?.profile.skillFacts.length, 8);
 assert.equal(migrated?.profile.skillFacts.find((fact) => fact.skillKind === "chord-inversion")?.checkedCount, 0);
 assert.equal(migrated?.profile.skillFacts.find((fact) => fact.skillKind === "harmony-progression")?.checkedCount, 0);
 assert.equal(migrated?.profile.skillFacts.find((fact) => fact.skillKind === "scale-mode")?.checkedCount, 0);
+assert.equal(migrated?.profile.skillFacts.find((fact) => fact.skillKind === "seventh-chord")?.checkedCount, 0);
 const previousChord = JSON.parse(serialized) as typeof previous;
 previousChord.schemaVersion = 2;
 previousChord.profile.checkedCount -= 2;
 previousChord.profile.incorrectCount -= 2;
 previousChord.profile.updatedAt = "2026-07-19T00:04:00.000Z";
-previousChord.profile.skillFacts = previousChord.profile.skillFacts.filter((fact) => fact.skillKind !== "harmony-progression" && fact.skillKind !== "scale-mode");
-previousChord.recentEvents = previousChord.recentEvents.filter((event) => event.skillKind !== "harmony-progression" && event.skillKind !== "scale-mode");
-assert.equal(deserializeLocalLearningHistory(JSON.stringify(previousChord))?.schemaVersion, 4);
+previousChord.profile.skillFacts = previousChord.profile.skillFacts.filter((fact) => fact.skillKind !== "harmony-progression" && fact.skillKind !== "scale-mode" && fact.skillKind !== "seventh-chord");
+previousChord.recentEvents = previousChord.recentEvents.filter((event) => event.skillKind !== "harmony-progression" && event.skillKind !== "scale-mode" && event.skillKind !== "seventh-chord");
+assert.equal(deserializeLocalLearningHistory(JSON.stringify(previousChord))?.schemaVersion, 5);
 const previousProgression = JSON.parse(serialized) as typeof previous;
 previousProgression.schemaVersion = 3;
 previousProgression.profile.checkedCount -= 1;
 previousProgression.profile.incorrectCount -= 1;
 previousProgression.profile.updatedAt = "2026-07-19T00:05:00.000Z";
-previousProgression.profile.skillFacts = previousProgression.profile.skillFacts.filter((fact) => fact.skillKind !== "scale-mode");
-previousProgression.recentEvents = previousProgression.recentEvents.filter((event) => event.skillKind !== "scale-mode");
-assert.equal(deserializeLocalLearningHistory(JSON.stringify(previousProgression))?.schemaVersion, 4);
+previousProgression.profile.skillFacts = previousProgression.profile.skillFacts.filter((fact) => fact.skillKind !== "scale-mode" && fact.skillKind !== "seventh-chord");
+previousProgression.recentEvents = previousProgression.recentEvents.filter((event) => event.skillKind !== "scale-mode" && event.skillKind !== "seventh-chord");
+assert.equal(deserializeLocalLearningHistory(JSON.stringify(previousProgression))?.schemaVersion, 5);
+const previousScale = JSON.parse(serialized) as typeof previous;
+previousScale.schemaVersion = 4;
+previousScale.profile.skillFacts = previousScale.profile.skillFacts.filter((fact) => fact.skillKind !== "seventh-chord");
+previousScale.recentEvents = previousScale.recentEvents.filter((event) => event.skillKind !== "seventh-chord");
+assert.equal(deserializeLocalLearningHistory(JSON.stringify(previousScale))?.schemaVersion, 5);
+const futureEventInV4 = JSON.parse(JSON.stringify(previousScale)) as typeof previous;
+futureEventInV4.recentEvents[0].skillKind = "seventh-chord";
+assert.equal(deserializeLocalLearningHistory(JSON.stringify(futureEventInV4)), null);
 for (const forbidden of ["selected", "recording", "audio", "email", "score", "grade", "accuracyPercentage"]) {
   assert.equal(serialized.includes(forbidden), false, `不得保存 ${forbidden}`);
 }

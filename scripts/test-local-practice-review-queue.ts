@@ -98,8 +98,8 @@ const serialized = serializeLocalPracticeReviewQueue(allKinds);
 assert.deepEqual(parseLocalPracticeReviewQueue(serialized), allKinds);
 const serializedValue = JSON.parse(serialized) as Record<string, unknown>;
 assert.deepEqual(Object.keys(serializedValue).sort(), ["catalogVersion", "schemaVersion", "targets"]);
-assert.equal(serializedValue.schemaVersion, 5);
-assert.equal(serializedValue.catalogVersion, 5);
+assert.equal(serializedValue.schemaVersion, 6);
+assert.equal(serializedValue.catalogVersion, 6);
 assert.equal(serialized.includes("selection"), false);
 assert.equal(serialized.includes("answer"), false);
 assert.equal(serialized.includes("score"), false);
@@ -121,7 +121,7 @@ const challengePitch: LocalPracticeReviewTarget = {
 assert.deepEqual(
   parseLocalPracticeReviewQueue(serializeLocalPracticeReviewQueue([challengePitch])),
   [challengePitch],
-  "catalog v5 challenge targets round-trip with a stable variant id",
+  "catalog v6 challenge targets round-trip with a stable variant id",
 );
 
 const validEnvelope = JSON.parse(serialized) as {
@@ -171,6 +171,15 @@ assert.deepEqual(deserializeLocalPracticeReviewQueue(JSON.stringify(previousProg
   queue: [...legacyKinds, chord, progression],
   migrated: true,
 });
+const previousScaleEnvelope = {
+  schemaVersion: 5,
+  catalogVersion: 5,
+  targets: [...legacyKinds, chord, progression, scale],
+};
+assert.deepEqual(deserializeLocalPracticeReviewQueue(JSON.stringify(previousScaleEnvelope)), {
+  queue: [...legacyKinds, chord, progression, scale],
+  migrated: true,
+}, "v5 scale-mode review targets must survive the v6 migration");
 
 const duplicateLegacyEnvelope = {
   schemaVersion: 1,

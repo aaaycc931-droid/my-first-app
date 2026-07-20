@@ -5,6 +5,7 @@ import {
   adaptChordQuestionToActivity,
   adaptHarmonyProgressionQuestionToActivity,
   adaptScaleModeQuestionToActivity,
+  adaptSeventhChordQuestionToActivity,
   adaptMelodyDictationQuestionToActivity,
   adaptRhythmQuestionToActivity,
   adaptSinglePitchQuestionToActivity,
@@ -16,6 +17,7 @@ import { createLocalEarTrainingMelodyQuestion } from "../lib/practice/localEarTr
 import { createLocalEarTrainingChordQuestion } from "../lib/practice/localEarTrainingChords";
 import { createLocalHarmonyProgressionQuestion } from "../lib/practice/localEarTrainingHarmonyProgressions";
 import { createLocalScaleModeQuestion } from "../lib/practice/localEarTrainingScaleModes";
+import { createLocalSeventhChordQuestion } from "../lib/practice/localEarTrainingSeventhChords";
 
 const single = adaptSinglePitchQuestionToActivity(createLocalEarTrainingSinglePitchQuestion({
   difficulty: "基础", sequence: 0, questionIndex: 0, catalogMode: "expanded-local-v2",
@@ -62,6 +64,15 @@ assert.equal(scale.contentVersion, "local-scale-mode-v1");
 assert.deepEqual(scale.target.expectedAnswer, { mode: "choice", optionIds: ["lydian"] });
 assert.match(scale.explanation, /升高的四级/);
 
+const seventhQuestion = createLocalSeventhChordQuestion({
+  difficulty: "挑战", sequence: 0, variantId: "seventh-chord:c3:dominant-seventh:third",
+});
+const seventh = adaptSeventhChordQuestionToActivity(seventhQuestion);
+assert.equal(seventh.family, "chord");
+assert.equal(seventh.contentVersion, "local-seventh-chord-v1");
+assert.deepEqual(seventh.target.expectedAnswer, { mode: "choice", optionIds: ["dominant-seventh-third"] });
+assert.match(seventh.explanation, /第三转位/);
+
 const rhythmQuestion = createLocalEarTrainingRhythmQuestion({
   difficulty: "进阶", sequence: 0, questionIndex: 0, catalogMode: "expanded-local-v2",
 });
@@ -82,7 +93,7 @@ assert.deepEqual(
   { mode: "choice", optionIds: melodyQuestion.melody.noteIds },
 );
 
-for (const activity of [single, interval, chord, progression, scale, rhythm, melody]) {
+for (const activity of [single, interval, chord, progression, scale, seventh, rhythm, melody]) {
   assert.equal(activity.assessmentMode, "non-scoring");
   assert.equal(activity.source.reviewState, "confirmed");
   assert.equal("score" in activity, false);
