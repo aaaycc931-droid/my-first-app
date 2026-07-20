@@ -273,6 +273,11 @@ if (
   || !harmonyProgressionSource.includes('id: "deceptive"')
   || !harmonyProgressionPanelSource.includes("和声进行与终止式听辨")
   || !harmonyProgressionPanelSource.includes("播放和声进行")
+  || !harmonyProgressionPanelSource.includes("只听低音线索")
+  || !harmonyProgressionPanelSource.includes("只听高声部线索")
+  || !harmonyProgressionPanelSource.includes("不改变答案，也不单独判分")
+  || !harmonyProgressionSource.includes("voiceLeadingCue")
+  || !harmonyProgressionSource.includes("这些方向来自本题实际排列")
   || !mobileApp.includes('"progression"')
   || !mobileApp.includes("和声进行")
 ) {
