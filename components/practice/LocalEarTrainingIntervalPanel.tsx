@@ -18,6 +18,7 @@ import type {
   LocalPracticeAnswerResult,
   LocalPracticeReviewTarget,
 } from "../../lib/practice/localPracticeReviewQueue";
+import type { ResolvedLocalPracticeCustomization } from "../../lib/practice/localPracticeCustomizer";
 import {
   CourseAttemptSaveNotice,
   useCourseAttemptPersistence,
@@ -35,6 +36,7 @@ export function LocalEarTrainingIntervalPanel({
   initialReviewTarget,
   onLocalAnswerResult,
   onLeaveReviewTarget,
+  customPractice,
   showLocalPiano = false,
   expandedLocalCatalog = false,
 }: {
@@ -42,18 +44,25 @@ export function LocalEarTrainingIntervalPanel({
   initialReviewTarget?: Extract<LocalPracticeReviewTarget, { kind: "interval" }>;
   onLocalAnswerResult?: (result: LocalPracticeAnswerResult) => void;
   onLeaveReviewTarget?: () => void;
+  customPractice?: ResolvedLocalPracticeCustomization;
   showLocalPiano?: boolean;
   expandedLocalCatalog?: boolean;
 }) {
+  const customConfig = customPractice?.customization.kind === "interval"
+    ? customPractice.customization
+    : undefined;
+  const activeCustomPractice = customConfig ? customPractice : undefined;
   const catalogMode = courseExerciseId || !expandedLocalCatalog
     ? "legacy-v1"
     : "expanded-local-v2";
   const [isLocalPianoOpen, setIsLocalPianoOpen] = useState(false);
-  const [difficulty, setDifficulty] = useState<EarTrainingDifficulty>(initialReviewTarget?.difficulty ?? "基础");
-  const [direction, setDirection] = useState<EarTrainingDirection>(initialReviewTarget?.direction ?? "上行");
+  const [difficulty, setDifficulty] = useState<EarTrainingDifficulty>(initialReviewTarget?.difficulty ?? customConfig?.difficulty ?? "基础");
+  const [direction, setDirection] = useState<EarTrainingDirection>(initialReviewTarget?.direction ?? customConfig?.intervalDirection ?? "上行");
   const [sequence, setSequence] = useState(initialReviewTarget?.sequence ?? 0);
-  const answerIntervals = getLocalEarTrainingIntervals(difficulty, catalogMode);
-  const variantCount = getLocalEarTrainingQuestionVariantCount(difficulty, catalogMode);
+  const answerIntervals = getLocalEarTrainingIntervals(difficulty, catalogMode)
+    .filter((interval) => !activeCustomPractice || activeCustomPractice.answerOptionIds.includes(interval.id));
+  const variantCount = activeCustomPractice?.variantIds.length
+    ?? getLocalEarTrainingQuestionVariantCount(difficulty, catalogMode);
   const { questionIndex, sessionSeed, isReady: isQuestionReady } = useLocalQuestionSchedule({
     itemCount: variantCount,
     sequence,
@@ -78,10 +87,10 @@ export function LocalEarTrainingIntervalPanel({
       direction,
       sequence,
       questionIndex,
-      variantId: initialReviewTarget?.variantId,
+      variantId: initialReviewTarget?.variantId ?? activeCustomPractice?.variantIds[questionIndex],
       catalogMode,
     }),
-    [catalogMode, difficulty, direction, initialReviewTarget?.variantId, questionIndex, sequence],
+    [activeCustomPractice, catalogMode, difficulty, direction, initialReviewTarget?.variantId, questionIndex, sequence],
   );
   const answer = useMemo(
     () => getLocalEarTrainingAnswer({ question, selectedIntervalId }),
@@ -186,7 +195,7 @@ export function LocalEarTrainingIntervalPanel({
           <label className="block text-sm font-semibold text-slate-800" htmlFor="ear-training-difficulty">练习难度</label>
           <select
             id="ear-training-difficulty"
-            disabled={Boolean(courseExerciseId || initialReviewTarget)}
+            disabled={Boolean(courseExerciseId || initialReviewTarget || activeCustomPractice)}
             className="mt-2 w-full rounded-xl border border-emerald-200 bg-white px-3 py-2 text-slate-900 disabled:cursor-not-allowed disabled:bg-slate-100"
             value={difficulty}
             onChange={(event) => {
@@ -210,7 +219,7 @@ export function LocalEarTrainingIntervalPanel({
                 <button
                   key={option}
                   type="button"
-                  disabled={Boolean(initialReviewTarget)}
+                  disabled={Boolean(initialReviewTarget || activeCustomPractice)}
                   onClick={() => {
                     stopPlayback();
                     setDirection(option);

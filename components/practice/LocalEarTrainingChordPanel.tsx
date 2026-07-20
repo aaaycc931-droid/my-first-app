@@ -16,6 +16,7 @@ import type {
   LocalPracticeAnswerResult,
   LocalPracticeReviewTarget,
 } from "../../lib/practice/localPracticeReviewQueue";
+import type { ResolvedLocalPracticeCustomization } from "../../lib/practice/localPracticeCustomizer";
 import { ActivityChoiceAnswerPanel } from "./ActivityChoiceAnswerPanel";
 import { ActivityProtocolState } from "./ActivityProtocolState";
 import { useChoiceActivitySession } from "./useChoiceActivitySession";
@@ -27,25 +28,32 @@ export function LocalEarTrainingChordPanel({
   initialReviewTarget,
   onLocalAnswerResult,
   onLeaveReviewTarget,
+  customPractice,
   showLocalPiano = false,
 }: {
   initialReviewTarget?: Extract<LocalPracticeReviewTarget, { kind: "chord-inversion" }>;
   onLocalAnswerResult?: (result: LocalPracticeAnswerResult) => void;
   onLeaveReviewTarget?: () => void;
+  customPractice?: ResolvedLocalPracticeCustomization;
   showLocalPiano?: boolean;
 }) {
+  const customConfig = customPractice?.customization.kind === "chord-inversion"
+    ? customPractice.customization
+    : undefined;
+  const activeCustomPractice = customConfig ? customPractice : undefined;
   const [difficulty, setDifficulty] = useState<LocalPracticeDifficulty>(
-    initialReviewTarget?.difficulty ?? "基础",
+    initialReviewTarget?.difficulty ?? customConfig?.difficulty ?? "基础",
   );
   const [playbackMode, setPlaybackMode] = useState<ChordPlaybackMode>(
-    initialReviewTarget?.playbackMode ?? "和声",
+    initialReviewTarget?.playbackMode ?? customConfig?.chordPlaybackMode ?? "和声",
   );
   const [sequence, setSequence] = useState(initialReviewTarget?.sequence ?? 0);
   const [isLocalPianoOpen, setIsLocalPianoOpen] = useState(false);
   const [audioError, setAudioError] = useState("");
   const answerLock = useLockedPracticeAnswer<string | null>(null, (selection) => selection !== null);
   const { isPlaying, playbackState, play, stop: stopPlayback } = useLocalAudioPlayback();
-  const variantCount = getLocalEarTrainingChordVariantCount(difficulty);
+  const variantCount = activeCustomPractice?.variantIds.length
+    ?? getLocalEarTrainingChordVariantCount(difficulty);
   const { questionIndex, sessionSeed, isReady } = useLocalQuestionSchedule({
     itemCount: variantCount,
     sequence,
@@ -56,9 +64,13 @@ export function LocalEarTrainingChordPanel({
     difficulty,
     sequence,
     questionIndex,
-    variantId: initialReviewTarget?.variantId,
-  }), [difficulty, initialReviewTarget?.variantId, questionIndex, sequence]);
-  const options = useMemo(() => getLocalChordAnswerOptions(difficulty), [difficulty]);
+    variantId: initialReviewTarget?.variantId ?? activeCustomPractice?.variantIds[questionIndex],
+  }), [activeCustomPractice, difficulty, initialReviewTarget?.variantId, questionIndex, sequence]);
+  const options = useMemo(
+    () => getLocalChordAnswerOptions(difficulty)
+      .filter((option) => !activeCustomPractice || activeCustomPractice.answerOptionIds.includes(option.id)),
+    [activeCustomPractice, difficulty],
+  );
   const answer = useMemo(() => getLocalEarTrainingChordAnswer({
     question,
     selectedOptionId: answerLock.selection,
@@ -133,7 +145,7 @@ export function LocalEarTrainingChordPanel({
       <div className="mt-5 grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.25fr)]">
         <div className="rounded-2xl bg-fuchsia-50 p-4 ring-1 ring-fuchsia-100">
           <label className="block text-sm font-semibold text-slate-800" htmlFor="chord-training-difficulty">练习难度</label>
-          <select id="chord-training-difficulty" value={difficulty} disabled={Boolean(initialReviewTarget)} onChange={(event) => {
+          <select id="chord-training-difficulty" value={difficulty} disabled={Boolean(initialReviewTarget || activeCustomPractice)} onChange={(event) => {
             stopPlayback();
             setDifficulty(event.target.value as LocalPracticeDifficulty);
             setSequence(0);
@@ -149,7 +161,7 @@ export function LocalEarTrainingChordPanel({
             <legend className="text-sm font-semibold text-slate-800">播放方式</legend>
             <div className="mt-2 grid grid-cols-2 gap-2">
               {(["和声", "分解"] as ChordPlaybackMode[]).map((mode) => (
-                <button key={mode} type="button" disabled={Boolean(initialReviewTarget)} aria-pressed={playbackMode === mode} onClick={() => {
+                <button key={mode} type="button" disabled={Boolean(initialReviewTarget || activeCustomPractice)} aria-pressed={playbackMode === mode} onClick={() => {
                   stopPlayback();
                   setPlaybackMode(mode);
                   answerLock.reset();

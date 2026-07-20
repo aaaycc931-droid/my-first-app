@@ -11,6 +11,7 @@ import {
   getLocalModulationVariantCount,
 } from "../../lib/practice/localEarTrainingModulations";
 import type { LocalPracticeDifficulty } from "../../lib/practice/localPracticeCatalog";
+import type { ResolvedLocalPracticeCustomization } from "../../lib/practice/localPracticeCustomizer";
 import type {
   LocalPracticeAnswerResult,
   LocalPracticeReviewTarget,
@@ -24,17 +25,22 @@ import { useLockedPracticeAnswer } from "./useLockedPracticeAnswer";
 
 export function LocalEarTrainingModulationPanel({
   initialReviewTarget,
+  customPractice,
   onLocalAnswerResult,
   onLeaveReviewTarget,
   showLocalPiano = false,
 }: {
   initialReviewTarget?: Extract<LocalPracticeReviewTarget, { kind: "modulation" }>;
+  customPractice?: ResolvedLocalPracticeCustomization;
   onLocalAnswerResult?: (result: LocalPracticeAnswerResult) => void;
   onLeaveReviewTarget?: () => void;
   showLocalPiano?: boolean;
 }) {
+  const activeCustomPractice = !initialReviewTarget && customPractice?.customization.kind === "modulation"
+    ? customPractice
+    : undefined;
   const [difficulty, setDifficulty] = useState<LocalPracticeDifficulty>(
-    initialReviewTarget?.difficulty ?? "基础",
+    initialReviewTarget?.difficulty ?? activeCustomPractice?.customization.difficulty ?? "基础",
   );
   const [sequence, setSequence] = useState(initialReviewTarget?.sequence ?? 0);
   const [isLocalPianoOpen, setIsLocalPianoOpen] = useState(false);
@@ -49,7 +55,7 @@ export function LocalEarTrainingModulationPanel({
     play,
     stop: stopPlayback,
   } = useLocalAudioPlayback();
-  const variantCount = getLocalModulationVariantCount(difficulty);
+  const variantCount = activeCustomPractice?.variantCount ?? getLocalModulationVariantCount(difficulty);
   const { questionIndex, sessionSeed, isReady } = useLocalQuestionSchedule({
     itemCount: variantCount,
     sequence,
@@ -61,13 +67,15 @@ export function LocalEarTrainingModulationPanel({
       difficulty,
       sequence,
       questionIndex,
-      variantId: initialReviewTarget?.variantId,
+      variantId: initialReviewTarget?.variantId ?? activeCustomPractice?.variantIds[questionIndex],
     }),
-    [difficulty, initialReviewTarget?.variantId, questionIndex, sequence],
+    [activeCustomPractice, difficulty, initialReviewTarget?.variantId, questionIndex, sequence],
   );
   const options = useMemo(
-    () => getLocalModulationAnswerOptions(difficulty),
-    [difficulty],
+    () => getLocalModulationAnswerOptions(difficulty).filter(
+      (option) => !activeCustomPractice || activeCustomPractice.answerOptionIds.includes(option.id),
+    ),
+    [activeCustomPractice, difficulty],
   );
   const answer = useMemo(
     () => getLocalModulationAnswer({
@@ -159,7 +167,7 @@ export function LocalEarTrainingModulationPanel({
           <select
             id="modulation-training-difficulty"
             value={difficulty}
-            disabled={Boolean(initialReviewTarget)}
+            disabled={Boolean(initialReviewTarget || activeCustomPractice)}
             onChange={(event) => {
               stopPlayback();
               setDifficulty(event.target.value as LocalPracticeDifficulty);

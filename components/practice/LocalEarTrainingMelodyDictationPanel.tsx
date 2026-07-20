@@ -10,11 +10,13 @@ import {
   getLocalEarTrainingMelodyAnswer,
   getLocalEarTrainingMelodyVariantCount,
   type EarTrainingMelodyDictationDifficulty,
+  type EarTrainingMelodyNoteId,
 } from "../../lib/practice/localEarTrainingMelodyDictation";
 import type {
   LocalPracticeAnswerResult,
   LocalPracticeReviewTarget,
 } from "../../lib/practice/localPracticeReviewQueue";
+import type { ResolvedLocalPracticeCustomization } from "../../lib/practice/localPracticeCustomizer";
 import { useLocalAudioPlayback } from "./useLocalAudioPlayback";
 import { useLockedPracticeAnswer } from "./useLockedPracticeAnswer";
 import { useLocalQuestionSchedule } from "./useLocalQuestionSchedule";
@@ -50,23 +52,28 @@ const getFixedSolfegeLabel = (noteId: string) => {
 
 export function LocalEarTrainingMelodyDictationPanel({
   initialReviewTarget,
+  customPractice,
   onLocalAnswerResult,
   onLeaveReviewTarget,
   showLocalPiano = false,
   expandedLocalCatalog = false,
 }: {
   initialReviewTarget?: Extract<LocalPracticeReviewTarget, { kind: "melody-dictation" }>;
+  customPractice?: ResolvedLocalPracticeCustomization;
   onLocalAnswerResult?: (result: LocalPracticeAnswerResult) => void;
   onLeaveReviewTarget?: () => void;
   showLocalPiano?: boolean;
   expandedLocalCatalog?: boolean;
 }) {
+  const activeCustomPractice = !initialReviewTarget && customPractice?.customization.kind === "melody-dictation"
+    ? customPractice
+    : undefined;
   const [isLocalPianoOpen, setIsLocalPianoOpen] = useState(false);
   const [answerMode, setAnswerMode] = useState<MelodyAnswerMode>("choice");
-  const [difficulty, setDifficulty] = useState<EarTrainingMelodyDictationDifficulty>(initialReviewTarget?.difficulty ?? "基础");
+  const [difficulty, setDifficulty] = useState<EarTrainingMelodyDictationDifficulty>(initialReviewTarget?.difficulty ?? activeCustomPractice?.customization.difficulty ?? "基础");
   const [sequence, setSequence] = useState(initialReviewTarget?.sequence ?? 0);
-  const catalogMode = expandedLocalCatalog ? "expanded-local-v2" : "legacy-v1";
-  const variantCount = getLocalEarTrainingMelodyVariantCount(difficulty, catalogMode);
+  const catalogMode = expandedLocalCatalog || activeCustomPractice ? "expanded-local-v2" : "legacy-v1";
+  const variantCount = activeCustomPractice?.variantCount ?? getLocalEarTrainingMelodyVariantCount(difficulty, catalogMode);
   const { questionIndex, sessionSeed, isReady: isQuestionReady } = useLocalQuestionSchedule({
     itemCount: variantCount,
     sequence,
@@ -85,9 +92,9 @@ export function LocalEarTrainingMelodyDictationPanel({
     difficulty,
     sequence,
     questionIndex,
-    variantId: initialReviewTarget?.variantId,
+    variantId: initialReviewTarget?.variantId ?? activeCustomPractice?.variantIds[questionIndex],
     catalogMode,
-  }), [catalogMode, difficulty, initialReviewTarget?.variantId, questionIndex, sequence]);
+  }), [activeCustomPractice, catalogMode, difficulty, initialReviewTarget?.variantId, questionIndex, sequence]);
   const answer = useMemo(() => getLocalEarTrainingMelodyAnswer({ question, selectedNoteIds }), [question, selectedNoteIds]);
   const activityDefinition = useMemo(
     () => enableMelodyFixedSolfegeInput(
@@ -187,7 +194,17 @@ export function LocalEarTrainingMelodyDictationPanel({
     setAnswerMode(nextMode);
   };
 
-  const answerOptions = getEarTrainingMelodyNoteIds(difficulty, catalogMode).map(
+  const customAnswerNoteIds = useMemo(() => activeCustomPractice
+    ? Array.from(new Set(activeCustomPractice.variantIds.flatMap((variantId, index) =>
+        createLocalEarTrainingMelodyQuestion({
+          difficulty,
+          sequence: index,
+          variantId,
+          catalogMode,
+        }).melody.noteIds,
+      ))) as EarTrainingMelodyNoteId[]
+    : undefined, [activeCustomPractice, catalogMode, difficulty]);
+  const answerOptions = (customAnswerNoteIds ?? getEarTrainingMelodyNoteIds(difficulty, catalogMode)).map(
     (noteId) => answerMode === "choice"
       ? earTrainingMelodyNotes[noteId]
       : { id: noteId, label: getFixedSolfegeLabel(noteId) },
@@ -213,7 +230,7 @@ export function LocalEarTrainingMelodyDictationPanel({
     <div className="mt-5 grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)]">
       <div className="rounded-2xl bg-violet-50 p-4 ring-1 ring-violet-100">
         <label className="block text-sm font-semibold text-slate-800" htmlFor="ear-training-melody-difficulty">练习难度</label>
-        <select id="ear-training-melody-difficulty" disabled={Boolean(initialReviewTarget)} className="mt-2 w-full rounded-xl border border-violet-200 bg-white px-3 py-2 text-slate-900 disabled:cursor-not-allowed disabled:bg-slate-100" value={difficulty} onChange={(event) => { stopPlayback(); setDifficulty(event.target.value as EarTrainingMelodyDictationDifficulty); setSequence(0); answerLock.reset(); setAudioError(""); }}>
+        <select id="ear-training-melody-difficulty" disabled={Boolean(initialReviewTarget || activeCustomPractice)} className="mt-2 w-full rounded-xl border border-violet-200 bg-white px-3 py-2 text-slate-900 disabled:cursor-not-allowed disabled:bg-slate-100" value={difficulty} onChange={(event) => { stopPlayback(); setDifficulty(event.target.value as EarTrainingMelodyDictationDifficulty); setSequence(0); answerLock.reset(); setAudioError(""); }}>
           <option value="基础">基础：自然音级进与小跳</option><option value="进阶">进阶：增加 A4 与较大跳进</option>{expandedLocalCatalog ? <option value="挑战">挑战：扩展音域、半音与复合跳进</option> : null}
         </select>
         <p className="mt-4 text-sm leading-6 text-violet-900">当前为内置题目 {sequence + 1}，本难度共 {variantCount} 个版本化组合。本轮题库会随机排序，全部出现一次后循环；当前填写不保存。三个音由浏览器本地 Web Audio 依次合成，不读取文件、不调用接口。</p>

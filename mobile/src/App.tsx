@@ -5,6 +5,7 @@ import { LocalEarTrainingIntervalPanel } from "../../components/practice/LocalEa
 import { LocalEarTrainingMelodyDictationPanel } from "../../components/practice/LocalEarTrainingMelodyDictationPanel";
 import { LocalEarTrainingRhythmPanel } from "../../components/practice/LocalEarTrainingRhythmPanel";
 import { LocalEarTrainingSinglePitchPanel } from "../../components/practice/LocalEarTrainingSinglePitchPanel";
+import { LocalPracticeCustomizerPanel } from "../../components/practice/LocalPracticeCustomizerPanel";
 import { LocalVocalExercisePanel } from "../../components/practice/LocalVocalExercisePanel";
 import { RealtimePitchMonitorPanel } from "../../components/practice/RealtimePitchMonitorPanel";
 import { LocalPianoPanel } from "../../components/piano/LocalPianoPanel";
@@ -46,6 +47,10 @@ import {
   saveMobileLearningHistory,
 } from "./runtime/mobileLearningProfileStorage";
 import type { GeneratedLocalVocalExercise } from "../../lib/practice/localVocalExercise";
+import type {
+  LocalPracticeCustomization,
+  ResolvedLocalPracticeCustomization,
+} from "../../lib/practice/localPracticeCustomizer";
 
 const LocalEarTrainingHarmonyProgressionPanel = lazy(() =>
   import("../../components/practice/LocalEarTrainingHarmonyProgressionPanel").then((module) => ({
@@ -74,14 +79,19 @@ const LocalEarTrainingChordPanel = lazy(() =>
   })),
 );
 
-const screens = ["home", "monitor", "pitch", "interval", "chord", "seventh", "seventh-spacing", "progression", "modulation", "scale", "rhythm", "melody", "piano"] as const;
+const screens = ["home", "custom", "monitor", "pitch", "interval", "chord", "seventh", "seventh-spacing", "progression", "modulation", "scale", "rhythm", "melody", "piano"] as const;
 type Screen = (typeof screens)[number];
-type PracticeScreenName = Exclude<Screen, "home" | "piano" | "monitor">;
+type PracticeScreenName = Exclude<Screen, "home" | "custom" | "piano" | "monitor">;
 
 const screenDetails: Record<
   Exclude<Screen, "home">,
   { title: string; summary: string; tone: string }
 > = {
+  custom: {
+    title: "定制练习",
+    summary: "选择题型、难度和答案类别，开始一组仅当前会话有效的本地练习。",
+    tone: "bg-violet-50 text-violet-950 ring-violet-200",
+  },
   monitor: {
     title: "实时音高反馈",
     summary: "实时观察音高曲线；录音需再次主动开始，只留在当前会话且不上传。",
@@ -159,18 +169,35 @@ const reviewTargetLabel = (target: LocalPracticeReviewTarget): string => {
   return `${title} · ${target.difficulty}${detail}`;
 };
 
+const screenForCustomization = (
+  customization: LocalPracticeCustomization,
+): PracticeScreenName => {
+  if (customization.kind === "single-pitch") return "pitch";
+  if (customization.kind === "interval") return "interval";
+  if (customization.kind === "chord-inversion") return "chord";
+  if (customization.kind === "seventh-chord") return "seventh";
+  if (customization.kind === "seventh-chord-spacing") return "seventh-spacing";
+  if (customization.kind === "harmony-progression") return "progression";
+  if (customization.kind === "modulation") return "modulation";
+  if (customization.kind === "scale-mode") return "scale";
+  if (customization.kind === "rhythm") return "rhythm";
+  return "melody";
+};
+
 function PracticeScreen({
   screen,
   reviewTarget,
+  customPractice,
   onLocalAnswerResult,
   onLeaveReviewTarget,
 }: {
   screen: PracticeScreenName;
   reviewTarget: LocalPracticeReviewTarget | null;
+  customPractice?: ResolvedLocalPracticeCustomization;
   onLocalAnswerResult: (result: LocalPracticeAnswerResult) => void;
   onLeaveReviewTarget: () => void;
 }) {
-  const sharedProps = { onLocalAnswerResult, onLeaveReviewTarget };
+  const sharedProps = { onLocalAnswerResult, onLeaveReviewTarget, customPractice };
   if (screen === "pitch") {
     const target = reviewTarget?.kind === "single-pitch" ? reviewTarget : undefined;
     return <LocalEarTrainingSinglePitchPanel key={target ? getLocalPracticeReviewTargetKey(target) : "random-pitch"} initialReviewTarget={target} showLocalPiano expandedLocalCatalog {...sharedProps} />;
@@ -222,6 +249,10 @@ export function App() {
   );
   const [activeReviewTarget, setActiveReviewTarget] =
     useState<LocalPracticeReviewTarget | null>(null);
+  const [activeCustomPractice, setActiveCustomPractice] =
+    useState<ResolvedLocalPracticeCustomization | null>(null);
+  const [lastCustomSelection, setLastCustomSelection] =
+    useState<LocalPracticeCustomization | undefined>(undefined);
   const [reviewNotice, setReviewNotice] = useState<string | null>(
     initialReviewStorageResult.notice,
   );
@@ -257,6 +288,7 @@ export function App() {
     const handleHashChange = () => {
       stopActiveAudio();
       const nextScreen = screenFromHash();
+      if (nextScreen !== "custom") setActiveCustomPractice(null);
       const shouldKeepReviewTarget = pendingReviewNavigationRef.current === nextScreen;
       pendingReviewNavigationRef.current = null;
       if (!shouldKeepReviewTarget) setActiveReviewTarget(null);
@@ -294,14 +326,18 @@ export function App() {
       const nextHistory = recordCheckedAnswerLearningEvent({
         history: learningHistory,
         result,
-        practiceMode: activeReviewTarget ? "review" : "random",
+        practiceMode: activeReviewTarget
+          ? "review"
+          : activeScreen === "custom" && activeCustomPractice
+            ? "custom"
+            : "random",
       });
       setLearningHistory(nextHistory);
       setLearningNotice(
         saveMobileLearningHistory(getBrowserPracticeReviewStorage(), nextHistory).notice,
       );
     },
-    [activeReviewTarget, learningHistory, reviewQueue],
+    [activeCustomPractice, activeReviewTarget, activeScreen, learningHistory, reviewQueue],
   );
 
   const leaveReviewTarget = useCallback(() => {
@@ -620,6 +656,63 @@ export function App() {
               </ul>
             </section>
           </>
+        ) : activeScreen === "custom" ? (
+          <section aria-label={screenDetails.custom.title} className="grid gap-4">
+            <a
+              href="#home"
+              onClick={() => {
+                stopActiveAudio();
+                setActiveCustomPractice(null);
+                setActiveReviewTarget(null);
+              }}
+              className="inline-flex min-h-11 w-fit items-center rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-bold text-slate-800 shadow-sm"
+            >
+              返回练习首页
+            </a>
+            {activeCustomPractice ? (
+              <>
+                <div className="rounded-2xl border border-violet-200 bg-violet-50 p-4 text-violet-950">
+                  <p className="font-bold">
+                    当前定制：{screenDetails[screenForCustomization(activeCustomPractice.customization)].title} · {activeCustomPractice.customization.difficulty}
+                  </p>
+                  <p className="mt-1 text-sm leading-6">
+                    {activeCustomPractice.answerOptionIds.length} 类答案 · {activeCustomPractice.variantCount} 个稳定组合；仅当前会话有效。
+                  </p>
+                  <button
+                    type="button"
+                    className="mt-3 min-h-11 rounded-xl border border-violet-300 bg-white px-4 py-2 text-sm font-bold text-violet-900"
+                    onClick={() => {
+                      stopActiveAudio();
+                      setLastCustomSelection(activeCustomPractice.customization);
+                      setActiveCustomPractice(null);
+                    }}
+                  >
+                    重新设置
+                  </button>
+                </div>
+                {lifecycle.isForeground ? (
+                  <PracticeScreen
+                    key={JSON.stringify(activeCustomPractice.customization)}
+                    screen={screenForCustomization(activeCustomPractice.customization)}
+                    reviewTarget={null}
+                    customPractice={activeCustomPractice}
+                    onLocalAnswerResult={handleLocalAnswerResult}
+                    onLeaveReviewTarget={leaveReviewTarget}
+                  />
+                ) : null}
+              </>
+            ) : (
+              <LocalPracticeCustomizerPanel
+                initialSelection={lastCustomSelection}
+                onStart={(resolved) => {
+                  stopActiveAudio();
+                  setLastCustomSelection(resolved.customization);
+                  setActiveReviewTarget(null);
+                  setActiveCustomPractice(resolved);
+                }}
+              />
+            )}
+          </section>
         ) : activeScreen === "piano" ? (
           <section aria-label={screenDetails.piano.title}>
             <a

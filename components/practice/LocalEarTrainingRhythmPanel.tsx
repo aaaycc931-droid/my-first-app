@@ -16,6 +16,7 @@ import type {
   LocalPracticeAnswerResult,
   LocalPracticeReviewTarget,
 } from "../../lib/practice/localPracticeReviewQueue";
+import type { ResolvedLocalPracticeCustomization } from "../../lib/practice/localPracticeCustomizer";
 import {
   CourseAttemptSaveNotice,
   useCourseAttemptPersistence,
@@ -31,6 +32,7 @@ import { adaptRhythmQuestionToActivity } from "../../lib/activity/legacyLocalAct
 export function LocalEarTrainingRhythmPanel({
   courseExerciseId,
   initialReviewTarget,
+  customPractice,
   onLocalAnswerResult,
   onLeaveReviewTarget,
   showLocalPiano = false,
@@ -38,19 +40,24 @@ export function LocalEarTrainingRhythmPanel({
 }: {
   courseExerciseId?: string;
   initialReviewTarget?: Extract<LocalPracticeReviewTarget, { kind: "rhythm" }>;
+  customPractice?: ResolvedLocalPracticeCustomization;
   onLocalAnswerResult?: (result: LocalPracticeAnswerResult) => void;
   onLeaveReviewTarget?: () => void;
   showLocalPiano?: boolean;
   expandedLocalCatalog?: boolean;
 }) {
-  const catalogMode = courseExerciseId || !expandedLocalCatalog
+  const activeCustomPractice = !courseExerciseId && !initialReviewTarget
+    && customPractice?.customization.kind === "rhythm" ? customPractice : undefined;
+  const catalogMode = courseExerciseId || (!expandedLocalCatalog && !activeCustomPractice)
     ? "legacy-v1"
     : "expanded-local-v2";
   const [isLocalPianoOpen, setIsLocalPianoOpen] = useState(false);
-  const [difficulty, setDifficulty] = useState<EarTrainingRhythmDifficulty>(initialReviewTarget?.difficulty ?? "基础");
+  const [difficulty, setDifficulty] = useState<EarTrainingRhythmDifficulty>(initialReviewTarget?.difficulty ?? activeCustomPractice?.customization.difficulty ?? "基础");
   const [sequence, setSequence] = useState(initialReviewTarget?.sequence ?? 0);
-  const answerPatterns = getLocalEarTrainingRhythmPatterns(difficulty, catalogMode);
-  const variantCount = getLocalEarTrainingRhythmVariantCount(difficulty, catalogMode);
+  const answerPatterns = getLocalEarTrainingRhythmPatterns(difficulty, catalogMode).filter(
+    (pattern) => !activeCustomPractice || activeCustomPractice.answerOptionIds.includes(pattern.id),
+  );
+  const variantCount = activeCustomPractice?.variantCount ?? getLocalEarTrainingRhythmVariantCount(difficulty, catalogMode);
   const { questionIndex, sessionSeed, isReady: isQuestionReady } = useLocalQuestionSchedule({
     itemCount: variantCount,
     sequence,
@@ -74,10 +81,10 @@ export function LocalEarTrainingRhythmPanel({
       difficulty,
       sequence,
       questionIndex,
-      variantId: initialReviewTarget?.variantId,
+      variantId: initialReviewTarget?.variantId ?? activeCustomPractice?.variantIds[questionIndex],
       catalogMode,
     }),
-    [catalogMode, difficulty, initialReviewTarget?.variantId, questionIndex, sequence],
+    [activeCustomPractice, catalogMode, difficulty, initialReviewTarget?.variantId, questionIndex, sequence],
   );
   const answer = useMemo(
     () => getLocalEarTrainingRhythmAnswer({ question, selectedPatternId }),
@@ -178,7 +185,7 @@ export function LocalEarTrainingRhythmPanel({
           <label className="block text-sm font-semibold text-slate-800" htmlFor="ear-training-rhythm-difficulty">练习难度</label>
           <select
             id="ear-training-rhythm-difficulty"
-            disabled={Boolean(courseExerciseId || initialReviewTarget)}
+            disabled={Boolean(courseExerciseId || initialReviewTarget || activeCustomPractice)}
             className="mt-2 w-full rounded-xl border border-violet-200 bg-white px-3 py-2 text-slate-900 disabled:cursor-not-allowed disabled:bg-slate-100"
             value={difficulty}
             onChange={(event) => {

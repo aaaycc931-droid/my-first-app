@@ -15,6 +15,7 @@ import type {
   LocalPracticeAnswerResult,
   LocalPracticeReviewTarget,
 } from "../../lib/practice/localPracticeReviewQueue";
+import type { ResolvedLocalPracticeCustomization } from "../../lib/practice/localPracticeCustomizer";
 import {
   CourseAttemptSaveNotice,
   useCourseAttemptPersistence,
@@ -32,6 +33,7 @@ export function LocalEarTrainingSinglePitchPanel({
   initialReviewTarget,
   onLocalAnswerResult,
   onLeaveReviewTarget,
+  customPractice,
   showLocalPiano = false,
   expandedLocalCatalog = false,
 }: {
@@ -39,19 +41,25 @@ export function LocalEarTrainingSinglePitchPanel({
   initialReviewTarget?: Extract<LocalPracticeReviewTarget, { kind: "single-pitch" }>;
   onLocalAnswerResult?: (result: LocalPracticeAnswerResult) => void;
   onLeaveReviewTarget?: () => void;
+  customPractice?: ResolvedLocalPracticeCustomization;
   showLocalPiano?: boolean;
   expandedLocalCatalog?: boolean;
 }) {
+  const activeCustomPractice = customPractice?.customization.kind === "single-pitch"
+    ? customPractice
+    : undefined;
   const catalogMode = courseExerciseId || !expandedLocalCatalog
     ? "legacy-v1"
     : "expanded-local-v2";
   const [isLocalPianoOpen, setIsLocalPianoOpen] = useState(false);
   const [difficulty, setDifficulty] = useState<EarTrainingSinglePitchDifficulty>(
-    initialReviewTarget?.difficulty ?? "基础",
+    initialReviewTarget?.difficulty ?? activeCustomPractice?.customization.difficulty ?? "基础",
   );
   const [sequence, setSequence] = useState(initialReviewTarget?.sequence ?? 0);
-  const answerPitches = getLocalEarTrainingSinglePitchAnswerPitches(difficulty, catalogMode);
-  const variantCount = getLocalEarTrainingSinglePitchVariantCount(difficulty, catalogMode);
+  const answerPitches = getLocalEarTrainingSinglePitchAnswerPitches(difficulty, catalogMode)
+    .filter((pitch) => !activeCustomPractice || activeCustomPractice.answerOptionIds.includes(pitch.id));
+  const variantCount = activeCustomPractice?.variantIds.length
+    ?? getLocalEarTrainingSinglePitchVariantCount(difficulty, catalogMode);
   const { questionIndex, sessionSeed, isReady: isQuestionReady } = useLocalQuestionSchedule({
     itemCount: variantCount,
     sequence,
@@ -74,10 +82,10 @@ export function LocalEarTrainingSinglePitchPanel({
       difficulty,
       sequence,
       questionIndex,
-      variantId: initialReviewTarget?.variantId,
+      variantId: initialReviewTarget?.variantId ?? activeCustomPractice?.variantIds[questionIndex],
       catalogMode,
     }),
-    [catalogMode, difficulty, initialReviewTarget?.variantId, questionIndex, sequence],
+    [activeCustomPractice, catalogMode, difficulty, initialReviewTarget?.variantId, questionIndex, sequence],
   );
   const activityDefinition = useMemo(
     () => adaptSinglePitchQuestionToActivity(question),
@@ -160,7 +168,7 @@ export function LocalEarTrainingSinglePitchPanel({
       <div className="mt-5 grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)]">
         <div className="rounded-2xl bg-sky-50 p-4 ring-1 ring-sky-100">
           <label className="block text-sm font-semibold text-slate-800" htmlFor="ear-training-single-pitch-difficulty">练习难度</label>
-          <select id="ear-training-single-pitch-difficulty" disabled={Boolean(courseExerciseId || initialReviewTarget)} className="mt-2 w-full rounded-xl border border-sky-200 bg-white px-3 py-2 text-slate-900 disabled:cursor-not-allowed disabled:bg-slate-100" value={difficulty} onChange={(event) => { stopPlayback(); setDifficulty(event.target.value as EarTrainingSinglePitchDifficulty); setSequence(0); answerLock.reset(); setAudioError(""); resetSaveStatus(); }}>
+          <select id="ear-training-single-pitch-difficulty" disabled={Boolean(courseExerciseId || initialReviewTarget || activeCustomPractice)} className="mt-2 w-full rounded-xl border border-sky-200 bg-white px-3 py-2 text-slate-900 disabled:cursor-not-allowed disabled:bg-slate-100" value={difficulty} onChange={(event) => { stopPlayback(); setDifficulty(event.target.value as EarTrainingSinglePitchDifficulty); setSequence(0); answerLock.reset(); setAudioError(""); resetSaveStatus(); }}>
             <option value="基础">基础：自然音与不同时值</option>
             {!courseExerciseId ? <option value="进阶">进阶：扩展自然音与时值</option> : null}
             {catalogMode === "expanded-local-v2" ? <option value="挑战">挑战：十二平均律半音</option> : null}

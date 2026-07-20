@@ -170,6 +170,51 @@ afterEach(async () => {
 });
 
 describe("Android 本机复练行为", () => {
+  it("定制入口校验答案类别并把核对事实记为 custom 会话", async () => {
+    const container = await renderApp();
+    await click(findLink(container, "定制练习"));
+    expect(window.location.hash).toBe("#custom");
+    expect(container.textContent).toContain("组合一组自己的听辨练习");
+    expect(container.textContent).toContain("配置和题序只用于当前页面会话");
+
+    const categoryInputs = Array.from(
+      container.querySelectorAll<HTMLInputElement>('input[type="checkbox"]'),
+    );
+    expect(categoryInputs.length).toBeGreaterThanOrEqual(3);
+    for (const input of categoryInputs.slice(1)) await click(input);
+    expect(findButton(container, "开始当前会话练习").disabled).toBe(true);
+    expect(container.textContent).toContain("还需至少选择 2 个答案类别");
+
+    await click(categoryInputs[1]);
+    const selectedLabels = Array.from(
+      container.querySelectorAll<HTMLLabelElement>("label"),
+    ).filter((label) => label.querySelector<HTMLInputElement>('input[type="checkbox"]')?.checked)
+      .map((label) => label.textContent?.trim() ?? "");
+    expect(selectedLabels).toHaveLength(2);
+    await click(findButton(container, "开始当前会话练习"));
+    await waitFor(
+      () => Boolean(container.querySelector("#ear-training-difficulty")),
+      "定制音程面板载入",
+    );
+    expect(container.textContent).toContain("当前定制：音程听辨 · 基础");
+    expect(container.querySelector<HTMLSelectElement>("#ear-training-difficulty")?.disabled).toBe(true);
+    await waitFor(
+      () => !findButton(container, selectedLabels[0]).disabled,
+      "定制音程题目可回答",
+    );
+    await click(findButton(container, selectedLabels[0]));
+    await click(findButton(container, "查看本题答案"));
+
+    const history = deserializeLocalLearningHistory(
+      window.localStorage.getItem(MOBILE_LEARNING_PROFILE_STORAGE_KEY) ?? "",
+    );
+    expect(history?.recentEvents.at(-1)?.practiceMode).toBe("custom");
+    expect(history?.recentEvents.at(-1)?.skillKind).toBe("interval");
+    expect(window.localStorage.getItem(MOBILE_LEARNING_PROFILE_STORAGE_KEY)).not.toMatch(
+      /answerOptionIds|intervalDirection|audio|score|grade/i,
+    );
+  });
+
   it("答错后写入最小复练信息，不保存选择、答案、声音或评分", async () => {
     const container = await renderApp();
     await click(findLink(container, "单音听辨"));
