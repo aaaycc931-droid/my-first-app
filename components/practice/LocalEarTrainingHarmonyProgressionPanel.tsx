@@ -12,6 +12,7 @@ import {
 } from "../../lib/practice/localEarTrainingHarmonyProgressions";
 import type { LocalPracticeDifficulty } from "../../lib/practice/localPracticeCatalog";
 import type { LocalPracticeAnswerResult, LocalPracticeReviewTarget } from "../../lib/practice/localPracticeReviewQueue";
+import type { ResolvedLocalPracticeCustomization } from "../../lib/practice/localPracticeCustomizer";
 import { ActivityChoiceAnswerPanel } from "./ActivityChoiceAnswerPanel";
 import { ActivityProtocolState } from "./ActivityProtocolState";
 import { useChoiceActivitySession } from "./useChoiceActivitySession";
@@ -23,20 +24,26 @@ export function LocalEarTrainingHarmonyProgressionPanel({
   initialReviewTarget,
   onLocalAnswerResult,
   onLeaveReviewTarget,
+  customPractice,
   showLocalPiano = false,
 }: {
   initialReviewTarget?: Extract<LocalPracticeReviewTarget, { kind: "harmony-progression" }>;
   onLocalAnswerResult?: (result: LocalPracticeAnswerResult) => void;
   onLeaveReviewTarget?: () => void;
+  customPractice?: ResolvedLocalPracticeCustomization;
   showLocalPiano?: boolean;
 }) {
-  const [difficulty, setDifficulty] = useState<LocalPracticeDifficulty>(initialReviewTarget?.difficulty ?? "基础");
+  const activeCustomPractice = customPractice?.customization.kind === "harmony-progression"
+    ? customPractice
+    : undefined;
+  const [difficulty, setDifficulty] = useState<LocalPracticeDifficulty>(initialReviewTarget?.difficulty ?? activeCustomPractice?.customization.difficulty ?? "基础");
   const [sequence, setSequence] = useState(initialReviewTarget?.sequence ?? 0);
   const [isLocalPianoOpen, setIsLocalPianoOpen] = useState(false);
   const [audioError, setAudioError] = useState("");
   const answerLock = useLockedPracticeAnswer<string | null>(null, (selection) => selection !== null);
   const { isPlaying, playbackState, play, stop: stopPlayback } = useLocalAudioPlayback();
-  const variantCount = getLocalHarmonyProgressionVariantCount(difficulty);
+  const variantCount = activeCustomPractice?.variantIds.length
+    ?? getLocalHarmonyProgressionVariantCount(difficulty);
   const { questionIndex, sessionSeed, isReady } = useLocalQuestionSchedule({
     itemCount: variantCount,
     sequence,
@@ -47,9 +54,13 @@ export function LocalEarTrainingHarmonyProgressionPanel({
     difficulty,
     sequence,
     questionIndex,
-    variantId: initialReviewTarget?.variantId,
-  }), [difficulty, initialReviewTarget?.variantId, questionIndex, sequence]);
-  const options = useMemo(() => getLocalHarmonyProgressionAnswerOptions(difficulty), [difficulty]);
+    variantId: initialReviewTarget?.variantId ?? activeCustomPractice?.variantIds[questionIndex],
+  }), [activeCustomPractice, difficulty, initialReviewTarget?.variantId, questionIndex, sequence]);
+  const options = useMemo(
+    () => getLocalHarmonyProgressionAnswerOptions(difficulty)
+      .filter((option) => !activeCustomPractice || activeCustomPractice.answerOptionIds.includes(option.id)),
+    [activeCustomPractice, difficulty],
+  );
   const answer = useMemo(() => getLocalHarmonyProgressionAnswer({
     question,
     selectedOptionId: answerLock.selection,
@@ -124,7 +135,7 @@ export function LocalEarTrainingHarmonyProgressionPanel({
       <div className="mt-5 grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.25fr)]">
         <div className="rounded-2xl bg-cyan-50 p-4 ring-1 ring-cyan-100">
           <label className="block text-sm font-semibold text-slate-800" htmlFor="progression-training-difficulty">练习难度</label>
-          <select id="progression-training-difficulty" value={difficulty} disabled={Boolean(initialReviewTarget)} onChange={(event) => {
+          <select id="progression-training-difficulty" value={difficulty} disabled={Boolean(initialReviewTarget || activeCustomPractice)} onChange={(event) => {
             stopPlayback();
             setDifficulty(event.target.value as LocalPracticeDifficulty);
             setSequence(0);

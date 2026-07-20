@@ -13,6 +13,7 @@ const requiredSources = [
   "mobile/src/runtime/mobileLearningProfileStorage.ts",
   "mobile/src/stubs/supabaseBrowser.ts",
   "lib/practice/localPracticeReviewQueue.ts",
+  "lib/practice/localPracticeCustomizer.ts",
   "lib/practice/localEarTrainingChords.ts",
   "lib/practice/localEarTrainingHarmonyProgressions.ts",
   "lib/practice/localEarTrainingScaleModes.ts",
@@ -39,6 +40,7 @@ const requiredSources = [
   "components/practice/LocalEarTrainingScaleModePanel.tsx",
   "components/practice/LocalEarTrainingSeventhChordPanel.tsx",
   "components/practice/LocalEarTrainingSeventhChordSpacingPanel.tsx",
+  "components/practice/LocalPracticeCustomizerPanel.tsx",
   "components/practice/RealtimePitchCurveChart.tsx",
   "components/practice/LocalVocalExercisePanel.tsx",
   "components/practice/useRealtimePitchMonitor.ts",
@@ -131,6 +133,14 @@ const modulationSource = readFileSync(
 );
 const modulationPanelSource = readFileSync(
   join(root, "components/practice/LocalEarTrainingModulationPanel.tsx"),
+  "utf8",
+);
+const customizerSource = readFileSync(
+  join(root, "lib/practice/localPracticeCustomizer.ts"),
+  "utf8",
+);
+const customizerPanelSource = readFileSync(
+  join(root, "components/practice/LocalPracticeCustomizerPanel.tsx"),
   "utf8",
 );
 const pianoModelSource = readFileSync(
@@ -301,6 +311,20 @@ if (
   || !mobileApp.includes("调制听辨")
 ) {
   throw new Error("Android P115 调制关系、三难度、稳定目标或播放闭环不完整");
+}
+if (
+  !customizerSource.includes("LOCAL_PRACTICE_CUSTOMIZER_SCHEMA_VERSION")
+  || !customizerSource.includes("resolveLocalPracticeCustomization")
+  || !customizerSource.includes("answerOptionIds.length < 2")
+  || !customizerPanelSource.includes("组合一组自己的听辨练习")
+  || !customizerPanelSource.includes("至少保留 2 类")
+  || !customizerPanelSource.includes("配置和题序只用于当前页面会话")
+  || !mobileApp.includes('"custom"')
+  || !mobileApp.includes("LocalPracticeCustomizerPanel")
+  || !mobileApp.includes('practiceMode: activeReviewTarget')
+  || !learningProfileSource.includes('"random" | "review" | "custom"')
+) {
+  throw new Error("Android P115 统一定制练习入口、稳定子集或非评分学习事实闭环不完整");
 }
 if (
   !pianoModelSource.includes('DEFAULT_LOCAL_PIANO_RANGE_ID: LocalPianoRangeId = "C4-C5"')
