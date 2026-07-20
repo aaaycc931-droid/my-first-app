@@ -95,6 +95,34 @@ export function LocalEarTrainingHarmonyProgressionPanel({
     if (playbackError) setAudioError(playbackError);
   };
 
+  const playVoiceCue = async (voice: "bass" | "upper") => {
+    setAudioError("");
+    const frequencies = voice === "bass"
+      ? question.voiceLeadingCue.bassFrequenciesHz
+      : question.voiceLeadingCue.upperFrequenciesHz;
+    const playbackError = await play((audioContext, channel) => {
+      const startTime = audioContext.currentTime + 0.05;
+      frequencies.forEach((frequencyHz, index) => {
+        const oscillator = audioContext.createOscillator();
+        const gain = audioContext.createGain();
+        const noteStart = startTime + index * 0.7;
+        const noteEnd = noteStart + 0.56;
+        oscillator.type = "sine";
+        oscillator.frequency.value = frequencyHz;
+        gain.gain.setValueAtTime(0.0001, noteStart);
+        gain.gain.exponentialRampToValueAtTime(0.12, noteStart + 0.018);
+        gain.gain.exponentialRampToValueAtTime(0.0001, noteEnd);
+        oscillator.connect(gain);
+        gain.connect(audioContext.destination);
+        oscillator.start(noteStart);
+        oscillator.stop(noteEnd + 0.02);
+        channel.trackSource(oscillator, [gain]);
+      });
+      return frequencies.length * 700 + 100;
+    });
+    if (playbackError) setAudioError(playbackError);
+  };
+
   const resetCurrentQuestion = () => {
     stopPlayback();
     answerLock.reset();
@@ -149,6 +177,11 @@ export function LocalEarTrainingHarmonyProgressionPanel({
           <p className="mt-4 text-sm leading-6 text-cyan-950">本难度共 {variantCount} 个版本化组合；当前为第 {sequence + 1} 题。完整一轮出现前不重复。</p>
           {!isReady ? <p className="mt-2 text-sm text-cyan-800">正在准备本轮题目…</p> : null}
           <button type="button" disabled={!isReady || isPlaying} onClick={() => void playQuestion()} className="mt-4 w-full rounded-xl bg-cyan-700 px-4 py-3 font-bold text-white disabled:bg-cyan-300">{playbackState === "准备中" ? "正在准备声音…" : isPlaying ? "正在播放进行…" : "播放和声进行"}</button>
+          <div className="mt-2 grid grid-cols-2 gap-2">
+            <button type="button" disabled={!isReady || isPlaying} onClick={() => void playVoiceCue("bass")} className="rounded-xl border border-cyan-300 bg-white px-3 py-2 text-sm font-bold text-cyan-950 disabled:opacity-50">只听低音线索</button>
+            <button type="button" disabled={!isReady || isPlaying} onClick={() => void playVoiceCue("upper")} className="rounded-xl border border-cyan-300 bg-white px-3 py-2 text-sm font-bold text-cyan-950 disabled:opacity-50">只听高声部线索</button>
+          </div>
+          <p className="mt-2 text-xs leading-5 text-cyan-900">线索播放只突出本题实际排列的最低音或最高音，不改变答案，也不单独判分。</p>
           <button type="button" disabled={!isPlaying} onClick={stopPlayback} className="mt-2 w-full rounded-xl border border-cyan-300 bg-white px-4 py-3 font-bold text-cyan-900 disabled:opacity-50">停止播放</button>
           {audioError ? <p className="mt-3 rounded-xl bg-rose-50 p-3 text-sm leading-6 text-rose-800">{audioError}</p> : null}
         </div>
@@ -170,6 +203,7 @@ export function LocalEarTrainingHarmonyProgressionPanel({
           {answerLock.isAnswerVisible ? <div className="mt-4 rounded-2xl bg-slate-50 p-4 text-sm leading-6 text-slate-700">
             <p className="font-bold text-slate-950">本题答案：{answer.answerLabel}</p>
             <p className="mt-1">{answer.explanation}</p>
+            <p className="mt-2 rounded-xl bg-cyan-50 p-3 text-cyan-950">{question.voiceLeadingCue.explanation}</p>
             <p className="mt-2">{answer.matchesAnswer ? "这次选择与答案一致。" : "这次选择与答案不同，可重新播放并复练。"}</p>
             <p className="mt-2 text-slate-500">这是非评分答案说明，不代表准确率、等级、通过或失败。</p>
           </div> : null}
