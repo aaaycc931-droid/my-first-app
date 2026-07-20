@@ -28,6 +28,13 @@ export type LocalEarTrainingHarmonyProgressionQuestion = {
   pattern: ProgressionPattern;
   answerOptionId: string;
   chordFrequenciesHz: Array<[number, number, number]>;
+  voiceLeadingCue: {
+    bassFrequenciesHz: number[];
+    upperFrequenciesHz: number[];
+    bassMotion: string;
+    upperMotion: string;
+    explanation: string;
+  };
   explanation: string;
 };
 
@@ -171,6 +178,12 @@ const invert = (intervals: readonly [number, number, number], inversion: 0 | 1 |
   return intervals;
 };
 
+const describeMotion = (frequenciesHz: number[]): string => frequenciesHz.slice(1).map((frequency, index) => {
+  const previous = frequenciesHz[index]!;
+  if (Math.abs(frequency - previous) < 0.01) return "保持";
+  return frequency > previous ? "上行" : "下行";
+}).join(" → ");
+
 const variants = (difficulty: LocalPracticeDifficulty) => keys
   .slice(0, keyCountByDifficulty[difficulty])
   .flatMap((key) => patternsByDifficulty[difficulty].map((pattern) => ({
@@ -215,6 +228,10 @@ export const createLocalHarmonyProgressionQuestion = ({
       (semitones) => rootFrequency * 2 ** (semitones / 12),
     ) as [number, number, number];
   });
+  const bassFrequenciesHz = chordFrequenciesHz.map((chord) => chord[0]);
+  const upperFrequenciesHz = chordFrequenciesHz.map((chord) => chord[2]);
+  const bassMotion = describeMotion(bassFrequenciesHz);
+  const upperMotion = describeMotion(upperFrequenciesHz);
   return {
     id: `${difficulty}-${safeSequence}-${resolved.key.id}-${resolved.pattern.id}`,
     variantId: resolved.variantId,
@@ -223,6 +240,13 @@ export const createLocalHarmonyProgressionQuestion = ({
     pattern: resolved.pattern,
     answerOptionId: resolved.pattern.id,
     chordFrequenciesHz,
+    voiceLeadingCue: {
+      bassFrequenciesHz,
+      upperFrequenciesHz,
+      bassMotion,
+      upperMotion,
+      explanation: `低音线索：${bassMotion}；高声部线索：${upperMotion}。这些方向来自本题实际排列，用来解释听感，不单独判分。`,
+    },
     explanation: `${resolved.key.label}：${resolved.pattern.explanation}`,
   };
 };

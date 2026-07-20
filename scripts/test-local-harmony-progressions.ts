@@ -24,6 +24,11 @@ assert.equal(authentic.chordFrequenciesHz.length, 3);
 assert.match(authentic.explanation, /V 回到主和弦 I/);
 assert.equal(authentic.chordFrequenciesHz.every((chord) => chord.length === 3), true);
 assert.equal(authentic.chordFrequenciesHz.every((chord) => chord[0] < chord[1] && chord[1] < chord[2]), true);
+assert.deepEqual(authentic.voiceLeadingCue.bassFrequenciesHz, authentic.chordFrequenciesHz.map((chord) => chord[0]));
+assert.deepEqual(authentic.voiceLeadingCue.upperFrequenciesHz, authentic.chordFrequenciesHz.map((chord) => chord[2]));
+assert.match(authentic.voiceLeadingCue.bassMotion, /上行|下行|保持/);
+assert.match(authentic.voiceLeadingCue.upperMotion, /上行|下行|保持/);
+assert.match(authentic.voiceLeadingCue.explanation, /不单独判分/);
 
 const minor = createLocalHarmonyProgressionQuestion({ difficulty: "挑战", sequence: 0, variantId: "progression:a3:minor-authentic" });
 assert.equal(minor.pattern.label, "小调正格 · i–iv–V–i");
