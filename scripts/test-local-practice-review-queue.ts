@@ -10,6 +10,7 @@ import {
   updateLocalPracticeReviewQueue,
   type LocalPracticeReviewTarget,
 } from "../lib/practice/localPracticeReviewQueue";
+import { createLocalIntervalComparisonQuestion } from "../lib/practice/localIntervalComparisons";
 
 const pitch: LocalPracticeReviewTarget = {
   kind: "single-pitch",
@@ -25,6 +26,14 @@ const interval: LocalPracticeReviewTarget = {
   seed: 456,
   sequence: 7,
   variantId: "interval:g4:major-second",
+};
+const comparisonQuestion = createLocalIntervalComparisonQuestion({ difficulty: "基础", sequence: 0, questionIndex: 0 });
+const comparison: LocalPracticeReviewTarget = {
+  kind: "interval-comparison",
+  difficulty: "基础",
+  seed: 457,
+  sequence: 0,
+  variantId: comparisonQuestion.variantId,
 };
 const rhythm: LocalPracticeReviewTarget = {
   kind: "rhythm",
@@ -116,14 +125,14 @@ assert.equal(cappedQueue.length, LOCAL_PRACTICE_REVIEW_QUEUE_MAX_ITEMS);
 assert.equal(cappedQueue[0]?.sequence, 14);
 assert.equal(cappedQueue.at(-1)?.sequence, 3);
 
-const allKinds = [pitch, interval, chord, progression, scale, seventh, seventhSpacing, modulation, rhythm, melody];
+const allKinds = [pitch, interval, comparison, chord, progression, scale, seventh, seventhSpacing, modulation, rhythm, melody];
 const legacyKinds = [pitch, interval, rhythm, melody];
 const serialized = serializeLocalPracticeReviewQueue(allKinds);
 assert.deepEqual(parseLocalPracticeReviewQueue(serialized), allKinds);
 const serializedValue = JSON.parse(serialized) as Record<string, unknown>;
 assert.deepEqual(Object.keys(serializedValue).sort(), ["catalogVersion", "schemaVersion", "targets"]);
-assert.equal(serializedValue.schemaVersion, 8);
-assert.equal(serializedValue.catalogVersion, 8);
+assert.equal(serializedValue.schemaVersion, 9);
+assert.equal(serializedValue.catalogVersion, 9);
 assert.equal(serialized.includes("selection"), false);
 assert.equal(serialized.includes("answer"), false);
 assert.equal(serialized.includes("score"), false);
@@ -230,6 +239,19 @@ assert.equal(parseLocalPracticeReviewQueue(JSON.stringify({
   ...previousSpacingEnvelope,
   targets: [seventhSpacing, modulation],
 })), null, "one forged modulation target atomically rejects the whole v7 queue");
+const previousCustomizerEnvelope = {
+  schemaVersion: 8,
+  catalogVersion: 8,
+  targets: [...legacyKinds, chord, progression, scale, seventh, seventhSpacing, modulation],
+};
+assert.deepEqual(deserializeLocalPracticeReviewQueue(JSON.stringify(previousCustomizerEnvelope)), {
+  queue: previousCustomizerEnvelope.targets,
+  migrated: true,
+}, "v8 queue survives the v9 interval-comparison migration");
+assert.equal(parseLocalPracticeReviewQueue(JSON.stringify({
+  ...previousCustomizerEnvelope,
+  targets: [comparison],
+})), null, "v8 envelope rejects the future interval-comparison kind");
 
 const duplicateLegacyEnvelope = {
   schemaVersion: 1,

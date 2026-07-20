@@ -2,7 +2,9 @@ import assert from "node:assert/strict";
 
 import { validateActivityDefinition } from "../lib/activity/activityDefinition";
 import {
+  adaptLocalIntervalImitationActivityEvidence,
   adaptLocalVocalMicrophoneActivityEvidence,
+  createLocalIntervalImitationActivityDefinition,
   createLocalVocalMicrophoneActivityDefinition,
   createLocalVocalMicrophoneAnswer,
 } from "../lib/activity/localVocalMicrophoneActivityAdapter";
@@ -111,5 +113,46 @@ assert.throws(() => validateActivityDefinition({
   target: { ...definition.target, checkPolicy: { ...definition.target.checkPolicy, requiredTargetIds: [] } },
 }), /证据目标标识/);
 assert.throws(() => validateActivityDefinition({ ...definition, allowedInputModes: ["choice"] }), /必须允许麦克风/);
+
+const intervalExercise = generateLocalVocalExercise({
+  ...DEFAULT_LOCAL_VOCAL_EXERCISE_CONFIG,
+  patternId: "interval",
+  rootMidi: 60,
+  intervalSemitones: 7,
+  direction: "ascending",
+  loops: 1,
+});
+const intervalDefinition = createLocalIntervalImitationActivityDefinition({
+  exercise: intervalExercise,
+  comparisonVariantId: "interval-comparison:test",
+  groupLabel: "第一组",
+});
+assert.equal(intervalDefinition.target.checkPolicy.requiredTargetIds.length, 3);
+assert.equal("expectedAnswer" in intervalDefinition.target, false);
+const intervalSession = createActivitySession(intervalDefinition, "interval-imitation-session");
+const intervalAlignment = (states: OfflineTargetEvidence["state"][]): OfflineNoteAlignmentResult => ({
+  ...alignment("close"),
+  targetEvidence: intervalDefinition.target.checkPolicy.requiredTargetIds.map((targetId, index) => ({
+    ...targetEvidence(states[index] ?? "missing"),
+    target: { targetId, index, phraseIndex: 0, label: index === 1 ? "G4" : "C4", midi: index === 1 ? 67 : 60, startMs: index * 1_000, endMs: index * 1_000 + 820 },
+    medianCents: states[index] === "high" ? 55 : states[index] === "low" ? -55 : states[index] === "close" ? 2 : null,
+  })),
+  summary: { ...alignment("close").summary, targetCount: 3, alignedTargetCount: states.filter((state) => state !== "missing" && state !== "unreliable").length },
+});
+const intervalClose = adaptLocalIntervalImitationActivityEvidence({ definition: intervalDefinition, attemptId: intervalSession.attemptId, result: intervalAlignment(["close", "close", "close"]) });
+assert.equal(intervalClose.checkEvidence.state, "consistent");
+assert.match(intervalClose.checkEvidence.explanation, /^接近/);
+const intervalHigh = adaptLocalIntervalImitationActivityEvidence({ definition: intervalDefinition, attemptId: intervalSession.attemptId, result: intervalAlignment(["high", "close", "high"]) });
+assert.equal(intervalHigh.checkEvidence.state, "different");
+assert.match(intervalHigh.checkEvidence.explanation, /^偏高/);
+const intervalLow = adaptLocalIntervalImitationActivityEvidence({ definition: intervalDefinition, attemptId: intervalSession.attemptId, result: intervalAlignment(["low", "close", "low"]) });
+assert.match(intervalLow.checkEvidence.explanation, /^偏低/);
+const intervalMissing = adaptLocalIntervalImitationActivityEvidence({ definition: intervalDefinition, attemptId: intervalSession.attemptId, result: intervalAlignment(["close", "missing", "close"]) });
+assert.equal(intervalMissing.checkEvidence.state, "insufficient");
+assert.match(intervalMissing.checkEvidence.explanation, /^证据不足/);
+assert.equal(createLocalVocalMicrophoneAnswer({ definition: intervalDefinition, attemptId: `${intervalSession.sessionId}:attempt:2`, evidence: intervalClose.evidence }), null);
+for (const forbidden of ["分数", "等级", "通过", "失败", "专业声乐评估"]) {
+  assert.match(intervalDefinition.explanation, new RegExp(forbidden));
+}
 
 console.log("P114f local vocal microphone activity adapter tests passed.");

@@ -82,14 +82,14 @@ assert.deepEqual(migratedLoad, {
 const migratedEnvelope = JSON.parse(
   legacyStorage.values.get(MOBILE_PRACTICE_REVIEW_STORAGE_KEY) ?? "{}",
 ) as { schemaVersion?: number; catalogVersion?: number };
-assert.equal(migratedEnvelope.schemaVersion, 8);
-assert.equal(migratedEnvelope.catalogVersion, 8);
+assert.equal(migratedEnvelope.schemaVersion, 9);
+assert.equal(migratedEnvelope.catalogVersion, 9);
 const setCallsAfterMigration = legacyStorage.getSetCallCount();
 assert.deepEqual(loadMobilePracticeReviewQueue(legacyStorage), migratedLoad);
 assert.equal(
   legacyStorage.getSetCallCount(),
   setCallsAfterMigration,
-  "a second load of the rewritten v8 queue must not rewrite storage again",
+  "a second load of the rewritten v9 queue must not rewrite storage again",
 );
 
 const spacingTarget = {
@@ -112,8 +112,8 @@ assert.deepEqual(loadMobilePracticeReviewQueue(previousSpacingStorage), {
 const rewrittenSpacingEnvelope = JSON.parse(
   previousSpacingStorage.values.get(MOBILE_PRACTICE_REVIEW_STORAGE_KEY) ?? "{}",
 ) as { schemaVersion?: number; catalogVersion?: number };
-assert.equal(rewrittenSpacingEnvelope.schemaVersion, 8);
-assert.equal(rewrittenSpacingEnvelope.catalogVersion, 8);
+assert.equal(rewrittenSpacingEnvelope.schemaVersion, 9);
+assert.equal(rewrittenSpacingEnvelope.catalogVersion, 9);
 
 const forgedModulationStorage = createMemoryStorage();
 forgedModulationStorage.values.set(MOBILE_PRACTICE_REVIEW_STORAGE_KEY, JSON.stringify({

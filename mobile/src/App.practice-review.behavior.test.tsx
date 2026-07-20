@@ -279,6 +279,26 @@ describe("Android 本机复练行为", () => {
       .toContain("非评分证据");
   });
 
+  it("音程比较在真实挂载入口完成双维判断，并只把比较事实写入本机画像", async () => {
+    const container = await renderApp();
+    await click(findLink(container, "音程比较与模唱"));
+    await waitFor(() => !findButton(container, "第一组更大").disabled, "音程比较题目可回答");
+
+    await click(findButton(container, "第一组更大"));
+    await click(findButton(container, "两组都上行"));
+    expect(container.querySelector('[data-testid="activity-protocol-state"]')?.textContent)
+      .toContain("已作答，等待检查");
+    await click(findButton(container, "查看比较答案"));
+
+    expect(container.textContent).toContain("可选：非评分模唱反馈");
+    expect(container.textContent).toContain("不是分数、等级、通过／失败或专业声乐评估");
+    const serialized = window.localStorage.getItem(MOBILE_LEARNING_PROFILE_STORAGE_KEY) ?? "";
+    const storedHistory = deserializeLocalLearningHistory(serialized);
+    expect(storedHistory?.recentEvents.at(-1)?.skillKind).toBe("interval-comparison");
+    expect(serialized).not.toContain("recording");
+    expect(serialized).not.toContain("evidence");
+  });
+
   it("从首页打开复练题并答对后移除该题", async () => {
     const target = { kind: "single-pitch", difficulty: "基础", seed: 0, sequence: 0 } as const;
     seedQueue(target);
@@ -287,8 +307,8 @@ describe("Android 本机复练行为", () => {
     const migratedEnvelope = JSON.parse(
       window.localStorage.getItem(MOBILE_PRACTICE_REVIEW_STORAGE_KEY) ?? "{}",
     ) as { schemaVersion?: number; catalogVersion?: number; targets?: Array<Record<string, unknown>> };
-    expect(migratedEnvelope.schemaVersion).toBe(8);
-    expect(migratedEnvelope.catalogVersion).toBe(8);
+    expect(migratedEnvelope.schemaVersion).toBe(9);
+    expect(migratedEnvelope.catalogVersion).toBe(9);
     expect(migratedEnvelope.targets?.[0]?.variantId).toBe("pitch:g4");
 
     expect(container.textContent).toContain("本机复练（1）");
@@ -352,8 +372,8 @@ describe("Android 本机复练行为", () => {
 
   it("答对移除保存失败时不伪称已持久移除", async () => {
     const original = JSON.stringify({
-      schemaVersion: 8,
-      catalogVersion: 8,
+      schemaVersion: 9,
+      catalogVersion: 9,
       targets: [{
         kind: "single-pitch",
         difficulty: "基础",
