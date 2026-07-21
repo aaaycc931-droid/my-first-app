@@ -3,7 +3,109 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { LocalEarTrainingMelodyDictationPanel } from "../../components/practice/LocalEarTrainingMelodyDictationPanel";
+import { stopAllBrowserAudio } from "../../lib/audio/browserAudioEngine";
 import type { LocalPracticeReviewTarget } from "../../lib/practice/localPracticeReviewQueue";
+
+const audioMock = vi.hoisted(() => ({
+  state: "running" as AudioContextState,
+  stateChangeListener: null as EventListener | null,
+}));
+
+const browserAudioMock = vi.hoisted(() => ({
+  listeners: new Set<() => void>(),
+  deferPreparation: false,
+  prepareResolvers: [] as Array<(context: AudioContext) => void>,
+  toneStarts: 0,
+  channelStops: 0,
+}));
+
+vi.mock("../../lib/audio/browserAudioEngine", () => {
+  const context = {
+    state: "running",
+    currentTime: 1,
+    destination: {},
+    createOscillator: () => ({
+      type: "sine",
+      frequency: { value: 0 },
+      connect: vi.fn(),
+      start: () => { browserAudioMock.toneStarts += 1; },
+      stop: vi.fn(),
+      addEventListener: vi.fn(),
+      disconnect: vi.fn(),
+    }),
+    createGain: () => ({
+      gain: {
+        setValueAtTime: vi.fn(),
+        exponentialRampToValueAtTime: vi.fn(),
+      },
+      connect: vi.fn(),
+      disconnect: vi.fn(),
+    }),
+  } as unknown as AudioContext;
+  const channel = {
+    prepareForUserGesture: () => browserAudioMock.deferPreparation
+      ? new Promise<AudioContext>((resolve) => browserAudioMock.prepareResolvers.push(resolve))
+      : Promise.resolve(context),
+    trackSource: (source: unknown) => source,
+    stop: () => { browserAudioMock.channelStops += 1; },
+  };
+  return {
+    createBrowserAudioChannel: () => channel,
+    subscribeBrowserAudioStopAll: (listener: () => void) => {
+      browserAudioMock.listeners.add(listener);
+      return () => browserAudioMock.listeners.delete(listener);
+    },
+    stopAllBrowserAudio: () => {
+      Array.from(browserAudioMock.listeners).forEach((listener) => listener());
+    },
+  };
+});
+
+vi.mock("../../components/practice/useLocalAudioPlayback", () => ({
+  useLocalAudioPlayback: () => ({
+    isPlaying: false,
+    playbackState: "空闲",
+    stop: vi.fn(),
+    play: async (schedule: (
+      context: AudioContext,
+      channel: { trackSource: (source: unknown) => unknown },
+    ) => number) => {
+      const oscillator = {
+        type: "sine",
+        frequency: { value: 0 },
+        connect: vi.fn(),
+        start: vi.fn(),
+        stop: vi.fn(),
+        addEventListener: vi.fn(),
+        disconnect: vi.fn(),
+      };
+      const gain = {
+        gain: {
+          setValueAtTime: vi.fn(),
+          exponentialRampToValueAtTime: vi.fn(),
+        },
+        connect: vi.fn(),
+        disconnect: vi.fn(),
+      };
+      schedule({
+        get currentTime() { return Date.now() / 1_000; },
+        get state() { return audioMock.state; },
+        destination: {},
+        createOscillator: () => oscillator,
+        createGain: () => gain,
+        addEventListener: (type: string, listener: EventListener) => {
+          if (type === "statechange") audioMock.stateChangeListener = listener;
+        },
+        removeEventListener: (type: string, listener: EventListener) => {
+          if (type === "statechange" && audioMock.stateChangeListener === listener) {
+            audioMock.stateChangeListener = null;
+          }
+        },
+      } as unknown as AudioContext, { trackSource: (source) => source });
+      return null;
+    },
+  }),
+}));
 
 vi.mock("../../lib/practice/localQuestionScheduler", async (importOriginal) => {
   const original = await importOriginal<typeof import("../../lib/practice/localQuestionScheduler")>();
@@ -14,7 +116,7 @@ let root: Root | null = null;
 
 const flushReact = async () => {
   await act(async () => {
-    await new Promise((resolve) => window.setTimeout(resolve, 10));
+    await Promise.resolve();
   });
 };
 
@@ -31,6 +133,34 @@ const click = async (element: HTMLElement) => {
     element.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
   });
   await flushReact();
+};
+
+const completePlayback = async (container: ParentNode) => {
+  await act(async () => vi.advanceTimersByTime(100));
+  expect(findButton(container, "播放旋律题目").disabled).toBe(false);
+  await click(findButton(container, "播放旋律题目"));
+  await act(async () => vi.advanceTimersByTime(5_000));
+  expect(container.textContent).toContain("状态：可以填写");
+};
+
+const resolveDeferredPianoPreparations = async () => {
+  const staleResolvers = [...browserAudioMock.prepareResolvers];
+  browserAudioMock.prepareResolvers = [];
+  browserAudioMock.deferPreparation = false;
+  await act(async () => staleResolvers.forEach((resolve) => resolve({
+    state: "running",
+    currentTime: 1,
+    destination: {},
+    createOscillator: () => ({
+      type: "sine", frequency: { value: 0 }, connect: vi.fn(),
+      start: () => { browserAudioMock.toneStarts += 1; }, stop: vi.fn(),
+      addEventListener: vi.fn(), disconnect: vi.fn(),
+    }),
+    createGain: () => ({
+      gain: { setValueAtTime: vi.fn(), exponentialRampToValueAtTime: vi.fn() },
+      connect: vi.fn(), disconnect: vi.fn(),
+    }),
+  } as unknown as AudioContext)));
 };
 
 const findButton = (container: ParentNode, label: string): HTMLButtonElement => {
@@ -92,6 +222,14 @@ const renderPanel = async ({
 };
 
 beforeEach(() => {
+  vi.useFakeTimers();
+  browserAudioMock.deferPreparation = false;
+  browserAudioMock.prepareResolvers = [];
+  browserAudioMock.toneStarts = 0;
+  browserAudioMock.channelStops = 0;
+  browserAudioMock.listeners.clear();
+  audioMock.state = "running";
+  audioMock.stateChangeListener = null;
   document.body.replaceChildren();
   window.localStorage.clear();
 });
@@ -101,6 +239,7 @@ afterEach(async () => {
     await act(async () => root?.unmount());
     root = null;
   }
+  vi.useRealTimers();
   vi.restoreAllMocks();
 });
 
@@ -134,10 +273,10 @@ describe("三音旋律听写音名与固定唱名行为", () => {
   it("固定唱名完整填写真实驱动 answering，并在查看答案后进入 checked", async () => {
     const container = await renderPanel();
     await click(findButton(container, "固定唱名"));
+    await completePlayback(container);
 
     await chooseOrderedAnswer(container, ["do（C4）", "re（D4）", "mi（E4）"]);
     expect(protocolState(container)).toContain("已作答，等待检查");
-    expect(protocolState(container)).toContain("第 1 次尝试");
 
     await click(findButton(container, "查看本题答案"));
     expect(protocolState(container)).toContain("答案已检查");
@@ -147,13 +286,14 @@ describe("三音旋律听写音名与固定唱名行为", () => {
 
   it("已开始填写后切换答案方式会清空选择并开始新尝试", async () => {
     const container = await renderPanel();
+    await completePlayback(container);
     await chooseOrderedAnswer(container, ["C4", "D4", "E4"]);
     expect(protocolState(container)).toContain("已作答，等待检查");
 
     await click(findButton(container, "固定唱名"));
     expect(protocolState(container)).toContain("题目已确认");
     expect(protocolState(container)).toContain("第 2 次尝试");
-    expect(container.textContent).toContain("请为三个位置都选择固定唱名");
+    expect(container.textContent).toContain("必须完整播放当前题目后才能填写");
     expect(positionFields(container).flatMap((field) =>
       Array.from(field.querySelectorAll('[role="radio"][aria-checked="true"]')),
     )).toHaveLength(0);
@@ -161,6 +301,7 @@ describe("三音旋律听写音名与固定唱名行为", () => {
 
   it("checked 后仍可切换模式，并清除旧答案与检查证据", async () => {
     const container = await renderPanel();
+    await completePlayback(container);
     await chooseOrderedAnswer(container, ["C4", "D4", "E4"]);
     await click(findButton(container, "查看本题答案"));
     expect(protocolState(container)).toContain("答案已检查");
@@ -170,12 +311,13 @@ describe("三音旋律听写音名与固定唱名行为", () => {
     expect(protocolState(container)).toContain("题目已确认");
     expect(protocolState(container)).toContain("第 2 次尝试");
     expect(container.textContent).not.toContain("本题答案：");
-    expect(container.textContent).toContain("请为三个位置都选择固定唱名");
+    expect(container.textContent).toContain("必须完整播放当前题目后才能填写");
   });
 
   it("重置清除答案和证据，下一题不会沿用上一题填写", async () => {
     const container = await renderPanel({ randomQuestion: true });
-    await waitFor(() => !findButton(container, "C4").disabled, "随机旋律题目可回答");
+    expect(findButton(container, "C4").disabled).toBe(true);
+    await completePlayback(container);
     await chooseOrderedAnswer(container, ["C4", "C4", "C4"]);
     await click(findButton(container, "查看本题答案"));
     expect(protocolState(container)).toContain("答案已检查");
@@ -184,15 +326,126 @@ describe("三音旋律听写音名与固定唱名行为", () => {
     expect(protocolState(container)).toContain("题目已确认");
     expect(protocolState(container)).toContain("第 2 次尝试");
     expect(container.textContent).not.toContain("本题答案：");
-    expect(container.textContent).toContain("请为三个位置都选择音名");
+    expect(container.textContent).toContain("必须完整播放当前题目后才能填写");
 
+    await completePlayback(container);
     await chooseOrderedAnswer(container, ["C4", "D4", "E4"]);
     await click(findButton(container, "下一题"));
     expect(protocolState(container)).toContain("题目已确认");
     expect(protocolState(container)).toContain("第 1 次尝试");
-    expect(container.textContent).toContain("请为三个位置都选择音名");
+    expect(container.textContent).toContain("必须完整播放当前题目后才能填写");
     expect(positionFields(container).flatMap((field) =>
       Array.from(field.querySelectorAll('[role="radio"][aria-checked="true"]')),
     )).toHaveLength(0);
+  });
+
+  it("扩展随机入口把屏幕钢琴作为真实 piano 答案，并在三音后完成非评分检查", async () => {
+    const container = await renderPanel({ randomQuestion: true });
+    expect(container.textContent).toContain("P117a · 本地旋律听写");
+    expect(findButton(container, "屏幕钢琴").getAttribute("aria-checked")).toBe("false");
+
+    await click(findButton(container, "屏幕钢琴"));
+    const piano = container.querySelector<HTMLElement>('[data-testid="melody-piano-answer"]');
+    expect(piano).not.toBeNull();
+    expect(findButton(piano!, "C4").disabled).toBe(true);
+    expect(container.textContent).not.toContain("本题答案：");
+
+    await completePlayback(container);
+    await click(findButton(piano!, "开始屏幕钢琴作答"));
+    await click(findButton(piano!, "C4"));
+    await click(findButton(piano!, "C4"));
+    await click(findButton(piano!, "D4"));
+    expect(container.textContent).toContain("当前输入：C4 → C4 → D4");
+    expect(protocolState(container)).toContain("已作答，等待检查");
+    expect(browserAudioMock.toneStarts).toBe(3);
+
+    await click(findButton(container, "检查本轮钢琴答案"));
+    expect(protocolState(container)).toContain("答案已检查");
+    expect(protocolState(container)).toContain("非评分证据");
+    expect(container.textContent).toContain("你的填写：C4 → C4 → D4");
+    expect(container.querySelectorAll('[data-testid="melody-piano-position-comparison"] li'))
+      .toHaveLength(3);
+  });
+
+  it("全局停止和音频中断都会清除听题资格、填写与迟到完成回调", async () => {
+    const container = await renderPanel({ randomQuestion: true });
+    await completePlayback(container);
+    await click(findButton(positionFields(container)[0]!, "C4"));
+
+    await act(async () => stopAllBrowserAudio());
+    expect(container.textContent).toContain("旧填写与检查已清除");
+    expect(container.textContent).toContain("状态：等待完整播放");
+    expect(findButton(positionFields(container)[0]!, "C4").disabled).toBe(true);
+    await act(async () => vi.advanceTimersByTime(20_000));
+    expect(findButton(positionFields(container)[0]!, "C4").disabled).toBe(true);
+
+    await click(findButton(container, "播放旋律题目"));
+    audioMock.state = "suspended";
+    await act(async () => audioMock.stateChangeListener?.(new Event("statechange")));
+    expect(container.textContent).toContain("音频时间线被中断");
+    expect(findButton(positionFields(container)[0]!, "C4").disabled).toBe(true);
+
+    audioMock.state = "running";
+    await completePlayback(container);
+    audioMock.state = "suspended";
+    await act(async () => audioMock.stateChangeListener?.(new Event("statechange")));
+    expect(container.textContent).toContain("音频时间线被中断");
+    expect(container.textContent).toContain("状态：等待完整播放");
+  });
+
+  it("清空会创建新尝试，迟到的旧琴键音频不会进入下一次接收", async () => {
+    const container = await renderPanel({ randomQuestion: true });
+    await click(findButton(container, "屏幕钢琴"));
+    await completePlayback(container);
+    const piano = container.querySelector<HTMLElement>('[data-testid="melody-piano-answer"]');
+    if (!piano) throw new Error("找不到屏幕钢琴答案面板");
+    await click(findButton(piano, "开始屏幕钢琴作答"));
+
+    browserAudioMock.deferPreparation = true;
+    await click(findButton(piano, "C4"));
+    await click(findButton(piano, "D4"));
+    await click(findButton(piano, "E4"));
+    expect(browserAudioMock.prepareResolvers).toHaveLength(3);
+    expect(protocolState(container)).toContain("已作答，等待检查");
+    expect(protocolState(container)).toContain("第 1 次尝试");
+    expect(findButton(piano, "清空并重新听题").disabled).toBe(false);
+    await click(findButton(piano, "清空并重新听题"));
+    expect(container.textContent).toContain("旧听题资格与 Activity 尝试已作废");
+    expect(protocolState(container)).toContain("第 2 次尝试");
+    expect(container.textContent).toContain("状态：等待完整播放");
+
+    await resolveDeferredPianoPreparations();
+    expect(browserAudioMock.toneStarts).toBe(0);
+
+    await completePlayback(container);
+    await click(findButton(piano, "开始屏幕钢琴作答"));
+    await click(findButton(piano, "C4"));
+    expect(browserAudioMock.toneStarts).toBe(1);
+  });
+
+  it("同一输入 run 的三次延迟音频准备都会发声，不会互相误判为过期", async () => {
+    const container = await renderPanel({ randomQuestion: true });
+    await click(findButton(container, "屏幕钢琴"));
+    await completePlayback(container);
+    const piano = container.querySelector<HTMLElement>('[data-testid="melody-piano-answer"]');
+    if (!piano) throw new Error("找不到屏幕钢琴答案面板");
+    await click(findButton(piano, "开始屏幕钢琴作答"));
+    browserAudioMock.deferPreparation = true;
+    await click(findButton(piano, "C4"));
+    await click(findButton(piano, "D4"));
+    await click(findButton(piano, "E4"));
+    expect(browserAudioMock.toneStarts).toBe(0);
+    expect(browserAudioMock.prepareResolvers).toHaveLength(3);
+
+    await resolveDeferredPianoPreparations();
+    expect(browserAudioMock.toneStarts).toBe(3);
+  });
+
+  it("复练入口不暴露新的屏幕钢琴模式", async () => {
+    const container = await renderPanel();
+    expect(Array.from(container.querySelectorAll("button")).some(
+      (button) => button.textContent?.trim() === "屏幕钢琴",
+    )).toBe(false);
+    expect(container.querySelector('[data-testid="melody-piano-answer"]')).toBeNull();
   });
 });

@@ -23,6 +23,9 @@ const requiredSources = [
   "lib/activity/rhythmErrorFindingActivityAdapter.ts",
   "lib/practice/localRhythmDictation.ts",
   "lib/activity/rhythmDictationActivityAdapter.ts",
+  "lib/practice/localEarTrainingMelodyDictation.ts",
+  "lib/activity/melodyPianoActivityAdapter.ts",
+  "lib/activity/pianoNoteEventActivityAdapter.ts",
   "lib/music/scoreDocument.ts",
   "lib/activity/localVocalMicrophoneActivityAdapter.ts",
   "lib/practice/localEarTrainingChords.ts",
@@ -58,6 +61,7 @@ const requiredSources = [
   "components/practice/LocalRhythmImitationPanel.tsx",
   "components/practice/LocalRhythmErrorFindingPanel.tsx",
   "components/practice/LocalRhythmDictationPanel.tsx",
+  "components/practice/LocalEarTrainingMelodyDictationPanel.tsx",
   "components/practice/RealtimePitchCurveChart.tsx",
   "components/practice/LocalVocalExercisePanel.tsx",
   "components/practice/useRealtimePitchMonitor.ts",
@@ -222,6 +226,22 @@ const rhythmDictationPanelSource = readFileSync(
 );
 const rhythmPracticePanelSource = readFileSync(
   join(root, "components/practice/LocalEarTrainingRhythmPanel.tsx"),
+  "utf8",
+);
+const melodyDictationSource = readFileSync(
+  join(root, "lib/practice/localEarTrainingMelodyDictation.ts"),
+  "utf8",
+);
+const melodyPianoActivitySource = readFileSync(
+  join(root, "lib/activity/melodyPianoActivityAdapter.ts"),
+  "utf8",
+);
+const melodyPianoNoteEventSource = readFileSync(
+  join(root, "lib/activity/pianoNoteEventActivityAdapter.ts"),
+  "utf8",
+);
+const melodyDictationPanelSource = readFileSync(
+  join(root, "components/practice/LocalEarTrainingMelodyDictationPanel.tsx"),
   "utf8",
 );
 const scoreDocumentSource = readFileSync(
@@ -423,6 +443,26 @@ if (
   || !scoreDocumentSource.includes("sessionOnly: true")
 ) {
   throw new Error("Android P116d 节奏听写、谱面草稿检查确认、非评分 Activity 或生命周期 fail-closed 边界不完整");
+}
+if (
+  !melodyDictationSource.includes('"f-sharp-4"')
+  || !melodyDictationSource.includes("c5")
+  || !melodyPianoActivitySource.includes('"piano" as const')
+  || !melodyPianoActivitySource.includes('assessmentMode: "non-scoring"')
+  || !melodyPianoActivitySource.includes("createMelodyPianoAnswerFromNoteEvents")
+  || !melodyPianoActivitySource.includes('event.source.producer === "screen-piano"')
+  || !melodyPianoNoteEventSource.includes("createScreenPianoActivityNoteOn")
+  || !melodyDictationPanelSource.includes("P117a · 本地旋律听写")
+  || !melodyDictationPanelSource.includes("开始屏幕钢琴作答")
+  || !melodyDictationPanelSource.includes("subscribeBrowserAudioStopAll")
+  || !melodyDictationPanelSource.includes("playbackTokenRef")
+  || !melodyDictationPanelSource.includes("pianoInputEventsRef")
+  || !melodyDictationPanelSource.includes("停止并作废播放")
+  || !melodyDictationPanelSource.includes("重播、停止、后台或全局停止会清除旧填写与检查")
+  || !melodyDictationPanelSource.includes("pianoAnswerAvailable = expandedLocalCatalog && !initialReviewTarget && !activeCustomPractice")
+  || !mobileApp.includes("音名、固定唱名或屏幕钢琴作答")
+) {
+  throw new Error("Android P117a 旋律听写屏幕钢琴答案、完整播放门槛、非评分 Activity 或生命周期边界不完整");
 }
 if (
   !seventhChordSource.includes("getLocalSeventhChordVariantCount")
@@ -680,6 +720,8 @@ for (const expectedCopy of [
   "P116d · 本地节奏听写",
   "确认并检查听写",
   "旋律听写",
+  "P117a · 本地旋律听写",
+  "开始屏幕钢琴作答",
   "七和弦排列",
   "七和弦开放与密集排列听辨",
   "本地模式",
@@ -749,4 +791,4 @@ if (existsSync(manifestPath) && !existsSync(syncedIndex)) {
   throw new Error("Android 工程存在，但本地 Web 资源尚未同步");
 }
 
-console.log("Android 本地模式校验通过：固定包名、本地资源、既有十类练习、P116a 节奏视读与会话校准、P116b 隐藏目标节奏回模、P116c 单一事件节奏找错、P116d 谱面草稿节奏听写、音程比较/非评分模唱反馈、实时音高反馈、本机复练、非评分学习画像、本地参考钢琴、无远程运行时配置与生命周期保护。");
+console.log("Android 本地模式校验通过：固定包名、本地资源、既有十类练习、P116a 节奏视读与会话校准、P116b 隐藏目标节奏回模、P116c 单一事件节奏找错、P116d 谱面草稿节奏听写、P117a 旋律听写屏幕钢琴答案、音程比较/非评分模唱反馈、实时音高反馈、本机复练、非评分学习画像、本地参考钢琴、无远程运行时配置与生命周期保护。");

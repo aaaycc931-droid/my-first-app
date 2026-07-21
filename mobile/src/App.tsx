@@ -142,7 +142,7 @@ const screenDetails: Record<
   },
   melody: {
     title: "旋律听写",
-    summary: "听三个音组成的短旋律，按顺序填写音名。",
+    summary: "完整听完三音短旋律，再按顺序使用音名、固定唱名或屏幕钢琴作答。",
     tone: "bg-amber-50 text-amber-950 ring-amber-200",
   },
   piano: {
