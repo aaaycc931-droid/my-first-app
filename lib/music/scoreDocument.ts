@@ -3,11 +3,21 @@ import type {
   NotationTimeSignature,
 } from "../practice/localNotationFragmentDraft";
 import type { NotationTemporaryPracticeTarget } from "../practice/localNotationDraftPracticeTarget";
+import {
+  getRhythmDictationDraftFingerprint,
+  getRhythmDictationDocumentId,
+  getRhythmDictationInputGrid,
+  getCanonicalRhythmDictationOnsets,
+  validateRhythmDictationDraft,
+  type RhythmDictationDraftV1,
+} from "../practice/localRhythmDictation";
+import type { LocalEarTrainingRhythmQuestion } from "../practice/localEarTrainingRhythm";
 
 export type ScoreDocumentEventV1 = Readonly<NotationDraftEvent>;
 
-export type ScoreDocumentV1 = Readonly<{
+export type NotationScoreDocumentV1 = Readonly<{
   schemaVersion: "score-document-v1";
+  documentKind: "notation-fragment";
   documentId: string;
   revision: number;
   reviewState: "confirmed";
@@ -24,6 +34,7 @@ export type ScoreDocumentV1 = Readonly<{
       staves: readonly [
         Readonly<{
           staffId: "staff-1";
+          staffKind: "pitched";
           clef: "treble";
           voices: readonly [
             Readonly<{
@@ -40,13 +51,113 @@ export type ScoreDocumentV1 = Readonly<{
   ];
 }>;
 
+export type RhythmDictationScoreDocumentV1 = Readonly<{
+  schemaVersion: "score-document-v1";
+  documentKind: "rhythm-dictation";
+  documentId: string;
+  revision: 1;
+  reviewState: "confirmed";
+  localOnly: true;
+  sessionOnly: true;
+  source: Readonly<{
+    kind: "confirmed-rhythm-dictation-draft";
+    draftFingerprint: string;
+    questionId: string;
+    questionVariantId: string;
+  }>;
+  meter: "4/4";
+  parts: readonly [Readonly<{
+    partId: "rhythm-part-1";
+    staves: readonly [Readonly<{
+      staffId: "rhythm-staff-1";
+      staffKind: "rhythm";
+      voices: readonly [Readonly<{
+        voiceId: "rhythm-voice-1";
+        measures: readonly [Readonly<{
+          measureNumber: 1;
+          events: readonly Readonly<{
+            eventId: string;
+            type: "rhythm-hit";
+            onsetBeat: number;
+          }>[];
+        }>];
+      }>];
+    }>];
+  }>];
+}>;
+
+export type ScoreDocumentV1 =
+  | NotationScoreDocumentV1
+  | RhythmDictationScoreDocumentV1;
+
+export function createScoreDocumentFromRhythmDictationDraft({
+  question,
+  draft,
+}: {
+  question: LocalEarTrainingRhythmQuestion;
+  draft: RhythmDictationDraftV1;
+}): RhythmDictationScoreDocumentV1 {
+  const fingerprint = getRhythmDictationDraftFingerprint(draft);
+  const validation = validateRhythmDictationDraft(draft);
+  const canonicalOnsets = getCanonicalRhythmDictationOnsets(draft.onsetBeats);
+  const expectedGrid = getRhythmDictationInputGrid(question.difficulty);
+  const hasExpectedGrid = expectedGrid.length === draft.allowedOnsetBeats.length
+    && expectedGrid.every((onset, index) =>
+      Math.abs(onset - draft.allowedOnsetBeats[index]) < 0.001
+    );
+  if (
+    draft.reviewState !== "confirmed"
+    || draft.checkedFingerprint !== fingerprint
+    || validation.status !== "valid"
+    || draft.questionId !== question.id
+    || draft.questionVariantId !== question.variantId
+    || !hasExpectedGrid
+  ) {
+    throw new Error("只有属于当前题目、通过完整校验并确认的节奏听写草稿才能冻结为谱面文档。");
+  }
+  return {
+    schemaVersion: "score-document-v1",
+    documentKind: "rhythm-dictation",
+    documentId: getRhythmDictationDocumentId({ question, onsetBeats: draft.onsetBeats }),
+    revision: 1,
+    reviewState: "confirmed",
+    localOnly: true,
+    sessionOnly: true,
+    source: {
+      kind: "confirmed-rhythm-dictation-draft",
+      draftFingerprint: fingerprint,
+      questionId: draft.questionId,
+      questionVariantId: draft.questionVariantId,
+    },
+    meter: "4/4",
+    parts: [{
+      partId: "rhythm-part-1",
+      staves: [{
+        staffId: "rhythm-staff-1",
+        staffKind: "rhythm",
+        voices: [{
+          voiceId: "rhythm-voice-1",
+          measures: [{
+            measureNumber: 1,
+            events: canonicalOnsets.map((onsetBeat, index) => ({
+              eventId: `rhythm-dictation-event-${index + 1}`,
+              type: "rhythm-hit",
+              onsetBeat,
+            })),
+          }],
+        }],
+      }],
+    }],
+  };
+}
+
 const cloneEvent = (event: NotationDraftEvent): ScoreDocumentEventV1 => ({
   ...event,
 });
 
 export function createScoreDocumentFromNotationTarget(
   target: NotationTemporaryPracticeTarget,
-): ScoreDocumentV1 {
+): NotationScoreDocumentV1 {
   if (target.status !== "active" || target.events.length === 0) {
     throw new Error("只有已确认且仍有效的临时乐谱目标才能冻结为谱面文档。");
   }
@@ -65,6 +176,7 @@ export function createScoreDocumentFromNotationTarget(
 
   return {
     schemaVersion: "score-document-v1",
+    documentKind: "notation-fragment",
     documentId: `local.score-document.${target.draftFingerprint}`,
     revision: 1,
     reviewState: "confirmed",
@@ -81,6 +193,7 @@ export function createScoreDocumentFromNotationTarget(
         staves: [
           {
             staffId: "staff-1",
+            staffKind: "pitched",
             clef: "treble",
             voices: [
               {
@@ -113,7 +226,7 @@ const durationSuffixes: Record<NotationDraftEvent["duration"], string> = {
 };
 
 export function getScoreDocumentPresentation(
-  document: ScoreDocumentV1,
+  document: NotationScoreDocumentV1,
   mode: "staff-notation" | "numbered-notation",
 ) {
   const measures = document.parts[0].staves[0].voices[0].measures;
