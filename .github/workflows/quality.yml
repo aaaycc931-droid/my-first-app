@@ -76,6 +76,7 @@ jobs:
           npm run test:shared-project-capability
           npm run test:piano-learning-activity-adapter
           npm run test:melody-solfege-activity-adapter
+          npm run test:melody-piano-activity-adapter
           npm run test:legacy-activity-adapters
           npm run test:analysis-evidence-adapter
           npm run test:local-vocal-microphone-activity-adapter

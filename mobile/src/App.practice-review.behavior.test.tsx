@@ -111,6 +111,36 @@ const click = async (element: HTMLElement) => {
   await flushReact();
 };
 
+const completeMountedMelodyPlayback = async (container: ParentNode) => {
+  class FakeAudioContext {
+    state: AudioContextState = "running";
+    destination = {};
+    get currentTime() { return Date.now() / 1_000; }
+    resume = vi.fn(async () => undefined);
+    addEventListener = vi.fn();
+    removeEventListener = vi.fn();
+    createOscillator = () => ({
+      type: "sine",
+      frequency: { value: 0 },
+      connect: vi.fn(), start: vi.fn(), stop: vi.fn(), addEventListener: vi.fn(), disconnect: vi.fn(),
+    });
+    createGain = () => ({
+      gain: { setValueAtTime: vi.fn(), exponentialRampToValueAtTime: vi.fn() },
+      connect: vi.fn(), disconnect: vi.fn(),
+    });
+  }
+  vi.stubGlobal("AudioContext", FakeAudioContext);
+  vi.useFakeTimers();
+  await act(async () => {
+    findButton(container, "播放旋律题目").dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    await Promise.resolve();
+  });
+  await act(async () => vi.advanceTimersByTime(5_000));
+  vi.useRealTimers();
+  vi.unstubAllGlobals();
+  expect(container.textContent).toContain("状态：可以填写");
+};
+
 const traverseHistory = async (direction: "back" | "forward") => {
   await act(async () => {
     window.history[direction]();
@@ -166,6 +196,8 @@ afterEach(async () => {
     await act(async () => root?.unmount());
     root = null;
   }
+  vi.useRealTimers();
+  vi.unstubAllGlobals();
   vi.restoreAllMocks();
 });
 
@@ -327,7 +359,11 @@ describe("Android 本机复练行为", () => {
   it("旋律听写按音符顺序通过统一活动协议完成作答和检查", async () => {
     const container = await renderApp();
     await click(findLink(container, "旋律听写"));
-    await waitFor(() => !findButton(container, "C4").disabled, "旋律听写题目可回答");
+    await waitFor(() => !findButton(container, "播放旋律题目").disabled, "旋律听写题目可播放");
+    expect(findButton(container, "屏幕钢琴")).toBeTruthy();
+    expect(findButton(container, "C4").disabled).toBe(true);
+
+    await completeMountedMelodyPlayback(container);
 
     const positionFields = Array.from(container.querySelectorAll("fieldset")).filter(
       (fieldset) => fieldset.querySelector("legend")?.textContent?.startsWith("第 "),
@@ -344,6 +380,32 @@ describe("Android 本机复练行为", () => {
       .toContain("答案已检查");
     expect(container.querySelector('[data-testid="activity-protocol-state"]')?.textContent)
       .toContain("非评分证据");
+  });
+
+  it("旋律听写屏幕钢琴检查只把稳定题目标识与最小学习事实写入本机", async () => {
+    const container = await renderApp();
+    await click(findLink(container, "旋律听写"));
+    await waitFor(() => !findButton(container, "播放旋律题目").disabled, "旋律听写题目可播放");
+    await click(findButton(container, "屏幕钢琴"));
+    await completeMountedMelodyPlayback(container);
+    await click(findButton(container, "开始屏幕钢琴作答"));
+    const piano = container.querySelector<HTMLElement>('[data-testid="melody-piano-answer"]');
+    if (!piano) throw new Error("找不到旋律听写屏幕钢琴答案面板");
+    await click(findButton(piano, "C4"));
+    await click(findButton(piano, "C4"));
+    await click(findButton(piano, "C4"));
+    await click(findButton(container, "检查本轮钢琴答案"));
+
+    const queue = getStoredQueue();
+    expect(queue).toHaveLength(1);
+    expect(queue[0]).toMatchObject({ kind: "melody-dictation", difficulty: "基础" });
+    const queueSerialized = window.localStorage.getItem(MOBILE_PRACTICE_REVIEW_STORAGE_KEY) ?? "";
+    expect(queueSerialized).not.toMatch(/noteIds|piano|answer|audio|score|grade/i);
+
+    const historySerialized = window.localStorage.getItem(MOBILE_LEARNING_PROFILE_STORAGE_KEY) ?? "";
+    const history = deserializeLocalLearningHistory(historySerialized);
+    expect(history?.recentEvents.at(-1)?.skillKind).toBe("melody-dictation");
+    expect(historySerialized).not.toMatch(/noteIds|piano|ActivitySession|checkEvidence|audio/i);
   });
 
   it("音程比较在真实挂载入口完成双维判断，并只把比较事实写入本机画像", async () => {

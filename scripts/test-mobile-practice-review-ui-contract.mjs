@@ -71,11 +71,17 @@ for (const path of [
   "components/practice/LocalEarTrainingMelodyDictationPanel.tsx",
 ]) {
   const source = readSource(path);
+  assertContains(
+    source,
+    path.endsWith("LocalEarTrainingMelodyDictationPanel.tsx")
+      ? '{showLocalPiano && answerMode !== "piano" ? ('
+      : "{showLocalPiano ? (",
+    `${path} Android 参考钢琴 disclosure`,
+  );
   for (const expected of [
     'import { LocalPianoPanel } from "../piano/LocalPianoPanel"',
     "showLocalPiano = false",
     "showLocalPiano?: boolean",
-    "{showLocalPiano ? (",
     "aria-expanded={isLocalPianoOpen}",
     "setIsLocalPianoOpen((current) => !current)",
     "{isLocalPianoOpen ? <div",
