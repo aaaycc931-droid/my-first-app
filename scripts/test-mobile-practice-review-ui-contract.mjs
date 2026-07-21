@@ -115,15 +115,22 @@ for (const expected of [
 const melodySource = readSource(
   "components/practice/LocalEarTrainingMelodyDictationPanel.tsx",
 );
+const melodyReport = extractBetween(
+  melodySource,
+  "const reportLocalAnswerResult =",
+  "const chooseStaffNotationNote =",
+  "melody-dictation最小结果报告流程",
+);
 const melodyReveal = extractBetween(
   melodySource,
   "const revealAnswer =",
   "const nextQuestion =",
   "melody-dictation查看答案流程",
 );
-assertContains(melodyReveal, "onLocalAnswerResult({", "melody-dictation查看答案流程");
+assertContains(melodyReport, "onLocalAnswerResult({", "melody-dictation结果报告流程");
+assertContains(melodyReveal, "reportLocalAnswerResult(submittedNoteIds)", "melody-dictation查看答案流程");
 const melodyTarget = extractBetween(
-  melodyReveal,
+  melodyReport,
   "target: {",
   "},\n      isCorrect:",
   "melody-dictation复练目标对象",
@@ -136,7 +143,7 @@ for (const expected of [
 ]) {
   assertContains(melodyTarget, expected, "melody-dictation复练目标");
 }
-assertContains(melodyReveal, "isCorrect:", "melody-dictation答题结果");
+assertContains(melodyReport, "isCorrect:", "melody-dictation答题结果");
 
 const appSource = readSource("mobile/src/App.tsx");
 assert(

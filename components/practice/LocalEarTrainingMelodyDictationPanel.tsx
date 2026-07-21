@@ -47,8 +47,27 @@ import {
 } from "../../lib/activity/melodyPianoActivityAdapter";
 import { createScreenPianoActivityNoteOn } from "../../lib/activity/pianoNoteEventActivityAdapter";
 import type { NoteEventV1 } from "../../lib/music/noteEvent";
+import {
+  adaptMelodyStaffNotationAnswerToActivityEvidence,
+  createMelodyStaffNotationAnswer,
+  enableMelodyStaffNotationInput,
+} from "../../lib/activity/melodyStaffNotationActivityAdapter";
+import {
+  createScoreDocumentFromMelodyStaffNotationDraft,
+  type MelodyDictationAnswerScoreDocumentV1,
+} from "../../lib/music/scoreDocument";
+import {
+  canConfirmMelodyStaffNotationDraft,
+  checkMelodyStaffNotationDraft,
+  confirmMelodyStaffNotationDraft,
+  createMelodyStaffNotationDraft,
+  setMelodyStaffNotationDraftNote,
+  validateMelodyStaffNotationDraft,
+  type MelodyStaffNotationDraftV1,
+} from "../../lib/practice/localMelodyStaffNotationDraft";
+import { MelodyStaffNotationInput } from "./MelodyStaffNotationInput";
 
-type MelodyAnswerMode = "choice" | "solfege" | "piano";
+type MelodyAnswerMode = "choice" | "solfege" | "piano" | "staff-notation";
 
 const EMPTY_MELODY_SELECTION: Array<string | null> = [null, null, null];
 const isCompleteMelodySelection = (selection: Array<string | null>) =>
@@ -95,6 +114,7 @@ export function LocalEarTrainingMelodyDictationPanel({
   const [sequence, setSequence] = useState(initialReviewTarget?.sequence ?? 0);
   const catalogMode = expandedLocalCatalog || activeCustomPractice ? "expanded-local-v2" : "legacy-v1";
   const pianoAnswerAvailable = expandedLocalCatalog && !initialReviewTarget && !activeCustomPractice;
+  const staffNotationAnswerAvailable = pianoAnswerAvailable;
   const variantCount = activeCustomPractice?.variantCount ?? getLocalEarTrainingMelodyVariantCount(difficulty, catalogMode);
   const { questionIndex, sessionSeed, isReady: isQuestionReady } = useLocalQuestionSchedule({
     itemCount: variantCount,
@@ -112,7 +132,10 @@ export function LocalEarTrainingMelodyDictationPanel({
   const [hasHeardComplete, setHasHeardComplete] = useState(false);
   const [qualificationNotice, setQualificationNotice] = useState("");
   const [pianoInputArmed, setPianoInputArmed] = useState(false);
+  const [staffNotationDraft, setStaffNotationDraft] = useState<MelodyStaffNotationDraftV1 | null>(null);
+  const [staffNotationDocument, setStaffNotationDocument] = useState<MelodyDictationAnswerScoreDocumentV1 | null>(null);
   const hasPlaybackQualificationRef = useRef(false);
+  const staffPlaybackQualificationIdRef = useRef<string | null>(null);
   const completionTimerRef = useRef<number | null>(null);
   const audioStateCleanupRef = useRef<(() => void) | null>(null);
   const playbackTokenRef = useRef(0);
@@ -137,9 +160,14 @@ export function LocalEarTrainingMelodyDictationPanel({
       const definition = enableMelodyFixedSolfegeInput(
         adaptMelodyDictationQuestionToActivity(question),
       );
-      return pianoAnswerAvailable ? enableMelodyPianoInput(definition) : definition;
+      const pianoDefinition = pianoAnswerAvailable
+        ? enableMelodyPianoInput(definition)
+        : definition;
+      return staffNotationAnswerAvailable
+        ? enableMelodyStaffNotationInput(pianoDefinition)
+        : pianoDefinition;
     },
-    [pianoAnswerAvailable, question],
+    [pianoAnswerAvailable, question, staffNotationAnswerAvailable],
   );
   const activity = useChoiceActivitySession(activityDefinition, `melody-dictation:${question.id}`);
 
@@ -163,8 +191,11 @@ export function LocalEarTrainingMelodyDictationPanel({
     pianoInputChannelRef.current?.stop();
     pianoInputEventsRef.current = [];
     pianoInputOriginRef.current = null;
+    staffPlaybackQualificationIdRef.current = null;
     pianoToneTokenRef.current += 1;
     setPianoInputArmed(false);
+    setStaffNotationDraft(null);
+    setStaffNotationDocument(null);
     setHasHeardComplete(false);
   }, [clearAudioStateWatch, clearCompletionTimer, stopPlayback]);
 
@@ -198,6 +229,7 @@ export function LocalEarTrainingMelodyDictationPanel({
       pianoInputChannelRef.current?.stop();
       pianoInputEventsRef.current = [];
       pianoInputOriginRef.current = null;
+      staffPlaybackQualificationIdRef.current = null;
     };
   }, [clearAudioStateWatch, clearCompletionTimer]);
 
@@ -219,11 +251,18 @@ export function LocalEarTrainingMelodyDictationPanel({
     pianoInputChannelRef.current?.stop();
     pianoInputEventsRef.current = [];
     pianoInputOriginRef.current = null;
+    staffPlaybackQualificationIdRef.current = null;
     pianoToneTokenRef.current += 1;
     setPianoInputArmed(false);
+    setStaffNotationDraft(null);
+    setStaffNotationDocument(null);
     setHasHeardComplete(false);
     answerLock.reset();
-    activity.restartIfDirty();
+    const playbackAttemptId = answerMode === "staff-notation"
+      ? `${activity.session.sessionId}:attempt:${activity.session.attemptNumber + 1}`
+      : activity.session.attemptId;
+    if (answerMode === "staff-notation") activity.restart();
+    else activity.restartIfDirty();
     setAudioError("");
     setQualificationNotice("");
     const playbackError = await play((audioContext, channel) => {
@@ -266,6 +305,15 @@ export function LocalEarTrainingMelodyDictationPanel({
         }
         playbackActiveRef.current = false;
         hasPlaybackQualificationRef.current = true;
+        if (answerMode === "staff-notation") {
+          const qualificationId = `melody-staff:${question.variantId}:${playbackAttemptId}:playback-${token}`;
+          staffPlaybackQualificationIdRef.current = qualificationId;
+          setStaffNotationDraft(createMelodyStaffNotationDraft({
+            question,
+            attemptId: playbackAttemptId,
+            playbackQualificationId: qualificationId,
+          }));
+        }
         stopPlayback();
         setHasHeardComplete(true);
         setQualificationNotice("已完整播放当前三音旋律，可以开始填写。 ");
@@ -426,6 +474,111 @@ export function LocalEarTrainingMelodyDictationPanel({
     if (pianoInputEventsRef.current.length === 0) return;
     invalidateAttempt("屏幕钢琴输入已清空，旧听题资格与 Activity 尝试已作废；请重新完整播放后再开始。 ");
   };
+
+  const reportLocalAnswerResult = (submittedNoteIds: readonly (string | null)[]) => {
+    if (sessionSeed === null || !onLocalAnswerResult) return;
+    onLocalAnswerResult({
+      target: {
+        kind: "melody-dictation",
+        difficulty,
+        seed: sessionSeed,
+        sequence,
+        variantId: question.variantId,
+      },
+      isCorrect: submittedNoteIds.every(
+        (noteId, index) => noteId === question.melody.noteIds[index],
+      ),
+    });
+  };
+
+  const chooseStaffNotationNote = (position: number, noteId: EarTrainingMelodyNoteId) => {
+    if (
+      answerMode !== "staff-notation"
+      || !hasPlaybackQualificationRef.current
+      || isAnswerVisible
+      || !staffNotationDraft
+      || staffNotationDraft.reviewState === "confirmed"
+    ) return;
+    const hadCheckedDraft = staffNotationDraft.reviewState === "checked";
+    const nextDraft = setMelodyStaffNotationDraftNote(staffNotationDraft, position, noteId);
+    setStaffNotationDraft(nextDraft);
+    setStaffNotationDocument(null);
+    answerLock.choose([...nextDraft.noteIds]);
+    setQualificationNotice(hadCheckedDraft
+      ? "谱面草稿已修改，旧检查已失效；请重新检查后再确认。 "
+      : "五线谱草稿已更新；请完成三个音高并检查草稿。 ");
+  };
+
+  const checkStaffNotationDraft = () => {
+    if (!hasPlaybackQualificationRef.current || !staffNotationDraft || isAnswerVisible) return;
+    const validation = validateMelodyStaffNotationDraft(staffNotationDraft);
+    if (validation.status !== "valid") {
+      setQualificationNotice(validation.messages.join(" "));
+      return;
+    }
+    const checkedDraft = checkMelodyStaffNotationDraft(staffNotationDraft);
+    setStaffNotationDraft(checkedDraft);
+    setQualificationNotice("五线谱草稿结构已检查；可以继续修改，或明确确认当前谱面修订。 ");
+  };
+
+  const confirmStaffNotationDraft = () => {
+    const qualificationId = staffPlaybackQualificationIdRef.current;
+    if (
+      !hasPlaybackQualificationRef.current
+      || !qualificationId
+      || !staffNotationDraft
+      || isAnswerVisible
+      || !canConfirmMelodyStaffNotationDraft(staffNotationDraft)
+      || staffNotationDraft.attemptId !== activity.session.attemptId
+      || staffNotationDraft.playbackQualificationId !== qualificationId
+    ) {
+      setQualificationNotice("当前谱面草稿没有通过本轮完整检查，不能确认；请重新听题并检查。 ");
+      return;
+    }
+    const confirmedDraft = confirmMelodyStaffNotationDraft(staffNotationDraft);
+    if (confirmedDraft.reviewState !== "confirmed") return;
+    try {
+      const document = createScoreDocumentFromMelodyStaffNotationDraft({
+        question,
+        draft: confirmedDraft,
+      });
+      const staffAnswer = createMelodyStaffNotationAnswer(document);
+      setStaffNotationDraft(confirmedDraft);
+      setStaffNotationDocument(document);
+      activity.submitAnswer(staffAnswer);
+      setQualificationNotice("当前五线谱修订已确认并冻结为本轮会话文档；请主动检查本轮答案。 ");
+    } catch {
+      setQualificationNotice("当前谱面修订与本题来源不一致，未确认或提交；请清空后重新开始。 ");
+    }
+  };
+
+  const checkStaffNotationAnswer = () => {
+    const qualificationId = staffPlaybackQualificationIdRef.current;
+    if (!qualificationId || !staffNotationDocument || !staffNotationDraft) return;
+    const evidence = adaptMelodyStaffNotationAnswerToActivityEvidence({
+      definition: activityDefinition,
+      question,
+      document: staffNotationDocument,
+      answer: activity.session.answer,
+      attemptId: activity.session.attemptId,
+      playbackQualificationId: qualificationId,
+    });
+    if (evidence.state === "insufficient") {
+      setQualificationNotice(`${evidence.explanation} 未执行结果揭示或写入复练事实。 `);
+      return;
+    }
+    const submittedNoteIds = answerLock.reveal();
+    if (!submittedNoteIds) return;
+    activity.completeCheck(evidence);
+    reportLocalAnswerResult(submittedNoteIds);
+    setQualificationNotice("五线谱答案已完成非评分内容检查；现在显示逐位置对照。 ");
+  };
+
+  const clearStaffNotationAnswer = () => {
+    if (!hasPlaybackQualificationRef.current || !staffNotationDraft || isAnswerVisible) return;
+    invalidateAttempt("五线谱草稿已清空，旧听题资格、谱面修订与 Activity 尝试已作废；请重新完整播放。 ");
+  };
+
   const revealAnswer = () => {
     const completedCurrentNoteIds = selectedNoteIds.filter(
       (value): value is string => value !== null,
@@ -469,19 +622,7 @@ export function LocalEarTrainingMelodyDictationPanel({
     } else if (representedAnswer && representedEvidence) {
       activity.checkAnswer(representedAnswer, representedEvidence);
     }
-    if (sessionSeed === null || !onLocalAnswerResult) return;
-    onLocalAnswerResult({
-      target: {
-        kind: "melody-dictation",
-        difficulty,
-        seed: sessionSeed,
-        sequence,
-        variantId: question.variantId,
-      },
-      isCorrect: submittedNoteIds.every(
-        (noteId, index) => noteId === question.melody.noteIds[index],
-      ),
-    });
+    reportLocalAnswerResult(submittedNoteIds);
   };
   const nextQuestion = () => {
     resetCurrentQuestion();
@@ -492,6 +633,7 @@ export function LocalEarTrainingMelodyDictationPanel({
   const changeAnswerMode = (nextMode: MelodyAnswerMode) => {
     if (nextMode === answerMode) return;
     if (nextMode === "piano" && !pianoAnswerAvailable) return;
+    if (nextMode === "staff-notation" && !staffNotationAnswerAvailable) return;
     clearQualification();
     answerLock.reset();
     activity.restart();
@@ -531,9 +673,9 @@ export function LocalEarTrainingMelodyDictationPanel({
   ).join(" → ");
 
   return <section className="mt-5 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
-    <p className="text-sm font-semibold tracking-wide text-violet-600">{pianoAnswerAvailable ? "P117a · 本地旋律听写" : "本地练习"}</p>
+    <p className="text-sm font-semibold tracking-wide text-violet-600">{staffNotationAnswerAvailable ? "P117b · 本地旋律听写" : "本地练习"}</p>
     <h2 className="mt-1 text-2xl font-bold text-slate-950">内置旋律听写练习</h2>
-    <p className="mt-2 text-sm leading-6 text-slate-600">先完整听完三音短旋律，再按听到的顺序使用音名、固定唱名{pianoAnswerAvailable ? "或屏幕钢琴" : ""}作答。本模块不上传音频，也不生成正式成绩。{onLocalAnswerResult ? "当前填写和声音不保存；答错时仅保存复现本题所需的最小信息。" : "当前入口不会保存练习记录。"}</p>
+    <p className="mt-2 text-sm leading-6 text-slate-600">先完整听完三音短旋律，再按听到的顺序使用音名、固定唱名{pianoAnswerAvailable ? "、屏幕钢琴或五线谱" : ""}作答。本模块不上传音频，也不生成正式成绩。{onLocalAnswerResult ? "当前填写、谱面草稿和声音不保存；答错时仅保存复现本题所需的最小信息。" : "当前入口不会保存练习记录。"}</p>
     <div className="mt-5 grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)]">
       <div className="rounded-2xl bg-violet-50 p-4 ring-1 ring-violet-100">
         <label className="block text-sm font-semibold text-slate-800" htmlFor="ear-training-melody-difficulty">练习难度</label>
@@ -552,13 +694,14 @@ export function LocalEarTrainingMelodyDictationPanel({
         <p className="text-sm font-semibold text-slate-500">回答本题</p><p className="mt-1 text-lg font-bold text-slate-950">按播放顺序填写三个音</p>
         <fieldset className="mt-4">
           <legend className="text-sm font-semibold text-slate-700">答案方式</legend>
-          <div className={`mt-2 grid gap-2 ${pianoAnswerAvailable ? "grid-cols-3" : "grid-cols-2"}`} data-testid="melody-answer-mode">
-            <button type="button" role="radio" aria-checked={answerMode === "choice"} onClick={() => changeAnswerMode("choice")} className={`rounded-xl border px-3 py-2 text-sm font-semibold ${answerMode === "choice" ? "border-violet-600 bg-violet-50 text-violet-900 ring-2 ring-violet-200" : "border-slate-200 text-slate-700"}`}>音名</button>
-            <button type="button" role="radio" aria-checked={answerMode === "solfege"} onClick={() => changeAnswerMode("solfege")} className={`rounded-xl border px-3 py-2 text-sm font-semibold ${answerMode === "solfege" ? "border-violet-600 bg-violet-50 text-violet-900 ring-2 ring-violet-200" : "border-slate-200 text-slate-700"}`}>固定唱名</button>
-            {pianoAnswerAvailable ? <button type="button" role="radio" aria-checked={answerMode === "piano"} onClick={() => changeAnswerMode("piano")} className={`rounded-xl border px-3 py-2 text-sm font-semibold ${answerMode === "piano" ? "border-violet-600 bg-violet-50 text-violet-900 ring-2 ring-violet-200" : "border-slate-200 text-slate-700"}`}>屏幕钢琴</button> : null}
+          <div className={`mt-2 grid gap-2 ${staffNotationAnswerAvailable ? "grid-cols-2 sm:grid-cols-4" : "grid-cols-2"}`} data-testid="melody-answer-mode">
+            <button type="button" role="radio" aria-checked={answerMode === "choice"} onClick={() => changeAnswerMode("choice")} className={`min-h-11 rounded-xl border px-3 py-2 text-sm font-semibold ${answerMode === "choice" ? "border-violet-600 bg-violet-50 text-violet-900 ring-2 ring-violet-200" : "border-slate-200 text-slate-700"}`}>音名</button>
+            <button type="button" role="radio" aria-checked={answerMode === "solfege"} onClick={() => changeAnswerMode("solfege")} className={`min-h-11 rounded-xl border px-3 py-2 text-sm font-semibold ${answerMode === "solfege" ? "border-violet-600 bg-violet-50 text-violet-900 ring-2 ring-violet-200" : "border-slate-200 text-slate-700"}`}>固定唱名</button>
+            {pianoAnswerAvailable ? <button type="button" role="radio" aria-checked={answerMode === "piano"} onClick={() => changeAnswerMode("piano")} className={`min-h-11 rounded-xl border px-3 py-2 text-sm font-semibold ${answerMode === "piano" ? "border-violet-600 bg-violet-50 text-violet-900 ring-2 ring-violet-200" : "border-slate-200 text-slate-700"}`}>屏幕钢琴</button> : null}
+            {staffNotationAnswerAvailable ? <button type="button" role="radio" aria-checked={answerMode === "staff-notation"} onClick={() => changeAnswerMode("staff-notation")} className={`min-h-11 rounded-xl border px-3 py-2 text-sm font-semibold ${answerMode === "staff-notation" ? "border-violet-600 bg-violet-50 text-violet-900 ring-2 ring-violet-200" : "border-slate-200 text-slate-700"}`}>五线谱</button> : null}
           </div>
         </fieldset>
-        <p className="mt-3 text-sm leading-6 text-slate-600">{answerMode === "choice" ? "使用科学音高名填写，例如 C4、F♯4。" : answerMode === "solfege" ? "使用固定唱名填写；低音区 do 与高音 do 会明确区分，升 fa 表示 F♯。" : "完整听题后，先明确开始接收，再按顺序弹出三个屏幕琴键；允许重复音，琴键会在本机短暂发声。"}</p>
+        <p className="mt-3 text-sm leading-6 text-slate-600">{answerMode === "choice" ? "使用科学音高名填写，例如 C4、F♯4。" : answerMode === "solfege" ? "使用固定唱名填写；低音区 do 与高音 do 会明确区分，升 fa 表示 F♯。" : answerMode === "piano" ? "完整听题后，先明确开始接收，再按顺序弹出三个屏幕琴键；允许重复音，琴键会在本机短暂发声。" : "完整听题后，在受控高音谱表中编辑三个音高；先检查草稿，再明确确认当前谱面修订，最后主动检查答案。"}</p>
         {answerMode === "piano" ? (
           <div className="mt-4" data-testid="melody-piano-answer">
             <div className="flex flex-wrap items-center justify-between gap-2">
@@ -578,6 +721,21 @@ export function LocalEarTrainingMelodyDictationPanel({
               <button type="button" disabled={!hasHeardComplete || isAnswerVisible || !selectedNoteIds.some((noteId) => noteId !== null)} onClick={clearPianoAnswer} className="rounded-xl border border-slate-300 bg-white px-3 py-2 font-semibold text-slate-800 disabled:opacity-50">清空并重新听题</button>
             </div>
           </div>
+        ) : answerMode === "staff-notation" ? (
+          <div className="mt-4 space-y-3" data-testid="melody-staff-notation-answer">
+            <MelodyStaffNotationInput
+              noteIds={staffNotationDraft?.noteIds ?? [null, null, null]}
+              availableNoteIds={availableAnswerNoteIds}
+              disabled={!isQuestionReady || !hasHeardComplete || !staffNotationDraft || isAnswerVisible}
+              locked={isAnswerVisible || staffNotationDraft?.reviewState === "confirmed"}
+              reviewState={staffNotationDraft?.reviewState ?? "waiting"}
+              onChoose={chooseStaffNotationNote}
+              onCheck={checkStaffNotationDraft}
+              onConfirm={confirmStaffNotationDraft}
+              onClear={clearStaffNotationAnswer}
+            />
+            <button type="button" disabled={!staffNotationDocument || activity.session.lifecycle !== "answering" || isAnswerVisible} onClick={checkStaffNotationAnswer} className="min-h-11 w-full rounded-xl bg-slate-900 px-4 py-3 font-semibold text-white disabled:cursor-not-allowed disabled:bg-slate-300">检查本轮五线谱答案</button>
+          </div>
         ) : <ActivityOrderedChoiceAnswerPanel
             positionLabels={["第 1 个音", "第 2 个音", "第 3 个音"]}
             options={answerOptions}
@@ -585,10 +743,10 @@ export function LocalEarTrainingMelodyDictationPanel({
             disabled={!isQuestionReady || !hasHeardComplete || isAnswerVisible}
             onChoose={chooseNote}
           />}
-        <div className="mt-4 flex flex-wrap gap-2"><button type="button" disabled={!isQuestionReady || !answer.hasSelection || isAnswerVisible} onClick={revealAnswer} className="rounded-xl bg-slate-900 px-4 py-2.5 font-semibold text-white disabled:cursor-not-allowed disabled:bg-slate-300">{answerMode === "piano" ? "检查本轮钢琴答案" : "查看本题答案"}</button>{isAnswerVisible && !answer.matchesAnswer ? <button type="button" onClick={retryCurrentQuestion} className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-2.5 font-semibold text-amber-900">重新播放并复练本题</button> : null}<button type="button" onClick={resetCurrentQuestion} className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 font-semibold text-slate-800">重置本题</button><button type="button" disabled={!isQuestionReady} onClick={nextQuestion} className="rounded-xl border border-violet-300 bg-white px-4 py-2.5 font-semibold text-violet-800 disabled:cursor-not-allowed disabled:opacity-50">{initialReviewTarget ? "返回随机练习" : "下一题"}</button></div>
-        {!hasHeardComplete ? <p className="mt-3 text-sm leading-6 text-slate-500">必须完整播放当前题目后才能填写；重播、停止、后台或全局停止会清除旧填写与检查。</p> : !answer.hasSelection ? <p className="mt-3 text-sm leading-6 text-slate-500">请为三个位置都选择{answerMode === "choice" ? "音名" : answerMode === "solfege" ? "固定唱名" : "屏幕琴键"}，再查看本题答案。</p> : null}
+        <div className="mt-4 flex flex-wrap gap-2">{answerMode !== "staff-notation" ? <button type="button" disabled={!isQuestionReady || !answer.hasSelection || isAnswerVisible} onClick={revealAnswer} className="rounded-xl bg-slate-900 px-4 py-2.5 font-semibold text-white disabled:cursor-not-allowed disabled:bg-slate-300">{answerMode === "piano" ? "检查本轮钢琴答案" : "查看本题答案"}</button> : null}{isAnswerVisible && !answer.matchesAnswer ? <button type="button" onClick={retryCurrentQuestion} className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-2.5 font-semibold text-amber-900">重新播放并复练本题</button> : null}<button type="button" onClick={resetCurrentQuestion} className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 font-semibold text-slate-800">重置本题</button><button type="button" disabled={!isQuestionReady} onClick={nextQuestion} className="rounded-xl border border-violet-300 bg-white px-4 py-2.5 font-semibold text-violet-800 disabled:cursor-not-allowed disabled:opacity-50">{initialReviewTarget ? "返回随机练习" : "下一题"}</button></div>
+        {!hasHeardComplete ? <p className="mt-3 text-sm leading-6 text-slate-500">必须完整播放当前题目后才能填写；重播、停止、后台或全局停止会清除旧填写与检查。</p> : !answer.hasSelection ? <p className="mt-3 text-sm leading-6 text-slate-500">请为三个位置都选择{answerMode === "choice" ? "音名" : answerMode === "solfege" ? "固定唱名" : answerMode === "piano" ? "屏幕琴键" : "五线谱音高"}，再完成本轮检查。</p> : null}
         <ActivityProtocolState session={activity.session} />
-        {isAnswerVisible ? <div className="mt-4 rounded-2xl bg-slate-50 p-4 text-sm leading-6 text-slate-700"><p className="font-bold text-slate-950">本题答案：{expectedAnswerLabel}</p><p className="mt-1">{answer.explanation}</p><p className="mt-2">你的填写：{selectedAnswerLabel}。{answer.matchesAnswer ? "这次填写与本题答案一致。" : "这次填写与本题答案不同；可以再次播放并重置本题复练。"}</p>{answerMode === "piano" ? <ol className="mt-3 grid gap-2 sm:grid-cols-3" data-testid="melody-piano-position-comparison">{answer.answerNoteIds.map((expectedNoteId, index) => { const actualNoteId = answer.selectedNoteIds[index]; const matches = actualNoteId === expectedNoteId; return <li key={`${expectedNoteId}-${index}`} className={`rounded-xl p-3 ${matches ? "bg-emerald-50 text-emerald-900" : "bg-amber-50 text-amber-950"}`}><span className="font-bold">第 {index + 1} 个音</span><br />目标 {earTrainingMelodyNotes[expectedNoteId as EarTrainingMelodyNoteId].label} · 填写 {actualNoteId ? earTrainingMelodyNotes[actualNoteId as EarTrainingMelodyNoteId].label : "未填写"}<br />{matches ? "位置一致" : "位置不同"}</li>; })}</ol> : null}<p className="mt-2 text-slate-500">答案说明显示后，本题填写已锁定；请使用复练或下一题开始新的尝试。这不是正式分数、准确率、等级、通过或失败判断。</p></div> : null}
+        {isAnswerVisible ? <div className="mt-4 rounded-2xl bg-slate-50 p-4 text-sm leading-6 text-slate-700"><p className="font-bold text-slate-950">本题答案：{expectedAnswerLabel}</p><p className="mt-1">{answer.explanation}</p><p className="mt-2">你的填写：{selectedAnswerLabel}。{answer.matchesAnswer ? "这次填写与本题答案一致。" : "这次填写与本题答案不同；可以再次播放并重置本题复练。"}</p>{answerMode === "piano" || answerMode === "staff-notation" ? <ol className="mt-3 grid gap-2 sm:grid-cols-3" data-testid={answerMode === "piano" ? "melody-piano-position-comparison" : "melody-staff-position-comparison"}>{answer.answerNoteIds.map((expectedNoteId, index) => { const actualNoteId = answer.selectedNoteIds[index]; const matches = actualNoteId === expectedNoteId; return <li key={`${expectedNoteId}-${index}`} className={`rounded-xl p-3 ${matches ? "bg-emerald-50 text-emerald-900" : "bg-amber-50 text-amber-950"}`}><span className="font-bold">第 {index + 1} 个音</span><br />目标 {earTrainingMelodyNotes[expectedNoteId as EarTrainingMelodyNoteId].label} · 填写 {actualNoteId ? earTrainingMelodyNotes[actualNoteId as EarTrainingMelodyNoteId].label : "未填写"}<br />{matches ? "位置一致" : "位置不同"}</li>; })}</ol> : null}<p className="mt-2 text-slate-500">答案说明显示后，本题填写已锁定；请使用复练或下一题开始新的尝试。这不是正式分数、准确率、等级、通过或失败判断。</p></div> : null}
       </div>
     </div>
     {showLocalPiano && answerMode !== "piano" ? (
