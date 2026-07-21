@@ -111,6 +111,14 @@ const click = async (element: HTMLElement) => {
   await flushReact();
 };
 
+const changeSelect = async (element: HTMLSelectElement, value: string) => {
+  await act(async () => {
+    element.value = value;
+    element.dispatchEvent(new Event("change", { bubbles: true }));
+  });
+  await flushReact();
+};
+
 const completeMountedMelodyPlayback = async (container: ParentNode) => {
   class FakeAudioContext {
     state: AudioContextState = "running";
@@ -406,6 +414,33 @@ describe("Android 本机复练行为", () => {
     const history = deserializeLocalLearningHistory(historySerialized);
     expect(history?.recentEvents.at(-1)?.skillKind).toBe("melody-dictation");
     expect(historySerialized).not.toMatch(/noteIds|piano|ActivitySession|checkEvidence|audio/i);
+  });
+
+  it("旋律听写五线谱确认检查只写稳定题目标识，不保存草稿或谱面文档", async () => {
+    const container = await renderApp();
+    await click(findLink(container, "旋律听写"));
+    await waitFor(() => !findButton(container, "播放旋律题目").disabled, "旋律听写题目可播放");
+    await click(findButton(container, "五线谱"));
+    await completeMountedMelodyPlayback(container);
+    const staff = container.querySelector<HTMLElement>('[data-testid="melody-staff-notation-answer"]');
+    if (!staff) throw new Error("找不到旋律听写五线谱答案面板");
+    const selects = Array.from(staff.querySelectorAll<HTMLSelectElement>("select"));
+    for (const select of selects) await changeSelect(select, "c4");
+    await click(findButton(staff, "检查五线谱草稿"));
+    await click(findButton(staff, "确认当前谱面修订"));
+    expect(container.textContent).not.toContain("本题答案：");
+    await click(findButton(staff, "检查本轮五线谱答案"));
+
+    const queue = getStoredQueue();
+    expect(queue).toHaveLength(1);
+    expect(queue[0]).toMatchObject({ kind: "melody-dictation", difficulty: "基础" });
+    const queueSerialized = window.localStorage.getItem(MOBILE_PRACTICE_REVIEW_STORAGE_KEY) ?? "";
+    expect(queueSerialized).not.toMatch(/noteIds|staff|notation|document|draft|answer|audio|score|grade/i);
+
+    const historySerialized = window.localStorage.getItem(MOBILE_LEARNING_PROFILE_STORAGE_KEY) ?? "";
+    const history = deserializeLocalLearningHistory(historySerialized);
+    expect(history?.recentEvents.at(-1)?.skillKind).toBe("melody-dictation");
+    expect(historySerialized).not.toMatch(/noteIds|staff|notation|document|draft|ActivitySession|checkEvidence|audio/i);
   });
 
   it("音程比较在真实挂载入口完成双维判断，并只把比较事实写入本机画像", async () => {

@@ -26,6 +26,8 @@ const requiredSources = [
   "lib/practice/localEarTrainingMelodyDictation.ts",
   "lib/activity/melodyPianoActivityAdapter.ts",
   "lib/activity/pianoNoteEventActivityAdapter.ts",
+  "lib/practice/localMelodyStaffNotationDraft.ts",
+  "lib/activity/melodyStaffNotationActivityAdapter.ts",
   "lib/music/scoreDocument.ts",
   "lib/activity/localVocalMicrophoneActivityAdapter.ts",
   "lib/practice/localEarTrainingChords.ts",
@@ -62,6 +64,7 @@ const requiredSources = [
   "components/practice/LocalRhythmErrorFindingPanel.tsx",
   "components/practice/LocalRhythmDictationPanel.tsx",
   "components/practice/LocalEarTrainingMelodyDictationPanel.tsx",
+  "components/practice/MelodyStaffNotationInput.tsx",
   "components/practice/RealtimePitchCurveChart.tsx",
   "components/practice/LocalVocalExercisePanel.tsx",
   "components/practice/useRealtimePitchMonitor.ts",
@@ -240,8 +243,20 @@ const melodyPianoNoteEventSource = readFileSync(
   join(root, "lib/activity/pianoNoteEventActivityAdapter.ts"),
   "utf8",
 );
+const melodyStaffNotationDraftSource = readFileSync(
+  join(root, "lib/practice/localMelodyStaffNotationDraft.ts"),
+  "utf8",
+);
+const melodyStaffNotationActivitySource = readFileSync(
+  join(root, "lib/activity/melodyStaffNotationActivityAdapter.ts"),
+  "utf8",
+);
 const melodyDictationPanelSource = readFileSync(
   join(root, "components/practice/LocalEarTrainingMelodyDictationPanel.tsx"),
+  "utf8",
+);
+const melodyStaffNotationInputSource = readFileSync(
+  join(root, "components/practice/MelodyStaffNotationInput.tsx"),
   "utf8",
 );
 const scoreDocumentSource = readFileSync(
@@ -452,7 +467,7 @@ if (
   || !melodyPianoActivitySource.includes("createMelodyPianoAnswerFromNoteEvents")
   || !melodyPianoActivitySource.includes('event.source.producer === "screen-piano"')
   || !melodyPianoNoteEventSource.includes("createScreenPianoActivityNoteOn")
-  || !melodyDictationPanelSource.includes("P117a · 本地旋律听写")
+  || !melodyDictationPanelSource.includes("P117b · 本地旋律听写")
   || !melodyDictationPanelSource.includes("开始屏幕钢琴作答")
   || !melodyDictationPanelSource.includes("subscribeBrowserAudioStopAll")
   || !melodyDictationPanelSource.includes("playbackTokenRef")
@@ -460,9 +475,28 @@ if (
   || !melodyDictationPanelSource.includes("停止并作废播放")
   || !melodyDictationPanelSource.includes("重播、停止、后台或全局停止会清除旧填写与检查")
   || !melodyDictationPanelSource.includes("pianoAnswerAvailable = expandedLocalCatalog && !initialReviewTarget && !activeCustomPractice")
-  || !mobileApp.includes("音名、固定唱名或屏幕钢琴作答")
+  || !mobileApp.includes("音名、固定唱名、屏幕钢琴或受控五线谱作答")
 ) {
   throw new Error("Android P117a 旋律听写屏幕钢琴答案、完整播放门槛、非评分 Activity 或生命周期边界不完整");
+}
+if (
+  !melodyStaffNotationDraftSource.includes('schemaVersion: "melody-staff-notation-draft-v1"')
+  || !melodyStaffNotationDraftSource.includes('meter: "unmetered"')
+  || !melodyStaffNotationDraftSource.includes("checkedFingerprint")
+  || !melodyStaffNotationActivitySource.includes('"staff-notation" as const')
+  || !melodyStaffNotationActivitySource.includes('assessmentMode: "non-scoring"')
+  || !melodyStaffNotationActivitySource.includes("playbackQualificationId")
+  || !scoreDocumentSource.includes('documentKind: "melody-dictation-answer"')
+  || !scoreDocumentSource.includes('meter: "unmetered"')
+  || !melodyStaffNotationInputSource.includes("𝄞")
+  || !melodyStaffNotationInputSource.includes("f-sharp-4")
+  || !melodyStaffNotationInputSource.includes("你的三音五线谱草稿")
+  || !melodyStaffNotationInputSource.includes("检查五线谱草稿")
+  || !melodyStaffNotationInputSource.includes("确认当前谱面修订")
+  || !melodyDictationPanelSource.includes("检查本轮五线谱答案")
+  || !melodyDictationPanelSource.includes("staffNotationAnswerAvailable = pianoAnswerAvailable")
+) {
+  throw new Error("Android P117b 旋律听写五线谱草稿、确认文档、非评分 Activity 或来源完整性边界不完整");
 }
 if (
   !seventhChordSource.includes("getLocalSeventhChordVariantCount")
@@ -720,8 +754,11 @@ for (const expectedCopy of [
   "P116d · 本地节奏听写",
   "确认并检查听写",
   "旋律听写",
-  "P117a · 本地旋律听写",
+  "P117b · 本地旋律听写",
   "开始屏幕钢琴作答",
+  "检查五线谱草稿",
+  "确认当前谱面修订",
+  "检查本轮五线谱答案",
   "七和弦排列",
   "七和弦开放与密集排列听辨",
   "本地模式",
@@ -791,4 +828,4 @@ if (existsSync(manifestPath) && !existsSync(syncedIndex)) {
   throw new Error("Android 工程存在，但本地 Web 资源尚未同步");
 }
 
-console.log("Android 本地模式校验通过：固定包名、本地资源、既有十类练习、P116a 节奏视读与会话校准、P116b 隐藏目标节奏回模、P116c 单一事件节奏找错、P116d 谱面草稿节奏听写、P117a 旋律听写屏幕钢琴答案、音程比较/非评分模唱反馈、实时音高反馈、本机复练、非评分学习画像、本地参考钢琴、无远程运行时配置与生命周期保护。");
+console.log("Android 本地模式校验通过：固定包名、本地资源、既有十类练习、P116a 节奏视读与会话校准、P116b 隐藏目标节奏回模、P116c 单一事件节奏找错、P116d 谱面草稿节奏听写、P117a 旋律听写屏幕钢琴答案、P117b 旋律听写五线谱答案文档、音程比较/非评分模唱反馈、实时音高反馈、本机复练、非评分学习画像、本地参考钢琴、无远程运行时配置与生命周期保护。");

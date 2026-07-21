@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { LocalEarTrainingMelodyDictationPanel } from "../../components/practice/LocalEarTrainingMelodyDictationPanel";
 import { stopAllBrowserAudio } from "../../lib/audio/browserAudioEngine";
 import type { LocalPracticeReviewTarget } from "../../lib/practice/localPracticeReviewQueue";
+import type { ResolvedLocalPracticeCustomization } from "../../lib/practice/localPracticeCustomizer";
 
 const audioMock = vi.hoisted(() => ({
   state: "running" as AudioContextState,
@@ -135,6 +136,14 @@ const click = async (element: HTMLElement) => {
   await flushReact();
 };
 
+const changeSelect = async (element: HTMLSelectElement, value: string) => {
+  await act(async () => {
+    element.value = value;
+    element.dispatchEvent(new Event("change", { bubbles: true }));
+  });
+  await flushReact();
+};
+
 const completePlayback = async (container: ParentNode) => {
   await act(async () => vi.advanceTimersByTime(100));
   expect(findButton(container, "播放旋律题目").disabled).toBe(false);
@@ -201,10 +210,12 @@ const renderPanel = async ({
   initialReviewTarget = basicReviewTarget,
   expandedLocalCatalog = true,
   randomQuestion = false,
+  customPractice,
 }: {
   initialReviewTarget?: Extract<LocalPracticeReviewTarget, { kind: "melody-dictation" }> | undefined;
   expandedLocalCatalog?: boolean;
   randomQuestion?: boolean;
+  customPractice?: ResolvedLocalPracticeCustomization;
 } = {}) => {
   const container = document.createElement("div");
   document.body.append(container);
@@ -212,8 +223,9 @@ const renderPanel = async ({
   await act(async () => root?.render(
     <StrictMode>
       <LocalEarTrainingMelodyDictationPanel
-        initialReviewTarget={randomQuestion ? undefined : initialReviewTarget}
+        initialReviewTarget={randomQuestion || customPractice ? undefined : initialReviewTarget}
         expandedLocalCatalog={expandedLocalCatalog}
+        customPractice={customPractice}
       />
     </StrictMode>,
   ));
@@ -341,7 +353,7 @@ describe("三音旋律听写音名与固定唱名行为", () => {
 
   it("扩展随机入口把屏幕钢琴作为真实 piano 答案，并在三音后完成非评分检查", async () => {
     const container = await renderPanel({ randomQuestion: true });
-    expect(container.textContent).toContain("P117a · 本地旋律听写");
+    expect(container.textContent).toContain("P117b · 本地旋律听写");
     expect(findButton(container, "屏幕钢琴").getAttribute("aria-checked")).toBe("false");
 
     await click(findButton(container, "屏幕钢琴"));
@@ -441,11 +453,166 @@ describe("三音旋律听写音名与固定唱名行为", () => {
     expect(browserAudioMock.toneStarts).toBe(3);
   });
 
-  it("复练入口不暴露新的屏幕钢琴模式", async () => {
+  it("五线谱答案遵守预览、检查、修改失效、确认文档和主动非评分对照", async () => {
+    const container = await renderPanel({ randomQuestion: true });
+    expect(findButton(container, "五线谱").getAttribute("aria-checked")).toBe("false");
+    await click(findButton(container, "五线谱"));
+    const staff = container.querySelector<HTMLElement>('[data-testid="melody-staff-notation-answer"]');
+    if (!staff) throw new Error("找不到旋律听写五线谱答案面板");
+    const selects = Array.from(staff.querySelectorAll<HTMLSelectElement>("select"));
+    expect(selects).toHaveLength(3);
+    expect(selects.every((select) => select.disabled)).toBe(true);
+    expect(container.textContent).not.toContain("本题答案：");
+
+    await completePlayback(container);
+    expect(selects.every((select) => !select.disabled)).toBe(true);
+    await changeSelect(selects[0]!, "c4");
+    await changeSelect(selects[1]!, "d4");
+    await changeSelect(selects[2]!, "e4");
+    expect(staff.querySelector('[data-testid="melody-staff-notation-input"] svg')?.getAttribute("aria-label"))
+      .toContain("第 1 个音为 C4");
+    expect(staff.querySelector('[data-testid="melody-staff-c4-ledger-0"]')).not.toBeNull();
+    expect(container.textContent).not.toContain("本题答案：");
+
+    await click(findButton(staff, "检查五线谱草稿"));
+    expect(staff.textContent).toContain("已检查，等待确认");
+    await changeSelect(selects[2]!, "d4");
+    expect(staff.textContent).toContain("待检查草稿");
+    expect(container.textContent).toContain("旧检查已失效");
+    expect(findButton(staff, "确认当前谱面修订").disabled).toBe(true);
+
+    await changeSelect(selects[2]!, "e4");
+    await click(findButton(staff, "检查五线谱草稿"));
+    await click(findButton(staff, "确认当前谱面修订"));
+    expect(protocolState(container)).toContain("已作答，等待检查");
+    expect(staff.textContent).toContain("已确认当前修订");
+    expect(container.textContent).not.toContain("本题答案：");
+
+    await click(findButton(staff, "检查本轮五线谱答案"));
+    expect(protocolState(container)).toContain("答案已检查");
+    expect(protocolState(container)).toContain("非评分证据");
+    expect(container.textContent).toContain("本题答案：");
+    expect(container.textContent).toContain("你的填写：C4 → D4 → E4");
+    expect(container.querySelectorAll('[data-testid="melody-staff-position-comparison"] li'))
+      .toHaveLength(3);
+  });
+
+  it("挑战五线谱预览保留 C4 加线、F♯4 升号、C5 与清空后完整重听门槛", async () => {
+    const container = await renderPanel({ randomQuestion: true });
+    const difficulty = container.querySelector<HTMLSelectElement>("#ear-training-melody-difficulty");
+    if (!difficulty) throw new Error("找不到旋律听写难度选择");
+    await changeSelect(difficulty, "挑战");
+    await click(findButton(container, "五线谱"));
+    await completePlayback(container);
+    const staff = container.querySelector<HTMLElement>('[data-testid="melody-staff-notation-answer"]');
+    if (!staff) throw new Error("找不到旋律听写五线谱答案面板");
+    const selects = Array.from(staff.querySelectorAll<HTMLSelectElement>("select"));
+    await changeSelect(selects[0]!, "c4");
+    await changeSelect(selects[1]!, "f-sharp-4");
+    await changeSelect(selects[2]!, "c5");
+    const previewLabel = staff.querySelector("svg")?.getAttribute("aria-label") ?? "";
+    expect(previewLabel).toContain("C4");
+    expect(previewLabel).toContain("F♯4");
+    expect(previewLabel).toContain("C5");
+    expect(staff.querySelector('[data-testid="melody-staff-c4-ledger-0"]')).not.toBeNull();
+    expect(staff.querySelector('[data-testid="melody-staff-sharp-1"]')).not.toBeNull();
+    expect(staff.querySelector('[data-testid="melody-staff-notehead-2"]')?.getAttribute("cy")).toBe("54");
+
+    await click(findButton(staff, "清空五线谱草稿"));
+    expect(container.textContent).toContain("旧听题资格、谱面修订与 Activity 尝试已作废");
+    expect(container.textContent).toContain("状态：等待完整播放");
+    expect(selects.every((select) => select.disabled)).toBe(true);
+    await act(async () => vi.advanceTimersByTime(20_000));
+    expect(selects.every((select) => select.disabled)).toBe(true);
+
+    await completePlayback(container);
+    const nextSelects = Array.from(staff.querySelectorAll<HTMLSelectElement>("select"));
+    await changeSelect(nextSelects[0]!, "c4");
+    expect(staff.querySelector("svg")?.getAttribute("aria-label")).toContain("C4");
+    await act(async () => stopAllBrowserAudio());
+    expect(container.textContent).toContain("旧填写与检查已清除");
+    expect(container.textContent).toContain("状态：等待完整播放");
+    expect(nextSelects.every((select) => select.disabled)).toBe(true);
+    expect(staff.querySelector("svg")?.getAttribute("aria-label")).not.toContain("C4");
+  });
+
+  it("五线谱已检查草稿和已确认文档遇到生命周期中断都会失败关闭", async () => {
+    const container = await renderPanel({ randomQuestion: true });
+    await click(findButton(container, "五线谱"));
+    await completePlayback(container);
+    const staff = container.querySelector<HTMLElement>('[data-testid="melody-staff-notation-answer"]');
+    if (!staff) throw new Error("找不到旋律听写五线谱答案面板");
+    let selects = Array.from(staff.querySelectorAll<HTMLSelectElement>("select"));
+    await changeSelect(selects[0]!, "c4");
+    await changeSelect(selects[1]!, "d4");
+    await changeSelect(selects[2]!, "e4");
+    await click(findButton(staff, "检查五线谱草稿"));
+    expect(staff.textContent).toContain("已检查，等待确认");
+
+    await act(async () => stopAllBrowserAudio());
+    expect(container.textContent).toContain("状态：等待完整播放");
+    expect(staff.textContent).toContain("等待完整播放");
+    expect(findButton(staff, "确认当前谱面修订").disabled).toBe(true);
+    expect(findButton(staff, "检查本轮五线谱答案").disabled).toBe(true);
+    expect(container.textContent).not.toContain("本题答案：");
+
+    await completePlayback(container);
+    selects = Array.from(staff.querySelectorAll<HTMLSelectElement>("select"));
+    await changeSelect(selects[0]!, "c4");
+    await changeSelect(selects[1]!, "d4");
+    await changeSelect(selects[2]!, "e4");
+    await click(findButton(staff, "检查五线谱草稿"));
+    await click(findButton(staff, "确认当前谱面修订"));
+    expect(protocolState(container)).toContain("已作答，等待检查");
+    expect(selects.every((select) => select.disabled)).toBe(true);
+    expect(findButton(staff, "检查五线谱草稿").disabled).toBe(true);
+    expect(findButton(staff, "确认当前谱面修订").disabled).toBe(true);
+    expect(findButton(staff, "清空五线谱草稿").disabled).toBe(true);
+
+    audioMock.state = "suspended";
+    await act(async () => audioMock.stateChangeListener?.(new Event("statechange")));
+    expect(container.textContent).toContain("音频时间线被中断");
+    expect(container.textContent).toContain("状态：等待完整播放");
+    expect(staff.textContent).toContain("等待完整播放");
+    expect(findButton(staff, "检查本轮五线谱答案").disabled).toBe(true);
+    expect(protocolState(container)).toContain("题目已确认");
+    expect(container.textContent).not.toContain("本题答案：");
+  });
+
+  it("复练入口不暴露新的屏幕钢琴或五线谱模式", async () => {
     const container = await renderPanel();
     expect(Array.from(container.querySelectorAll("button")).some(
       (button) => button.textContent?.trim() === "屏幕钢琴",
     )).toBe(false);
+    expect(Array.from(container.querySelectorAll("button")).some(
+      (button) => button.textContent?.trim() === "五线谱",
+    )).toBe(false);
     expect(container.querySelector('[data-testid="melody-piano-answer"]')).toBeNull();
+    expect(container.querySelector('[data-testid="melody-staff-notation-answer"]')).toBeNull();
+  });
+
+  it("自定义旋律入口不暴露屏幕钢琴或五线谱文档模式", async () => {
+    const customPractice: ResolvedLocalPracticeCustomization = {
+      customization: {
+        schemaVersion: 1,
+        kind: "melody-dictation",
+        difficulty: "基础",
+        answerOptionIds: ["c4", "d4", "e4"],
+      },
+      variantIds: ["melody:up-step"],
+      answerOptionIds: ["c4", "d4", "e4"],
+      subsetOptions: [],
+      variantCount: 1,
+    };
+    const container = await renderPanel({
+      initialReviewTarget: undefined,
+      randomQuestion: false,
+      customPractice,
+    });
+    expect(Array.from(container.querySelectorAll("button")).some(
+      (button) => button.textContent?.trim() === "屏幕钢琴" || button.textContent?.trim() === "五线谱",
+    )).toBe(false);
+    expect(container.querySelector('[data-testid="melody-piano-answer"]')).toBeNull();
+    expect(container.querySelector('[data-testid="melody-staff-notation-answer"]')).toBeNull();
   });
 });
