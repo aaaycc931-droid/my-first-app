@@ -31,6 +31,14 @@ import { adaptRhythmQuestionToActivity } from "../../lib/activity/legacyLocalAct
 import { LocalRhythmSightReadingPanel } from "./LocalRhythmSightReadingPanel";
 import { LocalRhythmImitationPanel } from "./LocalRhythmImitationPanel";
 import { LocalRhythmErrorFindingPanel } from "./LocalRhythmErrorFindingPanel";
+import { LocalRhythmDictationPanel } from "./LocalRhythmDictationPanel";
+
+type ExpandedRhythmActivity =
+  | "choice"
+  | "sight-reading"
+  | "imitation"
+  | "error-finding"
+  | "dictation";
 
 export function LocalEarTrainingRhythmPanel({
   courseExerciseId,
@@ -54,6 +62,14 @@ export function LocalEarTrainingRhythmPanel({
   const catalogMode = courseExerciseId || (!expandedLocalCatalog && !activeCustomPractice)
     ? "legacy-v1"
     : "expanded-local-v2";
+  const isExpandedRandomPractice = Boolean(
+    expandedLocalCatalog
+    && !courseExerciseId
+    && !initialReviewTarget
+    && !activeCustomPractice,
+  );
+  const [expandedActivity, setExpandedActivity] =
+    useState<ExpandedRhythmActivity>("choice");
   const [isLocalPianoOpen, setIsLocalPianoOpen] = useState(false);
   const [difficulty, setDifficulty] = useState<EarTrainingRhythmDifficulty>(initialReviewTarget?.difficulty ?? activeCustomPractice?.customization.difficulty ?? "基础");
   const [sequence, setSequence] = useState(initialReviewTarget?.sequence ?? 0);
@@ -175,35 +191,80 @@ export function LocalEarTrainingRhythmPanel({
     void playQuestion();
   };
 
+  const changeDifficulty = (nextDifficulty: EarTrainingRhythmDifficulty) => {
+    stopPlayback();
+    setDifficulty(nextDifficulty);
+    setSequence(0);
+    answerLock.reset();
+    activity.restart();
+    setAudioError("");
+    resetSaveStatus();
+  };
+
+  const changeExpandedActivity = (nextActivity: ExpandedRhythmActivity) => {
+    if (nextActivity === expandedActivity) return;
+    resetCurrentQuestion();
+    setExpandedActivity(nextActivity);
+    setSequence((current) => current + 1);
+  };
+
   return (
     <section className="mt-5 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
       <p className="text-sm font-semibold tracking-wide text-violet-600">本地练习</p>
-      <h2 className="mt-1 text-2xl font-bold text-slate-950">内置节奏听辨练习</h2>
+      <h2 className="mt-1 text-2xl font-bold text-slate-950">内置节奏专业练习</h2>
       <p className="mt-2 text-sm leading-6 text-slate-600">
-        先听一个四拍的本地合成击拍题，再选择你听到的节奏形状。本模块不上传音频，也不生成正式成绩。{courseExerciseId ? "当前题目来自系统课程；登录后查看答案时会保存一条仅本人可见的练习记录。" : onLocalAnswerResult ? "当前作答和声音不保存；答错时仅保存复现本题所需的最小信息。" : "当前入口不会保存练习记录。"}
+        {isExpandedRandomPractice
+          ? "每次只打开一种节奏活动；切换活动会换一道新题，避免可见目标泄露听写或回模答案。"
+          : "先听一个四拍的本地合成击拍题，再选择你听到的节奏形状。"}本模块不上传音频，也不生成正式成绩。{courseExerciseId ? "当前题目来自系统课程；登录后查看答案时会保存一条仅本人可见的练习记录。" : onLocalAnswerResult ? "当前作答和声音不保存；答错时仅保存复现本题所需的最小信息。" : "当前入口不会保存练习记录。"}
       </p>
 
-      <div className="mt-5 grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)]">
-        <div className="rounded-2xl bg-violet-50 p-4 ring-1 ring-violet-100">
-          <label className="block text-sm font-semibold text-slate-800" htmlFor="ear-training-rhythm-difficulty">练习难度</label>
+      {isExpandedRandomPractice ? (
+        <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+          <label className="block text-sm font-semibold text-slate-800" htmlFor="rhythm-activity-mode">本轮节奏活动</label>
+          <select
+            id="rhythm-activity-mode"
+            className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-slate-900"
+            value={expandedActivity}
+            onChange={(event) => changeExpandedActivity(event.target.value as ExpandedRhythmActivity)}
+          >
+            <option value="choice">节奏听辨选择题</option>
+            <option value="sight-reading">节奏视读（可见目标）</option>
+            <option value="imitation">节奏回模（隐藏目标）</option>
+            <option value="error-finding">节奏找错（可见目标）</option>
+            <option value="dictation">节奏听写（隐藏目标）</option>
+          </select>
+          <label className="mt-4 block text-sm font-semibold text-slate-800" htmlFor="ear-training-rhythm-difficulty">练习难度</label>
           <select
             id="ear-training-rhythm-difficulty"
-            disabled={Boolean(courseExerciseId || initialReviewTarget || activeCustomPractice)}
-            className="mt-2 w-full rounded-xl border border-violet-200 bg-white px-3 py-2 text-slate-900 disabled:cursor-not-allowed disabled:bg-slate-100"
+            className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-slate-900"
             value={difficulty}
-            onChange={(event) => {
-              stopPlayback();
-              setDifficulty(event.target.value as EarTrainingRhythmDifficulty);
-              setSequence(0);
-              answerLock.reset();
-              setAudioError("");
-              resetSaveStatus();
-            }}
+            onChange={(event) => changeDifficulty(event.target.value as EarTrainingRhythmDifficulty)}
           >
             <option value="基础">基础：常见四拍与八分组合</option>
-            {!courseExerciseId ? <option value="进阶">进阶：留空、切分与错落八分</option> : null}
-            {catalogMode === "expanded-local-v2" ? <option value="挑战">挑战：十六分与三连音组合</option> : null}
+            <option value="进阶">进阶：留空、切分与错落八分</option>
+            <option value="挑战">挑战：十六分与三连音组合</option>
           </select>
+          <p className="mt-3 text-sm leading-6 text-slate-700">当前题目：{difficulty} · 4/4 · {question.bpm} BPM</p>
+          <p className="mt-2 text-xs leading-5 text-slate-500">切换活动或难度会停止旧播放、清除旧作答并换题；页面只挂载当前活动。</p>
+        </div>
+      ) : null}
+
+      {expandedActivity === "choice" ? <div className="mt-5 grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)]">
+        <div className="rounded-2xl bg-violet-50 p-4 ring-1 ring-violet-100">
+          {!isExpandedRandomPractice ? <>
+            <label className="block text-sm font-semibold text-slate-800" htmlFor="ear-training-rhythm-difficulty">练习难度</label>
+            <select
+              id="ear-training-rhythm-difficulty"
+              disabled={Boolean(courseExerciseId || initialReviewTarget || activeCustomPractice)}
+              className="mt-2 w-full rounded-xl border border-violet-200 bg-white px-3 py-2 text-slate-900 disabled:cursor-not-allowed disabled:bg-slate-100"
+              value={difficulty}
+              onChange={(event) => changeDifficulty(event.target.value as EarTrainingRhythmDifficulty)}
+            >
+              <option value="基础">基础：常见四拍与八分组合</option>
+              {!courseExerciseId ? <option value="进阶">进阶：留空、切分与错落八分</option> : null}
+              {catalogMode === "expanded-local-v2" ? <option value="挑战">挑战：十六分与三连音组合</option> : null}
+            </select>
+          </> : null}
           {courseExerciseId ? <p className="mt-2 text-xs leading-5 text-slate-500">系统课程已固定为基础难度，以保持题目版本一致。</p> : null}
           <p className="mt-4 text-sm leading-6 text-violet-900">当前为内置题目 {sequence + 1}，四四拍，速度约为 {question.bpm} BPM。{courseExerciseId ? "系统课程按固定顺序出题。" : `本难度共 ${variantCount} 个版本化组合，随机排序并在全部出现后循环；当前作答不保存。`}第一拍使用较高提示音，其余击拍使用较低提示音；题目由浏览器本地 Web Audio 合成，不读取文件、不调用接口。</p>
           {!isQuestionReady ? <p className="mt-2 text-sm text-violet-800">正在准备本轮题目…</p> : null}
@@ -251,9 +312,9 @@ export function LocalEarTrainingRhythmPanel({
           ) : null}
           {courseExerciseId ? <CourseAttemptSaveNotice status={saveStatus} /> : null}
         </div>
-      </div>
+      </div> : null}
 
-      {expandedLocalCatalog && !courseExerciseId && !activeCustomPractice ? (
+      {isExpandedRandomPractice && expandedActivity === "sight-reading" ? (
         <LocalRhythmSightReadingPanel
           key={`sight-reading:${question.id}`}
           question={question}
@@ -262,7 +323,7 @@ export function LocalEarTrainingRhythmPanel({
         />
       ) : null}
 
-      {expandedLocalCatalog && !courseExerciseId && !activeCustomPractice ? (
+      {isExpandedRandomPractice && expandedActivity === "imitation" ? (
         <LocalRhythmImitationPanel
           key={`imitation:${question.id}`}
           question={question}
@@ -271,9 +332,18 @@ export function LocalEarTrainingRhythmPanel({
         />
       ) : null}
 
-      {expandedLocalCatalog && !courseExerciseId && !activeCustomPractice ? (
+      {isExpandedRandomPractice && expandedActivity === "error-finding" ? (
         <LocalRhythmErrorFindingPanel
           key={`error-finding:${question.id}`}
+          question={question}
+          sessionSeed={sessionSeed}
+          onLocalAnswerResult={onLocalAnswerResult}
+        />
+      ) : null}
+
+      {isExpandedRandomPractice && expandedActivity === "dictation" ? (
+        <LocalRhythmDictationPanel
+          key={`dictation:${question.id}`}
           question={question}
           sessionSeed={sessionSeed}
           onLocalAnswerResult={onLocalAnswerResult}

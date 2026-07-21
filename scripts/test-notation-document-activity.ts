@@ -38,6 +38,7 @@ const target: NotationTemporaryPracticeTarget = {
 
 const document = createScoreDocumentFromNotationTarget(target);
 assert.equal(document.schemaVersion, "score-document-v1");
+assert.equal(document.documentKind, "notation-fragment");
 assert.equal(document.documentId, "local.score-document.confirmed-draft-1");
 assert.equal(document.revision, 1);
 assert.equal(document.reviewState, "confirmed");

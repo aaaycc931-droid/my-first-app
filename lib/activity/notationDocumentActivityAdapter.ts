@@ -1,7 +1,7 @@
 import type { ActivityAnswer } from "./activityAnswer";
 import type { ActivityDefinitionV1 } from "./activityDefinition";
 import type { ActivityCheckEvidence } from "./activitySession";
-import type { ScoreDocumentV1 } from "../music/scoreDocument";
+import type { NotationScoreDocumentV1 } from "../music/scoreDocument";
 
 export type NotationDocumentAnswerMode =
   | "staff-notation"
@@ -11,7 +11,7 @@ export const createNotationDocumentActivityDefinition = ({
   document,
   mode,
 }: {
-  document: ScoreDocumentV1;
+  document: NotationScoreDocumentV1;
   mode: NotationDocumentAnswerMode;
 }): ActivityDefinitionV1 => {
   if (document.reviewState !== "confirmed") {
@@ -54,7 +54,7 @@ export const checkNotationDocumentAnswer = ({
   mode,
   answer,
 }: {
-  document: ScoreDocumentV1;
+  document: NotationScoreDocumentV1;
   mode: NotationDocumentAnswerMode;
   answer: ActivityAnswer | undefined;
 }): ActivityCheckEvidence => {

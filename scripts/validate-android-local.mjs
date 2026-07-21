@@ -21,6 +21,9 @@ const requiredSources = [
   "lib/activity/rhythmImitationActivityAdapter.ts",
   "lib/practice/localRhythmErrorFinding.ts",
   "lib/activity/rhythmErrorFindingActivityAdapter.ts",
+  "lib/practice/localRhythmDictation.ts",
+  "lib/activity/rhythmDictationActivityAdapter.ts",
+  "lib/music/scoreDocument.ts",
   "lib/activity/localVocalMicrophoneActivityAdapter.ts",
   "lib/practice/localEarTrainingChords.ts",
   "lib/practice/localEarTrainingHarmonyProgressions.ts",
@@ -54,6 +57,7 @@ const requiredSources = [
   "components/practice/LocalRhythmSightReadingPanel.tsx",
   "components/practice/LocalRhythmImitationPanel.tsx",
   "components/practice/LocalRhythmErrorFindingPanel.tsx",
+  "components/practice/LocalRhythmDictationPanel.tsx",
   "components/practice/RealtimePitchCurveChart.tsx",
   "components/practice/LocalVocalExercisePanel.tsx",
   "components/practice/useRealtimePitchMonitor.ts",
@@ -202,6 +206,26 @@ const rhythmErrorFindingActivitySource = readFileSync(
 );
 const rhythmErrorFindingPanelSource = readFileSync(
   join(root, "components/practice/LocalRhythmErrorFindingPanel.tsx"),
+  "utf8",
+);
+const rhythmDictationSource = readFileSync(
+  join(root, "lib/practice/localRhythmDictation.ts"),
+  "utf8",
+);
+const rhythmDictationActivitySource = readFileSync(
+  join(root, "lib/activity/rhythmDictationActivityAdapter.ts"),
+  "utf8",
+);
+const rhythmDictationPanelSource = readFileSync(
+  join(root, "components/practice/LocalRhythmDictationPanel.tsx"),
+  "utf8",
+);
+const rhythmPracticePanelSource = readFileSync(
+  join(root, "components/practice/LocalEarTrainingRhythmPanel.tsx"),
+  "utf8",
+);
+const scoreDocumentSource = readFileSync(
+  join(root, "lib/music/scoreDocument.ts"),
   "utf8",
 );
 const vocalActivityAdapterSource = readFileSync(
@@ -377,6 +401,28 @@ if (
   || !rhythmErrorFindingPanelSource.includes("不推断演奏能力")
 ) {
   throw new Error("Android P116c 节奏找错、单一事件变化、非评分 Activity 或生命周期 fail-closed 边界不完整");
+}
+if (
+  !rhythmDictationSource.includes('schemaVersion: "rhythm-dictation-draft-v1"')
+  || !rhythmDictationSource.includes("checkRhythmDictationDraft")
+  || !rhythmDictationSource.includes("confirmRhythmDictationDraft")
+  || !rhythmDictationActivitySource.includes('family: "rhythm-dictation"')
+  || !rhythmDictationActivitySource.includes('allowedInputModes: ["staff-notation"]')
+  || !rhythmDictationActivitySource.includes('assessmentMode: "non-scoring"')
+  || !rhythmDictationPanelSource.includes("P116d · 本地节奏听写")
+  || !rhythmDictationPanelSource.includes("确认并检查听写")
+  || !rhythmDictationPanelSource.includes("subscribeBrowserAudioStopAll")
+  || !rhythmDictationPanelSource.includes("playbackTokenRef")
+  || !rhythmDictationPanelSource.includes("重播、停止、后台或全局停止会清除旧草稿与确认")
+  || !rhythmPracticePanelSource.includes('expandedActivity === "dictation"')
+  || !rhythmPracticePanelSource.includes("&& !initialReviewTarget")
+  || !rhythmPracticePanelSource.includes("页面只挂载当前活动")
+  || !scoreDocumentSource.includes('documentKind: "rhythm-dictation"')
+  || !scoreDocumentSource.includes('reviewState: "confirmed"')
+  || !scoreDocumentSource.includes("localOnly: true")
+  || !scoreDocumentSource.includes("sessionOnly: true")
+) {
+  throw new Error("Android P116d 节奏听写、谱面草稿检查确认、非评分 Activity 或生命周期 fail-closed 边界不完整");
 }
 if (
   !seventhChordSource.includes("getLocalSeventhChordVariantCount")
@@ -631,6 +677,8 @@ for (const expectedCopy of [
   "节奏听辨",
   "P116a · 本地节奏视读",
   "开始八次校准",
+  "P116d · 本地节奏听写",
+  "确认并检查听写",
   "旋律听写",
   "七和弦排列",
   "七和弦开放与密集排列听辨",
@@ -701,4 +749,4 @@ if (existsSync(manifestPath) && !existsSync(syncedIndex)) {
   throw new Error("Android 工程存在，但本地 Web 资源尚未同步");
 }
 
-console.log("Android 本地模式校验通过：固定包名、本地资源、既有十类练习、P116a 节奏视读与会话校准、P116b 隐藏目标节奏回模、P116c 单一事件节奏找错、音程比较/非评分模唱反馈、实时音高反馈、本机复练、非评分学习画像、本地参考钢琴、无远程运行时配置与生命周期保护。");
+console.log("Android 本地模式校验通过：固定包名、本地资源、既有十类练习、P116a 节奏视读与会话校准、P116b 隐藏目标节奏回模、P116c 单一事件节奏找错、P116d 谱面草稿节奏听写、音程比较/非评分模唱反馈、实时音高反馈、本机复练、非评分学习画像、本地参考钢琴、无远程运行时配置与生命周期保护。");

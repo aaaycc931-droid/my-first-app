@@ -247,12 +247,10 @@ describe("Android 本机复练行为", () => {
       await waitFor(() => !findButton(container, answerLabel).disabled, `${practiceLabel}题目可回答`);
 
       if (practiceLabel === "节奏听辨") {
-        expect(container.textContent).toContain("P116a · 本地节奏视读");
-        expect(container.textContent).toContain("看节奏目标，预备拍后点击");
-        expect(container.textContent).toContain("P116b · 本地节奏回模");
-        expect(container.textContent).toContain("先完整听，再从记忆点击");
-        expect(container.textContent).toContain("P116c · 本地节奏找错");
-        expect(container.textContent).toContain("对照可见目标，定位唯一变化");
+        expect(container.querySelector<HTMLSelectElement>("#rhythm-activity-mode")?.value)
+          .toBe("choice");
+        expect(container.textContent).not.toContain("P116a · 本地节奏视读");
+        expect(container.textContent).not.toContain("P116d · 本地节奏听写");
       }
 
       await click(findButton(container, answerLabel));
@@ -265,6 +263,66 @@ describe("Android 本机复练行为", () => {
         .toContain("非评分证据");
     });
   }
+
+  it("节奏听写以单活动模式挂载，确认前不泄露同题可见目标", async () => {
+    const container = await renderApp();
+    await click(findLink(container, "节奏听辨"));
+    const activityMode = container.querySelector<HTMLSelectElement>("#rhythm-activity-mode");
+    expect(activityMode).not.toBeNull();
+
+    await act(async () => {
+      if (!activityMode) return;
+      activityMode.value = "dictation";
+      activityMode.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    await flushReact();
+
+    expect(container.textContent).toContain("P116d · 本地节奏听写");
+    expect(container.textContent).toContain("听一小节，写成可检查的节奏草稿");
+    expect(container.textContent).toContain("当前题目：基础 · 4/4 ·");
+    expect(container.textContent).not.toContain("P116a · 本地节奏视读");
+    expect(container.textContent).not.toContain("P116c · 本地节奏找错");
+    expect(container.querySelector('[data-testid="rhythm-sight-reading-target"]')).toBeNull();
+    expect(container.querySelector('[data-testid="rhythm-error-finding-target"]')).toBeNull();
+    expect(container.querySelector('[data-testid="rhythm-dictation-result"]')).toBeNull();
+    expect(container.textContent).not.toContain("题目事件对照：");
+
+    const difficulty = container.querySelector<HTMLSelectElement>("#ear-training-rhythm-difficulty");
+    expect(difficulty?.value).toBe("基础");
+    await act(async () => {
+      if (!difficulty) return;
+      difficulty.value = "挑战";
+      difficulty.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    await flushReact();
+    expect(container.textContent).toContain("当前题目：挑战 · 4/4 ·");
+    expect(container.textContent).toContain("P116d · 本地节奏听写");
+    expect(container.querySelector('[data-testid="rhythm-dictation-result"]')).toBeNull();
+  });
+
+  it("节奏复练固定题不提供专业活动切换，避免把已知目标复用于隐藏活动", async () => {
+    window.localStorage.setItem(
+      MOBILE_PRACTICE_REVIEW_STORAGE_KEY,
+      JSON.stringify({
+        schemaVersion: 9,
+        catalogVersion: 9,
+        targets: [{
+          kind: "rhythm",
+          difficulty: "基础",
+          seed: 0,
+          sequence: 0,
+          variantId: "rhythm:front-dense",
+        }],
+      }),
+    );
+    const container = await renderApp();
+    await click(findButton(container, "节奏听辨 · 基础复练 1"));
+
+    expect(container.querySelector("#rhythm-activity-mode")).toBeNull();
+    expect(container.textContent).not.toContain("P116a · 本地节奏视读");
+    expect(container.textContent).not.toContain("P116d · 本地节奏听写");
+    expect(container.textContent).toContain("返回随机练习");
+  });
 
   it("旋律听写按音符顺序通过统一活动协议完成作答和检查", async () => {
     const container = await renderApp();
