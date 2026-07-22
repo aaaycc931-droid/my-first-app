@@ -28,7 +28,7 @@ import { useLockedPracticeAnswer } from "./useLockedPracticeAnswer";
 import { useLocalQuestionSchedule } from "./useLocalQuestionSchedule";
 import { ActivityChoiceAnswerPanel } from "./ActivityChoiceAnswerPanel";
 import { ActivityProtocolState } from "./ActivityProtocolState";
-import { useChoiceActivitySession } from "./useChoiceActivitySession";
+import { useChoiceActivitySession, type ChoiceActivityCheckedEvent } from "./useChoiceActivitySession";
 import { adaptIntervalQuestionToActivity } from "../../lib/activity/legacyLocalActivityAdapter";
 
 export function LocalEarTrainingIntervalPanel({
@@ -39,6 +39,7 @@ export function LocalEarTrainingIntervalPanel({
   customPractice,
   showLocalPiano = false,
   expandedLocalCatalog = false,
+  onActivityChecked,
 }: {
   courseExerciseId?: string;
   initialReviewTarget?: Extract<LocalPracticeReviewTarget, { kind: "interval" }>;
@@ -47,6 +48,7 @@ export function LocalEarTrainingIntervalPanel({
   customPractice?: ResolvedLocalPracticeCustomization;
   showLocalPiano?: boolean;
   expandedLocalCatalog?: boolean;
+  onActivityChecked?: (event: ChoiceActivityCheckedEvent) => void;
 }) {
   const customConfig = customPractice?.customization.kind === "interval"
     ? customPractice.customization
@@ -100,7 +102,7 @@ export function LocalEarTrainingIntervalPanel({
     () => adaptIntervalQuestionToActivity(question),
     [question],
   );
-  const activity = useChoiceActivitySession(activityDefinition, `interval:${question.id}`);
+  const activity = useChoiceActivitySession(activityDefinition, `interval:${question.id}`, onActivityChecked);
 
   const playQuestion = async () => {
     setAudioError("");
@@ -173,6 +175,7 @@ export function LocalEarTrainingIntervalPanel({
 
   const nextQuestion = () => {
     resetCurrentQuestion();
+    if (onActivityChecked) return;
     if (initialReviewTarget && onLeaveReviewTarget) onLeaveReviewTarget();
     else setSequence((current) => current + 1);
   };
@@ -267,7 +270,7 @@ export function LocalEarTrainingIntervalPanel({
             </button>
             {isAnswerVisible && !answer.matchesAnswer ? <button type="button" onClick={retryCurrentQuestion} className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-2.5 font-semibold text-amber-900">重新播放并复练本题</button> : null}
             <button type="button" onClick={resetCurrentQuestion} className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 font-semibold text-slate-800">重置本题</button>
-            <button type="button" disabled={!isQuestionReady} onClick={nextQuestion} className="rounded-xl border border-emerald-300 bg-white px-4 py-2.5 font-semibold text-emerald-800 disabled:cursor-not-allowed disabled:opacity-50">{initialReviewTarget ? "返回随机练习" : "下一题"}</button>
+            <button type="button" disabled={!isQuestionReady} onClick={nextQuestion} className="rounded-xl border border-emerald-300 bg-white px-4 py-2.5 font-semibold text-emerald-800 disabled:cursor-not-allowed disabled:opacity-50">{onActivityChecked ? "重新练习本课节" : initialReviewTarget ? "返回随机练习" : "下一题"}</button>
           </div>
           {!answer.hasSelection ? <p className="mt-3 text-sm leading-6 text-slate-500">请先选择一个音程，再查看本题答案。</p> : null}
           <ActivityProtocolState session={activity.session} />
@@ -292,7 +295,7 @@ export function LocalEarTrainingIntervalPanel({
           {isLocalPianoOpen ? <div id="interval-reference-piano" className="mt-4"><LocalPianoPanel /></div> : null}
         </section>
       ) : null}
-      <p className="mt-5 text-sm leading-6 text-slate-500">{courseExerciseId ? "课程边界：题目播放与答案仍在浏览器完成，不上传音频。登录用户查看答案时只保存当前题目、方向、选择和答案一致性摘要；未登录用户不保存。" : onLocalAnswerResult ? "本机复练只保存复现这道题所需的题型、难度、方向和随机题序，不保存你的选择、声音或正式成绩。" : "会话边界：题目序号、选择与答案说明只存在于当前页面内存；刷新后消失，不写入 localStorage、IndexedDB、账号或数据库。"}</p>
+      <p className="mt-5 text-sm leading-6 text-slate-500">{onActivityChecked ? "本地课程只在 Activity 完成核对后记录课节完成事实；不保存答案、正确性、声音或正式成绩。" : courseExerciseId ? "课程边界：题目播放与答案仍在浏览器完成，不上传音频。登录用户查看答案时只保存当前题目、方向、选择和答案一致性摘要；未登录用户不保存。" : onLocalAnswerResult ? "本机复练只保存复现这道题所需的题型、难度、方向和随机题序，不保存你的选择、声音或正式成绩。" : "会话边界：题目序号、选择与答案说明只存在于当前页面内存；刷新后消失，不写入 localStorage、IndexedDB、账号或数据库。"}</p>
     </section>
   );
 }

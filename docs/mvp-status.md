@@ -31,7 +31,7 @@
 
 ## 当前开发边界
 
-- 当前 next slice 是 P118a：建立稳定、版本化的中文课程路径和本地课程进度模型，先覆盖课程章节／课节、课程目标、Activity 映射、明确完成条件、解锁规则及内容版本迁移。
+- 当前开发切片是 P118a implementation candidate：稳定、版本化的中文课程路径和独立本机进度模型已形成最小实现，覆盖章节／课节、课程目标、Activity 映射、明确完成条件、推导式解锁及内容版本 fail-closed；合并与 CI 状态以对应 PR 为准。
 - P118a 只消费现有 Activity、复练队列和学习画像协议，不创建平行答案或能力协议；旧数据必须安全迁移或 fail closed。
 - P118a 不生成正式能力评级，不上传课程数据，不新增账户、云端、数据库、网络依赖或 `INTERNET` 权限。P118b 的统计、P118c 的复练队列、P118d 的推荐和 P118e 的整合必须继续拆分。
 - P117e 已形成合并后的 implementation candidate。QA level recommendation 为 strict；P117d 与 P117e 的 Browser 真麦克风、Android 三档真机、真实人声、双教师和目标用户证据仍为 `NOT_EXECUTED`，不能由模拟录音、DOM、CI 或 APK 替代。
