@@ -13,6 +13,7 @@ const requiredSources = [
   "mobile/src/runtime/mobileLearningProfileStorage.ts",
   "mobile/src/runtime/mobileCourseProgressStorage.ts",
   "mobile/src/LocalCoursePathPanel.tsx",
+  "mobile/src/LocalPracticeStatisticsPanel.tsx",
   "mobile/src/stubs/supabaseBrowser.ts",
   "lib/practice/localPracticeReviewQueue.ts",
   "lib/practice/localPracticeCustomizer.ts",
@@ -45,6 +46,7 @@ const requiredSources = [
   "lib/practice/localEarTrainingSeventhChordSpacing.ts",
   "lib/learning/learningEventProfile.ts",
   "lib/learning/localCoursePath.ts",
+  "lib/learning/localPracticeStatistics.ts",
   "lib/piano/localPianoKeyboard.ts",
   "lib/piano/pianoNoteEvents.ts",
   "lib/piano/pianoAudioProvider.ts",
@@ -127,6 +129,8 @@ const learningProfileStorageSource = readFileSync(
 const coursePathSource = readFileSync(join(root, "lib/learning/localCoursePath.ts"), "utf8");
 const courseStorageSource = readFileSync(join(root, "mobile/src/runtime/mobileCourseProgressStorage.ts"), "utf8");
 const coursePanelSource = readFileSync(join(root, "mobile/src/LocalCoursePathPanel.tsx"), "utf8");
+const practiceStatisticsSource = readFileSync(join(root, "lib/learning/localPracticeStatistics.ts"), "utf8");
+const practiceStatisticsPanelSource = readFileSync(join(root, "mobile/src/LocalPracticeStatisticsPanel.tsx"), "utf8");
 const chordTrainingSource = readFileSync(
   join(root, "lib/practice/localEarTrainingChords.ts"),
   "utf8",
@@ -426,6 +430,20 @@ if (
   || !mobileApp.includes('activeScreen === "course"')
 ) {
   throw new Error("Android P118a 本地课程、版本进度、解锁或隐私边界不完整");
+}
+if (
+  !practiceStatisticsSource.includes("LocalPracticeStatisticsEvent")
+  || !practiceStatisticsSource.includes('"occurredAt" | "kind" | "skillKind" | "practiceMode"')
+  || !practiceStatisticsSource.includes('LOCAL_PRACTICE_STATISTICS_WINDOWS = ["7d", "30d", "all"]')
+  || practiceStatisticsSource.includes(".outcome")
+  || practiceStatisticsSource.includes("correctCount")
+  || !practiceStatisticsPanelSource.includes("按练习方式")
+  || !practiceStatisticsPanelSource.includes("按题目族")
+  || !practiceStatisticsPanelSource.includes("最多 48 条")
+  || !practiceStatisticsPanelSource.includes("不代表终身历史")
+  || !mobileApp.includes('activeScreen === "statistics"')
+) {
+  throw new Error("Android P118b 本机详细统计、时间窗口、来源说明或非结果边界不完整");
 }
 if (
   !chordTrainingSource.includes('type ChordQualityId = "major" | "minor" | "diminished" | "augmented"')
@@ -987,4 +1005,4 @@ if (existsSync(manifestPath) && !existsSync(syncedIndex)) {
   throw new Error("Android 工程存在，但本地 Web 资源尚未同步");
 }
 
-console.log("Android 本地模式校验通过：固定包名、本地资源、既有十类练习、P116a–P117e 既有主线、P118a 版本化中文课程路径与本地进度、音程比较/非评分模唱反馈、实时音高反馈、本机复练、非评分学习画像、本地参考钢琴、无远程运行时配置与生命周期保护。");
+console.log("Android 本地模式校验通过：固定包名、本地资源、既有十类练习、P116a–P117e 既有主线、P118a 版本化中文课程路径与本地进度、P118b 本机详细练习统计、音程比较/非评分模唱反馈、实时音高反馈、本机复练、非评分学习画像、本地参考钢琴、无远程运行时配置与生命周期保护。");
