@@ -51,6 +51,7 @@ jobs:
           npm run test:learning-event-profile
           npm run test:mobile-learning-profile-storage
           npm run test:mobile-melody-solfege-behavior
+          npm run test:mobile-melody-imitation-behavior
           npm run test:mobile-piano-behavior
           npm run test:piano-audio-foundation
           npm run test:piano-interaction
@@ -79,6 +80,8 @@ jobs:
           npm run test:melody-piano-activity-adapter
           npm run test:melody-staff-notation-activity-adapter
           npm run test:melody-numbered-notation-activity-adapter
+          npm run test:local-melody-imitation
+          npm run test:melody-imitation-activity-adapter
           npm run test:legacy-activity-adapters
           npm run test:analysis-evidence-adapter
           npm run test:local-vocal-microphone-activity-adapter
