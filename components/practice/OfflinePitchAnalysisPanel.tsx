@@ -64,6 +64,7 @@ export function OfflinePitchAnalysisPanel({
   onAnalysisFailed,
   onAnalysisStarted,
   analysisLocked = false,
+  resultLocked = false,
 }: {
   recording: Blob | null;
   onBeforeAnalyze: () => void;
@@ -77,6 +78,7 @@ export function OfflinePitchAnalysisPanel({
   onAnalysisFailed?: (detail: OfflinePitchAnalysisFailedDetail) => void;
   onAnalysisStarted?: (detail: OfflinePitchAnalysisStartedDetail) => void;
   analysisLocked?: boolean;
+  resultLocked?: boolean;
 }) {
   const analysis = useOfflinePitchAnalysis(recording);
   const [confirmingRecording, setConfirmingRecording] = useState<Blob | null>(null);
@@ -166,6 +168,7 @@ export function OfflinePitchAnalysisPanel({
   };
 
   const clearAnalysis = () => {
+    if (resultLocked) return;
     reportedAnalysisRef.current = null;
     activeAnalysisRunRef.current = null;
     analysis.clear();
@@ -214,7 +217,7 @@ export function OfflinePitchAnalysisPanel({
           <p className="mt-3 text-xs leading-5 text-slate-600">标准 PCM：16 kHz 单声道，{analysis.state.result.pcm.durationSeconds.toFixed(2)} 秒；拒答 {analysis.state.result.summary.rejectedFrames} 帧，八度修正 {analysis.state.result.summary.octaveAdjustedFrames} 帧，输入削波样本 {(analysis.state.result.pcm.diagnostics.clippedSampleRatio * 100).toFixed(2)}%。</p>
           {points ? <svg viewBox="0 0 100 100" role="img" aria-label="录音后连续音高轨迹，不含目标评分" className="mt-3 h-36 w-full rounded-lg bg-slate-950 p-2" preserveAspectRatio="none"><polyline points={points} fill="none" stroke="#e879f9" strokeWidth="1.5" vectorEffect="non-scaling-stroke" /></svg> : <p className="mt-3 text-sm text-slate-700">可靠帧不足，保留“无法判断”，不强行生成轨迹。</p>}
           {recording && noteAlignment && showAlignmentEvidence ? <OfflineNoteAlignmentEvidencePanel recording={recording} result={noteAlignment} onBeforePlay={onBeforeAnalyze} /> : null}
-          <button type="button" onClick={clearAnalysis} className="mt-3 min-h-10 rounded-lg border border-rose-300 px-3 text-sm font-bold text-rose-800">清除本次分析结果</button>
+          <button type="button" disabled={resultLocked} onClick={clearAnalysis} className="mt-3 min-h-10 rounded-lg border border-rose-300 px-3 text-sm font-bold text-rose-800 disabled:opacity-50">清除本次分析结果</button>
         </div>
       ) : null}
     </section>

@@ -6,7 +6,7 @@
 
 ## 当前基线
 
-- 最新产品功能基线：P117c / PR #397，合并提交 `046da82f7a7ec1fe670e11c77c851c13caf6e7c0`
+- 最新产品功能基线：P117d / PR #398，合并提交 `37bd4c6aa2f094611abe661168188b4b921465de`
 - 最新仓库维护：PR #389，清理状态总账并新增文档卫生门禁
 - 仓库当前提交以 GitHub 默认分支为权威；本文件不硬编码会因自身合并而立即过期的“当前 main SHA”
 - P115a–P115i 已合并；当前没有接续中的 P115 PR
@@ -26,13 +26,14 @@
 - P117a 提供三音旋律听写的屏幕钢琴 Activity 答案：只有完整播放隐藏旋律后才允许明确开始接收三个有序 `note-on`，重复音、F♯4 与 C5 身份无损保留，检查后只显示逐位置非评分对照；非屏幕钢琴来源、迟到事件和已作废 attempt 均失败关闭。
 - P117b 提供三音旋律听写的受控五线谱答案：完整听题后编辑三个有序谱位，经预览、结构检查、修改／重新检查与明确确认，冻结为会话内 `score-document-v1` 后才提交 Activity `staff-notation` 答案并显示逐位置非评分对照；C4 下加线、F♯4 升号、C5 与重复音身份均保留。
 - P117c 提供固定 C 为 1 的受控简谱答案：真实显示 F♯4 左侧升号与 C5 上方高音点，canonical note id 与显示 token 分离；经预览、结构检查、修改失效、明确确认和文档冻结后才提交 Activity `numbered-notation` 并显示逐位置非评分对照。
+- P117d 提供隐藏三音旋律回唱：完整听题后主动启用麦克风，以共用版本化时间线完成四拍预备、录音、完整回放与真实 analysis run，再提交 Activity `melody-imitation` 非评分证据；听写／回唱结构互斥，录音零点、生命周期、权限、Recorder、回放和解码错误均失败关闭。
 
 ## 当前开发边界
 
-- P117d 当前推进三音旋律回唱：完整听完隐藏目标后，用户主动启用麦克风，经版本化四拍预备拍录制三音回唱，回放检查并二次确认后才在本机执行 P112 解码、P113 有序对齐与 Activity `melody-imitation` 非评分反馈。
-- 播放、预备拍、录音零点与分析 target 必须来自同一版本化 timeline；实时曲线不能冒充正式 evidence，错 attempt/target/recording/analysis 或生命周期中断全部 fail closed。
-- 首版仅挂扩展随机入口，不持久化 Blob、PCM、曲线、逐音 evidence 或 ActivitySession，也不把非评分结论硬写为错题或能力弱点。详细边界见 `docs/p117d-melody-imitation-microphone-acceptance.md`。
-- P117d 当前是 implementation candidate。QA level recommendation 为 strict；Browser 真麦克风、Android 三档真机、真实人声、双教师和目标用户证据均未形成，不能由模拟录音、DOM、CI 或 APK 替代。
+- P117e 当前推进三音旋律视唱：目标五线谱与固定唱名从开始可见，不播放完整答案；用户主动启用麦克风，以版本化四拍建立录音零点，完整回放并二次确认后才执行 P112/P113 与 Activity `melody-sight-singing` 非评分反馈。
+- 可见谱面、固定唱名、四拍、录音窗口与 P113 targets 必须从同一 canonical target 派生；不能复用 P117d 的隐藏目标、完整参考播放资格或揭示语义。
+- 首版仍只挂扩展随机独占模式，保持 session-only 且不写复练或学习画像。详细边界见 `docs/p117e-melody-sight-singing-acceptance.md`。
+- P117e 当前是 acceptance candidate。QA level recommendation 为 strict；P117d 与 P117e 的 Browser 真麦克风、Android 三档真机、真实人声、双教师和目标用户证据均未形成，不能由模拟录音、DOM、CI 或 APK 替代。
 
 ## 最近权威验证
 
@@ -48,6 +49,7 @@
 | P117a | #395 | `9bcba3c533503d8cf50d6105471ba67f1f6d3f43` | `29809682809` | `8486945545` | `ee9cb33b41fcd6dba075ccc3548b86948f1328a5837b2d7a4beb8352da8b025b` |
 | P117b | #396 | `3455052a65a42841cbab76e83fc0abe5ad7b74e9` | `29830492176` | `8495101348` | `587780402d5a339f968dc58c20f27adac23ef67f4ffdef8e2c35dda77955b477` |
 | P117c | #397 | `046da82f7a7ec1fe670e11c77c851c13caf6e7c0` | `29887214619` | `8516958894` | `41221b560e6af280e4167aee276d8bfaf39a4a5d26702f2d6b473b09ef27a501` |
+| P117d | #398 | `37bd4c6aa2f094611abe661168188b4b921465de` | `29894710668` | `8519558587` | `29bb8cad6858ffeee304d0634a1ac682e9e6259e5419f99ff08e8deab34c5aa9` |
 
 上述运行的 `quality` 与 `android-local` 均通过。表中 SHA-256 是 GitHub artifact ZIP digest，不是 ZIP 内 APK 摘要；Android 工件是 CI 构建并独立校验的 API 36 Debug APK，它只证明自动构建与校验通过。
 

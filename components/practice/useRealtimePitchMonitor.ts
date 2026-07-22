@@ -318,19 +318,22 @@ export function useRealtimePitchMonitor() {
     stop();
     stopPlayback();
     setCompletedPlaybackRecording(null);
+    let playback: HTMLAudioElement | null = null;
     try {
-      const playback = new Audio(url);
+      playback = new Audio(url);
       const playbackRecording = recordingBlob;
       playbackRef.current = playback;
       playback.onended = () => {
-        if (playbackRef.current === playback) playbackRef.current = null;
+        if (playbackRef.current !== playback) return;
+        playbackRef.current = null;
         if (mountedRef.current) {
           setCompletedPlaybackRecording(playbackRecording);
           setRecordingStatus("ready");
         }
       };
       playback.onerror = () => {
-        if (playbackRef.current === playback) playbackRef.current = null;
+        if (playbackRef.current !== playback) return;
+        playbackRef.current = null;
         if (mountedRef.current) {
           const message = "无法回放本次录音。你可以丢弃后重新录制。";
           setRecordingStatus("error");
@@ -341,6 +344,7 @@ export function useRealtimePitchMonitor() {
       await playback.play();
       if (playbackRef.current === playback && mountedRef.current) setRecordingStatus("playing");
     } catch {
+      if (playback !== null && playbackRef.current !== playback) return;
       playbackRef.current = null;
       if (mountedRef.current) {
         const message = "系统阻止了录音回放，请再次点击播放或重新录制。";

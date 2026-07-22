@@ -356,7 +356,10 @@ describe("三音旋律听写音名与固定唱名行为", () => {
     expect(container.textContent).toContain("P117c · 本地旋律听写");
     expect(findButton(container, "旋律听写").getAttribute("aria-checked")).toBe("true");
     expect(findButton(container, "旋律回唱（麦克风）").getAttribute("aria-checked")).toBe("false");
+    expect(findButton(container, "旋律视唱（可见目标）").getAttribute("aria-checked")).toBe("false");
     expect(container.textContent).not.toContain("P117d · 会话内非评分练习");
+    expect(container.textContent).not.toContain("P117e · 会话内非评分练习");
+    expect(container.querySelector('[aria-labelledby="melody-sight-singing-title"]')).toBeNull();
     expect(findButton(container, "屏幕钢琴").getAttribute("aria-checked")).toBe("false");
 
     await click(findButton(container, "屏幕钢琴"));
@@ -446,6 +449,58 @@ describe("三音旋律听写音名与固定唱名行为", () => {
     expect(changedDifficulty).not.toBe(next);
     expect(container.textContent).not.toContain("本题答案：");
     expect(container.textContent).toContain("当前为回唱题目 1");
+  });
+
+  it("随机入口切换到视唱后只挂载可见目标练习，并隔离回唱与听写控件", async () => {
+    const container = await renderPanel({ randomQuestion: true });
+    expect(container.querySelector('[aria-labelledby="melody-sight-singing-title"]')).toBeNull();
+
+    await click(findButton(container, "旋律视唱（可见目标）"));
+    expect(findButton(container, "旋律视唱（可见目标）").getAttribute("aria-checked")).toBe("true");
+    expect(container.textContent).toContain("P117e · 会话内非评分练习");
+    expect(container.querySelector('[aria-labelledby="melody-sight-singing-title"]')).not.toBeNull();
+    expect(container.textContent).not.toContain("P117d · 会话内非评分练习");
+    expect(container.querySelector('[aria-labelledby="melody-imitation-title"]')).toBeNull();
+    expect(container.querySelector('[data-testid="melody-imitation-question-controls"]')).toBeNull();
+    expect(container.querySelector('[data-testid="melody-answer-mode"]')).toBeNull();
+    expect(container.querySelector('[data-testid="melody-piano-answer"]')).toBeNull();
+    expect(container.querySelector('[aria-label="旋律听写参考钢琴"]')).toBeNull();
+    expect(Array.from(container.querySelectorAll("button")).some((button) =>
+      button.textContent?.trim() === "播放旋律题目"
+      || button.textContent?.trim() === "查看本题答案"
+      || button.textContent?.trim() === "参考钢琴"
+    )).toBe(false);
+  });
+
+  it("视唱 reset、next 与同 variant 跨难度都会 remount 并作废旧实例", async () => {
+    const container = await renderPanel({ randomQuestion: true });
+    await click(findButton(container, "旋律视唱（可见目标）"));
+    const currentPanel = () => container.querySelector<HTMLElement>('[aria-labelledby="melody-sight-singing-title"]');
+    const first = currentPanel();
+    expect(first).not.toBeNull();
+
+    await click(findButton(container, "重置视唱题目"));
+    const reset = currentPanel();
+    expect(reset).not.toBeNull();
+    expect(reset).not.toBe(first);
+
+    await act(async () => vi.advanceTimersByTime(100));
+    await click(findButton(container, "下一组视唱"));
+    await act(async () => vi.advanceTimersByTime(100));
+    const next = currentPanel();
+    expect(next).not.toBeNull();
+    expect(next).not.toBe(reset);
+    expect(container.textContent).toContain("当前为视唱题目 2");
+
+    const difficulty = container.querySelector<HTMLSelectElement>("#melody-sight-singing-difficulty");
+    if (!difficulty) throw new Error("找不到视唱难度选择");
+    await changeSelect(difficulty, "进阶");
+    await act(async () => vi.advanceTimersByTime(100));
+    const changedDifficulty = currentPanel();
+    expect(changedDifficulty).not.toBeNull();
+    expect(changedDifficulty).not.toBe(next);
+    expect(container.textContent).not.toContain("本题答案：");
+    expect(container.textContent).toContain("当前为视唱题目 1");
   });
 
   it("全局停止和音频中断都会清除听题资格、填写与迟到完成回调", async () => {
@@ -833,9 +888,14 @@ describe("三音旋律听写音名与固定唱名行为", () => {
     expect(container.textContent).not.toContain("本题答案：");
   });
 
-  it("复练入口不暴露新的屏幕钢琴、五线谱或简谱模式", async () => {
+  it("复练入口不暴露回唱、视唱、屏幕钢琴、五线谱或简谱模式", async () => {
     const container = await renderPanel();
     expect(container.textContent).not.toContain("P117d · 会话内非评分练习");
+    expect(container.textContent).not.toContain("P117e · 会话内非评分练习");
+    expect(Array.from(container.querySelectorAll("button")).some(
+      (button) => button.textContent?.trim() === "旋律回唱（麦克风）"
+        || button.textContent?.trim() === "旋律视唱（可见目标）",
+    )).toBe(false);
     expect(Array.from(container.querySelectorAll("button")).some(
       (button) => button.textContent?.trim() === "屏幕钢琴",
     )).toBe(false);
@@ -848,9 +908,10 @@ describe("三音旋律听写音名与固定唱名行为", () => {
     expect(container.querySelector('[data-testid="melody-piano-answer"]')).toBeNull();
     expect(container.querySelector('[data-testid="melody-staff-notation-answer"]')).toBeNull();
     expect(container.querySelector('[data-testid="melody-numbered-notation-answer"]')).toBeNull();
+    expect(container.querySelector('[aria-labelledby="melody-sight-singing-title"]')).toBeNull();
   });
 
-  it("自定义旋律入口不暴露屏幕钢琴、五线谱或简谱文档模式", async () => {
+  it("自定义旋律入口不暴露回唱、视唱、屏幕钢琴、五线谱或简谱文档模式", async () => {
     const customPractice: ResolvedLocalPracticeCustomization = {
       customization: {
         schemaVersion: 1,
@@ -869,13 +930,17 @@ describe("三音旋律听写音名与固定唱名行为", () => {
       customPractice,
     });
     expect(container.textContent).not.toContain("P117d · 会话内非评分练习");
+    expect(container.textContent).not.toContain("P117e · 会话内非评分练习");
     expect(Array.from(container.querySelectorAll("button")).some(
-      (button) => button.textContent?.trim() === "屏幕钢琴"
+      (button) => button.textContent?.trim() === "旋律回唱（麦克风）"
+        || button.textContent?.trim() === "旋律视唱（可见目标）"
+        || button.textContent?.trim() === "屏幕钢琴"
         || button.textContent?.trim() === "五线谱"
         || button.textContent?.trim() === "简谱",
     )).toBe(false);
     expect(container.querySelector('[data-testid="melody-piano-answer"]')).toBeNull();
     expect(container.querySelector('[data-testid="melody-staff-notation-answer"]')).toBeNull();
     expect(container.querySelector('[data-testid="melody-numbered-notation-answer"]')).toBeNull();
+    expect(container.querySelector('[aria-labelledby="melody-sight-singing-title"]')).toBeNull();
   });
 });
