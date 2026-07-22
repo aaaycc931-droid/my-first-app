@@ -2,6 +2,8 @@
 
 状态：`IMPLEMENTATION_CANDIDATE`。本文件记录仓库内实现与自动验证边界，不代表正式验证、发布批准或教育有效性结论。
 
+合并事实：PR #403 已 squash 合并为 main commit `8a31126cfd993ee7f150e0fbe17b1ddaf9b54d5b`。PR Quality run `29904618128` 的 `quality` 与 `android-local` 均成功；Android artifact `8523330552` 来自 PR synthetic merge commit `8456f0f229deb492457ed363bf60b1c1b93f1e94`，不能表述为 main commit 的真机验证。
+
 ## 实现范围
 
 - 稳定课程 ID `00000000-0000-0000-0000-000000000001`，内容版本 `zh-foundation-2026.1`，一个中文基础章节和三个顺序课节。
