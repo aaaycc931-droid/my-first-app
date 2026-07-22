@@ -6,8 +6,8 @@
 
 ## 当前基线
 
-- 最新产品功能基线：P117e / PR #399，合并提交 `c2fc6a8943c9c432c850f3d0c89455b378c2cdd5`
-- 最新仓库维护：PR #389，清理状态总账并新增文档卫生门禁
+- 最新产品功能基线：P118a / PR #403，合并提交 `8a31126cfd993ee7f150e0fbe17b1ddaf9b54d5b`
+- 最新仓库维护：PR #406，P118a 本机进度保存／清除失败关闭修复，main 提交 `f0c0810acb6e4417329466bcc13decc607589c92`
 - 仓库当前提交以 GitHub 默认分支为权威；本文件不硬编码会因自身合并而立即过期的“当前 main SHA”
 - P115a–P115i 已合并；当前没有接续中的 P115 PR
 - 早期遗留 PR #217、#114、#113、#112、#69、#68 不属于当前路线，本轮不修改、不接续
@@ -31,8 +31,9 @@
 
 ## 当前开发边界
 
-- P118a implementation candidate 已通过 PR #403 合并为 `8a31126cfd993ee7f150e0fbe17b1ddaf9b54d5b`；PR Quality run `29904618128` 的 `quality` 与 `android-local` 均成功。真机、教师和目标用户等外部证据仍为 `NOT_EXECUTED`。
+- P118a implementation candidate 已通过 PR #403 合并为 `8a31126cfd993ee7f150e0fbe17b1ddaf9b54d5b`；状态同步已通过 PR #405 合并，存储失败关闭修复已通过 PR #406 合并为 `f0c0810acb6e4417329466bcc13decc607589c92`。PR #406 Quality run `29905841378` 的 `quality` 与 `android-local` 均成功。真机、教师和目标用户等外部证据仍为 `NOT_EXECUTED`。
 - 当前 next slice 是 P118b：建立独立的本地详细练习统计，按活动类型、题目族和时间窗口聚合最小必要、非敏感、可解释事实；不得保存音频或原始分析证据，不得生成正式能力评级。
+- 本分支中的 P118b implementation candidate 只消费学习画像当前保留的最近 48 条事件，提供 7 天、30 天、全部记录窗口并按练习方式／题目族聚合“记录动作、已核对、开始复练”；完全忽略 `outcome`，不新增持久化或网络能力。是否合并及远端门禁状态必须以对应 GitHub PR 为准。
 - P118a 只消费现有 Activity、复练队列和学习画像协议，不创建平行答案或能力协议；旧数据必须安全迁移或 fail closed。
 - P118a 不生成正式能力评级，不上传课程数据，不新增账户、云端、数据库、网络依赖或 `INTERNET` 权限。P118b 的统计、P118c 的复练队列、P118d 的推荐和 P118e 的整合必须继续拆分。
 - P117e 已形成合并后的 implementation candidate。QA level recommendation 为 strict；P117d 与 P117e 的 Browser 真麦克风、Android 三档真机、真实人声、双教师和目标用户证据仍为 `NOT_EXECUTED`，不能由模拟录音、DOM、CI 或 APK 替代。

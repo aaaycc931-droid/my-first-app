@@ -46,7 +46,12 @@ import {
   getLocalModulationVariantCount,
 } from "../../lib/practice/localEarTrainingModulations";
 import { App } from "./App";
-import { deserializeLocalLearningHistory } from "../../lib/learning/learningEventProfile";
+import {
+  createEmptyLocalLearningHistory,
+  deserializeLocalLearningHistory,
+  recordCheckedAnswerLearningEvent,
+  serializeLocalLearningHistory,
+} from "../../lib/learning/learningEventProfile";
 import { MOBILE_LEARNING_PROFILE_STORAGE_KEY } from "./runtime/mobileLearningProfileStorage";
 import { MOBILE_PRACTICE_REVIEW_STORAGE_KEY } from "./runtime/mobilePracticeReviewStorage";
 
@@ -210,6 +215,48 @@ afterEach(async () => {
 });
 
 describe("Android 本机复练行为", () => {
+  it("从首页进入 P118b 统计并显示现有本机事件", async () => {
+    const history = recordCheckedAnswerLearningEvent({
+      history: createEmptyLocalLearningHistory(),
+      result: {
+        target: { kind: "single-pitch", difficulty: "基础", seed: 0, sequence: 0, variantId: "pitch:c4" },
+        isCorrect: false,
+      },
+      practiceMode: "random",
+      occurredAt: new Date().toISOString(),
+    });
+    window.localStorage.setItem(MOBILE_LEARNING_PROFILE_STORAGE_KEY, serializeLocalLearningHistory(history));
+    const container = await renderApp();
+    expect(container.textContent).toContain("练习统计");
+    await click(findLink(container, "练习统计"));
+    expect(window.location.hash).toBe("#statistics");
+    expect(container.textContent).toContain("本机详细练习统计");
+    expect(container.textContent).toContain("记录动作 1 次");
+    expect(container.textContent).toContain("随机练习");
+    expect(container.textContent).toContain("单音听辨");
+    expect(container.textContent).toContain("最多 48 条");
+  });
+
+  it("学习事件保存失败时统计不纳入未持久化事件", async () => {
+    const container = await renderApp();
+    const originalSetItem = window.localStorage.setItem.bind(window.localStorage);
+    const setItem = vi.spyOn(window.localStorage, "setItem").mockImplementation((key, value) => {
+      if (key === MOBILE_LEARNING_PROFILE_STORAGE_KEY) throw new Error("quota");
+      originalSetItem(key, value);
+    });
+    await click(findLink(container, "单音听辨"));
+    await waitFor(() => !findButton(container, "C4").disabled, "单音题目可回答");
+    await click(findButton(container, "C4"));
+    await click(findButton(container, "查看本题答案"));
+    setItem.mockRestore();
+    await click(findLink(container, "返回练习首页"));
+    expect(container.textContent).toContain("本机学习画像保存失败，本次练习仍可继续");
+    await click(findLink(container, "练习统计"));
+    expect(container.textContent).toContain("记录动作 0 次");
+    expect(container.textContent).not.toContain("记录动作 1 次");
+    expect(window.localStorage.getItem(MOBILE_LEARNING_PROFILE_STORAGE_KEY)).toBeNull();
+  });
+
   it("定制入口校验答案类别并把核对事实记为 custom 会话", async () => {
     const container = await renderApp();
     await click(findLink(container, "定制练习"));

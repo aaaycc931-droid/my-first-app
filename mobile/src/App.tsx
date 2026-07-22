@@ -53,6 +53,7 @@ import type {
   ResolvedLocalPracticeCustomization,
 } from "../../lib/practice/localPracticeCustomizer";
 import { LocalCoursePathPanel } from "./LocalCoursePathPanel";
+import { LocalPracticeStatisticsPanel } from "./LocalPracticeStatisticsPanel";
 
 const LocalEarTrainingHarmonyProgressionPanel = lazy(() =>
   import("../../components/practice/LocalEarTrainingHarmonyProgressionPanel").then((module) => ({
@@ -81,9 +82,9 @@ const LocalEarTrainingChordPanel = lazy(() =>
   })),
 );
 
-const screens = ["home", "course", "custom", "monitor", "pitch", "interval", "compare", "chord", "seventh", "seventh-spacing", "progression", "modulation", "scale", "rhythm", "melody", "piano"] as const;
+const screens = ["home", "course", "statistics", "custom", "monitor", "pitch", "interval", "compare", "chord", "seventh", "seventh-spacing", "progression", "modulation", "scale", "rhythm", "melody", "piano"] as const;
 type Screen = (typeof screens)[number];
-type PracticeScreenName = Exclude<Screen, "home" | "course" | "custom" | "piano" | "monitor">;
+type PracticeScreenName = Exclude<Screen, "home" | "course" | "statistics" | "custom" | "piano" | "monitor">;
 
 const screenDetails: Record<
   Exclude<Screen, "home">,
@@ -93,6 +94,11 @@ const screenDetails: Record<
     title: "中文课程",
     summary: "按课节顺序完成本地核对练习，进度只保存在这台设备。",
     tone: "bg-indigo-50 text-indigo-950 ring-indigo-200",
+  },
+  statistics: {
+    title: "练习统计",
+    summary: "按时间、练习方式和题目族查看本机当前保留的中性练习事实。",
+    tone: "bg-sky-50 text-sky-950 ring-sky-200",
   },
   custom: {
     title: "定制练习",
@@ -349,10 +355,15 @@ export function App() {
             ? "custom"
             : "random",
       });
-      setLearningHistory(nextHistory);
-      setLearningNotice(
-        saveMobileLearningHistory(getBrowserPracticeReviewStorage(), nextHistory).notice,
+      const learningSaveResult = saveMobileLearningHistory(
+        getBrowserPracticeReviewStorage(),
+        nextHistory,
       );
+      if (learningSaveResult.notice) setLearningNotice(learningSaveResult.notice);
+      else {
+        setLearningHistory(nextHistory);
+        setLearningNotice(null);
+      }
     },
     [activeCustomPractice, activeReviewTarget, activeScreen, learningHistory, reviewQueue],
   );
@@ -366,10 +377,15 @@ export function App() {
     (target: LocalPracticeReviewTarget) => {
       stopActiveAudio();
       const nextHistory = recordReviewStartedLearningEvent({ history: learningHistory, target });
-      setLearningHistory(nextHistory);
-      setLearningNotice(
-        saveMobileLearningHistory(getBrowserPracticeReviewStorage(), nextHistory).notice,
+      const learningSaveResult = saveMobileLearningHistory(
+        getBrowserPracticeReviewStorage(),
+        nextHistory,
       );
+      if (learningSaveResult.notice) setLearningNotice(learningSaveResult.notice);
+      else {
+        setLearningHistory(nextHistory);
+        setLearningNotice(null);
+      }
       setActiveReviewTarget(target);
       const targetScreen = screenForReviewTarget(target);
       if (screenFromHash() !== targetScreen) {
@@ -399,11 +415,15 @@ export function App() {
       learningHistory,
       !learningHistory.profile.suggestionsEnabled,
     );
-    setLearningHistory(nextHistory);
-    setLearningNotice(
-      saveMobileLearningHistory(getBrowserPracticeReviewStorage(), nextHistory).notice
-        ?? (nextHistory.profile.suggestionsEnabled ? "本机复练建议已开启。" : "本机复练建议已关闭。"),
+    const learningSaveResult = saveMobileLearningHistory(
+      getBrowserPracticeReviewStorage(),
+      nextHistory,
     );
+    if (learningSaveResult.notice) setLearningNotice(learningSaveResult.notice);
+    else {
+      setLearningHistory(nextHistory);
+      setLearningNotice(nextHistory.profile.suggestionsEnabled ? "本机复练建议已开启。" : "本机复练建议已关闭。");
+    }
   }, [learningHistory]);
 
   const resetLearningProfile = useCallback(() => {
@@ -673,6 +693,12 @@ export function App() {
               </ul>
             </section>
           </>
+        ) : activeScreen === "statistics" ? (
+          <section aria-label={screenDetails.statistics.title} className="grid gap-4">
+            <a href="#home" onClick={() => { stopActiveAudio(); setActiveReviewTarget(null); }} className="inline-flex min-h-11 w-fit items-center rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-bold text-slate-800 shadow-sm">返回练习首页</a>
+            {learningNotice ? <p className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-900" role="status">{learningNotice}</p> : null}
+            <LocalPracticeStatisticsPanel events={learningHistory.recentEvents} />
+          </section>
         ) : activeScreen === "course" ? (
           <section aria-label={screenDetails.course.title} className="grid gap-4">
             <a href="#home" onClick={() => { stopActiveAudio(); setActiveReviewTarget(null); }} className="inline-flex min-h-11 w-fit items-center rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-bold text-slate-800 shadow-sm">返回练习首页</a>
