@@ -443,6 +443,34 @@ describe("Android 本机复练行为", () => {
     expect(historySerialized).not.toMatch(/noteIds|staff|notation|document|draft|ActivitySession|checkEvidence|audio/i);
   });
 
+  it("旋律听写简谱确认检查只写稳定题目标识，不保存显示 token 或简谱文档", async () => {
+    const container = await renderApp();
+    await click(findLink(container, "旋律听写"));
+    await waitFor(() => !findButton(container, "播放旋律题目").disabled, "旋律听写题目可播放");
+    await click(findButton(container, "简谱"));
+    await completeMountedMelodyPlayback(container);
+    const numbered = container.querySelector<HTMLElement>('[data-testid="melody-numbered-notation-answer"]');
+    if (!numbered) throw new Error("找不到旋律听写简谱答案面板");
+    const selects = Array.from(numbered.querySelectorAll<HTMLSelectElement>("select"));
+    expect(selects).toHaveLength(3);
+    for (const select of selects) await changeSelect(select, "c4");
+    await click(findButton(numbered, "检查简谱草稿"));
+    await click(findButton(numbered, "确认当前简谱修订"));
+    expect(container.textContent).not.toContain("本题答案：");
+    await click(findButton(numbered, "检查本轮简谱答案"));
+
+    const queue = getStoredQueue();
+    expect(queue).toHaveLength(1);
+    expect(queue[0]).toMatchObject({ kind: "melody-dictation", difficulty: "基础" });
+    const queueSerialized = window.localStorage.getItem(MOBILE_PRACTICE_REVIEW_STORAGE_KEY) ?? "";
+    expect(queueSerialized).not.toMatch(/token|noteIds|numbered|notation|document|draft|attempt|answer|audio|score|grade/i);
+
+    const historySerialized = window.localStorage.getItem(MOBILE_LEARNING_PROFILE_STORAGE_KEY) ?? "";
+    const history = deserializeLocalLearningHistory(historySerialized);
+    expect(history?.recentEvents.at(-1)?.skillKind).toBe("melody-dictation");
+    expect(historySerialized).not.toMatch(/token|noteIds|numbered|notation|document|draft|attempt|ActivitySession|checkEvidence|audio/i);
+  });
+
   it("音程比较在真实挂载入口完成双维判断，并只把比较事实写入本机画像", async () => {
     const container = await renderApp();
     await click(findLink(container, "音程比较与模唱"));

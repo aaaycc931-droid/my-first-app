@@ -6,7 +6,7 @@
 
 ## 当前基线
 
-- 最新产品功能基线：P117a / PR #395，合并提交 `9bcba3c533503d8cf50d6105471ba67f1f6d3f43`
+- 最新产品功能基线：P117b / PR #396，合并提交 `3455052a65a42841cbab76e83fc0abe5ad7b74e9`
 - 最新仓库维护：PR #389，清理状态总账并新增文档卫生门禁
 - 仓库当前提交以 GitHub 默认分支为权威；本文件不硬编码会因自身合并而立即过期的“当前 main SHA”
 - P115a–P115i 已合并；当前没有接续中的 P115 PR
@@ -24,13 +24,14 @@
 - P116c 提供内置节奏找错：对照可见目标听一处确定性事件变化，完整播放后标记漏掉／拆分／合并／位移及位置；答案只解释题内事件差异。
 - P116d 提供本地节奏听写：完整听题后在固定拍内网格编辑草稿，预览并检查结构，明确确认后冻结为 `score-document-v1` 节奏修订，再显示漏记／多记的非评分事件对照；任何修改、重播、停止或生命周期中断都会让旧检查与确认失效。
 - P117a 提供三音旋律听写的屏幕钢琴 Activity 答案：只有完整播放隐藏旋律后才允许明确开始接收三个有序 `note-on`，重复音、F♯4 与 C5 身份无损保留，检查后只显示逐位置非评分对照；非屏幕钢琴来源、迟到事件和已作废 attempt 均失败关闭。
+- P117b 提供三音旋律听写的受控五线谱答案：完整听题后编辑三个有序谱位，经预览、结构检查、修改／重新检查与明确确认，冻结为会话内 `score-document-v1` 后才提交 Activity `staff-notation` 答案并显示逐位置非评分对照；C4 下加线、F♯4 升号、C5 与重复音身份均保留。
 
 ## 当前开发边界
 
-- P117b 当前只推进现有三音旋律听写的受控五线谱答案：完整听题后编辑三个有序谱位，经预览、结构检查、修改／重新检查与明确确认，才能冻结为会话内 `score-document-v1` 并通过 Activity `staff-notation` 答案揭示逐位置非评分对照。
-- P117b 必须保留 C4 下加线、F♯4 升号、C5、重复音与 canonical pitch 顺序；当前只检查音高顺序，不输入或评价节奏，也不扩大为完整制谱、MusicXML、OMR 或正式转写。
-- 编辑会作废旧检查与确认；重播、停止、全局停止、后台、清空／重置、换题、切换难度或答案方式以及卸载都必须使播放资格、attempt、文档和旧证据 fail closed。详细边界见 `docs/p117b-melody-dictation-staff-notation-input-acceptance.md`。
-- P117b 当前是 implementation candidate，不是已交付能力。QA level recommendation 为 strict；Browser 手动谱面 QA、Android 三档真机触控与生命周期、双教师审核和目标用户可用性均尚未形成证据，不能由源码、DOM 测试、模拟音频、CI 或 APK 构建替代。
+- P117c 当前只推进现有三音旋律听写的受控简谱答案：完整听题后编辑三个有序固定 C 为 1 的简谱音位，经预览、结构检查、修改／重新检查与明确确认，才能冻结为会话内 `score-document-v1` 并通过 Activity `numbered-notation` 答案揭示逐位置非评分对照。
+- P117c 必须用结构化身份区分 C4 的 `1` 与 C5 的上方高音点 `1`，以及 F4 与左侧升号 `♯4`；显示 token 不得反推 canonical pitch。当前只检查音高顺序，不输入或评价节奏，也不扩大为完整制谱、MusicXML、OMR 或正式转写。
+- 编辑会作废旧检查与确认；重播、停止、全局停止、后台、清空／重置、换题、切换难度或答案方式以及卸载都必须使播放资格、attempt、文档和旧证据 fail closed。详细边界见 `docs/p117c-melody-dictation-numbered-notation-input-acceptance.md`。
+- P117c 当前是 implementation candidate，不是已交付能力。QA level recommendation 为 strict；Browser 手动简谱 QA、Android 三档真机渲染／触控与生命周期、双教师审核和目标用户可用性均尚未形成证据，不能由源码、DOM 测试、模拟音频、CI 或 APK 构建替代。
 
 ## 最近权威验证
 
@@ -44,8 +45,9 @@
 | P116c | #393 | `952663f32f654a15d68ed68fd21ecac1f6cc46c6` | `29753124523` | `8465498909` | `5852c436d4ca93f7a4871111d24612a81e6aa7ae48866b50c8393ea3b8b7074e` |
 | P116d | #394 | `4260fafc420e913b4df73d48b7f0b7f0bc1d3d6f` | `29801843536` | `8484048509` | `c379244f6e9ee393d088528457f20b5487048ed2182a39a50d5e48f00abb078b` |
 | P117a | #395 | `9bcba3c533503d8cf50d6105471ba67f1f6d3f43` | `29809682809` | `8486945545` | `ee9cb33b41fcd6dba075ccc3548b86948f1328a5837b2d7a4beb8352da8b025b` |
+| P117b | #396 | `3455052a65a42841cbab76e83fc0abe5ad7b74e9` | `29830492176` | `8495101348` | `587780402d5a339f968dc58c20f27adac23ef67f4ffdef8e2c35dda77955b477` |
 
-上述运行的 `quality` 与 `android-local` 均通过。Android 工件是 CI 构建并独立校验的 API 36 Debug APK；它只证明自动构建与校验通过。
+上述运行的 `quality` 与 `android-local` 均通过。表中 SHA-256 是 GitHub artifact ZIP digest，不是 ZIP 内 APK 摘要；Android 工件是 CI 构建并独立校验的 API 36 Debug APK，它只证明自动构建与校验通过。
 
 ## 产品与证据边界
 

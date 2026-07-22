@@ -142,7 +142,7 @@ const screenDetails: Record<
   },
   melody: {
     title: "旋律听写",
-    summary: "完整听完三音短旋律，再按顺序使用音名、固定唱名、屏幕钢琴或受控五线谱作答。",
+    summary: "完整听完三音短旋律，再按顺序使用音名、固定唱名、屏幕钢琴、受控五线谱或固定 C 简谱作答。",
     tone: "bg-amber-50 text-amber-950 ring-amber-200",
   },
   piano: {

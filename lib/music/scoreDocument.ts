@@ -22,6 +22,13 @@ import {
   validateMelodyStaffNotationDraft,
   type MelodyStaffNotationDraftV1,
 } from "../practice/localMelodyStaffNotationDraft";
+import {
+  MELODY_NUMBERED_NOTATION_CONTEXT,
+  getMelodyNumberedNotationAnswerDocumentId,
+  getMelodyNumberedNotationDraftFingerprint,
+  validateMelodyNumberedNotationDraft,
+  type MelodyNumberedNotationDraftV1,
+} from "../practice/localMelodyNumberedNotationDraft";
 
 export type ScoreDocumentEventV1 = Readonly<NotationDraftEvent>;
 
@@ -136,10 +143,127 @@ export type MelodyDictationAnswerScoreDocumentV1 = Readonly<{
   }>];
 }>;
 
+export type MelodyDictationNumberedAnswerScoreDocumentV1 = Readonly<{
+  schemaVersion: "score-document-v1";
+  documentKind: "melody-dictation-numbered-answer";
+  documentId: string;
+  revision: number;
+  reviewState: "confirmed";
+  localOnly: true;
+  sessionOnly: true;
+  source: Readonly<{
+    kind: "confirmed-melody-numbered-notation-draft";
+    representationContext: typeof MELODY_NUMBERED_NOTATION_CONTEXT;
+    draftId: string;
+    draftFingerprint: string;
+    questionId: string;
+    questionVariantId: string;
+    attemptId: string;
+    playbackQualificationId: string;
+  }>;
+  meter: "unmetered";
+  parts: readonly [Readonly<{
+    partId: "melody-numbered-answer-part-1";
+    staves: readonly [Readonly<{
+      staffId: "melody-numbered-answer-staff-1";
+      staffKind: "numbered-notation";
+      voices: readonly [Readonly<{
+        voiceId: "melody-numbered-answer-voice-1";
+        measures: readonly [Readonly<{
+          measureNumber: 1;
+          events: readonly Readonly<{
+            eventId: string;
+            type: "note";
+            position: 0 | 1 | 2;
+            noteId: EarTrainingMelodyNoteId;
+          }>[];
+        }>];
+      }>];
+    }>];
+  }>];
+}>;
+
 export type ScoreDocumentV1 =
   | NotationScoreDocumentV1
   | RhythmDictationScoreDocumentV1
-  | MelodyDictationAnswerScoreDocumentV1;
+  | MelodyDictationAnswerScoreDocumentV1
+  | MelodyDictationNumberedAnswerScoreDocumentV1;
+
+export function createScoreDocumentFromMelodyNumberedNotationDraft({
+  question,
+  draft,
+}: {
+  question: LocalEarTrainingMelodyQuestion;
+  draft: MelodyNumberedNotationDraftV1;
+}): MelodyDictationNumberedAnswerScoreDocumentV1 {
+  const validation = validateMelodyNumberedNotationDraft(draft);
+  const fingerprint = getMelodyNumberedNotationDraftFingerprint(draft);
+  if (
+    draft.reviewState !== "confirmed"
+    || validation.status !== "valid"
+    || draft.checkedFingerprint !== fingerprint
+    || draft.questionId !== question.id
+    || draft.questionVariantId !== question.variantId
+  ) {
+    throw new Error("只有属于当前题目、通过检查并明确确认的简谱旋律草稿才能冻结为答案文档。");
+  }
+  const noteIds = draft.noteIds;
+  if (noteIds.some((noteId) => noteId === null)) {
+    throw new Error("简谱旋律答案文档缺少音符。");
+  }
+  const confirmedNoteIds = noteIds as readonly [
+    EarTrainingMelodyNoteId,
+    EarTrainingMelodyNoteId,
+    EarTrainingMelodyNoteId,
+  ];
+  return {
+    schemaVersion: "score-document-v1",
+    documentKind: "melody-dictation-numbered-answer",
+    documentId: getMelodyNumberedNotationAnswerDocumentId({
+      representationContext: draft.representationContext,
+      questionId: draft.questionId,
+      questionVariantId: draft.questionVariantId,
+      attemptId: draft.attemptId,
+      playbackQualificationId: draft.playbackQualificationId,
+      revision: draft.revision,
+      noteIds: confirmedNoteIds,
+    }),
+    revision: draft.revision,
+    reviewState: "confirmed",
+    localOnly: true,
+    sessionOnly: true,
+    source: {
+      kind: "confirmed-melody-numbered-notation-draft",
+      representationContext: draft.representationContext,
+      draftId: draft.draftId,
+      draftFingerprint: fingerprint,
+      questionId: draft.questionId,
+      questionVariantId: draft.questionVariantId,
+      attemptId: draft.attemptId,
+      playbackQualificationId: draft.playbackQualificationId,
+    },
+    meter: "unmetered",
+    parts: [{
+      partId: "melody-numbered-answer-part-1",
+      staves: [{
+        staffId: "melody-numbered-answer-staff-1",
+        staffKind: "numbered-notation",
+        voices: [{
+          voiceId: "melody-numbered-answer-voice-1",
+          measures: [{
+            measureNumber: 1,
+            events: confirmedNoteIds.map((noteId, position) => ({
+              eventId: `melody-numbered-answer-note-${position + 1}`,
+              type: "note" as const,
+              position: position as 0 | 1 | 2,
+              noteId,
+            })),
+          }],
+        }],
+      }],
+    }],
+  };
+}
 
 export function createScoreDocumentFromMelodyStaffNotationDraft({
   question,

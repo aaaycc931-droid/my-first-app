@@ -1,4 +1,4 @@
-# P117a 后产品需求与执行路线
+# P117b 后产品需求与执行路线
 
 最后更新：2026-07-21
 
@@ -8,7 +8,8 @@
 
 - P106–P113、P114a–P114m、P115a–P115i 已合并。
 - P116a–P116d 已合并；P116d 通过 PR #394 合并为 `4260fafc420e913b4df73d48b7f0b7f0bc1d3d6f`。
-- P117a 已通过 PR #395 合并为 `9bcba3c533503d8cf50d6105471ba67f1f6d3f43`；Actions 运行 `29809682809` 的 `quality` 与 `android-local` 通过，Android 工件 `8486945545` 的 APK SHA-256 为 `ee9cb33b41fcd6dba075ccc3548b86948f1328a5837b2d7a4beb8352da8b025b`。
+- P117a 已通过 PR #395 合并为 `9bcba3c533503d8cf50d6105471ba67f1f6d3f43`；Actions 运行 `29809682809` 的 `quality` 与 `android-local` 通过，Android 工件 `8486945545` 的 GitHub artifact ZIP digest 为 `ee9cb33b41fcd6dba075ccc3548b86948f1328a5837b2d7a4beb8352da8b025b`。
+- P117b 已通过 PR #396 合并为 `3455052a65a42841cbab76e83fc0abe5ad7b74e9`；Actions 运行 `29830492176` 的 `quality` 与 `android-local` 通过，Android 工件 `8495101348` 的 GitHub artifact ZIP digest 为 `587780402d5a339f968dc58c20f27adac23ef67f4ffdef8e2c35dda77955b477`。
 - Android 当前保持本地优先、离线、隐私最小化；不上传练习录音，不新增账户、云端或数据库依赖。
 - P115h 的模唱反馈只表达接近、偏高／偏低或证据不足，不是评分、等级、通过／失败或专业声乐评估。
 - 自动测试和 CI 只证明代码、构建与约定行为；不证明 Android 真机、真实人声、教师审核或教育有效性。
@@ -29,12 +30,12 @@ P116 按可回滚的小切片推进，不把四种活动一次塞入单个 PR：
 P117 继续按边界清楚的完整切片推进，不能把现有三音选择题、参考钢琴或底层录音能力直接宣称为专业旋律闭环：
 
 1. 屏幕钢琴答案输入（P117a，已完成）：复用现有版本化三音旋律题库、Activity `piano` answer、共享屏幕 `note-event-v1`、本机复练与学习画像。用户完整播放隐藏旋律后再明确开始接收三个有序屏幕琴键 `note-on`；非屏幕钢琴来源、重播、停止、全局停止、后台、换题、重置与迟到事件全部 fail closed。
-2. 五线谱答案输入（P117b，当前 implementation candidate）：完整听题后以真实五线、高音谱号和三个有序谱位编辑受控草稿，通过“预览 → 结构检查 → 修改／重新检查 → 明确确认”冻结为会话内 `score-document-v1`，再以 Activity `staff-notation` 答案揭示逐位置非评分对照。当前只比较音高顺序，不扩大为完整制谱、MusicXML、OMR、正式转写或节奏评价。
-3. 简谱答案输入（P117c，后续切片）：复用同一版本化旋律目标和 Activity 文档修订语义，保留音高顺序、重复音、升号与八度身份，不能把显示 token 冒充 canonical pitch。
+2. 五线谱答案输入（P117b，已完成）：完整听题后以真实五线、高音谱号和三个有序谱位编辑受控草稿，通过“预览 → 结构检查 → 修改／重新检查 → 明确确认”冻结为会话内 `score-document-v1`，再以 Activity `staff-notation` 答案揭示逐位置非评分对照。当前只比较音高顺序，不扩大为完整制谱、MusicXML、OMR、正式转写或节奏评价。
+3. 简谱答案输入（P117c，当前 implementation candidate）：复用同一版本化旋律目标和 Activity 文档修订语义，用固定 C 为 1 的三个有序简谱音位完成“预览 → 结构检查 → 修改／重新检查 → 明确确认”，保留音高顺序、重复音、F♯4 左侧升号与 C5 上方高音点身份，不能把显示 token 冒充 canonical pitch。
 
-P117a 的已合并边界见 `docs/p117a-melody-dictation-piano-input-acceptance.md`；P117b 当前验收见 `docs/p117b-melody-dictation-staff-notation-input-acceptance.md`。P117c 不包含在前两个切片中，也不能用屏幕钢琴或五线谱自动门禁代替简谱文档输入验收。旋律回唱、旋律视唱、预备拍、实时曲线、提交后 P113 分析、逐句反馈和分段复练仍需后续独立切片。
+P117a / P117b 的已合并边界分别见 `docs/p117a-melody-dictation-piano-input-acceptance.md` 与 `docs/p117b-melody-dictation-staff-notation-input-acceptance.md`；P117c 当前验收见 `docs/p117c-melody-dictation-numbered-notation-input-acceptance.md`。P117c 不能用屏幕钢琴或五线谱自动门禁代替简谱文档输入验收。旋律回唱、旋律视唱、预备拍、实时曲线、提交后 P113 分析、逐句反馈和分段复练仍需后续独立切片。
 
-P117b 当前只是 implementation candidate。Browser 手动谱面 QA、Android 三档真机触控与音频／生命周期、双教师题目与谱位审核、以及至少 5 名中文目标用户的可用性验收均仍未执行；源码、DOM 测试、模拟音频、CI 与 APK 工件不得替代这些证据。
+P117c 当前只是 implementation candidate。Browser 手动简谱 QA、Android 三档真机渲染／触控与音频／生命周期、双教师题目与简谱符号审核、以及至少 5 名中文目标用户的可用性验收均仍未执行；源码、DOM 测试、模拟音频、CI 与 APK 工件不得替代这些证据。
 
 第一版内部测试发布前优先完成可由仓库内开发闭环的 P117–P118 切片；双教师、真机、真实人声、目标用户和正式签名等外部证据泳道在内部测试包形成后启动，但在此之前始终保持未完成状态。
 
