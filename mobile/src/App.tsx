@@ -52,6 +52,7 @@ import type {
   LocalPracticeCustomization,
   ResolvedLocalPracticeCustomization,
 } from "../../lib/practice/localPracticeCustomizer";
+import { LocalCoursePathPanel } from "./LocalCoursePathPanel";
 
 const LocalEarTrainingHarmonyProgressionPanel = lazy(() =>
   import("../../components/practice/LocalEarTrainingHarmonyProgressionPanel").then((module) => ({
@@ -80,14 +81,19 @@ const LocalEarTrainingChordPanel = lazy(() =>
   })),
 );
 
-const screens = ["home", "custom", "monitor", "pitch", "interval", "compare", "chord", "seventh", "seventh-spacing", "progression", "modulation", "scale", "rhythm", "melody", "piano"] as const;
+const screens = ["home", "course", "custom", "monitor", "pitch", "interval", "compare", "chord", "seventh", "seventh-spacing", "progression", "modulation", "scale", "rhythm", "melody", "piano"] as const;
 type Screen = (typeof screens)[number];
-type PracticeScreenName = Exclude<Screen, "home" | "custom" | "piano" | "monitor">;
+type PracticeScreenName = Exclude<Screen, "home" | "course" | "custom" | "piano" | "monitor">;
 
 const screenDetails: Record<
   Exclude<Screen, "home">,
   { title: string; summary: string; tone: string }
 > = {
+  course: {
+    title: "中文课程",
+    summary: "按课节顺序完成本地核对练习，进度只保存在这台设备。",
+    tone: "bg-indigo-50 text-indigo-950 ring-indigo-200",
+  },
   custom: {
     title: "定制练习",
     summary: "选择题型、难度和答案类别，开始一组仅当前会话有效的本地练习。",
@@ -667,6 +673,11 @@ export function App() {
               </ul>
             </section>
           </>
+        ) : activeScreen === "course" ? (
+          <section aria-label={screenDetails.course.title} className="grid gap-4">
+            <a href="#home" onClick={() => { stopActiveAudio(); setActiveReviewTarget(null); }} className="inline-flex min-h-11 w-fit items-center rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-bold text-slate-800 shadow-sm">返回练习首页</a>
+            {lifecycle.isForeground ? <LocalCoursePathPanel /> : null}
+          </section>
         ) : activeScreen === "custom" ? (
           <section aria-label={screenDetails.custom.title} className="grid gap-4">
             <a

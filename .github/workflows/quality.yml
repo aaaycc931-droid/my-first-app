@@ -50,6 +50,8 @@ jobs:
           npm run test:mobile-practice-review-behavior
           npm run test:learning-event-profile
           npm run test:mobile-learning-profile-storage
+          npm run test:local-course-path
+          npm run test:mobile-course-path-behavior
           npm run test:mobile-melody-solfege-behavior
           npm run test:mobile-melody-imitation-behavior
           npm run test:mobile-melody-sight-singing-target

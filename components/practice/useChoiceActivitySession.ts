@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import type { ActivityAnswer } from "../../lib/activity/activityAnswer";
+import type { ActivityCheckedFactV1 } from "../../lib/activity/activityCheckedFact";
 import type { AnyActivityDefinitionV1 } from "../../lib/activity/activityDefinition";
 import {
   checkChoiceActivityAnswer,
@@ -17,15 +18,41 @@ import {
 export function useChoiceActivitySession(
   definition: AnyActivityDefinitionV1,
   sessionId: string,
+  onChecked?: (event: ActivityCheckedFactV1) => void,
 ) {
+  const boundSessionId = `${sessionId}:${definition.activityVersion}:${definition.contentVersion}`;
   const [storedSession, setStoredSession] = useState(() =>
-    createActivitySession(definition, sessionId),
+    createActivitySession(definition, boundSessionId),
   );
   const resolve = (candidate: ActivitySessionV1) =>
-    candidate.activityId === definition.activityId && candidate.targetId === definition.target.targetId
+    candidate.sessionId === boundSessionId && candidate.activityId === definition.activityId && candidate.targetId === definition.target.targetId
       ? candidate
-      : createActivitySession(definition, sessionId);
+      : createActivitySession(definition, boundSessionId);
   const session = resolve(storedSession);
+  const checkedCallback = useRef(onChecked);
+  const lastReportedCheck = useRef<string | null>(null);
+  useEffect(() => {
+    checkedCallback.current = onChecked;
+  }, [onChecked]);
+
+  useEffect(() => {
+    if (session.lifecycle !== "checked" || !session.checkEvidence) return;
+    const reportKey = `${session.attemptId}:${session.revision}`;
+    if (lastReportedCheck.current === reportKey) return;
+    lastReportedCheck.current = reportKey;
+    checkedCallback.current?.({
+      schemaVersion: "activity-checked-fact-v1",
+      lifecycle: "checked",
+      assessmentMode: "non-scoring",
+      activityId: definition.activityId,
+      activityVersion: definition.activityVersion,
+      contentVersion: definition.contentVersion,
+      targetId: definition.target.targetId,
+      attemptId: session.attemptId,
+      revision: session.revision,
+      evidenceState: session.checkEvidence.state,
+    });
+  }, [definition, session]);
 
   const submitChoice = (optionIds: string[]) => {
     setStoredSession((stored) => {
@@ -116,3 +143,5 @@ export function useChoiceActivitySession(
     restartIfDirty,
   };
 }
+
+export type ChoiceActivityCheckedEvent = ActivityCheckedFactV1;

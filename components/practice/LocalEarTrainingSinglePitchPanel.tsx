@@ -26,7 +26,7 @@ import { useLocalQuestionSchedule } from "./useLocalQuestionSchedule";
 import { ActivityChoiceAnswerPanel } from "./ActivityChoiceAnswerPanel";
 import { adaptSinglePitchQuestionToActivity } from "../../lib/activity/legacyLocalActivityAdapter";
 import { ActivityProtocolState } from "./ActivityProtocolState";
-import { useChoiceActivitySession } from "./useChoiceActivitySession";
+import { useChoiceActivitySession, type ChoiceActivityCheckedEvent } from "./useChoiceActivitySession";
 
 export function LocalEarTrainingSinglePitchPanel({
   courseExerciseId,
@@ -36,6 +36,7 @@ export function LocalEarTrainingSinglePitchPanel({
   customPractice,
   showLocalPiano = false,
   expandedLocalCatalog = false,
+  onActivityChecked,
 }: {
   courseExerciseId?: string;
   initialReviewTarget?: Extract<LocalPracticeReviewTarget, { kind: "single-pitch" }>;
@@ -44,6 +45,7 @@ export function LocalEarTrainingSinglePitchPanel({
   customPractice?: ResolvedLocalPracticeCustomization;
   showLocalPiano?: boolean;
   expandedLocalCatalog?: boolean;
+  onActivityChecked?: (event: ChoiceActivityCheckedEvent) => void;
 }) {
   const activeCustomPractice = customPractice?.customization.kind === "single-pitch"
     ? customPractice
@@ -91,7 +93,7 @@ export function LocalEarTrainingSinglePitchPanel({
     () => adaptSinglePitchQuestionToActivity(question),
     [question],
   );
-  const activity = useChoiceActivitySession(activityDefinition, `single-pitch:${question.id}`);
+  const activity = useChoiceActivitySession(activityDefinition, `single-pitch:${question.id}`, onActivityChecked);
   const answer = useMemo(() => getLocalEarTrainingSinglePitchAnswer({ question, selectedPitchId }), [question, selectedPitchId]);
 
   const resetCurrentQuestion = () => {
@@ -197,7 +199,7 @@ export function LocalEarTrainingSinglePitchPanel({
             <button type="button" disabled={!answer.hasSelection || saveStatus === "saving"} onClick={() => void revealAnswer()} className="rounded-xl bg-slate-900 px-4 py-2.5 font-semibold text-white disabled:cursor-not-allowed disabled:bg-slate-300">{saveStatus === "saving" ? "正在保存练习记录…" : "查看本题答案"}</button>
             {isAnswerVisible && !answer.matchesAnswer ? <button type="button" onClick={retryCurrentQuestion} className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-2.5 font-semibold text-amber-900">重新播放并复练本题</button> : null}
             <button type="button" onClick={resetCurrentQuestion} className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 font-semibold text-slate-800">重置本题</button>
-            <button type="button" disabled={!isQuestionReady} onClick={() => { resetCurrentQuestion(); if (initialReviewTarget && onLeaveReviewTarget) onLeaveReviewTarget(); else setSequence((current) => current + 1); }} className="rounded-xl border border-sky-300 bg-white px-4 py-2.5 font-semibold text-sky-800 disabled:cursor-not-allowed disabled:opacity-50">{initialReviewTarget ? "返回随机练习" : "下一题"}</button>
+            <button type="button" disabled={!isQuestionReady} onClick={() => { resetCurrentQuestion(); if (onActivityChecked) return; if (initialReviewTarget && onLeaveReviewTarget) onLeaveReviewTarget(); else setSequence((current) => current + 1); }} className="rounded-xl border border-sky-300 bg-white px-4 py-2.5 font-semibold text-sky-800 disabled:cursor-not-allowed disabled:opacity-50">{onActivityChecked ? "重新练习本课节" : initialReviewTarget ? "返回随机练习" : "下一题"}</button>
           </div>
           {!answer.hasSelection ? <p className="mt-3 text-sm leading-6 text-slate-500">请先选择一个音名，再查看本题答案。</p> : null}
           <ActivityProtocolState session={activity.session} />
@@ -214,7 +216,7 @@ export function LocalEarTrainingSinglePitchPanel({
           {isLocalPianoOpen ? <div id="single-pitch-reference-piano" className="mt-4"><LocalPianoPanel /></div> : null}
         </section>
       ) : null}
-      <p className="mt-5 text-sm leading-6 text-slate-500">{courseExerciseId ? "课程边界：题目播放与答案仍在浏览器完成，不上传音频。登录用户查看答案时只保存当前题目、选择和答案一致性摘要；未登录用户不保存。" : onLocalAnswerResult ? "本机复练只保存复现这道题所需的题型、难度和随机题序，不保存你的选择、声音或正式成绩。" : "会话边界：题目序号、选择与答案说明只存在于当前页面内存；刷新后消失，不写入 localStorage、IndexedDB、账号或数据库。"}</p>
+      <p className="mt-5 text-sm leading-6 text-slate-500">{onActivityChecked ? "本地课程只在 Activity 完成核对后记录课节完成事实；不保存答案、正确性、声音或正式成绩。" : courseExerciseId ? "课程边界：题目播放与答案仍在浏览器完成，不上传音频。登录用户查看答案时只保存当前题目、选择和答案一致性摘要；未登录用户不保存。" : onLocalAnswerResult ? "本机复练只保存复现这道题所需的题型、难度和随机题序，不保存你的选择、声音或正式成绩。" : "会话边界：题目序号、选择与答案说明只存在于当前页面内存；刷新后消失，不写入 localStorage、IndexedDB、账号或数据库。"}</p>
     </section>
   );
 }
