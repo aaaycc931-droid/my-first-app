@@ -88,9 +88,10 @@ import {
   getMelodyNumberedNotationPresentation,
 } from "./MelodyNumberedNotationInput";
 import { LocalMelodyImitationPanel } from "./LocalMelodyImitationPanel";
+import { LocalMelodySightSingingPanel } from "./LocalMelodySightSingingPanel";
 
 type MelodyAnswerMode = "choice" | "solfege" | "piano" | "staff-notation" | "numbered-notation";
-type MelodyPracticeMode = "dictation" | "imitation";
+type MelodyPracticeMode = "dictation" | "imitation" | "sight-singing";
 
 const EMPTY_MELODY_SELECTION: Array<string | null> = [null, null, null];
 const isCompleteMelodySelection = (selection: Array<string | null>) =>
@@ -134,12 +135,14 @@ export function LocalEarTrainingMelodyDictationPanel({
   const [isLocalPianoOpen, setIsLocalPianoOpen] = useState(false);
   const [practiceMode, setPracticeMode] = useState<MelodyPracticeMode>("dictation");
   const [imitationEpoch, setImitationEpoch] = useState(0);
+  const [sightSingingEpoch, setSightSingingEpoch] = useState(0);
   const [answerMode, setAnswerMode] = useState<MelodyAnswerMode>("choice");
   const [difficulty, setDifficulty] = useState<EarTrainingMelodyDictationDifficulty>(initialReviewTarget?.difficulty ?? activeCustomPractice?.customization.difficulty ?? "基础");
   const [sequence, setSequence] = useState(initialReviewTarget?.sequence ?? 0);
   const catalogMode = expandedLocalCatalog || activeCustomPractice ? "expanded-local-v2" : "legacy-v1";
   const pianoAnswerAvailable = expandedLocalCatalog && !initialReviewTarget && !activeCustomPractice;
   const imitationModeActive = practiceMode === "imitation" && pianoAnswerAvailable;
+  const sightSingingModeActive = practiceMode === "sight-singing" && pianoAnswerAvailable;
   const staffNotationAnswerAvailable = pianoAnswerAvailable;
   const numberedNotationAnswerAvailable = pianoAnswerAvailable;
   const variantCount = activeCustomPractice?.variantCount ?? getLocalEarTrainingMelodyVariantCount(difficulty, catalogMode);
@@ -768,7 +771,7 @@ export function LocalEarTrainingMelodyDictationPanel({
   };
 
   const changePracticeMode = (nextMode: MelodyPracticeMode) => {
-    if (nextMode === practiceMode || (nextMode === "imitation" && !pianoAnswerAvailable)) return;
+    if (nextMode === practiceMode || (nextMode !== "dictation" && !pianoAnswerAvailable)) return;
     clearQualification();
     answerLock.reset();
     activity.restart();
@@ -776,6 +779,7 @@ export function LocalEarTrainingMelodyDictationPanel({
     setQualificationNotice("");
     setIsLocalPianoOpen(false);
     setImitationEpoch((current) => current + 1);
+    setSightSingingEpoch((current) => current + 1);
     stopAllBrowserAudio();
     setPracticeMode(nextMode);
   };
@@ -788,6 +792,7 @@ export function LocalEarTrainingMelodyDictationPanel({
     setQualificationNotice("难度已切换；旧填写与听题资格已清除，请重新完整播放。 ");
     setIsLocalPianoOpen(false);
     setImitationEpoch((current) => current + 1);
+    setSightSingingEpoch((current) => current + 1);
     stopAllBrowserAudio();
     setDifficulty(nextDifficulty);
     setSequence(0);
@@ -800,6 +805,17 @@ export function LocalEarTrainingMelodyDictationPanel({
 
   const nextImitationQuestion = () => {
     setImitationEpoch((current) => current + 1);
+    stopAllBrowserAudio();
+    setSequence((current) => current + 1);
+  };
+
+  const resetSightSingingQuestion = () => {
+    setSightSingingEpoch((current) => current + 1);
+    stopAllBrowserAudio();
+  };
+
+  const nextSightSingingQuestion = () => {
+    setSightSingingEpoch((current) => current + 1);
     stopAllBrowserAudio();
     setSequence((current) => current + 1);
   };
@@ -853,13 +869,18 @@ export function LocalEarTrainingMelodyDictationPanel({
 
   return <section className="mt-5 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
     <p className="text-sm font-semibold tracking-wide text-violet-600">{numberedNotationAnswerAvailable ? "P117c · 本地旋律听写" : "本地练习"}</p>
-    <h2 className="mt-1 text-2xl font-bold text-slate-950">内置旋律听写练习</h2>
-    <p className="mt-2 text-sm leading-6 text-slate-600">先完整听完三音短旋律，再按听到的顺序使用音名、固定唱名{pianoAnswerAvailable ? "、屏幕钢琴、五线谱或固定 C 简谱" : ""}作答。本模块不上传音频，也不生成正式成绩。{onLocalAnswerResult ? "当前填写、谱面草稿和声音不保存；答错时仅保存复现本题所需的最小信息。" : "当前入口不会保存练习记录。"}</p>
-    {pianoAnswerAvailable ? <div className="mt-4 grid grid-cols-2 gap-2" data-testid="melody-practice-mode">
+    <h2 className="mt-1 text-2xl font-bold text-slate-950">{sightSingingModeActive ? "可见谱面旋律视唱" : imitationModeActive ? "隐藏目标旋律回唱" : "内置旋律听写练习"}</h2>
+    <p className="mt-2 text-sm leading-6 text-slate-600">{sightSingingModeActive
+      ? "从一开始查看三音五线谱与固定唱名，不播放完整目标；按四拍预备视唱并主动完成会话内录音、回放和非评分分析。"
+      : imitationModeActive
+        ? "先完整听完隐藏的三音短旋律，再按四拍预备进行会话内录音、回放和非评分分析。"
+        : `先完整听完三音短旋律，再按听到的顺序使用音名、固定唱名${pianoAnswerAvailable ? "、屏幕钢琴、五线谱或固定 C 简谱" : ""}作答。`} 本模块不上传音频，也不生成正式成绩。{onLocalAnswerResult ? "当前填写、谱面草稿和声音不保存；答错时仅保存复现本题所需的最小信息。" : "当前入口不会保存练习记录。"}</p>
+    {pianoAnswerAvailable ? <div className="mt-4 grid grid-cols-3 gap-2" data-testid="melody-practice-mode">
       <button type="button" role="radio" aria-checked={practiceMode === "dictation"} onClick={() => changePracticeMode("dictation")} className={`min-h-11 rounded-xl border px-3 py-2 text-sm font-bold ${practiceMode === "dictation" ? "border-violet-600 bg-violet-50 text-violet-950 ring-2 ring-violet-200" : "border-slate-200 bg-white text-slate-700"}`}>旋律听写</button>
       <button type="button" role="radio" aria-checked={practiceMode === "imitation"} onClick={() => changePracticeMode("imitation")} className={`min-h-11 rounded-xl border px-3 py-2 text-sm font-bold ${practiceMode === "imitation" ? "border-cyan-700 bg-cyan-50 text-cyan-950 ring-2 ring-cyan-200" : "border-slate-200 bg-white text-slate-700"}`}>旋律回唱（麦克风）</button>
+      <button type="button" role="radio" aria-checked={practiceMode === "sight-singing"} onClick={() => changePracticeMode("sight-singing")} className={`min-h-11 rounded-xl border px-3 py-2 text-sm font-bold ${practiceMode === "sight-singing" ? "border-fuchsia-700 bg-fuchsia-50 text-fuchsia-950 ring-2 ring-fuchsia-200" : "border-slate-200 bg-white text-slate-700"}`}>旋律视唱（可见目标）</button>
     </div> : null}
-    {!imitationModeActive ? <>
+    {!imitationModeActive && !sightSingingModeActive ? <>
     <div className="mt-5 grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)]">
       <div className="rounded-2xl bg-violet-50 p-4 ring-1 ring-violet-100">
         <label className="block text-sm font-semibold text-slate-800" htmlFor="ear-training-melody-difficulty">练习难度</label>
@@ -958,7 +979,7 @@ export function LocalEarTrainingMelodyDictationPanel({
         {isLocalPianoOpen ? <div id="melody-reference-piano" className="mt-4"><LocalPianoPanel /></div> : null}
       </section>
     ) : null}
-    </> : <>
+    </> : imitationModeActive ? <>
       <div className="mt-5 rounded-2xl border border-cyan-200 bg-cyan-50 p-4" data-testid="melody-imitation-question-controls">
         <label className="block text-sm font-semibold text-cyan-950" htmlFor="melody-imitation-difficulty">回唱难度</label>
         <select id="melody-imitation-difficulty" className="mt-2 w-full rounded-xl border border-cyan-200 bg-white px-3 py-2 text-slate-900" value={difficulty} onChange={(event) => changeDifficulty(event.target.value as EarTrainingMelodyDictationDifficulty)}>
@@ -971,6 +992,19 @@ export function LocalEarTrainingMelodyDictationPanel({
         </div>
       </div>
       <LocalMelodyImitationPanel key={`melody-imitation:${question.id}:${imitationEpoch}`} question={question} />
+    </> : <>
+      <div className="mt-5 rounded-2xl border border-fuchsia-200 bg-fuchsia-50 p-4" data-testid="melody-sight-singing-question-controls">
+        <label className="block text-sm font-semibold text-fuchsia-950" htmlFor="melody-sight-singing-difficulty">视唱难度</label>
+        <select id="melody-sight-singing-difficulty" className="mt-2 w-full rounded-xl border border-fuchsia-200 bg-white px-3 py-2 text-slate-900" value={difficulty} onChange={(event) => changeDifficulty(event.target.value as EarTrainingMelodyDictationDifficulty)}>
+          <option value="基础">基础：自然音级进与小跳</option><option value="进阶">进阶：增加 A4 与较大跳进</option><option value="挑战">挑战：扩展音域、半音与复合跳进</option>
+        </select>
+        <p className="mt-3 text-sm leading-6 text-fuchsia-900">当前为视唱题目 {sequence + 1}。目标谱面与固定唱名始终可见；切换难度、重置或下一题都会立即停止并作废旧麦克风、录音与分析。</p>
+        <div className="mt-3 flex flex-wrap gap-2">
+          <button type="button" onClick={resetSightSingingQuestion} className="min-h-11 rounded-xl border border-fuchsia-300 bg-white px-4 py-2 text-sm font-bold text-fuchsia-950">重置视唱题目</button>
+          <button type="button" disabled={!isQuestionReady} onClick={nextSightSingingQuestion} className="min-h-11 rounded-xl border border-violet-300 bg-white px-4 py-2 text-sm font-bold text-violet-900 disabled:opacity-50">下一组视唱</button>
+        </div>
+      </div>
+      <LocalMelodySightSingingPanel key={`melody-sight-singing:${question.id}:${sightSingingEpoch}`} question={question} />
     </>}
     <p className="mt-5 text-sm leading-6 text-slate-500">{onLocalAnswerResult ? "本机复练只保存复现这道题所需的题型、难度和随机题序，不保存你的填写、声音或正式成绩。" : "会话边界：题目序号、填写与答案说明只存在于当前页面内存；刷新后消失，不写入 localStorage、IndexedDB、账号或数据库。"}</p>
   </section>;

@@ -142,7 +142,7 @@ const screenDetails: Record<
   },
   melody: {
     title: "旋律听写",
-    summary: "完整听完三音短旋律，可使用五种受控方式听写，也可按四拍预备进行会话内非评分回唱。",
+    summary: "完整听完三音短旋律，可使用五种受控方式听写，也可按四拍预备进行隐藏目标回唱或可见谱面视唱。",
     tone: "bg-amber-50 text-amber-950 ring-amber-200",
   },
   piano: {

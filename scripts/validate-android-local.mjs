@@ -32,6 +32,8 @@ const requiredSources = [
   "lib/activity/melodyNumberedNotationActivityAdapter.ts",
   "lib/practice/localMelodyImitation.ts",
   "lib/activity/melodyImitationActivityAdapter.ts",
+  "lib/practice/localMelodySightSinging.ts",
+  "lib/activity/melodySightSingingActivityAdapter.ts",
   "lib/music/scoreDocument.ts",
   "lib/activity/localVocalMicrophoneActivityAdapter.ts",
   "lib/practice/localEarTrainingChords.ts",
@@ -71,6 +73,8 @@ const requiredSources = [
   "components/practice/MelodyStaffNotationInput.tsx",
   "components/practice/MelodyNumberedNotationInput.tsx",
   "components/practice/LocalMelodyImitationPanel.tsx",
+  "components/practice/LocalMelodySightSingingPanel.tsx",
+  "components/practice/LocalMelodySightSingingTarget.tsx",
   "components/practice/RealtimePitchCurveChart.tsx",
   "components/practice/LocalVocalExercisePanel.tsx",
   "components/practice/useRealtimePitchMonitor.ts",
@@ -273,6 +277,14 @@ const melodyImitationActivitySource = readFileSync(
   join(root, "lib/activity/melodyImitationActivityAdapter.ts"),
   "utf8",
 );
+const melodySightSingingSource = readFileSync(
+  join(root, "lib/practice/localMelodySightSinging.ts"),
+  "utf8",
+);
+const melodySightSingingActivitySource = readFileSync(
+  join(root, "lib/activity/melodySightSingingActivityAdapter.ts"),
+  "utf8",
+);
 const melodyDictationPanelSource = readFileSync(
   join(root, "components/practice/LocalEarTrainingMelodyDictationPanel.tsx"),
   "utf8",
@@ -287,6 +299,14 @@ const melodyNumberedNotationInputSource = readFileSync(
 );
 const melodyImitationPanelSource = readFileSync(
   join(root, "components/practice/LocalMelodyImitationPanel.tsx"),
+  "utf8",
+);
+const melodySightSingingPanelSource = readFileSync(
+  join(root, "components/practice/LocalMelodySightSingingPanel.tsx"),
+  "utf8",
+);
+const melodySightSingingTargetSource = readFileSync(
+  join(root, "components/practice/LocalMelodySightSingingTarget.tsx"),
   "utf8",
 );
 const scoreDocumentSource = readFileSync(
@@ -572,12 +592,41 @@ if (
   || !melodyImitationPanelSource.includes("subscribeBrowserAudioStopAll")
   || !melodyDictationPanelSource.includes("LocalMelodyImitationPanel")
   || !melodyDictationPanelSource.includes('imitationModeActive = practiceMode === "imitation" && pianoAnswerAvailable')
-  || !melodyDictationPanelSource.includes("!imitationModeActive ? <>")
+  || !melodyDictationPanelSource.includes("!imitationModeActive && !sightSingingModeActive ? <>")
   || !melodyDictationPanelSource.includes('key={`melody-imitation:${question.id}:${imitationEpoch}`}')
   || !melodyDictationPanelSource.includes("stopAllBrowserAudio")
-  || !mobileApp.includes("按四拍预备进行会话内非评分回唱")
+  || !mobileApp.includes("隐藏目标回唱")
 ) {
   throw new Error("Android P117d 三音旋律回唱时间线、隐藏目标、麦克风录音、P113 非评分 Activity 或生命周期边界不完整");
+}
+if (
+  !melodySightSingingSource.includes('LOCAL_MELODY_SIGHT_SINGING_TARGET_VERSION = "local-melody-sight-singing-target-v1"')
+  || !melodySightSingingSource.includes("visiblePresentationId")
+  || !melodySightSingingSource.includes("getLocalMelodySightSingingP113Targets")
+  || !melodySightSingingActivitySource.includes('family: "melody-sight-singing"')
+  || !melodySightSingingActivitySource.includes('allowedInputModes: ["microphone"]')
+  || !melodySightSingingActivitySource.includes('assessmentMode: "non-scoring"')
+  || !melodySightSingingActivitySource.includes("countInRunId")
+  || !melodySightSingingActivitySource.includes("recordingPlaybackQualificationId")
+  || !melodySightSingingActivitySource.includes("analysisRunId")
+  || !melodySightSingingPanelSource.includes("P117e · 会话内非评分练习")
+  || !melodySightSingingPanelSource.includes("目标从本轮开始就可见，不播放完整答案")
+  || !melodySightSingingPanelSource.includes("开始四拍预备与录音")
+  || !melodySightSingingPanelSource.includes("monitor.hasCompletedRecordingPlayback")
+  || !melodySightSingingPanelSource.includes("expectedRecordingZero")
+  || !melodySightSingingPanelSource.includes("<LocalMelodySightSingingTarget")
+  || !melodySightSingingPanelSource.includes("<OfflinePitchAnalysisPanel")
+  || !melodySightSingingPanelSource.includes("subscribeBrowserAudioStopAll")
+  || melodySightSingingPanelSource.includes("完整播放隐藏旋律")
+  || melodySightSingingActivitySource.includes("playbackQualificationId:")
+  || !melodySightSingingTargetSource.includes("melody-sight-singing-staff")
+  || !melodySightSingingTargetSource.includes("固定唱名")
+  || !melodyDictationPanelSource.includes("LocalMelodySightSingingPanel")
+  || !melodyDictationPanelSource.includes('sightSingingModeActive = practiceMode === "sight-singing" && pianoAnswerAvailable')
+  || !melodyDictationPanelSource.includes('key={`melody-sight-singing:${question.id}:${sightSingingEpoch}`}')
+  || !mobileApp.includes("可见谱面视唱")
+) {
+  throw new Error("Android P117e 可见三音谱面、固定唱名、四拍录音、P113 非评分 Activity 或三模式隔离边界不完整");
 }
 if (
   !seventhChordSource.includes("getLocalSeventhChordVariantCount")
@@ -845,6 +894,8 @@ for (const expectedCopy of [
   "检查本轮简谱答案",
   "P117d · 会话内非评分练习",
   "完整播放隐藏旋律",
+  "P117e · 会话内非评分练习",
+  "目标从本轮开始就可见，不播放完整答案",
   "开始四拍预备与录音",
   "查看本轮非评分反馈",
   "七和弦排列",
@@ -916,4 +967,4 @@ if (existsSync(manifestPath) && !existsSync(syncedIndex)) {
   throw new Error("Android 工程存在，但本地 Web 资源尚未同步");
 }
 
-console.log("Android 本地模式校验通过：固定包名、本地资源、既有十类练习、P116a 节奏视读与会话校准、P116b 隐藏目标节奏回模、P116c 单一事件节奏找错、P116d 谱面草稿节奏听写、P117a 旋律听写屏幕钢琴答案、P117b 五线谱答案文档、P117c 固定 C 简谱答案文档、P117d 隐藏三音麦克风回唱、音程比较/非评分模唱反馈、实时音高反馈、本机复练、非评分学习画像、本地参考钢琴、无远程运行时配置与生命周期保护。");
+console.log("Android 本地模式校验通过：固定包名、本地资源、既有十类练习、P116a 节奏视读与会话校准、P116b 隐藏目标节奏回模、P116c 单一事件节奏找错、P116d 谱面草稿节奏听写、P117a 旋律听写屏幕钢琴答案、P117b 五线谱答案文档、P117c 固定 C 简谱答案文档、P117d 隐藏三音麦克风回唱、P117e 可见三音谱面视唱、音程比较/非评分模唱反馈、实时音高反馈、本机复练、非评分学习画像、本地参考钢琴、无远程运行时配置与生命周期保护。");

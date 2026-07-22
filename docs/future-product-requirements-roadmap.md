@@ -1,4 +1,4 @@
-# P117c 后产品需求与执行路线
+# P117d 后产品需求与执行路线
 
 最后更新：2026-07-22
 
@@ -11,6 +11,7 @@
 - P117a 已通过 PR #395 合并为 `9bcba3c533503d8cf50d6105471ba67f1f6d3f43`；Actions 运行 `29809682809` 的 `quality` 与 `android-local` 通过，Android 工件 `8486945545` 的 GitHub artifact ZIP digest 为 `ee9cb33b41fcd6dba075ccc3548b86948f1328a5837b2d7a4beb8352da8b025b`。
 - P117b 已通过 PR #396 合并为 `3455052a65a42841cbab76e83fc0abe5ad7b74e9`；Actions 运行 `29830492176` 的 `quality` 与 `android-local` 通过，Android 工件 `8495101348` 的 GitHub artifact ZIP digest 为 `587780402d5a339f968dc58c20f27adac23ef67f4ffdef8e2c35dda77955b477`。
 - P117c 已通过 PR #397 合并为 `046da82f7a7ec1fe670e11c77c851c13caf6e7c0`；Actions 运行 `29887214619` 的 `quality` 与 `android-local` 通过，Android 工件 `8516958894` 的 GitHub artifact ZIP digest 为 `41221b560e6af280e4167aee276d8bfaf39a4a5d26702f2d6b473b09ef27a501`。
+- P117d 已通过 PR #398 合并为 `37bd4c6aa2f094611abe661168188b4b921465de`；Actions 运行 `29894710668` 的 `quality` 与 `android-local` 通过，Android 工件 `8519558587` 的 GitHub artifact ZIP digest 为 `29bb8cad6858ffeee304d0634a1ac682e9e6259e5419f99ff08e8deab34c5aa9`。
 - Android 当前保持本地优先、离线、隐私最小化；不上传练习录音，不新增账户、云端或数据库依赖。
 - P115h 的模唱反馈只表达接近、偏高／偏低或证据不足，不是评分、等级、通过／失败或专业声乐评估。
 - 自动测试和 CI 只证明代码、构建与约定行为；不证明 Android 真机、真实人声、教师审核或教育有效性。
@@ -33,11 +34,12 @@ P117 继续按边界清楚的完整切片推进，不能把现有三音选择题
 1. 屏幕钢琴答案输入（P117a，已完成）：复用现有版本化三音旋律题库、Activity `piano` answer、共享屏幕 `note-event-v1`、本机复练与学习画像。用户完整播放隐藏旋律后再明确开始接收三个有序屏幕琴键 `note-on`；非屏幕钢琴来源、重播、停止、全局停止、后台、换题、重置与迟到事件全部 fail closed。
 2. 五线谱答案输入（P117b，已完成）：完整听题后以真实五线、高音谱号和三个有序谱位编辑受控草稿，通过“预览 → 结构检查 → 修改／重新检查 → 明确确认”冻结为会话内 `score-document-v1`，再以 Activity `staff-notation` 答案揭示逐位置非评分对照。当前只比较音高顺序，不扩大为完整制谱、MusicXML、OMR、正式转写或节奏评价。
 3. 简谱答案输入（P117c，已完成）：复用同一版本化旋律目标和 Activity 文档修订语义，用固定 C 为 1 的三个有序简谱音位完成“预览 → 结构检查 → 修改／重新检查 → 明确确认”，保留音高顺序、重复音、F♯4 左侧升号与 C5 上方高音点身份，不能把显示 token 冒充 canonical pitch。
-4. 三音旋律回唱（P117d，当前 implementation candidate）：完整听完隐藏目标后，使用与播放共用的版本化时间线完成四拍预备拍、会话内录音、回放检查和二次确认，再以 P112/P113 有序对齐结果提交 `melody-imitation` microphone Activity；只表达接近、偏高/偏低、缺唱或证据不足，不生成正式评分。
+4. 三音旋律回唱（P117d，已完成）：完整听完隐藏目标后，使用与播放共用的版本化时间线完成四拍预备拍、会话内录音、完整回放和二次确认，再以 P112/P113 有序对齐结果提交 `melody-imitation` microphone Activity；只表达接近、偏高/偏低、缺唱或证据不足，不生成正式评分。
+5. 三音旋律视唱（P117e，当前 acceptance candidate）：从开始显示只读五线谱与固定唱名，不播放完整答案；四拍只建立录音零点，完整回放和二次确认后提交 `melody-sight-singing` microphone Activity。可见表示、timed target、count-in、录音与真实 analysis run 必须严格绑定。
 
-P117a–P117c 的已合并边界见各自 acceptance；P117d 当前验收见 `docs/p117d-melody-imitation-microphone-acceptance.md`。P117d 不能用既有实时曲线、模拟录音或音程模唱自动门禁代替三音时间目标、隐藏播放资格和正式提交后 P113 对齐验收。旋律视唱仍需 P117e 独立切片。
+P117a–P117d 的已合并边界见各自 acceptance；P117e 当前验收见 `docs/p117e-melody-sight-singing-acceptance.md`。P117e 不能用 P117d 隐藏目标状态机或五线谱听写草稿冒充从开始可见的视唱目标，也不能用模拟录音替代真实人声证据。
 
-P117d 当前只是 implementation candidate。Browser 真麦克风、Android 三档真机、真实人声、双教师时间目标/反馈审核、以及至少 5 名中文目标用户的可用性验收均仍未执行；源码、DOM 测试、模拟录音、CI 与 APK 工件不得替代这些证据。
+P117e 当前只是 acceptance candidate；P117d/P117e 的 Browser 真麦克风、Android 三档真机、真实人声、双教师时间目标/反馈审核、以及至少 5 名中文目标用户的可用性验收均仍未执行；源码、DOM 测试、模拟录音、CI 与 APK 工件不得替代这些证据。
 
 第一版内部测试发布前优先完成可由仓库内开发闭环的 P117–P118 切片；双教师、真机、真实人声、目标用户和正式签名等外部证据泳道在内部测试包形成后启动，但在此之前始终保持未完成状态。
 
