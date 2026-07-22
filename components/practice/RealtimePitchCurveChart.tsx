@@ -26,9 +26,10 @@ type Props = {
   targetMidi: number;
   targetEvents?: LocalVocalExerciseEvent[];
   targetStartedAtMs?: number | null;
+  showTarget?: boolean;
 };
 
-export function RealtimePitchCurveChart({ points, windowSeconds, targetMidi, targetEvents = [], targetStartedAtMs = null }: Props) {
+export function RealtimePitchCurveChart({ points, windowSeconds, targetMidi, targetEvents = [], targetStartedAtMs = null, showTarget = true }: Props) {
   const titleId = useId();
   const latestTimestamp = points.at(-1)?.timestampMs ?? 0;
   const windowMs = windowSeconds * 1_000;
@@ -43,9 +44,9 @@ export function RealtimePitchCurveChart({ points, windowSeconds, targetMidi, tar
     <figure className="mt-4 overflow-hidden rounded-2xl border border-slate-700 bg-slate-950" aria-labelledby={titleId}>
       <figcaption id={titleId} className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800 px-4 py-3 text-xs text-slate-300">
         <span className="font-bold text-white">最近 {windowSeconds} 秒音高曲线</span>
-        <span>实线：可靠人声　断线：不足以判断　虚线：目标音</span>
+        <span>{showTarget ? "实线：可靠人声　断线：不足以判断　虚线：目标音" : "实线：可靠人声　断线：不足以判断　隐藏目标未显示"}</span>
       </figcaption>
-      <svg viewBox={`0 0 ${WIDTH} ${HEIGHT}`} role="img" aria-label={`实时音高曲线，纵轴 C3 到 C6，目标音 ${midiToScientificNote(targetMidi)}`} className="block h-auto w-full">
+      <svg viewBox={`0 0 ${WIDTH} ${HEIGHT}`} role="img" aria-label={showTarget ? `实时音高曲线，纵轴 C3 到 C6，目标音 ${midiToScientificNote(targetMidi)}` : "实时音高曲线，纵轴 C3 到 C6，隐藏目标未显示"} className="block h-auto w-full">
         <rect width={WIDTH} height={HEIGHT} fill="#020617" />
         {Array.from({ length: MAX_MIDI - MIN_MIDI + 1 }, (_, index) => MIN_MIDI + index).map((midi) => {
           const y = yForMidi(midi);
@@ -57,9 +58,9 @@ export function RealtimePitchCurveChart({ points, windowSeconds, targetMidi, tar
           const remaining = ((4 - index) / 4 * windowSeconds).toFixed(index === 4 ? 0 : 1);
           return <g key={index}><line x1={x} x2={x} y1={TOP} y2={HEIGHT - BOTTOM} stroke="#334155" strokeWidth="0.8" /><text x={x} y={HEIGHT - 10} textAnchor={index === 0 ? "start" : index === 4 ? "end" : "middle"} fill="#94a3b8" fontSize="11">{index === 4 ? "现在" : `-${remaining}s`}</text></g>;
         })}
-        <line x1={LEFT} x2={WIDTH - RIGHT} y1={targetY} y2={targetY} stroke="#f59e0b" strokeWidth="2" strokeDasharray="8 6" />
-        <text x={WIDTH - RIGHT - 4} y={targetY - 6} textAnchor="end" fill="#fbbf24" fontSize="12" fontWeight="700">目标 {midiToScientificNote(targetMidi)}</text>
-        {targetStartedAtMs !== null ? targetEvents.map((event) => {
+        {showTarget ? <><line x1={LEFT} x2={WIDTH - RIGHT} y1={targetY} y2={targetY} stroke="#f59e0b" strokeWidth="2" strokeDasharray="8 6" />
+        <text x={WIDTH - RIGHT - 4} y={targetY - 6} textAnchor="end" fill="#fbbf24" fontSize="12" fontWeight="700">目标 {midiToScientificNote(targetMidi)}</text></> : null}
+        {showTarget && targetStartedAtMs !== null ? targetEvents.map((event) => {
           const start = targetStartedAtMs + event.startSeconds * 1_000;
           const end = start + event.durationSeconds * 1_000;
           if (end < windowStart || start > windowEnd || event.midi < MIN_MIDI || event.midi > MAX_MIDI) return null;

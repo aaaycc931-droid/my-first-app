@@ -4,8 +4,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   OfflinePitchAnalysisPanel,
+  type OfflinePitchAnalysisFailedDetail,
   type OfflinePitchAnalysisInvalidationDetail,
   type OfflinePitchAnalysisReadyDetail,
+  type OfflinePitchAnalysisStartedDetail,
 } from "../../components/practice/OfflinePitchAnalysisPanel";
 
 let root: Root | null = null;
@@ -57,11 +59,15 @@ const renderPanel = async ({
   recording,
   onAnalysisReady,
   onAnalysisInvalidated,
+  onAnalysisFailed,
+  onAnalysisStarted,
 }: {
   container: HTMLElement;
   recording: Blob | null;
   onAnalysisReady: (detail: OfflinePitchAnalysisReadyDetail) => void;
   onAnalysisInvalidated: (detail: OfflinePitchAnalysisInvalidationDetail) => void;
+  onAnalysisFailed?: (detail: OfflinePitchAnalysisFailedDetail) => void;
+  onAnalysisStarted?: (detail: OfflinePitchAnalysisStartedDetail) => void;
 }) => {
   await act(async () => {
     root?.render(
@@ -71,6 +77,8 @@ const renderPanel = async ({
           onBeforeAnalyze={() => undefined}
           onAnalysisReady={onAnalysisReady}
           onAnalysisInvalidated={onAnalysisInvalidated}
+          onAnalysisFailed={onAnalysisFailed}
+          onAnalysisStarted={onAnalysisStarted}
         />
       </StrictMode>,
     );
@@ -118,6 +126,7 @@ describe("离线音高分析结果绑定边界", () => {
 
     const detail = onAnalysisReady.mock.calls[0]![0];
     expect(detail.recording).toBe(recording);
+    expect(detail.analysisRunId).toBe("offline-analysis-run:1");
     expect(detail.pitchAnalysis.version).toBe("offline-pitch-multicandidate-v1");
     expect(detail.noteAlignment.version).toBe("offline-note-alignment-v1");
     expect(detail.noteAlignment.targetEvidence).toEqual([]);
@@ -177,5 +186,57 @@ describe("离线音高分析结果绑定边界", () => {
     expect(container.textContent).toContain("录音可供检查后分析");
     expect(container.textContent).not.toContain("本地分析已完成");
     expect(contextClose).toHaveBeenCalledTimes(1);
+  });
+
+  it("本机解码失败会向活动父级回报一次并保留中文恢复提示", async () => {
+    decodeAudioData.mockRejectedValue(new Error("decode failed"));
+    const recording = new Blob(["broken"], { type: "audio/webm" });
+    const onAnalysisReady = vi.fn<(detail: OfflinePitchAnalysisReadyDetail) => void>();
+    const onAnalysisInvalidated = vi.fn<(detail: OfflinePitchAnalysisInvalidationDetail) => void>();
+    const onAnalysisFailed = vi.fn<(detail: OfflinePitchAnalysisFailedDetail) => void>();
+    const container = document.body.firstElementChild as HTMLElement;
+    await renderPanel({ container, recording, onAnalysisReady, onAnalysisInvalidated, onAnalysisFailed });
+
+    await prepareAndAnalyze(container);
+    await waitFor(() => onAnalysisFailed.mock.calls.length === 1, "分析失败回调");
+
+    expect(onAnalysisReady).not.toHaveBeenCalled();
+    expect(onAnalysisFailed.mock.calls[0]?.[0]).toMatchObject({
+      recording,
+      analysisRunId: "offline-analysis-run:1",
+      message: "decode failed",
+    });
+    expect(container.textContent).toContain("decode failed");
+  });
+
+  it("每次真实确认分析都会产生新 run id，旧 run 完成后不能冒充新录音", async () => {
+    let resolveFirst: ((value: typeof decodedAudio) => void) | null = null;
+    decodeAudioData
+      .mockReturnValueOnce(new Promise((resolve) => { resolveFirst = resolve; }))
+      .mockResolvedValueOnce(decodedAudio);
+    const firstRecording = new Blob(["first"], { type: "audio/webm" });
+    const secondRecording = new Blob(["second"], { type: "audio/webm" });
+    const onAnalysisReady = vi.fn<(detail: OfflinePitchAnalysisReadyDetail) => void>();
+    const onAnalysisInvalidated = vi.fn<(detail: OfflinePitchAnalysisInvalidationDetail) => void>();
+    const onAnalysisStarted = vi.fn<(detail: OfflinePitchAnalysisStartedDetail) => void>();
+    const container = document.body.firstElementChild as HTMLElement;
+
+    await renderPanel({ container, recording: firstRecording, onAnalysisReady, onAnalysisInvalidated, onAnalysisStarted });
+    await prepareAndAnalyze(container);
+    await renderPanel({ container, recording: secondRecording, onAnalysisReady, onAnalysisInvalidated, onAnalysisStarted });
+    await prepareAndAnalyze(container);
+    await waitFor(() => onAnalysisReady.mock.calls.length === 1, "第二次分析完成");
+    await act(async () => resolveFirst?.(decodedAudio));
+    await flush();
+
+    expect(onAnalysisStarted.mock.calls.map(([detail]) => detail.analysisRunId)).toEqual([
+      "offline-analysis-run:1",
+      "offline-analysis-run:2",
+    ]);
+    expect(onAnalysisReady).toHaveBeenCalledTimes(1);
+    expect(onAnalysisReady.mock.calls[0]?.[0]).toMatchObject({
+      recording: secondRecording,
+      analysisRunId: "offline-analysis-run:2",
+    });
   });
 });

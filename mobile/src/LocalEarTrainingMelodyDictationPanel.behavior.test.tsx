@@ -354,6 +354,9 @@ describe("三音旋律听写音名与固定唱名行为", () => {
   it("扩展随机入口把屏幕钢琴作为真实 piano 答案，并在三音后完成非评分检查", async () => {
     const container = await renderPanel({ randomQuestion: true });
     expect(container.textContent).toContain("P117c · 本地旋律听写");
+    expect(findButton(container, "旋律听写").getAttribute("aria-checked")).toBe("true");
+    expect(findButton(container, "旋律回唱（麦克风）").getAttribute("aria-checked")).toBe("false");
+    expect(container.textContent).not.toContain("P117d · 会话内非评分练习");
     expect(findButton(container, "屏幕钢琴").getAttribute("aria-checked")).toBe("false");
 
     await click(findButton(container, "屏幕钢琴"));
@@ -377,6 +380,72 @@ describe("三音旋律听写音名与固定唱名行为", () => {
     expect(container.textContent).toContain("你的填写：C4 → C4 → D4");
     expect(container.querySelectorAll('[data-testid="melody-piano-position-comparison"] li'))
       .toHaveLength(3);
+  });
+
+  it("父答案已揭示后进入回唱会清除并从 DOM 隔离目标、作答与参考钢琴", async () => {
+    const container = await renderPanel({ randomQuestion: true });
+    await completePlayback(container);
+    await chooseOrderedAnswer(container, ["C4", "D4", "E4"]);
+    await click(findButton(container, "查看本题答案"));
+    expect(container.textContent).toContain("本题答案：");
+    expect(container.textContent).toContain("三个音依次为：");
+
+    await click(findButton(container, "旋律回唱（麦克风）"));
+    expect(container.textContent).toContain("P117d · 会话内非评分练习");
+    expect(container.textContent).not.toContain("本题答案：");
+    expect(container.textContent).not.toContain("这三个音依次");
+    expect(Array.from(container.querySelectorAll("button")).some((button) =>
+      button.textContent?.trim() === "查看本题答案"
+      || button.textContent?.trim() === "播放旋律题目"
+      || button.textContent?.trim() === "参考钢琴"
+    )).toBe(false);
+  });
+
+  it("回唱挂载期间父听写播放、途中揭示与参考钢琴均不可进入同一 DOM", async () => {
+    const container = await renderPanel({ randomQuestion: true });
+    await act(async () => vi.advanceTimersByTime(100));
+    await click(findButton(container, "播放旋律题目"));
+    await click(findButton(container, "旋律回唱（麦克风）"));
+
+    expect(container.textContent).toContain("P117d · 会话内非评分练习");
+    expect(container.querySelector('[data-testid="melody-answer-mode"]')).toBeNull();
+    expect(container.querySelector('[aria-label="旋律听写参考钢琴"]')).toBeNull();
+    expect(Array.from(container.querySelectorAll("button")).some((button) =>
+      button.textContent?.trim() === "播放旋律题目"
+      || button.textContent?.trim() === "查看本题答案"
+    )).toBe(false);
+    expect(browserAudioMock.listeners.size).toBeGreaterThan(0);
+  });
+
+  it("回唱 reset、next 与同 variant 跨难度都会 remount 并作废旧实例", async () => {
+    const container = await renderPanel({ randomQuestion: true });
+    await click(findButton(container, "旋律回唱（麦克风）"));
+    const currentPanel = () => container.querySelector<HTMLElement>('[aria-labelledby="melody-imitation-title"]');
+    const first = currentPanel();
+    expect(first).not.toBeNull();
+
+    await click(findButton(container, "重置回唱题目"));
+    const reset = currentPanel();
+    expect(reset).not.toBeNull();
+    expect(reset).not.toBe(first);
+
+    await act(async () => vi.advanceTimersByTime(100));
+    await click(findButton(container, "下一组回唱"));
+    await act(async () => vi.advanceTimersByTime(100));
+    const next = currentPanel();
+    expect(next).not.toBeNull();
+    expect(next).not.toBe(reset);
+    expect(container.textContent).toContain("当前为回唱题目 2");
+
+    const difficulty = container.querySelector<HTMLSelectElement>("#melody-imitation-difficulty");
+    if (!difficulty) throw new Error("找不到回唱难度选择");
+    await changeSelect(difficulty, "进阶");
+    await act(async () => vi.advanceTimersByTime(100));
+    const changedDifficulty = currentPanel();
+    expect(changedDifficulty).not.toBeNull();
+    expect(changedDifficulty).not.toBe(next);
+    expect(container.textContent).not.toContain("本题答案：");
+    expect(container.textContent).toContain("当前为回唱题目 1");
   });
 
   it("全局停止和音频中断都会清除听题资格、填写与迟到完成回调", async () => {
@@ -766,6 +835,7 @@ describe("三音旋律听写音名与固定唱名行为", () => {
 
   it("复练入口不暴露新的屏幕钢琴、五线谱或简谱模式", async () => {
     const container = await renderPanel();
+    expect(container.textContent).not.toContain("P117d · 会话内非评分练习");
     expect(Array.from(container.querySelectorAll("button")).some(
       (button) => button.textContent?.trim() === "屏幕钢琴",
     )).toBe(false);
@@ -798,6 +868,7 @@ describe("三音旋律听写音名与固定唱名行为", () => {
       randomQuestion: false,
       customPractice,
     });
+    expect(container.textContent).not.toContain("P117d · 会话内非评分练习");
     expect(Array.from(container.querySelectorAll("button")).some(
       (button) => button.textContent?.trim() === "屏幕钢琴"
         || button.textContent?.trim() === "五线谱"

@@ -30,6 +30,8 @@ const requiredSources = [
   "lib/activity/melodyStaffNotationActivityAdapter.ts",
   "lib/practice/localMelodyNumberedNotationDraft.ts",
   "lib/activity/melodyNumberedNotationActivityAdapter.ts",
+  "lib/practice/localMelodyImitation.ts",
+  "lib/activity/melodyImitationActivityAdapter.ts",
   "lib/music/scoreDocument.ts",
   "lib/activity/localVocalMicrophoneActivityAdapter.ts",
   "lib/practice/localEarTrainingChords.ts",
@@ -68,6 +70,7 @@ const requiredSources = [
   "components/practice/LocalEarTrainingMelodyDictationPanel.tsx",
   "components/practice/MelodyStaffNotationInput.tsx",
   "components/practice/MelodyNumberedNotationInput.tsx",
+  "components/practice/LocalMelodyImitationPanel.tsx",
   "components/practice/RealtimePitchCurveChart.tsx",
   "components/practice/LocalVocalExercisePanel.tsx",
   "components/practice/useRealtimePitchMonitor.ts",
@@ -262,6 +265,14 @@ const melodyNumberedNotationActivitySource = readFileSync(
   join(root, "lib/activity/melodyNumberedNotationActivityAdapter.ts"),
   "utf8",
 );
+const melodyImitationSource = readFileSync(
+  join(root, "lib/practice/localMelodyImitation.ts"),
+  "utf8",
+);
+const melodyImitationActivitySource = readFileSync(
+  join(root, "lib/activity/melodyImitationActivityAdapter.ts"),
+  "utf8",
+);
 const melodyDictationPanelSource = readFileSync(
   join(root, "components/practice/LocalEarTrainingMelodyDictationPanel.tsx"),
   "utf8",
@@ -272,6 +283,10 @@ const melodyStaffNotationInputSource = readFileSync(
 );
 const melodyNumberedNotationInputSource = readFileSync(
   join(root, "components/practice/MelodyNumberedNotationInput.tsx"),
+  "utf8",
+);
+const melodyImitationPanelSource = readFileSync(
+  join(root, "components/practice/LocalMelodyImitationPanel.tsx"),
   "utf8",
 );
 const scoreDocumentSource = readFileSync(
@@ -490,7 +505,7 @@ if (
   || !melodyDictationPanelSource.includes("停止并作废播放")
   || !melodyDictationPanelSource.includes("重播、停止、后台或全局停止会清除旧填写与检查")
   || !melodyDictationPanelSource.includes("pianoAnswerAvailable = expandedLocalCatalog && !initialReviewTarget && !activeCustomPractice")
-  || !mobileApp.includes("音名、固定唱名、屏幕钢琴、受控五线谱或固定 C 简谱作答")
+  || !mobileApp.includes("五种受控方式听写")
 ) {
   throw new Error("Android P117a 旋律听写屏幕钢琴答案、完整播放门槛、非评分 Activity 或生命周期边界不完整");
 }
@@ -530,9 +545,39 @@ if (
   || !melodyDictationPanelSource.includes("P117c · 本地旋律听写")
   || !melodyDictationPanelSource.includes("检查本轮简谱答案")
   || !melodyDictationPanelSource.includes("numberedNotationAnswerAvailable = pianoAnswerAvailable")
-  || !mobileApp.includes("受控五线谱或固定 C 简谱作答")
+  || !mobileApp.includes("五种受控方式听写")
 ) {
   throw new Error("Android P117c 旋律听写简谱草稿、真实简谱表示、确认文档、非评分 Activity 或来源完整性边界不完整");
+}
+if (
+  !melodyImitationSource.includes('LOCAL_MELODY_IMITATION_TIMELINE_VERSION = "local-melody-imitation-timeline-v1"')
+  || !melodyImitationSource.includes("LOCAL_MELODY_IMITATION_COUNT_IN_BEATS = 4")
+  || !melodyImitationSource.includes("recordingZeroMs")
+  || !melodyImitationSource.includes("getLocalMelodyImitationP113Targets")
+  || !melodyImitationActivitySource.includes('family: "melody-imitation"')
+  || !melodyImitationActivitySource.includes('allowedInputModes: ["microphone"]')
+  || !melodyImitationActivitySource.includes('assessmentMode: "non-scoring"')
+  || !melodyImitationActivitySource.includes("playbackQualificationId")
+  || !melodyImitationActivitySource.includes("recordingId")
+  || !melodyImitationActivitySource.includes("analysisRunId")
+  || !melodyImitationPanelSource.includes("P117d · 会话内非评分练习")
+  || !melodyImitationPanelSource.includes("完整播放隐藏旋律")
+  || !melodyImitationPanelSource.includes("开始四拍预备与录音")
+  || !melodyImitationPanelSource.includes("<OfflinePitchAnalysisPanel")
+  || !melodyImitationPanelSource.includes("onAnalysisReady={handleAnalysisReady}")
+  || !melodyImitationPanelSource.includes("onAnalysisFailed=")
+  || !melodyImitationPanelSource.includes("monitor.hasCompletedRecordingPlayback")
+  || !melodyImitationPanelSource.includes("expectedRecordingZero")
+  || !melodyImitationPanelSource.includes("showTarget={false}")
+  || !melodyImitationPanelSource.includes("subscribeBrowserAudioStopAll")
+  || !melodyDictationPanelSource.includes("LocalMelodyImitationPanel")
+  || !melodyDictationPanelSource.includes('imitationModeActive = practiceMode === "imitation" && pianoAnswerAvailable')
+  || !melodyDictationPanelSource.includes("!imitationModeActive ? <>")
+  || !melodyDictationPanelSource.includes('key={`melody-imitation:${question.id}:${imitationEpoch}`}')
+  || !melodyDictationPanelSource.includes("stopAllBrowserAudio")
+  || !mobileApp.includes("按四拍预备进行会话内非评分回唱")
+) {
+  throw new Error("Android P117d 三音旋律回唱时间线、隐藏目标、麦克风录音、P113 非评分 Activity 或生命周期边界不完整");
 }
 if (
   !seventhChordSource.includes("getLocalSeventhChordVariantCount")
@@ -798,6 +843,10 @@ for (const expectedCopy of [
   "检查简谱草稿",
   "确认当前简谱修订",
   "检查本轮简谱答案",
+  "P117d · 会话内非评分练习",
+  "完整播放隐藏旋律",
+  "开始四拍预备与录音",
+  "查看本轮非评分反馈",
   "七和弦排列",
   "七和弦开放与密集排列听辨",
   "本地模式",
@@ -867,4 +916,4 @@ if (existsSync(manifestPath) && !existsSync(syncedIndex)) {
   throw new Error("Android 工程存在，但本地 Web 资源尚未同步");
 }
 
-console.log("Android 本地模式校验通过：固定包名、本地资源、既有十类练习、P116a 节奏视读与会话校准、P116b 隐藏目标节奏回模、P116c 单一事件节奏找错、P116d 谱面草稿节奏听写、P117a 旋律听写屏幕钢琴答案、P117b 五线谱答案文档、P117c 固定 C 简谱答案文档、音程比较/非评分模唱反馈、实时音高反馈、本机复练、非评分学习画像、本地参考钢琴、无远程运行时配置与生命周期保护。");
+console.log("Android 本地模式校验通过：固定包名、本地资源、既有十类练习、P116a 节奏视读与会话校准、P116b 隐藏目标节奏回模、P116c 单一事件节奏找错、P116d 谱面草稿节奏听写、P117a 旋律听写屏幕钢琴答案、P117b 五线谱答案文档、P117c 固定 C 简谱答案文档、P117d 隐藏三音麦克风回唱、音程比较/非评分模唱反馈、实时音高反馈、本机复练、非评分学习画像、本地参考钢琴、无远程运行时配置与生命周期保护。");
