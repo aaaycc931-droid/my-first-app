@@ -44,6 +44,7 @@ export function LocalEarTrainingRhythmPanel({
   courseExerciseId,
   initialReviewTarget,
   customPractice,
+  fixedExpandedActivity,
   onLocalAnswerResult,
   onLeaveReviewTarget,
   showLocalPiano = false,
@@ -52,6 +53,7 @@ export function LocalEarTrainingRhythmPanel({
   courseExerciseId?: string;
   initialReviewTarget?: Extract<LocalPracticeReviewTarget, { kind: "rhythm" }>;
   customPractice?: ResolvedLocalPracticeCustomization;
+  fixedExpandedActivity?: ExpandedRhythmActivity;
   onLocalAnswerResult?: (result: LocalPracticeAnswerResult) => void;
   onLeaveReviewTarget?: () => void;
   showLocalPiano?: boolean;
@@ -64,12 +66,14 @@ export function LocalEarTrainingRhythmPanel({
     : "expanded-local-v2";
   const isExpandedRandomPractice = Boolean(
     expandedLocalCatalog
+    && !fixedExpandedActivity
     && !courseExerciseId
     && !initialReviewTarget
     && !activeCustomPractice,
   );
+  const isExpandedActivity = isExpandedRandomPractice || Boolean(fixedExpandedActivity);
   const [expandedActivity, setExpandedActivity] =
-    useState<ExpandedRhythmActivity>("choice");
+    useState<ExpandedRhythmActivity>(fixedExpandedActivity ?? "choice");
   const [isLocalPianoOpen, setIsLocalPianoOpen] = useState(false);
   const [difficulty, setDifficulty] = useState<EarTrainingRhythmDifficulty>(initialReviewTarget?.difficulty ?? activeCustomPractice?.customization.difficulty ?? "基础");
   const [sequence, setSequence] = useState(initialReviewTarget?.sequence ?? 0);
@@ -202,6 +206,7 @@ export function LocalEarTrainingRhythmPanel({
   };
 
   const changeExpandedActivity = (nextActivity: ExpandedRhythmActivity) => {
+    if (fixedExpandedActivity) return;
     if (nextActivity === expandedActivity) return;
     resetCurrentQuestion();
     setExpandedActivity(nextActivity);
@@ -213,7 +218,9 @@ export function LocalEarTrainingRhythmPanel({
       <p className="text-sm font-semibold tracking-wide text-violet-600">本地练习</p>
       <h2 className="mt-1 text-2xl font-bold text-slate-950">内置节奏专业练习</h2>
       <p className="mt-2 text-sm leading-6 text-slate-600">
-        {isExpandedRandomPractice
+        {fixedExpandedActivity
+          ? "当前课程已锁定本课声明的节奏活动；离开或切换模式会作废本次课程归属。"
+          : isExpandedRandomPractice
           ? "每次只打开一种节奏活动；切换活动会换一道新题，避免可见目标泄露听写或回模答案。"
           : "先听一个四拍的本地合成击拍题，再选择你听到的节奏形状。"}本模块不上传音频，也不生成正式成绩。{courseExerciseId ? "当前题目来自系统课程；登录后查看答案时会保存一条仅本人可见的练习记录。" : onLocalAnswerResult ? "当前作答和声音不保存；答错时仅保存复现本题所需的最小信息。" : "当前入口不会保存练习记录。"}
       </p>
@@ -314,7 +321,7 @@ export function LocalEarTrainingRhythmPanel({
         </div>
       </div> : null}
 
-      {isExpandedRandomPractice && expandedActivity === "sight-reading" ? (
+      {isExpandedActivity && expandedActivity === "sight-reading" ? (
         <LocalRhythmSightReadingPanel
           key={`sight-reading:${question.id}`}
           question={question}
@@ -323,7 +330,7 @@ export function LocalEarTrainingRhythmPanel({
         />
       ) : null}
 
-      {isExpandedRandomPractice && expandedActivity === "imitation" ? (
+      {isExpandedActivity && expandedActivity === "imitation" ? (
         <LocalRhythmImitationPanel
           key={`imitation:${question.id}`}
           question={question}
@@ -332,7 +339,7 @@ export function LocalEarTrainingRhythmPanel({
         />
       ) : null}
 
-      {isExpandedRandomPractice && expandedActivity === "error-finding" ? (
+      {isExpandedActivity && expandedActivity === "error-finding" ? (
         <LocalRhythmErrorFindingPanel
           key={`error-finding:${question.id}`}
           question={question}
@@ -341,7 +348,7 @@ export function LocalEarTrainingRhythmPanel({
         />
       ) : null}
 
-      {isExpandedRandomPractice && expandedActivity === "dictation" ? (
+      {isExpandedActivity && expandedActivity === "dictation" ? (
         <LocalRhythmDictationPanel
           key={`dictation:${question.id}`}
           question={question}

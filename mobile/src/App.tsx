@@ -10,6 +10,7 @@ import { LocalPracticeCustomizerPanel } from "../../components/practice/LocalPra
 import { LocalVocalExercisePanel } from "../../components/practice/LocalVocalExercisePanel";
 import { RealtimePitchMonitorPanel } from "../../components/practice/RealtimePitchMonitorPanel";
 import { LocalPianoPanel } from "../../components/piano/LocalPianoPanel";
+import { LocalCoursePathPanel } from "./LocalCoursePathPanel";
 import {
   stopAllBrowserAudio,
   suspendAllBrowserAudio,
@@ -52,6 +53,18 @@ import type {
   LocalPracticeCustomization,
   ResolvedLocalPracticeCustomization,
 } from "../../lib/practice/localPracticeCustomizer";
+import {
+  completeLocalCourseLesson,
+  getLocalCourseLessonAvailability,
+  type LocalCourseActivityMappingV1,
+  type LocalCourseLessonV1,
+  type LocalCourseProgressV1,
+} from "../../lib/learning/localCoursePath";
+import {
+  loadMobileCourseProgress,
+  resetMobileCourseProgress,
+  saveMobileCourseProgress,
+} from "./runtime/mobileCourseProgressStorage";
 
 const LocalEarTrainingHarmonyProgressionPanel = lazy(() =>
   import("../../components/practice/LocalEarTrainingHarmonyProgressionPanel").then((module) => ({
@@ -80,14 +93,19 @@ const LocalEarTrainingChordPanel = lazy(() =>
   })),
 );
 
-const screens = ["home", "custom", "monitor", "pitch", "interval", "compare", "chord", "seventh", "seventh-spacing", "progression", "modulation", "scale", "rhythm", "melody", "piano"] as const;
+const screens = ["home", "course", "custom", "monitor", "pitch", "interval", "compare", "chord", "seventh", "seventh-spacing", "progression", "modulation", "scale", "rhythm", "melody", "piano"] as const;
 type Screen = (typeof screens)[number];
-type PracticeScreenName = Exclude<Screen, "home" | "custom" | "piano" | "monitor">;
+type PracticeScreenName = Exclude<Screen, "home" | "course" | "custom" | "piano" | "monitor">;
 
 const screenDetails: Record<
   Exclude<Screen, "home">,
   { title: string; summary: string; tone: string }
 > = {
+  course: {
+    title: "中文课程",
+    summary: "按章节学习现有本地练习，并只在这台设备记录课节完成与顺序解锁。",
+    tone: "bg-amber-50 text-amber-950 ring-amber-200",
+  },
   custom: {
     title: "定制练习",
     summary: "选择题型、难度和答案类别，开始一组仅当前会话有效的本地练习。",
@@ -152,6 +170,12 @@ const screenDetails: Record<
   },
 };
 
+type ActiveLocalCourseRun = {
+  runId: number;
+  lesson: LocalCourseLessonV1;
+  mapping: LocalCourseActivityMappingV1;
+};
+
 function screenFromHash(): Screen {
   const candidate = window.location.hash.replace(/^#\/?/, "");
   return screens.includes(candidate as Screen) ? (candidate as Screen) : "home";
@@ -195,12 +219,14 @@ function PracticeScreen({
   screen,
   reviewTarget,
   customPractice,
+  courseRun,
   onLocalAnswerResult,
   onLeaveReviewTarget,
 }: {
   screen: PracticeScreenName;
   reviewTarget: LocalPracticeReviewTarget | null;
   customPractice?: ResolvedLocalPracticeCustomization;
+  courseRun?: ActiveLocalCourseRun | null;
   onLocalAnswerResult: (result: LocalPracticeAnswerResult) => void;
   onLeaveReviewTarget: () => void;
 }) {
@@ -243,10 +269,10 @@ function PracticeScreen({
   }
   if (screen === "rhythm") {
     const target = reviewTarget?.kind === "rhythm" ? reviewTarget : undefined;
-    return <LocalEarTrainingRhythmPanel key={target ? getLocalPracticeReviewTargetKey(target) : "random-rhythm"} initialReviewTarget={target} showLocalPiano expandedLocalCatalog {...sharedProps} />;
+    return <LocalEarTrainingRhythmPanel key={target ? getLocalPracticeReviewTargetKey(target) : courseRun ? `course-rhythm:${courseRun.runId}` : "random-rhythm"} initialReviewTarget={target} fixedExpandedActivity={courseRun?.mapping.activityFamily === "rhythm-dictation" ? "dictation" : undefined} showLocalPiano expandedLocalCatalog {...sharedProps} />;
   }
   const target = reviewTarget?.kind === "melody-dictation" ? reviewTarget : undefined;
-  return <LocalEarTrainingMelodyDictationPanel key={target ? getLocalPracticeReviewTargetKey(target) : "random-melody"} initialReviewTarget={target} showLocalPiano expandedLocalCatalog {...sharedProps} />;
+  return <LocalEarTrainingMelodyDictationPanel key={target ? getLocalPracticeReviewTargetKey(target) : courseRun ? `course-melody:${courseRun.runId}` : "random-melody"} initialReviewTarget={target} fixedPracticeMode={courseRun?.mapping.activityFamily === "melody-dictation" ? "dictation" : undefined} showLocalPiano expandedLocalCatalog {...sharedProps} />;
 }
 
 export function App() {
@@ -276,6 +302,19 @@ export function App() {
   const [learningNotice, setLearningNotice] = useState<string | null>(
     initialLearningStorageResult.notice,
   );
+  const [initialCourseStorageResult] = useState(() =>
+    loadMobileCourseProgress(getBrowserPracticeReviewStorage()),
+  );
+  const [courseProgress, setCourseProgress] = useState<LocalCourseProgressV1>(
+    initialCourseStorageResult.progress,
+  );
+  const [courseNotice, setCourseNotice] = useState<string | null>(
+    initialCourseStorageResult.notice,
+  );
+  const [activeCourseRun, setActiveCourseRun] =
+    useState<ActiveLocalCourseRun | null>(null);
+  const [isCourseResetConfirmationVisible, setIsCourseResetConfirmationVisible] =
+    useState(false);
   const [isClearConfirmationVisible, setIsClearConfirmationVisible] =
     useState(false);
   const [isLearningResetConfirmationVisible, setIsLearningResetConfirmationVisible] =
@@ -285,6 +324,19 @@ export function App() {
   );
   const activeScreenRef = useRef(activeScreen);
   const pendingReviewNavigationRef = useRef<PracticeScreenName | null>(null);
+  const pendingCourseNavigationRef = useRef<PracticeScreenName | null>(null);
+  const activeCourseRunRef = useRef<ActiveLocalCourseRun | null>(null);
+  const courseRunCounterRef = useRef(0);
+  const courseProgressRef = useRef(courseProgress);
+
+  const clearActiveCourseRun = useCallback(() => {
+    activeCourseRunRef.current = null;
+    setActiveCourseRun(null);
+  }, []);
+
+  useEffect(() => {
+    courseProgressRef.current = courseProgress;
+  }, [courseProgress]);
 
   useEffect(() => {
     activeScreenRef.current = activeScreen;
@@ -303,15 +355,18 @@ export function App() {
       const shouldKeepReviewTarget = pendingReviewNavigationRef.current === nextScreen;
       pendingReviewNavigationRef.current = null;
       if (!shouldKeepReviewTarget) setActiveReviewTarget(null);
+      const shouldKeepCourseLesson = pendingCourseNavigationRef.current === nextScreen;
+      pendingCourseNavigationRef.current = null;
+      if (!shouldKeepCourseLesson) clearActiveCourseRun();
       setActiveScreen(nextScreen);
       window.scrollTo({ top: 0, behavior: "auto" });
     };
     window.addEventListener("hashchange", handleHashChange);
     return () => window.removeEventListener("hashchange", handleHashChange);
-  }, [stopActiveAudio]);
+  }, [clearActiveCourseRun, stopActiveAudio]);
 
   const handleLocalAnswerResult = useCallback(
-    (result: LocalPracticeAnswerResult) => {
+    (result: LocalPracticeAnswerResult, originatingCourseRun: ActiveLocalCourseRun | null = null) => {
       const targetKey = getLocalPracticeReviewTargetKey(result.target);
       const wasInReviewQueue = reviewQueue.some(
         (target) => getLocalPracticeReviewTargetKey(target) === targetKey,
@@ -347,9 +402,91 @@ export function App() {
       setLearningNotice(
         saveMobileLearningHistory(getBrowserPracticeReviewStorage(), nextHistory).notice,
       );
+      if (originatingCourseRun) {
+        const currentRun = activeCourseRunRef.current;
+        if (!currentRun || currentRun.runId !== originatingCourseRun.runId) {
+          setCourseNotice("迟到或已作废的课节结果已拒绝，课程进度未改变。");
+          return;
+        }
+        clearActiveCourseRun();
+        try {
+          const nextProgress = completeLocalCourseLesson(
+            courseProgressRef.current,
+            {
+              kind: "checked-local-course-activity-result-v1",
+              catalogId: courseProgressRef.current.catalogId,
+              catalogVersion: courseProgressRef.current.catalogVersion,
+              courseId: courseProgressRef.current.courseId,
+              courseVersion: courseProgressRef.current.courseVersion,
+              lessonId: currentRun.lesson.lessonId,
+              activityMappingId: currentRun.mapping.activityMappingId,
+              activityFamily: currentRun.mapping.activityFamily,
+            },
+          );
+          const courseSaveResult = saveMobileCourseProgress(
+            getBrowserPracticeReviewStorage(),
+            nextProgress,
+          );
+          if (courseSaveResult.notice) {
+            setCourseNotice(courseSaveResult.notice);
+            return;
+          }
+          courseProgressRef.current = nextProgress;
+          setCourseProgress(nextProgress);
+          setCourseNotice(`已完成“${currentRun.lesson.title}”并解锁下一课；这不是分数或通过判断。`);
+          window.location.hash = "course";
+        } catch {
+          setCourseNotice("当前课节、Activity 或课程版本已经失效，课程进度未改变。请从课程页重新开始。");
+        }
+      }
     },
-    [activeCustomPractice, activeReviewTarget, activeScreen, learningHistory, reviewQueue],
+    [activeCustomPractice, activeReviewTarget, activeScreen, clearActiveCourseRun, learningHistory, reviewQueue],
   );
+
+  const startCourseLesson = useCallback((lesson: LocalCourseLessonV1) => {
+    stopActiveAudio();
+    try {
+      if (getLocalCourseLessonAvailability(courseProgressRef.current, lesson.lessonId) !== "available") {
+        setCourseNotice("该课节当前不可开始，请按课程顺序继续。");
+        return;
+      }
+      const mapping = lesson.activityMappings[0];
+      if (!mapping || !screens.includes(mapping.mobileScreen)) {
+        setCourseNotice("该课节的本地 Activity 映射无效，课程进度未改变。");
+        return;
+      }
+      setActiveReviewTarget(null);
+      setActiveCustomPractice(null);
+      const run = {
+        runId: courseRunCounterRef.current + 1,
+        lesson,
+        mapping,
+      };
+      courseRunCounterRef.current = run.runId;
+      activeCourseRunRef.current = run;
+      setActiveCourseRun(run);
+      setCourseNotice(`正在进行“${lesson.title}”；只有主动查看一次规定练习结果后才会记录完成。`);
+      pendingCourseNavigationRef.current = mapping.mobileScreen;
+      window.location.hash = mapping.mobileScreen;
+    } catch {
+      setCourseNotice("课程目录或进度无法验证，请重置课程进度后重试。");
+      clearActiveCourseRun();
+    }
+  }, [clearActiveCourseRun, stopActiveAudio]);
+
+  const confirmResetCourseProgress = useCallback(() => {
+    const result = resetMobileCourseProgress(getBrowserPracticeReviewStorage());
+    setIsCourseResetConfirmationVisible(false);
+    if (result.notice) {
+      setCourseNotice(result.notice);
+      return;
+    }
+    const empty = loadMobileCourseProgress(getBrowserPracticeReviewStorage());
+    courseProgressRef.current = empty.progress;
+    setCourseProgress(empty.progress);
+    clearActiveCourseRun();
+    setCourseNotice("本机课程进度已重置；复练题和学习画像未改变。");
+  }, [clearActiveCourseRun]);
 
   const leaveReviewTarget = useCallback(() => {
     stopActiveAudio();
@@ -423,6 +560,8 @@ export function App() {
   useEffect(() => {
     const enterBackground = () => {
       stopActiveAudio();
+      pendingCourseNavigationRef.current = null;
+      clearActiveCourseRun();
       setLifecycle((current) =>
         enterMobileBackground(current, activeScreenRef.current !== "home"),
       );
@@ -451,7 +590,7 @@ export function App() {
       window.removeEventListener("solfeggio:native-lifecycle", handleNativeLifecycle);
       stopActiveAudio();
     };
-  }, [stopActiveAudio]);
+  }, [clearActiveCourseRun, stopActiveAudio]);
 
   const activeTitle = useMemo(
     () =>
@@ -543,11 +682,14 @@ export function App() {
                       <a
                         key={screen}
                         href={`#${screen}`}
-                        onClick={() => setActiveReviewTarget(null)}
+                        onClick={() => {
+                          setActiveReviewTarget(null);
+                          clearActiveCourseRun();
+                        }}
                         className={`min-h-32 rounded-3xl p-5 text-left ring-1 transition active:scale-[0.99] ${detail.tone}`}
                       >
                         <span className="text-xs font-bold opacity-70">
-                          {screen === "piano" ? "找音辅助" : screen === "monitor" ? "练声反馈" : `练习 ${index}`}
+                          {screen === "course" ? "顺序学习" : screen === "piano" ? "找音辅助" : screen === "monitor" ? "练声反馈" : `练习 ${index}`}
                         </span>
                         <span className="mt-2 block text-xl font-black">
                           {detail.title}
@@ -667,6 +809,30 @@ export function App() {
               </ul>
             </section>
           </>
+        ) : activeScreen === "course" ? (
+          <section className="grid gap-4">
+            <a
+              href="#home"
+              onClick={clearActiveCourseRun}
+              className="inline-flex min-h-11 w-fit items-center rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-bold text-slate-800 shadow-sm"
+            >
+              返回练习首页
+            </a>
+            <LocalCoursePathPanel
+              progress={courseProgress}
+              notice={courseNotice}
+              onStartLesson={startCourseLesson}
+              onResetProgress={() => setIsCourseResetConfirmationVisible(true)}
+            />
+            {isCourseResetConfirmationVisible ? <div className="rounded-2xl border border-rose-200 bg-white p-4" role="alert">
+              <p className="font-bold text-rose-950">确认重置全部本机课程进度？</p>
+              <p className="mt-1 text-sm leading-6 text-slate-600">此操作不可恢复，但不会清除复练题、学习画像、录音或其他本机数据。</p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <button type="button" onClick={confirmResetCourseProgress} className="min-h-11 rounded-xl bg-rose-700 px-4 py-2 text-sm font-bold text-white">确认重置</button>
+                <button type="button" onClick={() => setIsCourseResetConfirmationVisible(false)} className="min-h-11 rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-bold text-slate-800">取消</button>
+              </div>
+            </div> : null}
+          </section>
         ) : activeScreen === "custom" ? (
           <section aria-label={screenDetails.custom.title} className="grid gap-4">
             <a
@@ -707,7 +873,7 @@ export function App() {
                     screen={screenForCustomization(activeCustomPractice.customization)}
                     reviewTarget={null}
                     customPractice={activeCustomPractice}
-                    onLocalAnswerResult={handleLocalAnswerResult}
+                    onLocalAnswerResult={(result) => handleLocalAnswerResult(result, null)}
                     onLeaveReviewTarget={leaveReviewTarget}
                   />
                 ) : null}
@@ -754,7 +920,8 @@ export function App() {
               <PracticeScreen
                 screen={activeScreen}
                 reviewTarget={activeReviewTarget}
-                onLocalAnswerResult={handleLocalAnswerResult}
+                courseRun={activeCourseRun}
+                onLocalAnswerResult={(result) => handleLocalAnswerResult(result, activeCourseRun)}
                 onLeaveReviewTarget={leaveReviewTarget}
               />
             ) : null}
@@ -770,6 +937,8 @@ export function App() {
           {screens.map((screen) => {
             const label = screen === "home"
               ? "首页"
+              : screen === "course"
+                ? "课程"
               : screen === "piano"
                 ? "钢琴"
                 : screen === "monitor"
@@ -779,7 +948,10 @@ export function App() {
               <a
                 key={screen}
                 href={`#${screen}`}
-                onClick={() => setActiveReviewTarget(null)}
+                onClick={() => {
+                  setActiveReviewTarget(null);
+                  clearActiveCourseRun();
+                }}
                 aria-current={activeScreen === screen ? "page" : undefined}
                 className={`min-h-12 min-w-16 flex-1 rounded-xl px-1 py-2 text-xs font-bold ${
                   activeScreen === screen

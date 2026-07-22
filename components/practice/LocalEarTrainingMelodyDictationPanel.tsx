@@ -117,6 +117,7 @@ const getFixedSolfegeLabel = (noteId: string) => {
 export function LocalEarTrainingMelodyDictationPanel({
   initialReviewTarget,
   customPractice,
+  fixedPracticeMode,
   onLocalAnswerResult,
   onLeaveReviewTarget,
   showLocalPiano = false,
@@ -124,6 +125,7 @@ export function LocalEarTrainingMelodyDictationPanel({
 }: {
   initialReviewTarget?: Extract<LocalPracticeReviewTarget, { kind: "melody-dictation" }>;
   customPractice?: ResolvedLocalPracticeCustomization;
+  fixedPracticeMode?: MelodyPracticeMode;
   onLocalAnswerResult?: (result: LocalPracticeAnswerResult) => void;
   onLeaveReviewTarget?: () => void;
   showLocalPiano?: boolean;
@@ -133,7 +135,7 @@ export function LocalEarTrainingMelodyDictationPanel({
     ? customPractice
     : undefined;
   const [isLocalPianoOpen, setIsLocalPianoOpen] = useState(false);
-  const [practiceMode, setPracticeMode] = useState<MelodyPracticeMode>("dictation");
+  const [practiceMode, setPracticeMode] = useState<MelodyPracticeMode>(fixedPracticeMode ?? "dictation");
   const [imitationEpoch, setImitationEpoch] = useState(0);
   const [sightSingingEpoch, setSightSingingEpoch] = useState(0);
   const [answerMode, setAnswerMode] = useState<MelodyAnswerMode>("choice");
@@ -771,6 +773,7 @@ export function LocalEarTrainingMelodyDictationPanel({
   };
 
   const changePracticeMode = (nextMode: MelodyPracticeMode) => {
+    if (fixedPracticeMode) return;
     if (nextMode === practiceMode || (nextMode !== "dictation" && !pianoAnswerAvailable)) return;
     clearQualification();
     answerLock.reset();
@@ -875,7 +878,8 @@ export function LocalEarTrainingMelodyDictationPanel({
       : imitationModeActive
         ? "先完整听完隐藏的三音短旋律，再按四拍预备进行会话内录音、回放和非评分分析。"
         : `先完整听完三音短旋律，再按听到的顺序使用音名、固定唱名${pianoAnswerAvailable ? "、屏幕钢琴、五线谱或固定 C 简谱" : ""}作答。`} 本模块不上传音频，也不生成正式成绩。{onLocalAnswerResult ? "当前填写、谱面草稿和声音不保存；答错时仅保存复现本题所需的最小信息。" : "当前入口不会保存练习记录。"}</p>
-    {pianoAnswerAvailable ? <div className="mt-4 grid grid-cols-3 gap-2" data-testid="melody-practice-mode">
+    {fixedPracticeMode ? <p className="mt-4 rounded-2xl border border-violet-200 bg-violet-50 p-3 text-sm leading-6 text-violet-950">当前课程已锁定旋律听写；离开或切换模式会作废本次课程归属。</p> : null}
+    {pianoAnswerAvailable && !fixedPracticeMode ? <div className="mt-4 grid grid-cols-3 gap-2" data-testid="melody-practice-mode">
       <button type="button" role="radio" aria-checked={practiceMode === "dictation"} onClick={() => changePracticeMode("dictation")} className={`min-h-11 rounded-xl border px-3 py-2 text-sm font-bold ${practiceMode === "dictation" ? "border-violet-600 bg-violet-50 text-violet-950 ring-2 ring-violet-200" : "border-slate-200 bg-white text-slate-700"}`}>旋律听写</button>
       <button type="button" role="radio" aria-checked={practiceMode === "imitation"} onClick={() => changePracticeMode("imitation")} className={`min-h-11 rounded-xl border px-3 py-2 text-sm font-bold ${practiceMode === "imitation" ? "border-cyan-700 bg-cyan-50 text-cyan-950 ring-2 ring-cyan-200" : "border-slate-200 bg-white text-slate-700"}`}>旋律回唱（麦克风）</button>
       <button type="button" role="radio" aria-checked={practiceMode === "sight-singing"} onClick={() => changePracticeMode("sight-singing")} className={`min-h-11 rounded-xl border px-3 py-2 text-sm font-bold ${practiceMode === "sight-singing" ? "border-fuchsia-700 bg-fuchsia-50 text-fuchsia-950 ring-2 ring-fuchsia-200" : "border-slate-200 bg-white text-slate-700"}`}>旋律视唱（可见目标）</button>

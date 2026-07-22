@@ -11,6 +11,8 @@ const requiredSources = [
   "mobile/src/runtime/mobileLifecycle.ts",
   "mobile/src/runtime/mobilePracticeReviewStorage.ts",
   "mobile/src/runtime/mobileLearningProfileStorage.ts",
+  "mobile/src/runtime/mobileCourseProgressStorage.ts",
+  "mobile/src/LocalCoursePathPanel.tsx",
   "mobile/src/stubs/supabaseBrowser.ts",
   "lib/practice/localPracticeReviewQueue.ts",
   "lib/practice/localPracticeCustomizer.ts",
@@ -42,6 +44,7 @@ const requiredSources = [
   "lib/practice/localEarTrainingSeventhChords.ts",
   "lib/practice/localEarTrainingSeventhChordSpacing.ts",
   "lib/learning/learningEventProfile.ts",
+  "lib/learning/localCoursePath.ts",
   "lib/piano/localPianoKeyboard.ts",
   "lib/piano/pianoNoteEvents.ts",
   "lib/piano/pianoAudioProvider.ts",
@@ -119,6 +122,18 @@ const learningProfileSource = readFileSync(
 );
 const learningProfileStorageSource = readFileSync(
   join(root, "mobile/src/runtime/mobileLearningProfileStorage.ts"),
+  "utf8",
+);
+const localCoursePathSource = readFileSync(
+  join(root, "lib/learning/localCoursePath.ts"),
+  "utf8",
+);
+const courseProgressStorageSource = readFileSync(
+  join(root, "mobile/src/runtime/mobileCourseProgressStorage.ts"),
+  "utf8",
+);
+const coursePathPanelSource = readFileSync(
+  join(root, "mobile/src/LocalCoursePathPanel.tsx"),
   "utf8",
 );
 const chordTrainingSource = readFileSync(
@@ -408,6 +423,26 @@ if (
   || !mobileApp.includes("本机事实，不是能力评分")
 ) {
   throw new Error("Android 本机学习事件、非评分画像、建议控制或独立清除边界不完整");
+}
+if (
+  !localCoursePathSource.includes('LOCAL_COURSE_CATALOG_SCHEMA_VERSION = "local-course-catalog-v1"')
+  || !localCoursePathSource.includes('LOCAL_COURSE_PROGRESS_SCHEMA_VERSION = "local-course-progress-v1"')
+  || !localCoursePathSource.includes('kind: "checked-activity-result-v1"')
+  || !localCoursePathSource.includes('assessmentMode: "non-scoring"')
+  || !localCoursePathSource.includes("checked-local-course-activity-result-v1")
+  || !localCoursePathSource.includes("activityMappingId")
+  || !localCoursePathSource.includes("completeLocalCourseLesson")
+  || !localCoursePathSource.includes("getLocalCourseLessonAvailability")
+  || !courseProgressStorageSource.includes("solfeggio.mobile.course-progress.v1")
+  || !courseProgressStorageSource.includes("loadMobileCourseProgress")
+  || !courseProgressStorageSource.includes("saveMobileCourseProgress")
+  || !courseProgressStorageSource.includes("resetMobileCourseProgress")
+  || !coursePathPanelSource.includes("不生成分数、等级或通过／失败")
+  || !mobileApp.includes('"course"')
+  || !mobileApp.includes("activeCourseRunRef")
+  || !mobileApp.includes("originatingCourseRun")
+) {
+  throw new Error("Android P118a 中文课程目录、顺序解锁、非评分完成或本机版本化进度边界不完整");
 }
 if (
   !chordTrainingSource.includes('type ChordQualityId = "major" | "minor" | "diminished" | "augmented"')
@@ -876,6 +911,9 @@ for (const forbidden of [
 }
 
 for (const expectedCopy of [
+  "P118a · 安装包内中文课程",
+  "中文视唱练耳入门",
+  "只保存课程版本、已完成课节和必要修订号",
   "单音听辨",
   "音程听辨",
   "节奏听辨",
@@ -967,4 +1005,4 @@ if (existsSync(manifestPath) && !existsSync(syncedIndex)) {
   throw new Error("Android 工程存在，但本地 Web 资源尚未同步");
 }
 
-console.log("Android 本地模式校验通过：固定包名、本地资源、既有十类练习、P116a 节奏视读与会话校准、P116b 隐藏目标节奏回模、P116c 单一事件节奏找错、P116d 谱面草稿节奏听写、P117a 旋律听写屏幕钢琴答案、P117b 五线谱答案文档、P117c 固定 C 简谱答案文档、P117d 隐藏三音麦克风回唱、P117e 可见三音谱面视唱、音程比较/非评分模唱反馈、实时音高反馈、本机复练、非评分学习画像、本地参考钢琴、无远程运行时配置与生命周期保护。");
+console.log("Android 本地模式校验通过：固定包名、本地资源、既有十类练习、P116a 节奏视读与会话校准、P116b 隐藏目标节奏回模、P116c 单一事件节奏找错、P116d 谱面草稿节奏听写、P117a 旋律听写屏幕钢琴答案、P117b 五线谱答案文档、P117c 固定 C 简谱答案文档、P117d 隐藏三音麦克风回唱、P117e 可见三音谱面视唱、P118a 版本化中文课程路径与本机顺序进度、音程比较/非评分模唱反馈、实时音高反馈、本机复练、非评分学习画像、本地参考钢琴、无远程运行时配置与生命周期保护。");
