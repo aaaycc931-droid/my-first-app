@@ -2,9 +2,11 @@
 
 日期：2026-07-23
 
-状态：**EVIDENCE_PREPARATION_CANDIDATE / external evidence NOT_EXECUTED**
+状态：**MERGED EVIDENCE_PREPARATION_CANDIDATE / automated gates passed / external evidence NOT_EXECUTED**
 
 QA level recommendation：**none**
+
+P119a 已通过 PR #415 squash 合并为 `28a448faf1f387a1c7f394f5baac6a2a7dbc4eac`。PR head 为 `7af3d2004b87fdb4385fb5d3ad16e4a0814c455b`，PR synthetic merge SHA 为 `8ff547cf37b75096550bd6a695cdeb151c0548c5`。Quality run `29999854528` 的 `quality` 与 `android-local` 均成功，Vercel Ready；Android artifact `8560553741` 的 GitHub ZIP digest 为 `sha256:c5f87c7f4c238bb7337aebbfdc3478515125768424495ce1c697d09845fe9ec3`。该工件仍是自动构建并校验的 Debug APK，不是教师、真机使用、正式签名或发布证据。
 
 ## 1. 切片目标
 
