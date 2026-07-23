@@ -232,24 +232,6 @@ export const resetLocalLearningHistory = (
   history: LocalLearningHistory,
 ): LocalLearningHistory => createEmptyLocalLearningHistory(history.profile.suggestionsEnabled);
 
-export type LearningSuggestion = {
-  target: LocalPracticeReviewTarget;
-  reason: string;
-};
-
-export const resolveLocalLearningSuggestion = (
-  history: LocalLearningHistory,
-  reviewQueue: LocalPracticeReviewTarget[],
-): LearningSuggestion | null => {
-  if (!history.profile.suggestionsEnabled || reviewQueue.length === 0) return null;
-  const target = reviewQueue[0];
-  const fact = history.profile.skillFacts.find((item) => item.skillKind === target.kind);
-  return {
-    target,
-    reason: `仅根据本机已核对事实：${fact?.incorrectCount ?? 0} 次该类错误，当前有 ${reviewQueue.length} 题待复练。`,
-  };
-};
-
 const parseSkillFact = (value: unknown): LearningSkillFact | null => {
   if (!isRecord(value) || !hasExactKeys(value, [
     "skillKind", "checkedCount", "correctCount", "incorrectCount",

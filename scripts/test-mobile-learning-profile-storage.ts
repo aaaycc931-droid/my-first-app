@@ -33,6 +33,11 @@ assert.deepEqual(loadMobileLearningHistory(storage), {
   history: createEmptyLocalLearningHistory(),
   notice: null,
 });
+assert.equal(
+  loadMobileLearningHistory(storage).history.profile.suggestionsEnabled,
+  true,
+  "a genuinely fresh store keeps the explicit default",
+);
 assert.deepEqual(saveMobileLearningHistory(storage, history), { notice: null });
 assert.deepEqual(loadMobileLearningHistory(storage), { history, notice: null });
 assert.equal(values.has(MOBILE_LEARNING_PROFILE_STORAGE_KEY), true);
@@ -98,31 +103,41 @@ forgedCustomEnvelope.recentEvents[0].practiceMode = "custom";
 values.set(MOBILE_LEARNING_PROFILE_STORAGE_KEY, JSON.stringify(forgedCustomEnvelope));
 const rejectedForgedCustom = loadMobileLearningHistory(storage);
 assert.equal(rejectedForgedCustom.history.profile.checkedCount, 0);
-assert.match(rejectedForgedCustom.notice ?? "", /已自动清除/);
-assert.equal(values.has(MOBILE_LEARNING_PROFILE_STORAGE_KEY), false);
+assert.equal(rejectedForgedCustom.history.profile.suggestionsEnabled, false);
+assert.match(rejectedForgedCustom.notice ?? "", /已恢复为空记录/);
+assert.equal(values.has(MOBILE_LEARNING_PROFILE_STORAGE_KEY), true);
+assert.equal(loadMobileLearningHistory(storage).history.profile.suggestionsEnabled, false);
 
 const forgedModulationEnvelope = JSON.parse(JSON.stringify(previousSpacingEnvelope)) as typeof previousSpacingEnvelope;
 forgedModulationEnvelope.recentEvents[0].skillKind = "modulation";
 values.set(MOBILE_LEARNING_PROFILE_STORAGE_KEY, JSON.stringify(forgedModulationEnvelope));
 const rejectedForgedModulation = loadMobileLearningHistory(storage);
 assert.equal(rejectedForgedModulation.history.profile.checkedCount, 0);
-assert.match(rejectedForgedModulation.notice ?? "", /已自动清除/);
-assert.equal(values.has(MOBILE_LEARNING_PROFILE_STORAGE_KEY), false);
+assert.equal(rejectedForgedModulation.history.profile.suggestionsEnabled, false);
+assert.match(rejectedForgedModulation.notice ?? "", /已恢复为空记录/);
+assert.equal(values.has(MOBILE_LEARNING_PROFILE_STORAGE_KEY), true);
+assert.equal(loadMobileLearningHistory(storage).history.profile.suggestionsEnabled, false);
 
 values.set(MOBILE_LEARNING_PROFILE_STORAGE_KEY, "invalid");
 const invalid = loadMobileLearningHistory(storage);
 assert.equal(invalid.history.profile.checkedCount, 0);
-assert.match(invalid.notice ?? "", /已自动清除/);
-assert.equal(values.has(MOBILE_LEARNING_PROFILE_STORAGE_KEY), false);
+assert.equal(invalid.history.profile.suggestionsEnabled, false);
+assert.match(invalid.notice ?? "", /已恢复为空记录/);
+assert.equal(values.has(MOBILE_LEARNING_PROFILE_STORAGE_KEY), true);
+assert.equal(loadMobileLearningHistory(storage).history.profile.suggestionsEnabled, false);
 
 const throwing = (operation: "get" | "set" | "remove"): StorageLike => ({
   getItem: () => { if (operation === "get") throw new Error("get"); return null; },
   setItem: () => { if (operation === "set") throw new Error("set"); },
   removeItem: () => { if (operation === "remove") throw new Error("remove"); },
 });
-assert.match(loadMobileLearningHistory(throwing("get")).notice ?? "", /读取失败/);
+const failedRead = loadMobileLearningHistory(throwing("get"));
+assert.match(failedRead.notice ?? "", /读取失败/);
+assert.equal(failedRead.history.profile.suggestionsEnabled, false);
 assert.match(saveMobileLearningHistory(throwing("set"), history).notice ?? "", /保存失败/);
 assert.match(clearMobileLearningHistory(throwing("remove")).notice ?? "", /清除失败/);
-assert.match(loadMobileLearningHistory(null).notice ?? "", /暂时不可用/);
+const unavailable = loadMobileLearningHistory(null);
+assert.match(unavailable.notice ?? "", /暂时不可用/);
+assert.equal(unavailable.history.profile.suggestionsEnabled, false);
 
 console.log("Mobile learning profile storage tests passed.");

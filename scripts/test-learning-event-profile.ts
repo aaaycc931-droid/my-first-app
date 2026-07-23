@@ -7,7 +7,6 @@ import {
   recordCheckedAnswerLearningEvent,
   recordReviewStartedLearningEvent,
   resetLocalLearningHistory,
-  resolveLocalLearningSuggestion,
   serializeLocalLearningHistory,
   setLearningSuggestionsEnabled,
 } from "../lib/learning/learningEventProfile";
@@ -155,8 +154,6 @@ assert.equal(history.profile.skillFacts.find((fact) => fact.skillKind === "scale
 assert.equal(history.profile.skillFacts.find((fact) => fact.skillKind === "seventh-chord")?.incorrectCount, 1);
 assert.equal(history.profile.skillFacts.find((fact) => fact.skillKind === "seventh-chord-spacing")?.incorrectCount, 1);
 assert.equal(history.profile.skillFacts.find((fact) => fact.skillKind === "modulation")?.incorrectCount, 1);
-assert.match(resolveLocalLearningSuggestion(history, [pitch])?.reason ?? "", /1 次该类错误/);
-
 const serialized = serializeLocalLearningHistory(history);
 assert.deepEqual(deserializeLocalLearningHistory(serialized), history);
 const customHistory = recordCheckedAnswerLearningEvent({
@@ -291,7 +288,6 @@ for (const forbidden of ["selected", "recording", "audio", "email", "score", "gr
 }
 
 const disabled = setLearningSuggestionsEnabled(history, false);
-assert.equal(resolveLocalLearningSuggestion(disabled, [pitch]), null);
 assert.equal(disabled.profile.revision, history.profile.revision + 1);
 const reset = resetLocalLearningHistory(disabled);
 assert.equal(reset.profile.suggestionsEnabled, false);

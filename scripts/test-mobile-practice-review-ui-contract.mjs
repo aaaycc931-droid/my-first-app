@@ -217,4 +217,29 @@ for (const expected of [
   assertContains(clearUi, expected, "复练二次确认清除");
 }
 
+const recommendationSource = readSource("lib/learning/localExplainablePracticeRecommendation.ts");
+const recommendationPanelSource = readSource("mobile/src/LocalExplainablePracticeRecommendationPanel.tsx");
+for (const expected of [
+  "buildLocalExplainablePracticeRecommendation",
+  "review-queue-mru-v1",
+  "queuePosition: 1",
+  "sameKindPendingCount",
+  "pendingTargetCount",
+]) {
+  assertContains(recommendationSource, expected, "P118d 可解释推荐 domain");
+}
+for (const expected of [
+  "为什么是这题",
+  "不读取答案 outcome",
+  "不计算正确率、分数、等级、能力判断或诊断",
+  "无法解释来源",
+  "未生成建议",
+]) {
+  assertContains(recommendationPanelSource, expected, "P118d 可解释推荐界面");
+}
+assert(
+  !recommendationSource.includes(".outcome"),
+  "P118d 推荐 domain 不得读取 outcome",
+);
+
 console.log("移动端本机复练 UI 源级契约测试通过");
