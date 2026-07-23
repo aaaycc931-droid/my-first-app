@@ -75,6 +75,7 @@ jobs:
           npm run test:ci-supply-chain-policy
           npm run test:android-p104-evidence
           npm run test:pitch-benchmark-protocol
+          npm run test:p119-content-education-evidence
           npm run test:offline-pitch-analysis
           npm run test:offline-note-alignment
           npm run test:activity-protocol
@@ -102,6 +103,7 @@ jobs:
           npm run test:companion-activity-bridge
           npm run test:local-question-scheduler
           npm run test:local-practice-catalog
+          npm run test:local-practice-customizer
           npm run test:expanded-local-practice-catalog
           npm run test:realtime-pitch-frame
           npm run test:realtime-pitch-curve
