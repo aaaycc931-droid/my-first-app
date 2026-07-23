@@ -50,6 +50,15 @@ assert.equal(chord.family, "chord");
 assert.equal(chord.contentVersion, "local-harmony-training-v1");
 assert.deepEqual(chord.target.expectedAnswer, { mode: "choice", optionIds: ["minor-first"] });
 assert.match(chord.explanation, /第一转位/);
+const p119bChordQuestion = createLocalEarTrainingChordQuestion({
+  difficulty: "基础", sequence: 99, variantId: "chord:c5:major:root",
+});
+const p119bChord = adaptChordQuestionToActivity(p119bChordQuestion);
+assert.equal(p119bChord.family, "chord");
+assert.equal(p119bChord.contentVersion, "local-harmony-training-v1");
+assert.equal(p119bChord.activityId, `local.chord.${p119bChordQuestion.variantId}`);
+assert.equal(p119bChord.target.targetId, "chord:major:root");
+assert.deepEqual(p119bChord.target.expectedAnswer, { mode: "choice", optionIds: ["major-root"] });
 
 const progressionQuestion = createLocalHarmonyProgressionQuestion({
   difficulty: "挑战", sequence: 0, variantId: "progression:a3:minor-authentic",
@@ -58,6 +67,21 @@ const progression = adaptHarmonyProgressionQuestionToActivity(progressionQuestio
 assert.equal(progression.family, "harmony-progression");
 assert.deepEqual(progression.target.expectedAnswer, { mode: "choice", optionIds: ["minor-authentic"] });
 assert.match(progression.explanation, /小调/);
+const p119bProgressionQuestion = createLocalHarmonyProgressionQuestion({
+  difficulty: "基础", sequence: 99, variantId: "progression:c4:authentic-three",
+});
+const p119bProgression = adaptHarmonyProgressionQuestionToActivity(p119bProgressionQuestion);
+assert.equal(p119bProgression.family, "harmony-progression");
+assert.equal(p119bProgression.contentVersion, "local-harmony-progression-v1");
+assert.equal(
+  p119bProgression.activityId,
+  `local.harmony-progression.${p119bProgressionQuestion.variantId}`,
+);
+assert.equal(p119bProgression.target.targetId, "harmony-progression:authentic-three");
+assert.deepEqual(
+  p119bProgression.target.expectedAnswer,
+  { mode: "choice", optionIds: ["authentic-three"] },
+);
 
 const scaleQuestion = createLocalScaleModeQuestion({
   difficulty: "挑战", sequence: 0, variantId: "scale:f4:lydian",
@@ -125,7 +149,7 @@ assert.deepEqual(
   { mode: "choice", optionIds: melodyQuestion.melody.noteIds },
 );
 
-for (const activity of [single, interval, chord, progression, scale, seventh, seventhSpacing, modulation, rhythm, melody]) {
+for (const activity of [single, interval, chord, p119bChord, progression, p119bProgression, scale, seventh, seventhSpacing, modulation, rhythm, melody]) {
   assert.equal(activity.assessmentMode, "non-scoring");
   assert.equal(activity.source.reviewState, "confirmed");
   assert.equal("score" in activity, false);

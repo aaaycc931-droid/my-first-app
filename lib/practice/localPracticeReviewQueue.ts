@@ -16,7 +16,7 @@ import {
   type LocalPracticeDifficulty,
 } from "./localPracticeCatalog";
 
-export const LOCAL_PRACTICE_REVIEW_QUEUE_SCHEMA_VERSION = 9 as const;
+export const LOCAL_PRACTICE_REVIEW_QUEUE_SCHEMA_VERSION = 10 as const;
 export { LOCAL_PRACTICE_CATALOG_VERSION };
 export const LOCAL_PRACTICE_REVIEW_QUEUE_MAX_ITEMS = 12;
 export const LOCAL_PRACTICE_REVIEW_QUEUE_MAX_SERIALIZED_LENGTH = 8 * 1024;
@@ -218,6 +218,17 @@ const parseLegacyTarget = (value: unknown): LocalPracticeReviewTarget | null => 
     : null;
 };
 
+const isP119bFoundationVariant = (target: LocalPracticeReviewTarget): boolean => {
+  if (target.difficulty !== "基础") return false;
+  if (target.kind === "chord-inversion") {
+    return /^chord:(g4|a4|c5|d5|e5|f5):/.test(target.variantId);
+  }
+  if (target.kind === "harmony-progression") {
+    return /^progression:(g3|a3|c4|d4|eb4|f4):/.test(target.variantId);
+  }
+  return false;
+};
+
 export const getLocalPracticeReviewTargetKey = (target: LocalPracticeReviewTarget): string =>
   [
     target.kind,
@@ -305,6 +316,7 @@ export const deserializeLocalPracticeReviewQueue = (
 
   const isCurrent = value.schemaVersion === LOCAL_PRACTICE_REVIEW_QUEUE_SCHEMA_VERSION
     && value.catalogVersion === LOCAL_PRACTICE_CATALOG_VERSION;
+  const isPreviousComparison = value.schemaVersion === 9 && value.catalogVersion === 9;
   const isPreviousCustomizer = value.schemaVersion === 8 && value.catalogVersion === 8;
   const isPreviousSpacing = value.schemaVersion === 7 && value.catalogVersion === 7;
   const isPreviousSeventh = value.schemaVersion === 6 && value.catalogVersion === 6;
@@ -313,20 +325,21 @@ export const deserializeLocalPracticeReviewQueue = (
   const isPreviousChord = value.schemaVersion === 3 && value.catalogVersion === 3;
   const isPrevious = value.schemaVersion === 2 && value.catalogVersion === 2;
   const isLegacy = value.schemaVersion === 1 && value.catalogVersion === 1;
-  if (!isCurrent && !isPreviousCustomizer && !isPreviousSpacing && !isPreviousSeventh && !isPreviousScaleMode && !isPreviousProgression && !isPreviousChord && !isPrevious && !isLegacy) return null;
+  if (!isCurrent && !isPreviousComparison && !isPreviousCustomizer && !isPreviousSpacing && !isPreviousSeventh && !isPreviousScaleMode && !isPreviousProgression && !isPreviousChord && !isPrevious && !isLegacy) return null;
 
   const targets: LocalPracticeReviewQueue = [];
   const targetKeys = new Set<string>();
   for (const item of value.targets) {
     const target = isLegacy ? parseLegacyTarget(item) : parseTarget(item);
     if (!target) return null;
+    if (isPreviousComparison && isP119bFoundationVariant(target)) return null;
     if (isPrevious && (target.kind === "chord-inversion" || target.kind === "harmony-progression")) return null;
     if (isPreviousChord && target.kind === "harmony-progression") return null;
-    if (!isCurrent && target.kind === "interval-comparison") return null;
-    if (!isCurrent && !isPreviousCustomizer && target.kind === "modulation") return null;
-    if (!isCurrent && !isPreviousCustomizer && !isPreviousSpacing && target.kind === "seventh-chord-spacing") return null;
-    if (!isCurrent && !isPreviousCustomizer && !isPreviousSpacing && !isPreviousSeventh && target.kind === "seventh-chord") return null;
-    if (!isCurrent && !isPreviousCustomizer && !isPreviousSpacing && !isPreviousSeventh && !isPreviousScaleMode && target.kind === "scale-mode") return null;
+    if (!isCurrent && !isPreviousComparison && target.kind === "interval-comparison") return null;
+    if (!isCurrent && !isPreviousComparison && !isPreviousCustomizer && target.kind === "modulation") return null;
+    if (!isCurrent && !isPreviousComparison && !isPreviousCustomizer && !isPreviousSpacing && target.kind === "seventh-chord-spacing") return null;
+    if (!isCurrent && !isPreviousComparison && !isPreviousCustomizer && !isPreviousSpacing && !isPreviousSeventh && target.kind === "seventh-chord") return null;
+    if (!isCurrent && !isPreviousComparison && !isPreviousCustomizer && !isPreviousSpacing && !isPreviousSeventh && !isPreviousScaleMode && target.kind === "scale-mode") return null;
     const targetKey = getLocalPracticeReviewTargetKey(target);
     if (targetKeys.has(targetKey)) {
       if (isLegacy) continue;

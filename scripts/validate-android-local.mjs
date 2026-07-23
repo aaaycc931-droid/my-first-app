@@ -797,7 +797,7 @@ if (
   || !mobileApp.includes('target.kind === "interval-comparison"')
   || !mobileApp.includes("LocalIntervalComparisonPanel")
   || !learningProfileSource.includes('"interval-comparison"')
-  || !reviewQueueSource.includes('LOCAL_PRACTICE_REVIEW_QUEUE_SCHEMA_VERSION = 9')
+  || !reviewQueueSource.includes('LOCAL_PRACTICE_REVIEW_QUEUE_SCHEMA_VERSION = 10')
 ) {
   throw new Error("Android P115h 音程大小/方向比较、非评分模唱反馈或 fail-closed 本地证据闭环不完整");
 }

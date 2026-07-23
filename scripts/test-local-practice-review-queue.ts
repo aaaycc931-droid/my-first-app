@@ -57,6 +57,21 @@ const progression: LocalPracticeReviewTarget = {
   sequence: 2,
   variantId: "progression:a3:minor-authentic",
 };
+const p119bChord: LocalPracticeReviewTarget = {
+  kind: "chord-inversion",
+  difficulty: "基础",
+  playbackMode: "和声",
+  seed: 1192,
+  sequence: 12,
+  variantId: "chord:c5:major:root",
+};
+const p119bProgression: LocalPracticeReviewTarget = {
+  kind: "harmony-progression",
+  difficulty: "基础",
+  seed: 1192,
+  sequence: 12,
+  variantId: "progression:c4:authentic-three",
+};
 const scale: LocalPracticeReviewTarget = {
   kind: "scale-mode",
   difficulty: "挑战",
@@ -131,8 +146,8 @@ const serialized = serializeLocalPracticeReviewQueue(allKinds);
 assert.deepEqual(parseLocalPracticeReviewQueue(serialized), allKinds);
 const serializedValue = JSON.parse(serialized) as Record<string, unknown>;
 assert.deepEqual(Object.keys(serializedValue).sort(), ["catalogVersion", "schemaVersion", "targets"]);
-assert.equal(serializedValue.schemaVersion, 9);
-assert.equal(serializedValue.catalogVersion, 9);
+assert.equal(serializedValue.schemaVersion, 10);
+assert.equal(serializedValue.catalogVersion, 10);
 assert.equal(serialized.includes("selection"), false);
 assert.equal(serialized.includes("answer"), false);
 assert.equal(serialized.includes("score"), false);
@@ -143,6 +158,14 @@ assert.equal(sanitized.includes("selection"), false);
 assert.equal(sanitized.includes("answer"), false);
 assert.equal(sanitized.includes("score"), false);
 assert.equal(sanitized.includes("audio"), false);
+assert.deepEqual(
+  parseLocalPracticeReviewQueue(serializeLocalPracticeReviewQueue([
+    p119bChord,
+    p119bProgression,
+  ])),
+  [p119bChord, p119bProgression],
+  "catalog v10 P119b foundation targets round-trip by stable variant id",
+);
 
 const challengePitch: LocalPracticeReviewTarget = {
   kind: "single-pitch",
@@ -252,6 +275,23 @@ assert.equal(parseLocalPracticeReviewQueue(JSON.stringify({
   ...previousCustomizerEnvelope,
   targets: [comparison],
 })), null, "v8 envelope rejects the future interval-comparison kind");
+const previousComparisonEnvelope = {
+  schemaVersion: 9,
+  catalogVersion: 9,
+  targets: [...legacyKinds, comparison, chord, progression],
+};
+assert.deepEqual(deserializeLocalPracticeReviewQueue(JSON.stringify(previousComparisonEnvelope)), {
+  queue: previousComparisonEnvelope.targets,
+  migrated: true,
+}, "v9 queue survives the v10 P119b catalog migration");
+assert.equal(parseLocalPracticeReviewQueue(JSON.stringify({
+  ...previousComparisonEnvelope,
+  targets: [p119bChord],
+})), null, "v9 envelope rejects a P119b chord variant that did not exist in catalog v9");
+assert.equal(parseLocalPracticeReviewQueue(JSON.stringify({
+  ...previousComparisonEnvelope,
+  targets: [p119bProgression],
+})), null, "v9 envelope rejects a P119b progression variant that did not exist in catalog v9");
 
 const duplicateLegacyEnvelope = {
   schemaVersion: 1,

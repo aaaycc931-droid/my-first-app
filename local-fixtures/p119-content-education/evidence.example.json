@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
   "candidate": {
-    "sourceCommitSha": "7c185c88f816e423c7855527bc928a9a4d43b731",
-    "catalogVersion": 9,
+    "sourceCommitSha": "",
+    "catalogVersion": 10,
     "reviewManifestSha256": ""
   },
   "automatedEvidence": {

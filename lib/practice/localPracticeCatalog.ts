@@ -3,11 +3,11 @@ import {
   getScheduledQuestionIndex,
 } from "./localQuestionScheduler";
 
-export const LOCAL_PRACTICE_CATALOG_VERSION = 9 as const;
+export const LOCAL_PRACTICE_CATALOG_VERSION = 10 as const;
 
 /**
- * Catalog 9 extends the append-only namespace with interval-comparison targets.
- * Existing variantIds keep their earlier meaning.
+ * Catalog 10 appends P119b foundation transpositions for chord inversion and
+ * harmony progression. Existing variantIds keep their earlier meaning.
  */
 export const LOCAL_PRACTICE_CATALOG_MODES = ["legacy-v1", "expanded-local-v2"] as const;
 export type LocalPracticeCatalogMode = (typeof LOCAL_PRACTICE_CATALOG_MODES)[number];

@@ -13,12 +13,12 @@ assert.equal(currentInventory.length, 30);
 assert.equal(
   currentInventory.find((group) =>
     group.kind === "chord-inversion" && group.difficulty === "基础")?.variantCount,
-  8,
+  20,
 );
 assert.equal(
   currentInventory.find((group) =>
     group.kind === "harmony-progression" && group.difficulty === "基础")?.variantCount,
-  8,
+  20,
 );
 
 const sampleItemIds = ["pitch:c4", "interval:c4:major-third"];
@@ -26,7 +26,7 @@ const valid: P119ContentEducationEvidenceInput = {
   schemaVersion: 1,
   candidate: {
     sourceCommitSha: "a".repeat(40),
-    catalogVersion: 9,
+    catalogVersion: 10,
     reviewManifestSha256: "b".repeat(64),
   },
   automatedEvidence: {
@@ -67,11 +67,22 @@ assert.equal(eligible.inventoryReadyForHumanReview, true);
 assert.equal(eligible.teacherReviewBatchApproved, true);
 assert.ok(eligible.checks.every((check) => check.passed));
 
-const realBaseline = evaluateP119ContentEducationEvidence(valid, currentInventory);
-assert.equal(realBaseline.inventoryReadyForHumanReview, false);
+const currentInventoryWithoutTeacherEvidence = structuredClone(valid);
+currentInventoryWithoutTeacherEvidence.reviewPlan.status = "NOT_EXECUTED";
+currentInventoryWithoutTeacherEvidence.reviewPlan.approvedBeforeReview = false;
+currentInventoryWithoutTeacherEvidence.teacherReviews = [];
+const realBaseline = evaluateP119ContentEducationEvidence(
+  currentInventoryWithoutTeacherEvidence,
+  currentInventory,
+);
+assert.equal(realBaseline.inventoryReadyForHumanReview, true);
 assert.equal(realBaseline.teacherReviewBatchApproved, false);
 assert.equal(
   realBaseline.checks.find((check) => check.id === "v1-content-minimum")?.passed,
+  true,
+);
+assert.equal(
+  realBaseline.checks.find((check) => check.id === "professional-content-target")?.passed,
   false,
 );
 

@@ -1,7 +1,7 @@
 import type { LocalPracticeDifficulty } from "./localPracticeCatalog";
 
 const keyIds: Record<LocalPracticeDifficulty, readonly string[]> = {
-  基础: ["c3", "d3", "eb3", "f3"],
+  基础: ["c3", "d3", "eb3", "f3", "g3", "a3", "c4", "d4", "eb4", "f4"],
   进阶: ["c3", "d3", "eb3", "f3", "g3", "a3"],
   挑战: ["c3", "d3", "eb3", "f3", "g3", "a3"],
 };

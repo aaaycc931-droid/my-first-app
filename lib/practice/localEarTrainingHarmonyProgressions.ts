@@ -45,6 +45,10 @@ const keys: ProgressionKey[] = [
   { id: "f3", label: "F 大调 / f 小调", frequencyHz: 174.61 },
   { id: "g3", label: "G 大调 / g 小调", frequencyHz: 196 },
   { id: "a3", label: "A 大调 / a 小调", frequencyHz: 220 },
+  { id: "c4", label: "C 大调 / c 小调（高八度）", frequencyHz: 261.63 },
+  { id: "d4", label: "D 大调 / d 小调（高八度）", frequencyHz: 293.66 },
+  { id: "eb4", label: "E♭ 大调 / e♭ 小调（高八度）", frequencyHz: 311.13 },
+  { id: "f4", label: "F 大调 / f 小调（高八度）", frequencyHz: 349.23 },
 ];
 
 const basicPatterns: ProgressionPattern[] = [
@@ -161,7 +165,7 @@ const patternsByDifficulty: Record<LocalPracticeDifficulty, ProgressionPattern[]
 };
 
 const keyCountByDifficulty: Record<LocalPracticeDifficulty, number> = {
-  基础: 4,
+  基础: 10,
   进阶: 6,
   挑战: 6,
 };

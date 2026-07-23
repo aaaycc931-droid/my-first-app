@@ -16,7 +16,7 @@ assert.deepEqual(
     进阶: getLocalEarTrainingChordVariantCount("进阶"),
     挑战: getLocalEarTrainingChordVariantCount("挑战"),
   },
-  { 基础: 8, 进阶: 48, 挑战: 72 },
+  { 基础: 20, 进阶: 48, 挑战: 72 },
 );
 assert.deepEqual(
   getLocalChordAnswerOptions("基础").map((option) => option.label),
@@ -24,6 +24,41 @@ assert.deepEqual(
 );
 assert.equal(getLocalChordAnswerOptions("进阶").length, 8);
 assert.equal(getLocalChordAnswerOptions("挑战").length, 12);
+
+const foundationVariantIds = Array.from({ length: 20 }, (_, questionIndex) =>
+  createLocalEarTrainingChordQuestion({
+    difficulty: "基础",
+    sequence: questionIndex,
+    questionIndex,
+  }).variantId);
+assert.deepEqual(foundationVariantIds, [
+  "chord:c4:major:root", "chord:c4:minor:root",
+  "chord:d4:major:root", "chord:d4:minor:root",
+  "chord:e4:major:root", "chord:e4:minor:root",
+  "chord:f4:major:root", "chord:f4:minor:root",
+  "chord:g4:major:root", "chord:g4:minor:root",
+  "chord:a4:major:root", "chord:a4:minor:root",
+  "chord:c5:major:root", "chord:c5:minor:root",
+  "chord:d5:major:root", "chord:d5:minor:root",
+  "chord:e5:major:root", "chord:e5:minor:root",
+  "chord:f5:major:root", "chord:f5:minor:root",
+]);
+assert.equal(isLocalEarTrainingChordVariantId("基础", "chord:c5:major:root"), true);
+assert.equal(isLocalEarTrainingChordVariantId("进阶", "chord:c5:major:root"), false);
+for (const variantId of foundationVariantIds) {
+  const question = createLocalEarTrainingChordQuestion({
+    difficulty: "基础",
+    sequence: 999,
+    variantId,
+  });
+  assert.equal(question.variantId, variantId);
+  assert.equal(question.inversionId, "root");
+  assert(question.frequenciesHz.every((frequencyHz) =>
+    Number.isFinite(frequencyHz) && frequencyHz > 0));
+  assert(question.frequenciesHz[0] < question.frequenciesHz[1]);
+  assert(question.frequenciesHz[1] < question.frequenciesHz[2]);
+  assert.equal(hasLocalEarTrainingChordAssessmentFields(question), false);
+}
 
 const rootMajor = createLocalEarTrainingChordQuestion({
   difficulty: "基础",
