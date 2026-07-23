@@ -65,6 +65,7 @@ Android APK
 - P118d 已合并：建议只复用同一 MRU 队列第 1 项，并解释固定规则、位置、同题目族与全部待复练数；不读取 `outcome`、画像计数或统计。画像存储不可用、损坏或读取失败时默认关闭建议；
 - P118e implementation candidate 已通过 PR #413 合并：中文“本机学习总览”只组合既有课程核对数、当前保留的练习动作事实、精确复练队列和可解释建议；四类来源独立失败关闭，不生成联合评分、总学习进度或新持久化协议。PR Quality run `29984984760` 的 `quality` 与 `android-local` 均成功且 Vercel Ready；下一阶段仅为 P119/Q 联合验收与证据准备；
 - P119a 证据准备已通过 PR #415 合并：只盘点当前题型数量并冻结双教师审核协议，不改变 Android 运行时。Quality run `29999854528` 的两个 job 均成功且 Vercel Ready；artifact `8560553741` 是 PR synthetic merge SHA `8ff547cf37b75096550bd6a695cdeb151c0548c5` 的 Debug APK 自动工件，不是教师、真机使用或正式发布证据；
+- P119b 已通过 PR #417 合并：两个基础档各追加 12 个稳定移调组合，catalog/review queue 升至 v10；Quality run `30001642941` 的两个 job 均成功且 Vercel Ready。达到 20 只解除 V1 数量前置，不是教师审核、真机听感或完整 P119/Q 证据；
 - React 移动入口行为回归真实挂载 `App`，自动覆盖错题加入、答对移除、清除取消/确认、浏览历史前进后退及存储异常降级；该 DOM 回归不替代真实 WebView 或手机验证；
 - 复练队列存储不可用、内容失效或读写失败时显示简体中文提示，七类本地练习仍须可用；卸载应用或清除应用数据会删除队列；
 - 统一的本地音频启动、播放、停止与定时器清理；音频只能在用户点击后恢复；
@@ -88,7 +89,7 @@ Android APK
 
 调试签名 APK 是可安装的私测包，不得冒充最终私下正式包。当前先让真实用户测试功能，再决定专用 release key 和最终版本号。
 
-历史候选包的哈希、签名、结构检查和未执行项记录在 `docs/android-private-test-build-evidence.md`；面向测试者的历史版本变化记录在 `docs/android-private-test-changelog.md`。0.2.0（versionCode 2）的最新已核对自动候选来自 P119a PR #415 Quality run `29999854528` 的 artifact `8560553741`；GitHub artifact ZIP digest 为 `sha256:c5f87c7f4c238bb7337aebbfdc3478515125768424495ce1c697d09845fe9ec3`，工件来源是 PR synthetic merge SHA `8ff547cf37b75096550bd6a695cdeb151c0548c5`，不是 PR head `7af3d2004b87fdb4385fb5d3ad16e4a0814c455b` 或 main merge commit `28a448faf1f387a1c7f394f5baac6a2a7dbc4eac`。内部 APK 摘要仍必须从下载工件的 `.sha256` / JSON 报告复核；它仍是调试签名技术包，不是覆盖升级、P104 真实证据或最终 release 签名证据。
+历史候选包的哈希、签名、结构检查和未执行项记录在 `docs/android-private-test-build-evidence.md`；面向测试者的历史版本变化记录在 `docs/android-private-test-changelog.md`。0.2.0（versionCode 2）的最新已核对自动候选来自 P119b PR #417 Quality run `30001642941` 的 artifact `8561272610`；GitHub artifact ZIP digest 为 `sha256:37e2f318ebf8330c11faeeaf4bb0fa9d401cc2a14307a8a3ebb7fd6f30f22efb`，工件来源是 PR synthetic merge SHA `02bb1c330426b5bc36893ef70532a659d4080202`，不是 PR head `c9a21f537bb15676493bee4d4f8a9fcf893bae65` 或 main merge commit `bd5c5af211a3a1b36f4fcfacebdfe89b65fbafc1`。内部 APK 摘要仍必须从下载工件的 `.sha256` / JSON 报告复核；它仍是调试签名技术包，不是覆盖升级、P104 真实证据或最终 release 签名证据。
 
 ## 5. 构建基线
 

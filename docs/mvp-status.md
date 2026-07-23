@@ -6,7 +6,7 @@
 
 ## 当前基线
 
-- 最新已合并产品功能基线：P118e / PR #413，合并提交 `88667e0ad05d4672915008f7cf0e3eb63c2fce76`
+- 最新已合并产品功能基线：P119b / PR #417，合并提交 `bd5c5af211a3a1b36f4fcfacebdfe89b65fbafc1`
 - 最新已合并证据准备基线：P119a / PR #415，合并提交 `28a448faf1f387a1c7f394f5baac6a2a7dbc4eac`
 - 最近仓库维护：PR #406，P118a 本机进度保存／清除失败关闭修复，main 提交 `f0c0810acb6e4417329466bcc13decc607589c92`
 - 仓库当前提交以 GitHub 默认分支为权威；本文件不硬编码会因自身合并而立即过期的“当前 main SHA”
@@ -37,8 +37,9 @@
 - P118c implementation candidate 已通过 PR #409 合并为 `55093e4d1004bc97408f45ef0e2a26a2adee6c0b`；PR Quality run `29970087207` 的 `quality` 与 `android-local` 均成功，Vercel Ready。它复用既有最多 12 项的本机复练目标，按题目族分组并保持原 MRU 顺序；队列保存失败时保留旧 UI，不读取 `outcome`，不生成能力评级或推荐排序。
 - P118d implementation candidate 已通过 PR #411 合并为 `ae954bb3cd753304af7095565abaa4974a7e0790`；PR Quality run `29977194615` 的 `quality` 与 `android-local` 均成功，Vercel Ready。它固定复用现有 MRU 复练队列首项并显示来源事实，不读取 `outcome`、画像计数或 P118b 统计；损坏存储跨重启失败关闭，画像重置 save-first。
 - P118e implementation candidate 已通过 PR #413 squash 合并为 `88667e0ad05d4672915008f7cf0e3eb63c2fce76`；PR Quality run `29984984760` 的 `quality` 与 `android-local` 均成功，Vercel Ready。它以中文“本机学习总览”分别读取 P118a 课程进度、P118b 当前保留的最多 48 条练习动作事实、P118c 精确复练队列和 P118d 可解释建议；各来源独立失败关闭，不跨来源推导或新增协议。
-- P119a 已通过 PR #415 合并：它盘点当前 10 类本机生成题型的三档稳定变体，冻结同 commit 自动门禁与双教师六维审核协议，并保持教师身份、资质、签署与逐题记录不入 Git。当前 `chord-inversion / 基础` 与 `harmony-progression / 基础` 均只有 8 个变体，低于 V1 每档 20 个最低门槛；教师审核、教育有效性与完整 P119/Q 仍为 `NOT_EXECUTED / BLOCKED`。
-- 当前下一独立切片是关闭上述两个基础档题量缺口的内容候选；不得在没有双教师真实证据时宣称音乐正确性、难度递进或教育验收通过。
+- P119a 已通过 PR #415 合并：它盘点当前 10 类本机生成题型的三档稳定变体，冻结同 commit 自动门禁与双教师六维审核协议，并保持教师身份、资质、签署与逐题记录不入 Git。
+- P119b 已通过 PR #417 合并：`chord-inversion / 基础` 与 `harmony-progression / 基础` 均从 8 个 append-only 扩到 20 个稳定移调组合，原前 8 个 ID、基础答案概念与进阶／挑战题库保持冻结；catalog/review queue 已升至 v10 并无损迁移真实 v9 目标。
+- 当前 30 个自动盘点组达到 V1 每档至少 20 的数量前置；专业 40 目标、清单冻结、双教师真实签署、教育有效性与完整 P119/Q 仍为 `NOT_EXECUTED / BLOCKED`。下一独立证据切片只能准备可复核清单和预先批准的抽样计划。
 - P118a 只消费现有 Activity、复练队列和学习画像协议，不创建平行答案或能力协议；旧数据必须安全迁移或 fail closed。
 - P118a 不生成正式能力评级，不上传课程数据，不新增账户、云端、数据库、网络依赖或 `INTERNET` 权限。P118e 只整合 P118a–P118d 已有视图与入口，不把课程、统计、复练或推荐合并为新的评分、画像或存储协议。
 - P117e 已形成合并后的 implementation candidate。QA level recommendation 为 strict；P117d 与 P117e 的 Browser 真麦克风、Android 三档真机、真实人声、双教师和目标用户证据仍为 `NOT_EXECUTED`，不能由模拟录音、DOM、CI 或 APK 替代。
@@ -64,6 +65,7 @@
 | P118d | #411 | `ae954bb3cd753304af7095565abaa4974a7e0790` | `29977194615` | `8551900883` | `91c9d27f72ebd1338c773e3d30b7e01be1aa8d8bc930c46f77cbd46c4f6369f1` |
 | P118e | #413 | `88667e0ad05d4672915008f7cf0e3eb63c2fce76` | `29984984760` | `8554678659` | `27c3e420f85623b1159e59d016873132b70317ff0d6962a48ecafca0e5b1622a` |
 | P119a | #415 | `28a448faf1f387a1c7f394f5baac6a2a7dbc4eac` | `29999854528` | `8560553741` | `c5f87c7f4c238bb7337aebbfdc3478515125768424495ce1c697d09845fe9ec3` |
+| P119b | #417 | `bd5c5af211a3a1b36f4fcfacebdfe89b65fbafc1` | `30001642941` | `8561272610` | `37e2f318ebf8330c11faeeaf4bb0fa9d401cc2a14307a8a3ebb7fd6f30f22efb` |
 
 上述 PR 运行的 `quality` 与 `android-local` 均通过；P117e 合并后的 main Quality 运行 `29897075998` 也通过。表中 SHA-256 是 GitHub artifact ZIP digest，不是 ZIP 内 APK 摘要；Android 工件是 CI 构建并独立校验的 API 36 Debug APK，它只证明自动构建与校验通过。
 
