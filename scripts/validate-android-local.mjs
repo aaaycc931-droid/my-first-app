@@ -16,6 +16,7 @@ const requiredSources = [
   "mobile/src/LocalPracticeStatisticsPanel.tsx",
   "mobile/src/LocalWeakPointReviewQueuePanel.tsx",
   "mobile/src/LocalExplainablePracticeRecommendationPanel.tsx",
+  "mobile/src/LocalLearningOverviewPanel.tsx",
   "mobile/src/stubs/supabaseBrowser.ts",
   "lib/practice/localPracticeReviewQueue.ts",
   "lib/practice/localPracticeCustomizer.ts",
@@ -51,6 +52,7 @@ const requiredSources = [
   "lib/learning/localPracticeStatistics.ts",
   "lib/learning/localWeakPointReviewQueue.ts",
   "lib/learning/localExplainablePracticeRecommendation.ts",
+  "lib/learning/localLearningOverview.ts",
   "lib/piano/localPianoKeyboard.ts",
   "lib/piano/pianoNoteEvents.ts",
   "lib/piano/pianoAudioProvider.ts",
@@ -139,6 +141,8 @@ const weakPointReviewSource = readFileSync(join(root, "lib/learning/localWeakPoi
 const weakPointReviewPanelSource = readFileSync(join(root, "mobile/src/LocalWeakPointReviewQueuePanel.tsx"), "utf8");
 const explainableRecommendationSource = readFileSync(join(root, "lib/learning/localExplainablePracticeRecommendation.ts"), "utf8");
 const explainableRecommendationPanelSource = readFileSync(join(root, "mobile/src/LocalExplainablePracticeRecommendationPanel.tsx"), "utf8");
+const learningOverviewSource = readFileSync(join(root, "lib/learning/localLearningOverview.ts"), "utf8");
+const learningOverviewPanelSource = readFileSync(join(root, "mobile/src/LocalLearningOverviewPanel.tsx"), "utf8");
 const chordTrainingSource = readFileSync(
   join(root, "lib/practice/localEarTrainingChords.ts"),
   "utf8",
@@ -460,7 +464,7 @@ if (
   || !weakPointReviewPanelSource.includes("当前待复练题")
   || !weakPointReviewPanelSource.includes("不是能力评级、正确率或推荐排序")
   || !weakPointReviewPanelSource.includes("最多保留")
-  || !mobileApp.includes("LocalWeakPointReviewQueuePanel")
+  || !learningOverviewPanelSource.includes("LocalWeakPointReviewQueuePanel")
 ) {
   throw new Error("Android P118c 薄弱点复练分组、精确目标、MRU 或非评分边界不完整");
 }
@@ -472,9 +476,36 @@ if (
   || !explainableRecommendationPanelSource.includes("为什么是这题")
   || !explainableRecommendationPanelSource.includes("不读取答案 outcome")
   || !explainableRecommendationPanelSource.includes("无法解释来源")
-  || !mobileApp.includes("LocalExplainablePracticeRecommendationPanel")
+  || !learningOverviewPanelSource.includes("LocalExplainablePracticeRecommendationPanel")
 ) {
   throw new Error("Android P118d 可解释非评分推荐、来源说明、MRU 复用或失败关闭边界不完整");
+}
+if (
+  !learningOverviewSource.includes("buildLocalLearningOverview")
+  || !learningOverviewSource.includes('window: "all"')
+  || !learningOverviewSource.includes("buildLocalPracticeStatistics")
+  || !learningOverviewSource.includes("buildLocalWeakPointReviewQueue")
+  || !learningOverviewSource.includes("buildLocalExplainablePracticeRecommendation")
+  || !learningOverviewSource.includes('learningSourceStatus === "available"')
+  || !learningOverviewSource.includes('reviewSourceStatus === "available"')
+  || learningOverviewSource.includes(".outcome")
+  || learningOverviewSource.includes("correctCount")
+  || learningOverviewSource.includes("incorrectCount")
+  || learningOverviewSource.includes("overallProgress")
+  || !learningOverviewPanelSource.includes("本机学习总览")
+  || !learningOverviewPanelSource.includes("课程课节进度不计入")
+  || !learningOverviewPanelSource.includes("LocalWeakPointReviewQueuePanel")
+  || !learningOverviewPanelSource.includes("LocalExplainablePracticeRecommendationPanel")
+  || !learningOverviewPanelSource.includes("reviewModel={overview.reviewQueue}")
+  || !learningOverviewPanelSource.includes('settingsAvailable={learningSourceStatus === "available"}')
+  || !mobileApp.includes("LocalLearningOverviewPanel")
+  || !mobileApp.includes("learningSourceStatus={learningSourceStatus}")
+  || !mobileApp.includes("reviewSourceStatus={reviewSourceStatus}")
+  || !mobileApp.includes("本机学习画像来源不可用")
+  || !courseStorageSource.includes('sourceStatus: "unavailable"')
+  || !coursePanelSource.includes("本机课程进度不可用")
+) {
+  throw new Error("Android P118e 本机学习总览、独立事实来源或既有复练入口组合不完整");
 }
 if (
   !chordTrainingSource.includes('type ChordQualityId = "major" | "minor" | "diminished" | "augmented"')
@@ -1036,4 +1067,4 @@ if (existsSync(manifestPath) && !existsSync(syncedIndex)) {
   throw new Error("Android 工程存在，但本地 Web 资源尚未同步");
 }
 
-console.log("Android 本地模式校验通过：固定包名、本地资源、既有十类练习、P116a–P117e 既有主线、P118a 版本化中文课程路径与本地进度、P118b 本机详细练习统计、P118c 薄弱点复练分组、P118d 可解释非评分推荐、音程比较/非评分模唱反馈、实时音高反馈、本机复练、非评分学习画像、本地参考钢琴、无远程运行时配置与生命周期保护。");
+console.log("Android 本地模式校验通过：固定包名、本地资源、既有十类练习、P116a–P117e 既有主线、P118a 版本化中文课程路径与本地进度、P118b 本机详细练习统计、P118c 薄弱点复练分组、P118d 可解释非评分推荐、P118e 本机学习总览、音程比较/非评分模唱反馈、实时音高反馈、本机复练、非评分学习画像、本地参考钢琴、无远程运行时配置与生命周期保护。");

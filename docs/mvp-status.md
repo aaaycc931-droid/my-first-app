@@ -35,9 +35,9 @@
 - P118b implementation candidate 已通过 PR #407 合并为 `03a94882d870ed11339efb727558e74be00f876f`；PR Quality run `29927839993` 的 `quality` 与 `android-local` 均成功，Vercel Ready。它只消费学习画像当前保留的最近 48 条事件，提供 7 天、30 天、全部记录窗口并按练习方式／题目族聚合“记录动作、已核对、开始复练”；完全忽略 `outcome`，不新增持久化或网络能力。
 - P118c implementation candidate 已通过 PR #409 合并为 `55093e4d1004bc97408f45ef0e2a26a2adee6c0b`；PR Quality run `29970087207` 的 `quality` 与 `android-local` 均成功，Vercel Ready。它复用既有最多 12 项的本机复练目标，按题目族分组并保持原 MRU 顺序；队列保存失败时保留旧 UI，不读取 `outcome`，不生成能力评级或推荐排序。
 - P118d implementation candidate 已通过 PR #411 合并为 `ae954bb3cd753304af7095565abaa4974a7e0790`；PR Quality run `29977194615` 的 `quality` 与 `android-local` 均成功，Vercel Ready。它固定复用现有 MRU 复练队列首项并显示来源事实，不读取 `outcome`、画像计数或 P118b 统计；损坏存储跨重启失败关闭，画像重置 save-first。
-- P118d 合并后的下一独立教学切片是 P118e 课程／统计／复练／推荐整合；本次状态同步不实现 P118e。
+- P118e implementation candidate 正在独立分支实现中文“本机学习总览”：分别读取 P118a 课程进度、P118b 当前保留的最多 48 条练习动作事实、P118c 精确复练队列和 P118d 可解释建议；各来源独立失败关闭，不跨来源推导或新增协议。P118e 合并前当前下一切片仍是 P118e。
 - P118a 只消费现有 Activity、复练队列和学习画像协议，不创建平行答案或能力协议；旧数据必须安全迁移或 fail closed。
-- P118a 不生成正式能力评级，不上传课程数据，不新增账户、云端、数据库、网络依赖或 `INTERNET` 权限。P118b 的统计、P118c 的复练队列、P118d 的推荐和 P118e 的整合必须继续拆分。
+- P118a 不生成正式能力评级，不上传课程数据，不新增账户、云端、数据库、网络依赖或 `INTERNET` 权限。P118e 只整合 P118a–P118d 已有视图与入口，不把课程、统计、复练或推荐合并为新的评分、画像或存储协议。
 - P117e 已形成合并后的 implementation candidate。QA level recommendation 为 strict；P117d 与 P117e 的 Browser 真麦克风、Android 三档真机、真实人声、双教师和目标用户证据仍为 `NOT_EXECUTED`，不能由模拟录音、DOM、CI 或 APK 替代。
 
 ## 最近权威验证

@@ -21,6 +21,7 @@ export type MobilePracticeReviewStorageResult = {
 export type MobilePracticeReviewStorageLoadResult =
   MobilePracticeReviewStorageResult & {
     queue: LocalPracticeReviewQueue;
+    sourceStatus: "available" | "unavailable";
   };
 
 const unavailableNotice = "本机复练记录暂时不可用，本次练习仍可继续。";
@@ -40,6 +41,7 @@ export const loadMobilePracticeReviewQueue = (
     return {
       queue: createEmptyLocalPracticeReviewQueue(),
       notice: unavailableNotice,
+      sourceStatus: "unavailable",
     };
   }
 
@@ -50,6 +52,7 @@ export const loadMobilePracticeReviewQueue = (
       return {
         queue: createEmptyLocalPracticeReviewQueue(),
         notice: null,
+        sourceStatus: "available",
       };
     }
 
@@ -61,11 +64,13 @@ export const loadMobilePracticeReviewQueue = (
         return {
           queue: createEmptyLocalPracticeReviewQueue(),
           notice: "本机复练记录读取失败，且无法自动清除；本次练习仍可继续。",
+          sourceStatus: "unavailable",
         };
       }
       return {
         queue: createEmptyLocalPracticeReviewQueue(),
         notice: "本机复练旧记录无法读取，已自动清除并从空记录继续。",
+        sourceStatus: "unavailable",
       };
     }
 
@@ -79,15 +84,17 @@ export const loadMobilePracticeReviewQueue = (
         return {
           queue: parsed.queue,
           notice: "本机复练旧记录已恢复，但升级保存失败；本次仍可继续复练。",
+          sourceStatus: "available",
         };
       }
     }
 
-    return { queue: parsed.queue, notice: null };
+    return { queue: parsed.queue, notice: null, sourceStatus: "available" };
   } catch {
     return {
       queue: createEmptyLocalPracticeReviewQueue(),
       notice: "本机复练记录读取失败，已从空记录继续。",
+      sourceStatus: "unavailable",
     };
   }
 };
