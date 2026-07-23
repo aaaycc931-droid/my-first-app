@@ -85,14 +85,14 @@ assert.deepEqual(migratedLoad, {
 const migratedEnvelope = JSON.parse(
   legacyStorage.values.get(MOBILE_PRACTICE_REVIEW_STORAGE_KEY) ?? "{}",
 ) as { schemaVersion?: number; catalogVersion?: number };
-assert.equal(migratedEnvelope.schemaVersion, 9);
-assert.equal(migratedEnvelope.catalogVersion, 9);
+assert.equal(migratedEnvelope.schemaVersion, 10);
+assert.equal(migratedEnvelope.catalogVersion, 10);
 const setCallsAfterMigration = legacyStorage.getSetCallCount();
 assert.deepEqual(loadMobilePracticeReviewQueue(legacyStorage), migratedLoad);
 assert.equal(
   legacyStorage.getSetCallCount(),
   setCallsAfterMigration,
-  "a second load of the rewritten v9 queue must not rewrite storage again",
+  "a second load of the rewritten v10 queue must not rewrite storage again",
 );
 
 const spacingTarget = {
@@ -116,8 +116,28 @@ assert.deepEqual(loadMobilePracticeReviewQueue(previousSpacingStorage), {
 const rewrittenSpacingEnvelope = JSON.parse(
   previousSpacingStorage.values.get(MOBILE_PRACTICE_REVIEW_STORAGE_KEY) ?? "{}",
 ) as { schemaVersion?: number; catalogVersion?: number };
-assert.equal(rewrittenSpacingEnvelope.schemaVersion, 9);
-assert.equal(rewrittenSpacingEnvelope.catalogVersion, 9);
+assert.equal(rewrittenSpacingEnvelope.schemaVersion, 10);
+assert.equal(rewrittenSpacingEnvelope.catalogVersion, 10);
+
+const previousComparisonStorage = createMemoryStorage();
+previousComparisonStorage.values.set(MOBILE_PRACTICE_REVIEW_STORAGE_KEY, JSON.stringify({
+  schemaVersion: 9,
+  catalogVersion: 9,
+  targets: [{
+    kind: "chord-inversion",
+    difficulty: "基础",
+    playbackMode: "和声",
+    seed: 115,
+    sequence: 0,
+    variantId: "chord:c4:major:root",
+  }],
+}));
+assert.equal(loadMobilePracticeReviewQueue(previousComparisonStorage).queue[0]?.variantId, "chord:c4:major:root");
+const rewrittenComparisonEnvelope = JSON.parse(
+  previousComparisonStorage.values.get(MOBILE_PRACTICE_REVIEW_STORAGE_KEY) ?? "{}",
+) as { schemaVersion?: number; catalogVersion?: number };
+assert.equal(rewrittenComparisonEnvelope.schemaVersion, 10);
+assert.equal(rewrittenComparisonEnvelope.catalogVersion, 10);
 
 const forgedModulationStorage = createMemoryStorage();
 forgedModulationStorage.values.set(MOBILE_PRACTICE_REVIEW_STORAGE_KEY, JSON.stringify({

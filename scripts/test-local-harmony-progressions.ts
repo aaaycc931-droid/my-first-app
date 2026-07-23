@@ -13,10 +13,53 @@ assert.deepEqual({
   基础: getLocalHarmonyProgressionVariantCount("基础"),
   进阶: getLocalHarmonyProgressionVariantCount("进阶"),
   挑战: getLocalHarmonyProgressionVariantCount("挑战"),
-}, { 基础: 8, 进阶: 24, 挑战: 42 });
+}, { 基础: 20, 进阶: 24, 挑战: 42 });
 assert.equal(getLocalHarmonyProgressionAnswerOptions("基础").length, 2);
 assert.equal(getLocalHarmonyProgressionAnswerOptions("进阶").length, 4);
 assert.equal(getLocalHarmonyProgressionAnswerOptions("挑战").length, 7);
+
+const foundationVariantIds = Array.from({ length: 20 }, (_, questionIndex) =>
+  createLocalHarmonyProgressionQuestion({
+    difficulty: "基础",
+    sequence: questionIndex,
+    questionIndex,
+  }).variantId);
+assert.deepEqual(foundationVariantIds, [
+  "progression:c3:authentic-three", "progression:c3:plagal-three",
+  "progression:d3:authentic-three", "progression:d3:plagal-three",
+  "progression:eb3:authentic-three", "progression:eb3:plagal-three",
+  "progression:f3:authentic-three", "progression:f3:plagal-three",
+  "progression:g3:authentic-three", "progression:g3:plagal-three",
+  "progression:a3:authentic-three", "progression:a3:plagal-three",
+  "progression:c4:authentic-three", "progression:c4:plagal-three",
+  "progression:d4:authentic-three", "progression:d4:plagal-three",
+  "progression:eb4:authentic-three", "progression:eb4:plagal-three",
+  "progression:f4:authentic-three", "progression:f4:plagal-three",
+]);
+assert.equal(isLocalHarmonyProgressionVariantId("基础", "progression:c4:authentic-three"), true);
+assert.equal(isLocalHarmonyProgressionVariantId("进阶", "progression:c4:authentic-three"), false);
+for (const variantId of foundationVariantIds) {
+  const question = createLocalHarmonyProgressionQuestion({
+    difficulty: "基础",
+    sequence: 999,
+    variantId,
+  });
+  assert.equal(question.variantId, variantId);
+  assert.equal(question.answerOptionId, question.pattern.id);
+  assert(question.chordFrequenciesHz.every((chord) =>
+    chord.every((frequencyHz) => Number.isFinite(frequencyHz) && frequencyHz > 0)
+    && chord[0] < chord[1]
+    && chord[1] < chord[2]));
+  assert.deepEqual(
+    question.voiceLeadingCue.bassFrequenciesHz,
+    question.chordFrequenciesHz.map((chord) => chord[0]),
+  );
+  assert.deepEqual(
+    question.voiceLeadingCue.upperFrequenciesHz,
+    question.chordFrequenciesHz.map((chord) => chord[2]),
+  );
+  assert.match(question.voiceLeadingCue.explanation, /不单独判分/);
+}
 
 const authentic = createLocalHarmonyProgressionQuestion({ difficulty: "基础", sequence: 0, variantId: "progression:c3:authentic-three" });
 assert.equal(authentic.answerOptionId, "authentic-three");

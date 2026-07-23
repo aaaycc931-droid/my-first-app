@@ -448,8 +448,8 @@ describe("Android 本机复练行为", () => {
 
   it("按题目族分组现有精确复练目标，并保持原队列顺序", async () => {
     window.localStorage.setItem(MOBILE_PRACTICE_REVIEW_STORAGE_KEY, JSON.stringify({
-      schemaVersion: 9,
-      catalogVersion: 9,
+      schemaVersion: 10,
+      catalogVersion: 10,
       targets: [
         { kind: "rhythm", difficulty: "基础", seed: 0, sequence: 0, variantId: "rhythm:even-quarters" },
         { kind: "single-pitch", difficulty: "基础", seed: 0, sequence: 0, variantId: "pitch:c4" },
@@ -531,8 +531,8 @@ describe("Android 本机复练行为", () => {
     window.localStorage.setItem(
       MOBILE_PRACTICE_REVIEW_STORAGE_KEY,
       JSON.stringify({
-        schemaVersion: 9,
-        catalogVersion: 9,
+        schemaVersion: 10,
+        catalogVersion: 10,
         targets: [{
           kind: "rhythm",
           difficulty: "基础",
@@ -686,8 +686,8 @@ describe("Android 本机复练行为", () => {
     const migratedEnvelope = JSON.parse(
       window.localStorage.getItem(MOBILE_PRACTICE_REVIEW_STORAGE_KEY) ?? "{}",
     ) as { schemaVersion?: number; catalogVersion?: number; targets?: Array<Record<string, unknown>> };
-    expect(migratedEnvelope.schemaVersion).toBe(9);
-    expect(migratedEnvelope.catalogVersion).toBe(9);
+    expect(migratedEnvelope.schemaVersion).toBe(10);
+    expect(migratedEnvelope.catalogVersion).toBe(10);
     expect(migratedEnvelope.targets?.[0]?.variantId).toBe("pitch:g4");
 
     expect(container.textContent).toContain("本机复练（1）");
@@ -751,8 +751,8 @@ describe("Android 本机复练行为", () => {
 
   it("答对移除保存失败时不伪称已持久移除", async () => {
     const original = JSON.stringify({
-      schemaVersion: 9,
-      catalogVersion: 9,
+      schemaVersion: 10,
+      catalogVersion: 10,
       targets: [{
         kind: "single-pitch",
         difficulty: "基础",
@@ -931,7 +931,7 @@ describe("Android 本机复练行为", () => {
     expect(Array.from(difficulty?.options ?? []).map((option) => option.value)).toEqual([
       "基础", "进阶", "挑战",
     ]);
-    expect(container.textContent).toContain("本难度共 8 个版本化组合");
+    expect(container.textContent).toContain("本难度共 20 个版本化组合");
     await waitFor(
       () => !findButton(container, wrongOption?.label ?? "").disabled,
       "和弦题目可回答",
@@ -1082,7 +1082,7 @@ describe("Android 本机复练行为", () => {
     await click(findLink(container, "和声进行"));
     await waitFor(() => Boolean(container.querySelector("#progression-training-difficulty")), "和声进行面板载入");
     expect(Array.from(container.querySelector<HTMLSelectElement>("#progression-training-difficulty")?.options ?? []).map((option) => option.value)).toEqual(["基础", "进阶", "挑战"]);
-    expect(container.textContent).toContain("本难度共 8 个版本化组合");
+    expect(container.textContent).toContain("本难度共 20 个版本化组合");
     expect(container.textContent).toContain("不改变答案，也不单独判分");
     await waitFor(() => !findButton(container, wrongOption?.label ?? "").disabled, "和声进行题目可回答");
     expect(findButton(container, "只听低音线索").disabled).toBe(false);

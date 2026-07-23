@@ -53,7 +53,17 @@ const roots: ChordRoot[] = [
   { id: "f4", label: "F4", frequencyHz: 349.23 },
   { id: "g4", label: "G4", frequencyHz: 392 },
   { id: "a4", label: "A4", frequencyHz: 440 },
+  { id: "c5", label: "C5", frequencyHz: 523.25 },
+  { id: "d5", label: "D5", frequencyHz: 587.33 },
+  { id: "e5", label: "E5", frequencyHz: 659.25 },
+  { id: "f5", label: "F5", frequencyHz: 698.46 },
 ];
+
+const rootCountByDifficulty: Record<LocalPracticeDifficulty, number> = {
+  基础: 10,
+  进阶: 6,
+  挑战: 6,
+};
 
 const difficultyOptions: Record<LocalPracticeDifficulty, Array<[ChordQualityId, ChordInversionId]>> = {
   基础: [["major", "root"], ["minor", "root"]],
@@ -84,7 +94,7 @@ const getVariantId = (rootId: string, qualityId: ChordQualityId, inversionId: Ch
   `chord:${rootId}:${qualityId}:${inversionId}`;
 
 const getVariants = (difficulty: LocalPracticeDifficulty) => {
-  const difficultyRoots = difficulty === "基础" ? roots.slice(0, 4) : roots;
+  const difficultyRoots = roots.slice(0, rootCountByDifficulty[difficulty]);
   return difficultyRoots.flatMap((root) => difficultyOptions[difficulty].map(([qualityId, inversionId]) => ({
     variantId: getVariantId(root.id, qualityId, inversionId),
     root,

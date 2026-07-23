@@ -47,8 +47,8 @@ const difficulties: LocalPracticeDifficulty[] = ["基础", "进阶", "挑战"];
 const expectedCounts: Record<LocalPracticeKind, Record<LocalPracticeDifficulty, number>> = {
   "single-pitch": { 基础: 20, 进阶: 24, 挑战: 24 },
   interval: { 基础: 21, 进阶: 24, 挑战: 24 },
-  "chord-inversion": { 基础: 8, 进阶: 48, 挑战: 72 },
-  "harmony-progression": { 基础: 8, 进阶: 24, 挑战: 42 },
+  "chord-inversion": { 基础: 20, 进阶: 48, 挑战: 72 },
+  "harmony-progression": { 基础: 20, 进阶: 24, 挑战: 42 },
   "scale-mode": { 基础: 48, 进阶: 96, 挑战: 144 },
   "seventh-chord": { 基础: 48, 进阶: 96, 挑战: 192 },
   "seventh-chord-spacing": { 基础: 48, 进阶: 96, 挑战: 384 },

@@ -58,6 +58,23 @@ for (const kind of kinds) {
   }
 }
 
+assert.deepEqual(
+  getLocalPracticeCustomizerSubsetOptions("chord-inversion", "基础")
+    .map(({ id, variantCount }) => ({ id, variantCount })),
+  [
+    { id: "major-root", variantCount: 10 },
+    { id: "minor-root", variantCount: 10 },
+  ],
+);
+assert.deepEqual(
+  getLocalPracticeCustomizerSubsetOptions("harmony-progression", "基础")
+    .map(({ id, variantCount }) => ({ id, variantCount })),
+  [
+    { id: "authentic-three", variantCount: 10 },
+    { id: "plagal-three", variantCount: 10 },
+  ],
+);
+
 const pitchOptions = getLocalPracticeCustomizerSubsetOptions("single-pitch", "基础");
 const reversedPitchConfig = {
   schemaVersion: LOCAL_PRACTICE_CUSTOMIZER_SCHEMA_VERSION,
