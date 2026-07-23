@@ -11,6 +11,7 @@ import {
   getScheduledQuestionIndex,
 } from "../../lib/practice/localQuestionScheduler";
 import {
+  getLocalPracticeReviewTargetKey,
   parseLocalPracticeReviewQueue,
   type LocalPracticeReviewTarget,
 } from "../../lib/practice/localPracticeReviewQueue";
@@ -51,6 +52,7 @@ import {
   deserializeLocalLearningHistory,
   recordCheckedAnswerLearningEvent,
   serializeLocalLearningHistory,
+  setLearningSuggestionsEnabled,
 } from "../../lib/learning/learningEventProfile";
 import { MOBILE_LEARNING_PROFILE_STORAGE_KEY } from "./runtime/mobileLearningProfileStorage";
 import { MOBILE_PRACTICE_REVIEW_STORAGE_KEY } from "./runtime/mobilePracticeReviewStorage";
@@ -660,6 +662,7 @@ describe("Android 本机复练行为", () => {
     await click(findLink(container, "返回练习首页"));
     expect(container.textContent).toContain("本机复练（1）");
     expect(container.textContent).toContain("单音听辨待复练 1 题");
+    expect(container.textContent).toContain("建议下一步：单音听辨 · 基础");
     setItem.mockRestore();
   });
 
@@ -678,6 +681,7 @@ describe("Android 本机复练行为", () => {
     expect(window.localStorage.getItem(MOBILE_PRACTICE_REVIEW_STORAGE_KEY)).toBeNull();
     expect(container.textContent).toContain("本机复练记录已清除");
     expect(container.textContent).toContain("本机复练（0）");
+    expect(container.textContent).toContain("缺少生成复练建议所需的本机事实");
   });
 
   it("核对结果生成非评分本机画像，建议可关闭且画像可独立重置", async () => {
@@ -691,6 +695,8 @@ describe("Android 本机复练行为", () => {
     expect(container.textContent).toContain("已核对 1 次；其中正确 0 次、错误 1 次");
     expect(container.textContent).toContain("本机事实，不是能力评分");
     expect(container.textContent).toContain("建议下一步：单音听辨 · 基础");
+    expect(container.textContent).toContain("当前复练队列第 1 项");
+    expect(container.textContent).toContain("不读取答案 outcome");
     const serialized = window.localStorage.getItem(MOBILE_LEARNING_PROFILE_STORAGE_KEY);
     expect(serialized).not.toBeNull();
     const history = deserializeLocalLearningHistory(serialized ?? "");
@@ -698,7 +704,7 @@ describe("Android 本机复练行为", () => {
     expect(serialized).not.toMatch(/selected|recording|audio|email|score|grade|accuracyPercentage/i);
 
     await click(findButton(container, "关闭建议"));
-    expect(container.textContent).toContain("复练建议已关闭；练习和复练队列不受影响");
+    expect(container.textContent).toContain("复练建议已关闭；练习、学习画像和复练队列不受影响");
     await click(findButton(container, "重置画像"));
     expect(container.textContent).toContain("确认清空本机学习画像与事件？");
     await click(findButton(container, "确认重置"));
@@ -709,6 +715,85 @@ describe("Android 本机复练行为", () => {
     expect(container.textContent).toContain("本机复练（1）");
     expect(getStoredQueue()).toHaveLength(1);
     expect(findButton(container, "开启建议").getAttribute("aria-pressed")).toBe("false");
+  });
+
+  it("建议开关保存失败时保持原状态和可解释推荐", async () => {
+    seedQueue({ kind: "single-pitch", difficulty: "基础", seed: 0, sequence: 0 });
+    const container = await renderApp();
+    expect(container.textContent).toContain("建议下一步：单音听辨 · 基础");
+    const originalSetItem = window.localStorage.setItem.bind(window.localStorage);
+    const setItem = vi.spyOn(window.localStorage, "setItem").mockImplementation((key, value) => {
+      if (key === MOBILE_LEARNING_PROFILE_STORAGE_KEY) throw new Error("quota");
+      originalSetItem(key, value);
+    });
+
+    await click(findButton(container, "关闭建议"));
+
+    expect(container.textContent).toContain("本机学习画像保存失败，本次练习仍可继续");
+    expect(findButton(container, "关闭建议").getAttribute("aria-pressed")).toBe("true");
+    expect(container.textContent).toContain("建议下一步：单音听辨 · 基础");
+    setItem.mockRestore();
+  });
+
+  it("从可解释建议进入精确目标并持久化开始复练事实", async () => {
+    const legacyTarget = {
+      kind: "single-pitch", difficulty: "基础", seed: 0, sequence: 0,
+    } as const;
+    seedQueue(legacyTarget);
+    const container = await renderApp();
+    const target = getStoredQueue()[0];
+
+    await click(findButton(container, "开始这题复练"));
+
+    expect(window.location.hash).toBe("#pitch");
+    const history = deserializeLocalLearningHistory(
+      window.localStorage.getItem(MOBILE_LEARNING_PROFILE_STORAGE_KEY) ?? "",
+    );
+    expect(history?.recentEvents.at(-1)).toMatchObject({
+      kind: "review-started",
+      skillKind: "single-pitch",
+      targetKey: getLocalPracticeReviewTargetKey(target),
+    });
+    await click(findButton(container, "G4"));
+    await click(findButton(container, "查看本题答案"));
+    expect(container.textContent).toContain("本题答案：G4");
+  });
+
+  it("画像重置保存失败时保留原画像与关闭的建议开关", async () => {
+    const recorded = recordCheckedAnswerLearningEvent({
+      history: createEmptyLocalLearningHistory(),
+      result: {
+        target: {
+          kind: "single-pitch", difficulty: "基础", seed: 0, sequence: 0,
+          variantId: "pitch:g4",
+        },
+        isCorrect: false,
+      },
+      practiceMode: "random",
+      occurredAt: "2026-07-23T00:00:00.000Z",
+    });
+    const disabled = setLearningSuggestionsEnabled(recorded, false);
+    window.localStorage.setItem(
+      MOBILE_LEARNING_PROFILE_STORAGE_KEY,
+      serializeLocalLearningHistory(disabled),
+    );
+    const container = await renderApp();
+    const setItem = vi.spyOn(window.localStorage, "setItem").mockImplementation(() => {
+      throw new Error("quota");
+    });
+
+    await click(findButton(container, "重置画像"));
+    await click(findButton(container, "确认重置"));
+
+    expect(container.textContent).toContain("本机学习画像保存失败，本次练习仍可继续");
+    expect(container.textContent).toContain("已核对 1 次");
+    expect(findButton(container, "开启建议").getAttribute("aria-pressed")).toBe("false");
+    expect(
+      deserializeLocalLearningHistory(
+        window.localStorage.getItem(MOBILE_LEARNING_PROFILE_STORAGE_KEY) ?? "",
+      )?.profile.checkedCount,
+    ).toBe(1);
+    setItem.mockRestore();
   });
 
   it("和弦与转位完成三难度作答、解释、复练和画像闭环", async () => {
@@ -1046,6 +1131,7 @@ describe("Android 本机复练行为", () => {
     expect(removeItem).toHaveBeenCalledWith(MOBILE_PRACTICE_REVIEW_STORAGE_KEY);
     expect(container.textContent).toContain("本机复练记录清除失败，本次练习仍可继续");
     expect(container.textContent).toContain("本机复练（1）");
+    expect(container.textContent).toContain("建议下一步：单音听辨 · 基础");
   });
 
   it("可进入独立本地参考钢琴页，浏览历史前进后退仍保持正确页面", async () => {

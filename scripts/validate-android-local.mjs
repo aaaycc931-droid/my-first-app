@@ -15,6 +15,7 @@ const requiredSources = [
   "mobile/src/LocalCoursePathPanel.tsx",
   "mobile/src/LocalPracticeStatisticsPanel.tsx",
   "mobile/src/LocalWeakPointReviewQueuePanel.tsx",
+  "mobile/src/LocalExplainablePracticeRecommendationPanel.tsx",
   "mobile/src/stubs/supabaseBrowser.ts",
   "lib/practice/localPracticeReviewQueue.ts",
   "lib/practice/localPracticeCustomizer.ts",
@@ -49,6 +50,7 @@ const requiredSources = [
   "lib/learning/localCoursePath.ts",
   "lib/learning/localPracticeStatistics.ts",
   "lib/learning/localWeakPointReviewQueue.ts",
+  "lib/learning/localExplainablePracticeRecommendation.ts",
   "lib/piano/localPianoKeyboard.ts",
   "lib/piano/pianoNoteEvents.ts",
   "lib/piano/pianoAudioProvider.ts",
@@ -135,6 +137,8 @@ const practiceStatisticsSource = readFileSync(join(root, "lib/learning/localPrac
 const practiceStatisticsPanelSource = readFileSync(join(root, "mobile/src/LocalPracticeStatisticsPanel.tsx"), "utf8");
 const weakPointReviewSource = readFileSync(join(root, "lib/learning/localWeakPointReviewQueue.ts"), "utf8");
 const weakPointReviewPanelSource = readFileSync(join(root, "mobile/src/LocalWeakPointReviewQueuePanel.tsx"), "utf8");
+const explainableRecommendationSource = readFileSync(join(root, "lib/learning/localExplainablePracticeRecommendation.ts"), "utf8");
+const explainableRecommendationPanelSource = readFileSync(join(root, "mobile/src/LocalExplainablePracticeRecommendationPanel.tsx"), "utf8");
 const chordTrainingSource = readFileSync(
   join(root, "lib/practice/localEarTrainingChords.ts"),
   "utf8",
@@ -415,7 +419,6 @@ if (
   || !learningProfileSource.includes("MAX_RECENT_LEARNING_EVENTS = 48")
   || !learningProfileSource.includes("suggestionsEnabled")
   || !learningProfileSource.includes("resetLocalLearningHistory")
-  || !learningProfileSource.includes("resolveLocalLearningSuggestion")
   || !learningProfileStorageSource.includes("solfeggio.mobile.learning-profile.v1")
   || !learningProfileStorageSource.includes("clearMobileLearningHistory")
   || !mobileApp.includes("学习画像")
@@ -460,6 +463,18 @@ if (
   || !mobileApp.includes("LocalWeakPointReviewQueuePanel")
 ) {
   throw new Error("Android P118c 薄弱点复练分组、精确目标、MRU 或非评分边界不完整");
+}
+if (
+  !explainableRecommendationSource.includes("buildLocalExplainablePracticeRecommendation")
+  || !explainableRecommendationSource.includes("review-queue-mru-v1")
+  || !explainableRecommendationSource.includes("queuePosition: 1")
+  || explainableRecommendationSource.includes(".outcome")
+  || !explainableRecommendationPanelSource.includes("为什么是这题")
+  || !explainableRecommendationPanelSource.includes("不读取答案 outcome")
+  || !explainableRecommendationPanelSource.includes("无法解释来源")
+  || !mobileApp.includes("LocalExplainablePracticeRecommendationPanel")
+) {
+  throw new Error("Android P118d 可解释非评分推荐、来源说明、MRU 复用或失败关闭边界不完整");
 }
 if (
   !chordTrainingSource.includes('type ChordQualityId = "major" | "minor" | "diminished" | "augmented"')
@@ -1021,4 +1036,4 @@ if (existsSync(manifestPath) && !existsSync(syncedIndex)) {
   throw new Error("Android 工程存在，但本地 Web 资源尚未同步");
 }
 
-console.log("Android 本地模式校验通过：固定包名、本地资源、既有十类练习、P116a–P117e 既有主线、P118a 版本化中文课程路径与本地进度、P118b 本机详细练习统计、P118c 薄弱点复练分组、音程比较/非评分模唱反馈、实时音高反馈、本机复练、非评分学习画像、本地参考钢琴、无远程运行时配置与生命周期保护。");
+console.log("Android 本地模式校验通过：固定包名、本地资源、既有十类练习、P116a–P117e 既有主线、P118a 版本化中文课程路径与本地进度、P118b 本机详细练习统计、P118c 薄弱点复练分组、P118d 可解释非评分推荐、音程比较/非评分模唱反馈、实时音高反馈、本机复练、非评分学习画像、本地参考钢琴、无远程运行时配置与生命周期保护。");
