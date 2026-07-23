@@ -12,7 +12,7 @@
 | V1-01 | 范围与规范 | PASS | 正式版 DoD、范围分层、退出条件 | 后续变更必须走范围变更记录 |
 | V1-02 | 账户与会话 | IN_PROGRESS | Supabase Auth、邮箱 magic link、资料读取/更新、生产浏览器 QA | 密码登录、退出/恢复全矩阵、异常邮件路径 |
 | V1-03 | 数据导出与删除 | NOT_STARTED | 数据模型有 deletion request 草案 | 用户入口、导出包、级联删除、24h SLA、端到端演练 |
-| V1-04 | 系统课程与题库 | IN_PROGRESS | 基础课程；单音、音程、节奏持久化；P115a–P115i、P116a–P116d、P117a–P117e、P118a 课程路径、P118b 本机详细统计、P118c 本机薄弱点复练分组与 P118d 可解释非评分推荐已合并；P118e 本机学习总览 implementation candidate 实现中 | P118e 合并与远端门禁；双教师题量/难度/解释校准；Android 真实用户验证 |
+| V1-04 | 系统课程与题库 | IN_PROGRESS | 基础课程；单音、音程、节奏持久化；P115a–P115i、P116a–P116d、P117a–P117e、P118a–P118e implementation candidates 已合并；P118e 组合既有课程、练习事实、复练与可解释建议并分别失败关闭 | 双教师题量/难度/解释校准；Android 真实用户验证；P119/Q 联合验收 |
 | V1-05 | 视唱与录音闭环 | IN_PROGRESS | Web 本地录音/回放；Android 实时曲线、录音、本机记录与 P103 观察；P112/P113 分析证据、P114f 固定 A4、P115h 音程模唱、P117d 旋律回唱与 P117e 可见目标视唱均已合并 | Browser/Android 真麦克风 QA；P113/P114f/P115h/P117d/P117e 真实人声；正式课程/云端记录；P104 真机同步/延迟/录音设备矩阵 |
 | V1-06 | 节奏练习与反馈 | IN_PROGRESS | 节拍器、tap/onset、延迟校准、DP 对齐、课程节奏听辨；P116a–P116d 已合并，覆盖视读、回模、找错和听写的非评分闭环 | 真实设备/输入数据基准、长期记录与复练、双教师校准和目标用户验证 |
 | V1-07 | 钢琴辅助 | IN_PROGRESS | P106–P110 已合并；P114g 共享事件/目标与 P114h Android 原生 USB MIDI 已合并；P114j 已有原生 TYPE_BLUETOOTH 候选 | P114j 远端门禁与 BLE 真机；三档真机低延迟/听感/10 指/32 音与设备断连证据；完整应用内 BLE 扫描/选择另行决策；竞品完整任务差距闭环 |
@@ -20,7 +20,7 @@
 | V1-09 | 图片/PDF OMR | IN_PROGRESS | mock flow、Audiveris fixture/runner 研究基础 | 隔离 worker、私有上传、真实 OMR、草稿编辑、失败恢复 |
 | V1-10 | 私有音频素材 | IN_PROGRESS | 浏览器本地导入、decode、音高曲线草稿、检查与临时目标；P114l 会话内非破坏 MediaProject 候选 | 私有上传、worker、持久项目、保留/删除、任务恢复、版权说明 |
 | V1-11 | 私有云任务 | NOT_STARTED | 数据模型和架构蓝图 | Storage、队列 worker、取消/重试、审计、配额和运行手册 |
-| V1-12 | 学习历史与复习 | IN_PROGRESS | 私有 practice attempts、课程答案摘要；Android 本机最小错题队列；P114m 非评分画像已合并；P115a–P115i 已接入相应练习事实、复练与迁移；P118c 已合并；P118d 已合并并固定解释 MRU 队列首项，存储异常失败关闭；P118e 独立来源总览 implementation candidate 实现中 | P118e 合并与远端门禁；Web 历史 UI、正式技能画像、跨设备同步；Android 跨版本/跨重启和配额真机验证；教育审核 |
+| V1-12 | 学习历史与复习 | IN_PROGRESS | 私有 practice attempts、课程答案摘要；Android 本机最小错题队列；P114m 非评分画像已合并；P115a–P115i 已接入相应练习事实、复练与迁移；P118c–P118e 已合并，继续复用精确 MRU 队列、非评分建议与独立失败关闭总览 | Web 历史 UI、正式技能画像、跨设备同步；Android 跨版本/跨重启和配额真机验证；教育审核 |
 | V1-13 | 音高算法基准 | IN_PROGRESS | P111 共同输入/分层基准基础、P112 多候选连续轨迹已合并；P113 `offline-note-alignment-v1` 独立分段、单调目标对齐、三阶段证据和局部拒答已通过 PR #365 合并；实时生产仍为 `autocorrelation-realtime-v1` | P113 真机/真实人声；200 合成/乐器、100 真实人声/20 位/4 类设备最低证据及专业扩展集、三档性能、量化结果和专家审核 |
 | V1-14 | 节奏算法基准 | IN_PROGRESS | DP 对齐回归、tap/onset/latency 测试 | 真实设备/人声/乐器集、量化报告、低置信度校准 |
 | V1-15 | RLS 与最小权限 | IN_PROGRESS | P78 最小权限；P84 生产 RPC 和跨用户事务 smoke QA | 覆盖所有 owner tables、Storage、签名 URL、删除后访问 |
@@ -31,8 +31,8 @@
 | V1-20 | 观测与事故响应 | NOT_STARTED | GitHub Actions、Vercel 状态 | 错误追踪、指标、隐私日志、告警接收人和故障手册 |
 | V1-21 | 内容与教学审核 | NOT_STARTED | 中文题目、答案解释和难度草案 | 2 名教育审核者、题量/正确率/难度递进验收 |
 | V1-22 | 用户可用性验收 | NOT_STARTED | 开发与所有者 QA | 5 名目标用户、核心任务成功率和误解检查 |
-| V1-23 | 发布证据包 | IN_PROGRESS | P117e PR #399 / run `29896738992` 的 quality、Android API 36 构建、独立 APK 复核与 artifact `8520299089` 已核对；合并后的 main run `29897075998` 也通过 | P118 功能冻结、专用签名与 APK 独立摘要证据、P104 真实数据/设备/教育证据、删除/恢复与用户验收证据 |
-| V1-24 | Android 本地 APK | IN_PROGRESS | 离线题库、实时曲线/录音/目标/观察、本机记录/复练与共享 Activity 能力；P115、P116、P117 implementation candidates 均已合并并通过 `android-local` Debug APK 门禁 | P118 功能完整候选、P104 三档真机/真实人声、专用签名、升级与前向回滚 |
+| V1-23 | 发布证据包 | IN_PROGRESS | P117e PR #399 / run `29896738992` 与 P118e PR #413 / run `29984984760` 的 quality、Android API 36 构建及独立 APK 复核已核对；P118e artifact 为 `8554678659` | 专用签名与 APK 独立摘要证据、P104 真实数据/设备/教育证据、删除/恢复与用户验收证据 |
+| V1-24 | Android 本地 APK | IN_PROGRESS | 离线题库、实时曲线/录音/目标/观察、本机记录/复练与共享 Activity 能力；P115–P118 implementation candidates 均已合并并通过 `android-local` Debug APK 门禁 | P104 三档真机/真实人声、专用签名、升级与前向回滚 |
 | V1-25 | 最终生产发布 | BLOCKED | 当前 P84 生产 Web 版本已部署 | V1-02 至 V1-24 的全部 MUST 门槛尚未通过 |
 
 ## 2. 已确认不阻塞 V1 的能力
@@ -49,7 +49,7 @@
 
 ## 3. 当前最高优先级
 
-产品所有者已明确恢复开发；P114a–P114m、P115a–P115i、P116a–P116d、P117a–P117e、P118a–P118d 已合并。P118e 本机学习总览 implementation candidate 正在独立分支实现，合并前下一独立教学切片仍为 P118e；角色设定不代表伙伴运行时，合并代码和自动测试也不代表真机、真实人声或教育证据。当前依赖顺序如下：
+产品所有者已明确恢复开发；P114a–P114m、P115a–P115i、P116a–P116d、P117a–P117e、P118a–P118e 已合并。P118e 通过 PR #413 合并为 `88667e0ad05d4672915008f7cf0e3eb63c2fce76`，PR Quality run `29984984760` 的 `quality` 与 `android-local` 均成功且 Vercel Ready。当前下一阶段是 P119/Q 内容、算法与教育联合验收及证据准备，并非已启动的新实现；角色设定不代表伙伴运行时，合并代码和自动测试也不代表真机、真实人声或教育证据。当前依赖顺序如下：
 
 1. P106–P113 已合并；P104 最低真实证据、三档 Android、教育审核和竞品同机任务继续保留，不能用 PR 或路线文档替代。
 2. P113 已通过 PR #365 squash merge，merge commit 为 `2a786f1b66fee095224214430d12e96f78a5057e`；真机和真实人声证据继续单列，不因合并或自动测试通过而冒充完成。

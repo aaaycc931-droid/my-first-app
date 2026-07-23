@@ -6,7 +6,7 @@
 
 ## 当前基线
 
-- 最新已合并产品功能基线：P118d / PR #411，合并提交 `ae954bb3cd753304af7095565abaa4974a7e0790`
+- 最新已合并产品功能基线：P118e / PR #413，合并提交 `88667e0ad05d4672915008f7cf0e3eb63c2fce76`
 - 最近仓库维护：PR #406，P118a 本机进度保存／清除失败关闭修复，main 提交 `f0c0810acb6e4417329466bcc13decc607589c92`
 - 仓库当前提交以 GitHub 默认分支为权威；本文件不硬编码会因自身合并而立即过期的“当前 main SHA”
 - P115a–P115i 已合并；当前没有接续中的 P115 PR
@@ -35,7 +35,8 @@
 - P118b implementation candidate 已通过 PR #407 合并为 `03a94882d870ed11339efb727558e74be00f876f`；PR Quality run `29927839993` 的 `quality` 与 `android-local` 均成功，Vercel Ready。它只消费学习画像当前保留的最近 48 条事件，提供 7 天、30 天、全部记录窗口并按练习方式／题目族聚合“记录动作、已核对、开始复练”；完全忽略 `outcome`，不新增持久化或网络能力。
 - P118c implementation candidate 已通过 PR #409 合并为 `55093e4d1004bc97408f45ef0e2a26a2adee6c0b`；PR Quality run `29970087207` 的 `quality` 与 `android-local` 均成功，Vercel Ready。它复用既有最多 12 项的本机复练目标，按题目族分组并保持原 MRU 顺序；队列保存失败时保留旧 UI，不读取 `outcome`，不生成能力评级或推荐排序。
 - P118d implementation candidate 已通过 PR #411 合并为 `ae954bb3cd753304af7095565abaa4974a7e0790`；PR Quality run `29977194615` 的 `quality` 与 `android-local` 均成功，Vercel Ready。它固定复用现有 MRU 复练队列首项并显示来源事实，不读取 `outcome`、画像计数或 P118b 统计；损坏存储跨重启失败关闭，画像重置 save-first。
-- P118e implementation candidate 正在独立分支实现中文“本机学习总览”：分别读取 P118a 课程进度、P118b 当前保留的最多 48 条练习动作事实、P118c 精确复练队列和 P118d 可解释建议；各来源独立失败关闭，不跨来源推导或新增协议。P118e 合并前当前下一切片仍是 P118e。
+- P118e implementation candidate 已通过 PR #413 squash 合并为 `88667e0ad05d4672915008f7cf0e3eb63c2fce76`；PR Quality run `29984984760` 的 `quality` 与 `android-local` 均成功，Vercel Ready。它以中文“本机学习总览”分别读取 P118a 课程进度、P118b 当前保留的最多 48 条练习动作事实、P118c 精确复练队列和 P118d 可解释建议；各来源独立失败关闭，不跨来源推导或新增协议。
+- P118e 闭环后的下一阶段仅为 P119/Q 内容、算法与教育联合验收及证据准备；尚未宣称或启动 P119/Q 实现。
 - P118a 只消费现有 Activity、复练队列和学习画像协议，不创建平行答案或能力协议；旧数据必须安全迁移或 fail closed。
 - P118a 不生成正式能力评级，不上传课程数据，不新增账户、云端、数据库、网络依赖或 `INTERNET` 权限。P118e 只整合 P118a–P118d 已有视图与入口，不把课程、统计、复练或推荐合并为新的评分、画像或存储协议。
 - P117e 已形成合并后的 implementation candidate。QA level recommendation 为 strict；P117d 与 P117e 的 Browser 真麦克风、Android 三档真机、真实人声、双教师和目标用户证据仍为 `NOT_EXECUTED`，不能由模拟录音、DOM、CI 或 APK 替代。
@@ -59,6 +60,7 @@
 | P118b | #407 | `03a94882d870ed11339efb727558e74be00f876f` | `29927839993` | `8532782097` | `fb7d196eb38331202424f9a978e5cdceb5e449b5c731b3135ab3870215977e26` |
 | P118c | #409 | `55093e4d1004bc97408f45ef0e2a26a2adee6c0b` | `29970087207` | `8549340247` | `af8c36ddebe4f9df6ab7131aacdbeec1a4ec96b7b5b65f9517ff8bfd487d9d72` |
 | P118d | #411 | `ae954bb3cd753304af7095565abaa4974a7e0790` | `29977194615` | `8551900883` | `91c9d27f72ebd1338c773e3d30b7e01be1aa8d8bc930c46f77cbd46c4f6369f1` |
+| P118e | #413 | `88667e0ad05d4672915008f7cf0e3eb63c2fce76` | `29984984760` | `8554678659` | `27c3e420f85623b1159e59d016873132b70317ff0d6962a48ecafca0e5b1622a` |
 
 上述 PR 运行的 `quality` 与 `android-local` 均通过；P117e 合并后的 main Quality 运行 `29897075998` 也通过。表中 SHA-256 是 GitHub artifact ZIP digest，不是 ZIP 内 APK 摘要；Android 工件是 CI 构建并独立校验的 API 36 Debug APK，它只证明自动构建与校验通过。
 
