@@ -2,16 +2,19 @@
 
 日期：2026-07-23
 
-状态：**IMPLEMENTATION_CANDIDATE / remote gates pending / external evidence NOT_EXECUTED**
+状态：**MERGED IMPLEMENTATION_CANDIDATE / automated gates passed / external evidence NOT_EXECUTED**
 
 QA level recommendation：**strict**
 
-## 0. 当前证据状态
+## 0. 合并与自动门禁事实
 
 - P118d 从最新远端 `main` 的 P118c 收尾提交 `5bd272418a2e9109615d3cf109ef60f9ddf5f911` 创建独立分支。
+- P118d 已通过 PR #411 squash 合并，main 提交为 `ae954bb3cd753304af7095565abaa4974a7e0790`。
+- PR Quality run `29977194615` 已完成且成功，`quality` 与 `android-local` 两个 job 均通过；Vercel PR 预览状态为 Ready。
+- Android artifact `8551900883` 已由 PR synthetic merge commit `01de3f9d89933209ebdfdafc5e0594f1fd372a53` 构建并独立校验；GitHub artifact ZIP digest 为 `sha256:91c9d27f72ebd1338c773e3d30b7e01be1aa8d8bc930c46f77cbd46c4f6369f1`。它不是 main 真机证据。
+- PR 合并前 reviews、requested changes 与 review threads 均为空。
 - 本分支实际通过：focused domain、真实挂载面板 4/4、App 挂载回归 41/41、学习画像与复练队列存储／迁移、UI contract、文档卫生、`npm run check`、生产依赖 audit（0 vulnerabilities）、Android sync／validator 与 `git diff --check`。
 - 三次独立只读复核的最终结果均为 High 0 / Medium 0 / Low 0；审查发现的损坏存储跨重启失败关闭和画像重置 clear-first 问题已在本分支修复并重新验证。
-- GitHub `quality`、`android-local`、Vercel、reviews、requested changes、review threads、工件与合并状态在 PR 建立前均为 `NOT_EXECUTED`。
 - 自动测试、CI 和 Debug APK 只证明自动约定、构建与工件校验，不证明外部设备、真人或教育证据。
 
 ## 1. 用户目标与唯一真源
