@@ -13,6 +13,7 @@ import { join, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
 
 import {
+  P119_CONTENT_REVIEW_SIGNIFICANT_DIGITS,
   P119_CONTENT_REVIEW_SOURCE_COMMIT,
   P119_CONTENT_REVIEW_SOURCE_PATHS,
   buildP119ContentReviewManifest,
@@ -237,6 +238,12 @@ const changedDigest = calculateP119ContentReviewManifestSha256(
   }),
 );
 assert.notEqual(changedDigest, digest);
+assert.equal(P119_CONTENT_REVIEW_SIGNIFICANT_DIGITS, 14);
+assert.equal(toP119ReviewJsonValue(440.00000000000006), 440);
+assert.equal(
+  toP119ReviewJsonValue(554.3652619537442),
+  toP119ReviewJsonValue(554.3652619537443),
+);
 assert.throws(() => toP119ReviewJsonValue(Number.NaN), /NaN/);
 assert.throws(() => toP119ReviewJsonValue(Number.POSITIVE_INFINITY), /Infinity/);
 assert.throws(() => toP119ReviewJsonValue({ missing: undefined }), /非 JSON/);

@@ -80,7 +80,11 @@ const eligible = evaluateP119ContentEducationEvidence(
   currentInventory,
   manifestProof,
 );
-assert.equal(eligible.inventoryReadyForHumanReview, true);
+assert.equal(
+  eligible.inventoryReadyForHumanReview,
+  true,
+  JSON.stringify(eligible.checks.filter((check) => !check.passed)),
+);
 assert.equal(eligible.teacherReviewBatchApproved, true);
 assert.ok(eligible.checks
   .filter((check) => check.id !== "professional-content-target")

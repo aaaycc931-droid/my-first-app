@@ -68,6 +68,7 @@ export const P119_CONTENT_REVIEW_MANIFEST_SCHEMA_VERSION =
   "p119-content-review-manifest-v1" as const;
 export const P119_CONTENT_REVIEW_MANIFEST_FILENAME_PREFIX =
   "review-manifest" as const;
+export const P119_CONTENT_REVIEW_SIGNIFICANT_DIGITS = 14 as const;
 export const P119_CONTENT_REVIEW_SOURCE_COMMIT =
   "bd5c5af211a3a1b36f4fcfacebdfe89b65fbafc1" as const;
 
@@ -188,7 +189,8 @@ export const toP119ReviewJsonValue = (
     if (!Number.isFinite(value)) {
       throw new Error("P119 清单拒绝 NaN 或 Infinity。");
     }
-    return value;
+    if (Number.isInteger(value)) return value;
+    return Number(value.toPrecision(P119_CONTENT_REVIEW_SIGNIFICANT_DIGITS));
   }
   if (typeof value !== "object") {
     throw new Error(`P119 清单拒绝非 JSON 值：${typeof value}`);
