@@ -178,6 +178,10 @@ const parseTarget = (value: unknown): LocalPracticeReviewTarget | null => {
   };
 };
 
+export const isLocalPracticeReviewTarget = (
+  value: unknown,
+): value is LocalPracticeReviewTarget => parseTarget(value) !== null;
+
 const parseLegacyTarget = (value: unknown): LocalPracticeReviewTarget | null => {
   if (!isRecord(value)) return null;
   if (!isLegacyDifficulty(value.difficulty) || !isSeed(value.seed) || !isSequence(value.sequence)) return null;

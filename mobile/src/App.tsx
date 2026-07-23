@@ -54,6 +54,7 @@ import type {
 } from "../../lib/practice/localPracticeCustomizer";
 import { LocalCoursePathPanel } from "./LocalCoursePathPanel";
 import { LocalPracticeStatisticsPanel } from "./LocalPracticeStatisticsPanel";
+import { LocalWeakPointReviewQueuePanel } from "./LocalWeakPointReviewQueuePanel";
 
 const LocalEarTrainingHarmonyProgressionPanel = lazy(() =>
   import("../../components/practice/LocalEarTrainingHarmonyProgressionPanel").then((module) => ({
@@ -288,8 +289,6 @@ export function App() {
   const [learningNotice, setLearningNotice] = useState<string | null>(
     initialLearningStorageResult.notice,
   );
-  const [isClearConfirmationVisible, setIsClearConfirmationVisible] =
-    useState(false);
   const [isLearningResetConfirmationVisible, setIsLearningResetConfirmationVisible] =
     useState(false);
   const [lifecycle, setLifecycle] = useState(() =>
@@ -333,19 +332,21 @@ export function App() {
         target: result.target,
         isCorrect: result.isCorrect,
       });
-      setReviewQueue(nextQueue);
       const saveResult = saveMobilePracticeReviewQueue(
         getBrowserPracticeReviewStorage(),
         nextQueue,
       );
-      setReviewNotice(
-        saveResult.notice ??
-          (result.isCorrect
+      if (saveResult.notice) setReviewNotice(saveResult.notice);
+      else {
+        setReviewQueue(nextQueue);
+        setReviewNotice(
+          result.isCorrect
             ? wasInReviewQueue
               ? "本题已从本机复练中移除。"
               : "本题回答已核对，未加入本机复练。"
-              : "已加入本机复练，可从练习首页再次打开。"),
-      );
+            : "已加入本机复练，可从练习首页再次打开。",
+        );
+      }
       const nextHistory = recordCheckedAnswerLearningEvent({
         history: learningHistory,
         result,
@@ -400,7 +401,6 @@ export function App() {
     const result = clearMobilePracticeReviewQueue(
       getBrowserPracticeReviewStorage(),
     );
-    setIsClearConfirmationVisible(false);
     if (result.notice) {
       setReviewNotice(result.notice);
       return;
@@ -588,57 +588,12 @@ export function App() {
               </div>
             </section>
 
-            <section className="mt-5 rounded-3xl border border-indigo-200 bg-indigo-50 p-5 shadow-sm" aria-labelledby="review-heading">
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <div>
-                  <p className="text-sm font-semibold text-indigo-700">仅保存在这台手机</p>
-                  <h2 id="review-heading" className="text-xl font-black text-indigo-950">
-                    本机复练（{reviewQueue.length}）
-                  </h2>
-                </div>
-                {reviewQueue.length > 0 ? (
-                  <button
-                    type="button"
-                    onClick={() => setIsClearConfirmationVisible(true)}
-                    className="min-h-11 rounded-xl border border-indigo-300 bg-white px-4 py-2 text-sm font-bold text-indigo-900"
-                  >
-                    清除记录
-                  </button>
-                ) : null}
-              </div>
-              {reviewQueue.length === 0 ? (
-                <p className="mt-3 text-sm leading-6 text-indigo-900">
-                  暂无复练题。查看答案后，答错的题会加入这里；答对同一道题会从这里移除。
-                </p>
-              ) : (
-                <ul className="mt-3 grid gap-2">
-                  {reviewQueue.map((target, index) => (
-                    <li key={getLocalPracticeReviewTargetKey(target)}>
-                      <button
-                        type="button"
-                        onClick={() => startReviewTarget(target)}
-                        className="flex min-h-12 w-full items-center justify-between gap-3 rounded-2xl border border-indigo-200 bg-white px-4 py-3 text-left font-bold text-indigo-950"
-                      >
-                        <span>{reviewTargetLabel(target)}</span>
-                        <span className="shrink-0 text-xs font-semibold text-indigo-600">
-                          复练 {index + 1}
-                        </span>
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              )}
-              {isClearConfirmationVisible ? (
-                <div className="mt-4 rounded-2xl border border-rose-200 bg-white p-4" role="alert">
-                  <p className="font-bold text-rose-950">确认清除全部本机复练记录？</p>
-                  <p className="mt-1 text-sm leading-6 text-slate-600">清除后无法恢复，但不会影响继续随机练习。</p>
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    <button type="button" onClick={clearReviewQueue} className="min-h-11 rounded-xl bg-rose-700 px-4 py-2 text-sm font-bold text-white">确认清除</button>
-                    <button type="button" onClick={() => setIsClearConfirmationVisible(false)} className="min-h-11 rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-bold text-slate-800">取消</button>
-                  </div>
-                </div>
-              ) : null}
-            </section>
+            <LocalWeakPointReviewQueuePanel
+              queue={reviewQueue}
+              labelForTarget={reviewTargetLabel}
+              onStartTarget={startReviewTarget}
+              onClear={clearReviewQueue}
+            />
 
             <section className="mt-5 rounded-3xl border border-emerald-200 bg-emerald-50 p-5 shadow-sm" aria-labelledby="learning-profile-heading">
               <div className="flex flex-wrap items-start justify-between gap-3">
