@@ -17,6 +17,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          fetch-depth: 0
 
       - name: Setup Node.js
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
@@ -76,6 +78,8 @@ jobs:
           npm run test:android-p104-evidence
           npm run test:pitch-benchmark-protocol
           npm run test:p119-content-education-evidence
+          npm run test:p119-content-review-manifest
+          npm run verify:p119-content-review-manifest -- --manifest local-fixtures/p119-content-education/review-manifest.bd5c5af211a3a1b36f4fcfacebdfe89b65fbafc1.json
           npm run test:offline-pitch-analysis
           npm run test:offline-note-alignment
           npm run test:activity-protocol
