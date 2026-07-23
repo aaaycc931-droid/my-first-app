@@ -37,6 +37,7 @@ const memoryStorage = createMemoryStorage();
 assert.deepEqual(loadMobilePracticeReviewQueue(memoryStorage), {
   queue: createEmptyLocalPracticeReviewQueue(),
   notice: null,
+  sourceStatus: "available",
 });
 
 const queue = updateLocalPracticeReviewQueue({
@@ -57,6 +58,7 @@ assert.ok(memoryStorage.values.has(MOBILE_PRACTICE_REVIEW_STORAGE_KEY));
 assert.deepEqual(loadMobilePracticeReviewQueue(memoryStorage), {
   queue,
   notice: null,
+  sourceStatus: "available",
 });
 
 const legacyStorage = createMemoryStorage();
@@ -78,6 +80,7 @@ assert.deepEqual(migratedLoad, {
     variantId: "pitch:d4",
   }],
   notice: null,
+  sourceStatus: "available",
 });
 const migratedEnvelope = JSON.parse(
   legacyStorage.values.get(MOBILE_PRACTICE_REVIEW_STORAGE_KEY) ?? "{}",
@@ -108,6 +111,7 @@ previousSpacingStorage.values.set(MOBILE_PRACTICE_REVIEW_STORAGE_KEY, JSON.strin
 assert.deepEqual(loadMobilePracticeReviewQueue(previousSpacingStorage), {
   queue: [spacingTarget],
   notice: null,
+  sourceStatus: "available",
 });
 const rewrittenSpacingEnvelope = JSON.parse(
   previousSpacingStorage.values.get(MOBILE_PRACTICE_REVIEW_STORAGE_KEY) ?? "{}",
@@ -130,6 +134,7 @@ forgedModulationStorage.values.set(MOBILE_PRACTICE_REVIEW_STORAGE_KEY, JSON.stri
 const forgedModulationLoad = loadMobilePracticeReviewQueue(forgedModulationStorage);
 assert.deepEqual(forgedModulationLoad.queue, createEmptyLocalPracticeReviewQueue());
 assert.match(forgedModulationLoad.notice ?? "", /已自动清除/);
+assert.equal(forgedModulationLoad.sourceStatus, "unavailable");
 assert.equal(forgedModulationStorage.values.has(MOBILE_PRACTICE_REVIEW_STORAGE_KEY), false);
 
 const migrationWriteFailure: StorageLike = {
@@ -145,6 +150,7 @@ const migrationWriteFailureLoad = loadMobilePracticeReviewQueue(migrationWriteFa
 assert.equal(migrationWriteFailureLoad.queue[0]?.variantId, "pitch:d4");
 assert.match(migrationWriteFailureLoad.notice ?? "", /旧记录已恢复/);
 assert.match(migrationWriteFailureLoad.notice ?? "", /升级保存失败/);
+assert.equal(migrationWriteFailureLoad.sourceStatus, "available");
 assert.deepEqual(clearMobilePracticeReviewQueue(memoryStorage), { notice: null });
 assert.equal(memoryStorage.values.has(MOBILE_PRACTICE_REVIEW_STORAGE_KEY), false);
 
@@ -164,6 +170,7 @@ const makeThrowingStorage = (operation: "get" | "set" | "remove"): StorageLike =
 const readFailure = loadMobilePracticeReviewQueue(makeThrowingStorage("get"));
 assert.deepEqual(readFailure.queue, createEmptyLocalPracticeReviewQueue());
 assert.match(readFailure.notice ?? "", /读取失败/);
+assert.equal(readFailure.sourceStatus, "unavailable");
 assert.match(
   saveMobilePracticeReviewQueue(makeThrowingStorage("set"), queue).notice ?? "",
   /保存失败/,
@@ -173,7 +180,9 @@ assert.match(
   /清除失败/,
 );
 
-assert.match(loadMobilePracticeReviewQueue(null).notice ?? "", /暂时不可用/);
+const unavailableLoad = loadMobilePracticeReviewQueue(null);
+assert.match(unavailableLoad.notice ?? "", /暂时不可用/);
+assert.equal(unavailableLoad.sourceStatus, "unavailable");
 assert.match(saveMobilePracticeReviewQueue(null, queue).notice ?? "", /暂时不可用/);
 assert.match(clearMobilePracticeReviewQueue(null).notice ?? "", /暂时不可用/);
 
@@ -182,6 +191,7 @@ invalidStorage.values.set(MOBILE_PRACTICE_REVIEW_STORAGE_KEY, "not-json");
 const invalidLoad = loadMobilePracticeReviewQueue(invalidStorage);
 assert.deepEqual(invalidLoad.queue, createEmptyLocalPracticeReviewQueue());
 assert.match(invalidLoad.notice ?? "", /已自动清除/);
+assert.equal(invalidLoad.sourceStatus, "unavailable");
 assert.equal(invalidStorage.values.has(MOBILE_PRACTICE_REVIEW_STORAGE_KEY), false);
 
 const unclearedInvalidStorage: StorageLike = {
@@ -194,5 +204,6 @@ const unclearedInvalidStorage: StorageLike = {
 const unclearedInvalidLoad = loadMobilePracticeReviewQueue(unclearedInvalidStorage);
 assert.deepEqual(unclearedInvalidLoad.queue, createEmptyLocalPracticeReviewQueue());
 assert.match(unclearedInvalidLoad.notice ?? "", /无法自动清除/);
+assert.equal(unclearedInvalidLoad.sourceStatus, "unavailable");
 
 console.log("Mobile practice review storage tests passed.");

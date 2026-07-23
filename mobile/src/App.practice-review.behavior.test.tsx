@@ -13,6 +13,7 @@ import {
 import {
   getLocalPracticeReviewTargetKey,
   parseLocalPracticeReviewQueue,
+  serializeLocalPracticeReviewQueue,
   type LocalPracticeReviewTarget,
 } from "../../lib/practice/localPracticeReviewQueue";
 import type { LegacyLocalPracticeDifficulty } from "../../lib/practice/localPracticeCatalog";
@@ -56,6 +57,12 @@ import {
 } from "../../lib/learning/learningEventProfile";
 import { MOBILE_LEARNING_PROFILE_STORAGE_KEY } from "./runtime/mobileLearningProfileStorage";
 import { MOBILE_PRACTICE_REVIEW_STORAGE_KEY } from "./runtime/mobilePracticeReviewStorage";
+import {
+  LOCAL_COURSE_LESSONS,
+  createEmptyLocalCourseProgress,
+  serializeLocalCourseProgress,
+} from "../../lib/learning/localCoursePath";
+import { MOBILE_COURSE_PROGRESS_STORAGE_KEY } from "./runtime/mobileCourseProgressStorage";
 
 vi.mock("../../lib/practice/localQuestionScheduler", async (importOriginal) => {
   const original = await importOriginal<typeof import("../../lib/practice/localQuestionScheduler")>();
@@ -217,6 +224,115 @@ afterEach(async () => {
 });
 
 describe("Android 本机复练行为", () => {
+  it("首页总览独立组合课程、保留事件、复练队列与可解释建议", async () => {
+    const firstLesson = LOCAL_COURSE_LESSONS[0];
+    window.localStorage.setItem(
+      MOBILE_COURSE_PROGRESS_STORAGE_KEY,
+      serializeLocalCourseProgress({
+        ...createEmptyLocalCourseProgress(),
+        revision: 1,
+        completions: [{
+          lessonId: firstLesson.id,
+          completionFingerprint: firstLesson.completionFingerprint,
+        }],
+      }),
+    );
+    const history = recordCheckedAnswerLearningEvent({
+      history: createEmptyLocalLearningHistory(),
+      result: {
+        target: { kind: "single-pitch", difficulty: "基础", seed: 0, sequence: 0, variantId: "pitch:c4" },
+        isCorrect: false,
+      },
+      practiceMode: "random",
+      occurredAt: new Date().toISOString(),
+    });
+    window.localStorage.setItem(
+      MOBILE_LEARNING_PROFILE_STORAGE_KEY,
+      serializeLocalLearningHistory(history),
+    );
+    window.localStorage.setItem(
+      MOBILE_PRACTICE_REVIEW_STORAGE_KEY,
+      serializeLocalPracticeReviewQueue([{
+        kind: "single-pitch",
+        difficulty: "基础",
+        seed: 0,
+        sequence: 0,
+        variantId: "pitch:c4",
+      }]),
+    );
+
+    const container = await renderApp();
+    await waitFor(
+      () => container.textContent?.includes("本机学习总览") ?? false,
+      "P118e 本机学习总览挂载",
+    );
+    expect(container.querySelector("#learning-overview-heading")?.textContent?.trim())
+      .toBe("本机学习总览");
+    const overviewText = container.querySelector(
+      '[aria-labelledby="learning-overview-heading"]',
+    )?.textContent ?? "";
+    expect(overviewText.includes("已练习并核对 1/3 课节")).toBe(true);
+    expect(overviewText.includes("当前保留练习动作 1 次")).toBe(true);
+    expect(overviewText.includes("本机复练（1）")).toBe(true);
+    expect(overviewText.includes("建议下一步")).toBe(true);
+    expect(overviewText.includes("课程课节进度不计入")).toBe(true);
+  });
+
+  it("画像与复练存储读取失败时总览分别失败关闭而不伪造空态", async () => {
+    const originalGetItem = window.localStorage.getItem.bind(window.localStorage);
+    const getItem = vi.spyOn(window.localStorage, "getItem").mockImplementation((key) => {
+      if (
+        key === MOBILE_LEARNING_PROFILE_STORAGE_KEY
+        || key === MOBILE_PRACTICE_REVIEW_STORAGE_KEY
+      ) {
+        throw new Error("locked");
+      }
+      return originalGetItem(key);
+    });
+
+    const container = await renderApp();
+    await waitFor(
+      () => container.textContent?.includes("本机学习总览") ?? false,
+      "读取失败后的 P118e 总览挂载",
+    );
+    const overviewText = container.querySelector(
+      '[aria-labelledby="learning-overview-heading"]',
+    )?.textContent ?? "";
+    expect(overviewText.includes("未生成练习摘要")).toBe(true);
+    expect(overviewText.includes("当前待复练题不可用")).toBe(true);
+    expect(overviewText.includes("无法解释来源")).toBe(true);
+    expect(overviewText.includes("当前保留练习动作 0 次")).toBe(false);
+    expect(overviewText.includes("本机复练（0）")).toBe(false);
+    expect(overviewText.includes("复练建议已关闭")).toBe(false);
+    expect(findButton(container, "建议设置不可用").disabled).toBe(true);
+    expect(overviewText.includes("已练习并核对 0/3 课节")).toBe(true);
+    expect(container.textContent).toContain("本机学习画像来源不可用");
+    expect(container.textContent).not.toContain("已核对 0 次；其中正确");
+    expect(container.textContent).not.toContain("重置画像");
+    getItem.mockRestore();
+  });
+
+  it("无效课程记录在总览和课程页都保持不可用，直到用户明确重置", async () => {
+    window.localStorage.setItem(MOBILE_COURSE_PROGRESS_STORAGE_KEY, "{bad");
+    const container = await renderApp();
+    await waitFor(
+      () => container.textContent?.includes("未生成课程摘要") ?? false,
+      "无效课程记录在总览失败关闭",
+    );
+    expect(window.localStorage.getItem(MOBILE_COURSE_PROGRESS_STORAGE_KEY)).toBe("{bad");
+
+    await click(findLink(container, "打开课程"));
+    expect(window.location.hash).toBe("#course");
+    expect(container.textContent).toContain("本机课程进度不可用");
+    expect(container.textContent).not.toContain("已练习并核对 0/3 课节");
+    expect(window.localStorage.getItem(MOBILE_COURSE_PROGRESS_STORAGE_KEY)).toBe("{bad");
+
+    await click(findButton(container, "重置课程进度"));
+    await click(findButton(container, "确认重置"));
+    expect(container.textContent).toContain("已练习并核对 0/3 课节");
+    expect(window.localStorage.getItem(MOBILE_COURSE_PROGRESS_STORAGE_KEY)).toBeNull();
+  });
+
   it("从首页进入 P118b 统计并显示现有本机事件", async () => {
     const history = recordCheckedAnswerLearningEvent({
       history: createEmptyLocalLearningHistory(),

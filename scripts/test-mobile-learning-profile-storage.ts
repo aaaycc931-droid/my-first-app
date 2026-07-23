@@ -32,6 +32,7 @@ const history = recordCheckedAnswerLearningEvent({
 assert.deepEqual(loadMobileLearningHistory(storage), {
   history: createEmptyLocalLearningHistory(),
   notice: null,
+  sourceStatus: "available",
 });
 assert.equal(
   loadMobileLearningHistory(storage).history.profile.suggestionsEnabled,
@@ -39,7 +40,7 @@ assert.equal(
   "a genuinely fresh store keeps the explicit default",
 );
 assert.deepEqual(saveMobileLearningHistory(storage, history), { notice: null });
-assert.deepEqual(loadMobileLearningHistory(storage), { history, notice: null });
+assert.deepEqual(loadMobileLearningHistory(storage), { history, notice: null, sourceStatus: "available" });
 assert.equal(values.has(MOBILE_LEARNING_PROFILE_STORAGE_KEY), true);
 assert.deepEqual(clearMobileLearningHistory(storage), { notice: null });
 assert.equal(values.has(MOBILE_LEARNING_PROFILE_STORAGE_KEY), false);
@@ -105,6 +106,7 @@ const rejectedForgedCustom = loadMobileLearningHistory(storage);
 assert.equal(rejectedForgedCustom.history.profile.checkedCount, 0);
 assert.equal(rejectedForgedCustom.history.profile.suggestionsEnabled, false);
 assert.match(rejectedForgedCustom.notice ?? "", /已恢复为空记录/);
+assert.equal(rejectedForgedCustom.sourceStatus, "unavailable");
 assert.equal(values.has(MOBILE_LEARNING_PROFILE_STORAGE_KEY), true);
 assert.equal(loadMobileLearningHistory(storage).history.profile.suggestionsEnabled, false);
 
@@ -115,6 +117,7 @@ const rejectedForgedModulation = loadMobileLearningHistory(storage);
 assert.equal(rejectedForgedModulation.history.profile.checkedCount, 0);
 assert.equal(rejectedForgedModulation.history.profile.suggestionsEnabled, false);
 assert.match(rejectedForgedModulation.notice ?? "", /已恢复为空记录/);
+assert.equal(rejectedForgedModulation.sourceStatus, "unavailable");
 assert.equal(values.has(MOBILE_LEARNING_PROFILE_STORAGE_KEY), true);
 assert.equal(loadMobileLearningHistory(storage).history.profile.suggestionsEnabled, false);
 
@@ -123,6 +126,7 @@ const invalid = loadMobileLearningHistory(storage);
 assert.equal(invalid.history.profile.checkedCount, 0);
 assert.equal(invalid.history.profile.suggestionsEnabled, false);
 assert.match(invalid.notice ?? "", /已恢复为空记录/);
+assert.equal(invalid.sourceStatus, "unavailable");
 assert.equal(values.has(MOBILE_LEARNING_PROFILE_STORAGE_KEY), true);
 assert.equal(loadMobileLearningHistory(storage).history.profile.suggestionsEnabled, false);
 
@@ -134,10 +138,12 @@ const throwing = (operation: "get" | "set" | "remove"): StorageLike => ({
 const failedRead = loadMobileLearningHistory(throwing("get"));
 assert.match(failedRead.notice ?? "", /读取失败/);
 assert.equal(failedRead.history.profile.suggestionsEnabled, false);
+assert.equal(failedRead.sourceStatus, "unavailable");
 assert.match(saveMobileLearningHistory(throwing("set"), history).notice ?? "", /保存失败/);
 assert.match(clearMobileLearningHistory(throwing("remove")).notice ?? "", /清除失败/);
 const unavailable = loadMobileLearningHistory(null);
 assert.match(unavailable.notice ?? "", /暂时不可用/);
 assert.equal(unavailable.history.profile.suggestionsEnabled, false);
+assert.equal(unavailable.sourceStatus, "unavailable");
 
 console.log("Mobile learning profile storage tests passed.");

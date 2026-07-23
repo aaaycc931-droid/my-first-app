@@ -29,7 +29,6 @@ import {
   setLearningSuggestionsEnabled,
   type LocalLearningHistory,
 } from "../../lib/learning/learningEventProfile";
-import { buildLocalExplainablePracticeRecommendation } from "../../lib/learning/localExplainablePracticeRecommendation";
 import {
   createMobileLifecycleState,
   dismissMobileResetNotice,
@@ -52,9 +51,8 @@ import type {
   ResolvedLocalPracticeCustomization,
 } from "../../lib/practice/localPracticeCustomizer";
 import { LocalCoursePathPanel } from "./LocalCoursePathPanel";
-import { LocalExplainablePracticeRecommendationPanel } from "./LocalExplainablePracticeRecommendationPanel";
+import { LocalLearningOverviewPanel } from "./LocalLearningOverviewPanel";
 import { LocalPracticeStatisticsPanel } from "./LocalPracticeStatisticsPanel";
-import { LocalWeakPointReviewQueuePanel } from "./LocalWeakPointReviewQueuePanel";
 
 const LocalEarTrainingHarmonyProgressionPanel = lazy(() =>
   import("../../components/practice/LocalEarTrainingHarmonyProgressionPanel").then((module) => ({
@@ -280,6 +278,9 @@ export function App() {
   const [reviewNotice, setReviewNotice] = useState<string | null>(
     initialReviewStorageResult.notice,
   );
+  const [reviewSourceStatus, setReviewSourceStatus] = useState(
+    initialReviewStorageResult.sourceStatus,
+  );
   const [initialLearningStorageResult] = useState(() =>
     loadMobileLearningHistory(getBrowserPracticeReviewStorage()),
   );
@@ -288,6 +289,9 @@ export function App() {
   );
   const [learningNotice, setLearningNotice] = useState<string | null>(
     initialLearningStorageResult.notice,
+  );
+  const [learningSourceStatus, setLearningSourceStatus] = useState(
+    initialLearningStorageResult.sourceStatus,
   );
   const [isLearningResetConfirmationVisible, setIsLearningResetConfirmationVisible] =
     useState(false);
@@ -339,6 +343,7 @@ export function App() {
       if (saveResult.notice) setReviewNotice(saveResult.notice);
       else {
         setReviewQueue(nextQueue);
+        setReviewSourceStatus("available");
         setReviewNotice(
           result.isCorrect
             ? wasInReviewQueue
@@ -363,6 +368,7 @@ export function App() {
       if (learningSaveResult.notice) setLearningNotice(learningSaveResult.notice);
       else {
         setLearningHistory(nextHistory);
+        setLearningSourceStatus("available");
         setLearningNotice(null);
       }
     },
@@ -385,6 +391,7 @@ export function App() {
       if (learningSaveResult.notice) setLearningNotice(learningSaveResult.notice);
       else {
         setLearningHistory(nextHistory);
+        setLearningSourceStatus("available");
         setLearningNotice(null);
       }
       setActiveReviewTarget(target);
@@ -406,6 +413,7 @@ export function App() {
       return;
     }
     setReviewQueue(createEmptyLocalPracticeReviewQueue());
+    setReviewSourceStatus("available");
     setActiveReviewTarget(null);
     setReviewNotice("本机复练记录已清除。");
   }, []);
@@ -422,6 +430,7 @@ export function App() {
     if (learningSaveResult.notice) setLearningNotice(learningSaveResult.notice);
     else {
       setLearningHistory(nextHistory);
+      setLearningSourceStatus("available");
       setLearningNotice(nextHistory.profile.suggestionsEnabled ? "本机复练建议已开启。" : "本机复练建议已关闭。");
     }
   }, [learningHistory]);
@@ -438,16 +447,9 @@ export function App() {
       return;
     }
     setLearningHistory(resetHistory);
+    setLearningSourceStatus("available");
     setLearningNotice("本机学习画像与事件已清空；复练题仍保留。建议开关保持不变。");
   }, [learningHistory]);
-
-  const practiceRecommendation = useMemo(
-    () => buildLocalExplainablePracticeRecommendation({
-      suggestionsEnabled: learningHistory.profile.suggestionsEnabled,
-      queue: reviewQueue,
-    }),
-    [learningHistory.profile.suggestionsEnabled, reviewQueue],
-  );
 
   useEffect(() => {
     const enterBackground = () => {
@@ -591,18 +593,16 @@ export function App() {
               </div>
             </section>
 
-            <LocalWeakPointReviewQueuePanel
-              queue={reviewQueue}
+            <LocalLearningOverviewPanel
+              events={learningHistory.recentEvents}
+              reviewQueue={reviewQueue}
+              suggestionsEnabled={learningHistory.profile.suggestionsEnabled}
+              learningSourceStatus={learningSourceStatus}
+              reviewSourceStatus={reviewSourceStatus}
               labelForTarget={reviewTargetLabel}
               onStartTarget={startReviewTarget}
-              onClear={clearReviewQueue}
-            />
-
-            <LocalExplainablePracticeRecommendationPanel
-              recommendation={practiceRecommendation}
-              labelForTarget={reviewTargetLabel}
-              onStartTarget={startReviewTarget}
-              onToggle={toggleLearningSuggestions}
+              onClearReviewQueue={clearReviewQueue}
+              onToggleSuggestions={toggleLearningSuggestions}
             />
 
             <section className="mt-5 rounded-3xl border border-emerald-200 bg-emerald-50 p-5 shadow-sm" aria-labelledby="learning-profile-heading">
@@ -610,16 +610,24 @@ export function App() {
                 <p className="text-sm font-semibold text-emerald-700">本机事实，不是能力评分</p>
                 <h2 id="learning-profile-heading" className="text-xl font-black text-emerald-950">学习画像</h2>
               </div>
-              <p className="mt-3 text-sm leading-6 text-emerald-950">
-                已核对 {learningHistory.profile.checkedCount} 次；其中正确 {learningHistory.profile.correctCount} 次、错误 {learningHistory.profile.incorrectCount} 次；已开始复练 {learningHistory.profile.reviewStartedCount} 次、复练答对 {learningHistory.profile.reviewResolvedCount} 次。
-              </p>
+              {learningSourceStatus === "available" ? (
+                <p className="mt-3 text-sm leading-6 text-emerald-950">
+                  已核对 {learningHistory.profile.checkedCount} 次；其中正确 {learningHistory.profile.correctCount} 次、错误 {learningHistory.profile.incorrectCount} 次；已开始复练 {learningHistory.profile.reviewStartedCount} 次、复练答对 {learningHistory.profile.reviewResolvedCount} 次。
+                </p>
+              ) : (
+                <p className="mt-3 text-sm leading-6 text-amber-900">
+                  本机学习画像来源不可用，未显示画像计数。核心练习仍可继续。
+                </p>
+              )}
               <div className="mt-4 flex flex-wrap items-center gap-3">
-                {learningHistory.profile.revision > 0 ? (
+                {learningSourceStatus === "available"
+                && learningHistory.profile.revision > 0 ? (
                   <button type="button" onClick={() => setIsLearningResetConfirmationVisible(true)} className="min-h-11 rounded-xl border border-emerald-300 bg-white px-4 py-2 text-sm font-bold text-emerald-900">重置画像</button>
                 ) : null}
                 {learningNotice ? <p className="text-sm leading-6 text-emerald-900" aria-live="polite">{learningNotice}</p> : null}
               </div>
-              {isLearningResetConfirmationVisible ? (
+              {learningSourceStatus === "available"
+              && isLearningResetConfirmationVisible ? (
                 <div className="mt-4 rounded-2xl border border-rose-200 bg-white p-4" role="alert">
                   <p className="font-bold text-rose-950">确认清空本机学习画像与事件？</p>
                   <p className="mt-1 text-sm leading-6 text-slate-600">此操作不可恢复，但不会清除复练题、录音或其他本机数据。</p>
@@ -647,7 +655,10 @@ export function App() {
           <section aria-label={screenDetails.statistics.title} className="grid gap-4">
             <a href="#home" onClick={() => { stopActiveAudio(); setActiveReviewTarget(null); }} className="inline-flex min-h-11 w-fit items-center rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-bold text-slate-800 shadow-sm">返回练习首页</a>
             {learningNotice ? <p className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-900" role="status">{learningNotice}</p> : null}
-            <LocalPracticeStatisticsPanel events={learningHistory.recentEvents} />
+            <LocalPracticeStatisticsPanel
+              events={learningHistory.recentEvents}
+              sourceStatus={learningSourceStatus}
+            />
           </section>
         ) : activeScreen === "course" ? (
           <section aria-label={screenDetails.course.title} className="grid gap-4">

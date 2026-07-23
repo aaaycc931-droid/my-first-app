@@ -64,9 +64,11 @@ function StatisticsList<T extends string>({
 export function LocalPracticeStatisticsPanel({
   events,
   now,
+  sourceStatus = "available",
 }: {
   events: readonly LocalPracticeStatisticsEvent[];
   now?: Date;
+  sourceStatus?: "available" | "unavailable";
 }) {
   const [window, setWindow] = useState<LocalPracticeStatisticsWindow>("7d");
   const statistics = useMemo(
@@ -98,7 +100,7 @@ export function LocalPracticeStatisticsPanel({
         ))}
       </div>
 
-      {statistics.status === "unavailable" ? (
+      {sourceStatus === "unavailable" || statistics.status === "unavailable" ? (
         <section className="rounded-3xl border border-amber-200 bg-amber-50 p-5" role="status">
           <h2 className="font-black text-amber-950">统计暂不可用</h2>
           <p className="mt-2 text-sm leading-6 text-amber-900">本机事件存在无法解释的数据，本页不会猜测或补造统计。</p>

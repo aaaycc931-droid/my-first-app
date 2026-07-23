@@ -6,13 +6,17 @@ export function LocalExplainablePracticeRecommendationPanel({
   labelForTarget,
   onStartTarget,
   onToggle,
+  suggestionsEnabled,
+  settingsAvailable = true,
 }: {
   recommendation: LocalExplainablePracticeRecommendation;
   labelForTarget: (target: LocalPracticeReviewTarget) => string;
   onStartTarget: (target: LocalPracticeReviewTarget) => void;
   onToggle: () => void;
+  suggestionsEnabled?: boolean;
+  settingsAvailable?: boolean;
 }) {
-  const enabled = recommendation.status !== "disabled";
+  const enabled = suggestionsEnabled ?? recommendation.status !== "disabled";
 
   return (
     <section className="mt-5 rounded-3xl border border-violet-200 bg-violet-50 p-5 shadow-sm" aria-labelledby="recommendation-heading">
@@ -23,11 +27,12 @@ export function LocalExplainablePracticeRecommendationPanel({
         </div>
         <button
           type="button"
-          aria-pressed={enabled}
+          aria-pressed={settingsAvailable ? enabled : undefined}
+          disabled={!settingsAvailable}
           onClick={onToggle}
           className="min-h-11 rounded-xl border border-violet-300 bg-white px-4 py-2 text-sm font-bold text-violet-900"
         >
-          {enabled ? "关闭建议" : "开启建议"}
+          {settingsAvailable ? (enabled ? "关闭建议" : "开启建议") : "建议设置不可用"}
         </button>
       </div>
 

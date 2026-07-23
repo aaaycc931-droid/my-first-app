@@ -1,6 +1,9 @@
 import { useMemo, useState } from "react";
 
-import { buildLocalWeakPointReviewQueue } from "../../lib/learning/localWeakPointReviewQueue";
+import {
+  buildLocalWeakPointReviewQueue,
+  type LocalWeakPointReviewQueue,
+} from "../../lib/learning/localWeakPointReviewQueue";
 import {
   LOCAL_PRACTICE_REVIEW_QUEUE_MAX_ITEMS,
   getLocalPracticeReviewTargetKey,
@@ -27,14 +30,17 @@ export function LocalWeakPointReviewQueuePanel({
   labelForTarget,
   onStartTarget,
   onClear,
+  reviewModel: providedReviewModel,
 }: {
   queue: LocalPracticeReviewQueue;
   labelForTarget: (target: LocalPracticeReviewTarget) => string;
   onStartTarget: (target: LocalPracticeReviewTarget) => void;
   onClear: () => void;
+  reviewModel?: LocalWeakPointReviewQueue;
 }) {
   const [isClearConfirmationVisible, setIsClearConfirmationVisible] = useState(false);
-  const reviewModel = useMemo(() => buildLocalWeakPointReviewQueue(queue), [queue]);
+  const builtReviewModel = useMemo(() => buildLocalWeakPointReviewQueue(queue), [queue]);
+  const reviewModel = providedReviewModel ?? builtReviewModel;
   const positions = useMemo(
     () => reviewModel.status === "available"
       ? new Map(queue.map((target, index) => [getLocalPracticeReviewTargetKey(target), index + 1]))
