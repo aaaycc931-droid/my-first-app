@@ -9,6 +9,6 @@
 5. 两名独立教师必须审核同一冻结批次；仓库只记录匿名 reviewer token 与汇总，身份、资质、签署和逐题原件保存在产品所有者控制的私有位置。
 6. 运行 `npm run validate:p119-content-education-evidence`。
 
-示例保留了 P119b PR run `30001642941` 的真实 synthetic merge SHA `02bb1c330426b5bc36893ef70532a659d4080202`。它与冻结内容的 main source commit `bd5c5af211a3a1b36f4fcfacebdfe89b65fbafc1` 不同，因此 same-commit 自动门禁按协议保持 `BLOCKED`；不得把 PR synthetic merge、PR head 或 main squash commit 混为一谈。
+示例记录冻结内容 main source commit `bd5c5af211a3a1b36f4fcfacebdfe89b65fbafc1` 自身的成功 Quality run `30002067536`，因此 same-commit 自动结构门禁为 `PASS`。P119b PR run `30001642941` 的真实 synthetic merge SHA 是 `02bb1c330426b5bc36893ef70532a659d4080202`，不能用于该门禁；不得把 PR synthetic merge、PR head、main squash commit 或 Android artifact provenance 混为一谈。
 
 `BLOCKED` 表示证据尚缺或内容前置门槛未满足，不是软件崩溃。CI、自动题目测试、Debug APK、`source.reviewState: "confirmed"` 或开发者自查不能替代双教师审核。

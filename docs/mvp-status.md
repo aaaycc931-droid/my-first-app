@@ -7,7 +7,7 @@
 ## 当前基线
 
 - 最新已合并产品功能基线：P119b / PR #417，合并提交 `bd5c5af211a3a1b36f4fcfacebdfe89b65fbafc1`
-- 最新已合并证据准备基线：P119a / PR #415，合并提交 `28a448faf1f387a1c7f394f5baac6a2a7dbc4eac`
+- 最新已合并证据准备基线：P119c / PR #419，合并提交 `de9ab7f9a6d050a951e70835fbe97cecc693b9f4`
 - 最近仓库维护：PR #406，P118a 本机进度保存／清除失败关闭修复，main 提交 `f0c0810acb6e4417329466bcc13decc607589c92`
 - 仓库当前提交以 GitHub 默认分支为权威；本文件不硬编码会因自身合并而立即过期的“当前 main SHA”
 - P115a–P115i 已合并；当前没有接续中的 P115 PR
@@ -39,7 +39,8 @@
 - P118e implementation candidate 已通过 PR #413 squash 合并为 `88667e0ad05d4672915008f7cf0e3eb63c2fce76`；PR Quality run `29984984760` 的 `quality` 与 `android-local` 均成功，Vercel Ready。它以中文“本机学习总览”分别读取 P118a 课程进度、P118b 当前保留的最多 48 条练习动作事实、P118c 精确复练队列和 P118d 可解释建议；各来源独立失败关闭，不跨来源推导或新增协议。
 - P119a 已通过 PR #415 合并：它盘点当前 10 类本机生成题型的三档稳定变体，冻结同 commit 自动门禁与双教师六维审核协议，并保持教师身份、资质、签署与逐题记录不入 Git。
 - P119b 已通过 PR #417 合并：`chord-inversion / 基础` 与 `harmony-progression / 基础` 均从 8 个 append-only 扩到 20 个稳定移调组合，原前 8 个 ID、基础答案概念与进阶／挑战题库保持冻结；catalog/review queue 已升至 v10 并无损迁移真实 v9 目标。
-- 当前 30 个自动盘点组达到 V1 每档至少 20 的数量前置；专业 40 目标、清单冻结、双教师真实签署、教育有效性与完整 P119/Q 仍为 `NOT_EXECUTED / BLOCKED`。下一独立证据切片只能准备可复核清单和预先批准的抽样计划。
+- P119c 已通过 PR #419 合并为 `de9ab7f9a6d050a951e70835fbe97cecc693b9f4`：它冻结 P119b source commit `bd5c5af211a3a1b36f4fcfacebdfe89b65fbafc1` 的 catalog v10 清单，包含 30 个盘点组、1,855 个题目 review item、1,924 个 representation、3 个课节及 18 个真源文件摘要；canonical manifest SHA-256 为 `b8430559e1fc3f102f8f9fce1158b473ea199e4c7f8fec9fef607b0ef42da8a1`。
+- 当前 30 个自动盘点组达到 V1 每档至少 20 的数量前置，审核清单也已可复核；责任方预先批准的抽样数量／分层／item ID、专业 40 目标、双教师真实签署、教育有效性与完整 P119/Q 仍为 `NOT_EXECUTED / BLOCKED`。工具不得代替责任方选样或批准计划。
 - P118a 只消费现有 Activity、复练队列和学习画像协议，不创建平行答案或能力协议；旧数据必须安全迁移或 fail closed。
 - P118a 不生成正式能力评级，不上传课程数据，不新增账户、云端、数据库、网络依赖或 `INTERNET` 权限。P118e 只整合 P118a–P118d 已有视图与入口，不把课程、统计、复练或推荐合并为新的评分、画像或存储协议。
 - P117e 已形成合并后的 implementation candidate。QA level recommendation 为 strict；P117d 与 P117e 的 Browser 真麦克风、Android 三档真机、真实人声、双教师和目标用户证据仍为 `NOT_EXECUTED`，不能由模拟录音、DOM、CI 或 APK 替代。
@@ -66,8 +67,9 @@
 | P118e | #413 | `88667e0ad05d4672915008f7cf0e3eb63c2fce76` | `29984984760` | `8554678659` | `27c3e420f85623b1159e59d016873132b70317ff0d6962a48ecafca0e5b1622a` |
 | P119a | #415 | `28a448faf1f387a1c7f394f5baac6a2a7dbc4eac` | `29999854528` | `8560553741` | `c5f87c7f4c238bb7337aebbfdc3478515125768424495ce1c697d09845fe9ec3` |
 | P119b | #417 | `bd5c5af211a3a1b36f4fcfacebdfe89b65fbafc1` | `30001642941` | `8561272610` | `37e2f318ebf8330c11faeeaf4bb0fa9d401cc2a14307a8a3ebb7fd6f30f22efb` |
+| P119c | #419 | `de9ab7f9a6d050a951e70835fbe97cecc693b9f4` | `30006334599`（main push） | `8563190826` | `e282b857aff76ecdcf580d29283f2a490e08c0c1b346a88ba9c705a03ec28103` |
 
-上述 PR 运行的 `quality` 与 `android-local` 均通过；P117e 合并后的 main Quality 运行 `29897075998` 也通过。表中 SHA-256 是 GitHub artifact ZIP digest，不是 ZIP 内 APK 摘要；Android 工件是 CI 构建并独立校验的 API 36 Debug APK，它只证明自动构建与校验通过。
+上述列出的运行其 `quality` 与 `android-local` 均通过；P117e 合并后的 main Quality 运行 `29897075998` 也通过。P119c PR head `a6e3a655197795cdbd03badbebd5dbf82370c5fe`、PR synthetic merge `af16593bd2c2d67bec46677fe571621f14066595`、main squash commit `de9ab7f9a6d050a951e70835fbe97cecc693b9f4` 与 manifest source commit `bd5c5af211a3a1b36f4fcfacebdfe89b65fbafc1` 是不同 provenance。表中 SHA-256 是 GitHub artifact ZIP digest，不是 manifest 摘要或 ZIP 内 APK 摘要；Android 工件是 CI 构建并独立校验的 API 36 Debug APK，它只证明自动构建与校验通过。
 
 ## 产品与证据边界
 

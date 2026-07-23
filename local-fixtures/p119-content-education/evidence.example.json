@@ -7,8 +7,8 @@
     "reviewManifestSha256": "b8430559e1fc3f102f8f9fce1158b473ea199e4c7f8fec9fef607b0ef42da8a1"
   },
   "automatedEvidence": {
-    "ciCommitSha": "02bb1c330426b5bc36893ef70532a659d4080202",
-    "ciRunId": 30001642941,
+    "ciCommitSha": "bd5c5af211a3a1b36f4fcfacebdfe89b65fbafc1",
+    "ciRunId": 30002067536,
     "expandedCatalogPassed": true,
     "localPracticeCustomizerPassed": true,
     "legacyActivityAdaptersPassed": true,
