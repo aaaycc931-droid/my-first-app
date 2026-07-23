@@ -2,9 +2,20 @@
 
 日期：2026-07-23
 
-状态：**EVIDENCE_PREPARATION_CANDIDATE / local gates pending / external evidence NOT_EXECUTED**
+状态：**MERGED EVIDENCE_PREPARATION_CANDIDATE / repository and same-commit automated gates PASS / review plan and external evidence NOT_EXECUTED**
 
 QA level recommendation：**none**
+
+合并与自动证据：
+
+- PR #419 head：`a6e3a655197795cdbd03badbebd5dbf82370c5fe`
+- PR synthetic merge：`af16593bd2c2d67bec46677fe571621f14066595`
+- main squash commit：`de9ab7f9a6d050a951e70835fbe97cecc693b9f4`
+- PR Quality run `30005795086` 与合并后 main Quality run `30006334599` 的 `quality`、`android-local` 均成功；PR #419 的 Vercel preview Ready
+- 冻结 source commit `bd5c5af211a3a1b36f4fcfacebdfe89b65fbafc1` 的 main Quality run `30002067536` 其 `quality`、`android-local` 均成功；示例据此满足同 commit 自动结构门禁
+- main run Debug APK artifact `8563190826` 的 GitHub ZIP digest：`e282b857aff76ecdcf580d29283f2a490e08c0c1b346a88ba9c705a03ec28103`
+
+上述值必须分层记录且不可互换：artifact `8563190826` 的构建 source 是 main commit `de9ab7f9...`，清单内容 source 是 `bd5c5af...`，manifest SHA-256 是 `b8430559...`。自动门禁与 Debug APK 不替代抽样批准、教师审核、真机或教育有效性证据。
 
 ## 1. 唯一范围
 
@@ -79,7 +90,7 @@ P119 教育证据 schema v2 新增实际 manifest 文件绑定。只有以下条
 
 缺真实教师证据时，显式本地 validator 继续以退出码 2 表示 `BLOCKED`，不把外部证据缺失伪装成软件成功或失败。
 
-P119b PR run `30001642941` 的真实 CI commit 是 synthetic merge `02bb1c330426b5bc36893ef70532a659d4080202`，不是本清单冻结的 main source commit `bd5c5af211a3a1b36f4fcfacebdfe89b65fbafc1`。示例按两种 provenance 分开记录，因此 same-commit 自动证据门禁继续为 `BLOCKED`；不能把 PR synthetic merge、PR head、main squash commit 或 Android artifact provenance 混为一谈。
+P119b PR run `30001642941` 的真实 CI commit 是 synthetic merge `02bb1c330426b5bc36893ef70532a659d4080202`，不是本清单冻结的 main source commit `bd5c5af211a3a1b36f4fcfacebdfe89b65fbafc1`，因此不能用于同 commit 门禁。GitHub 另有 source commit `bd5c5af...` 的 main push Quality run `30002067536`，其两个 job 均成功；示例只记录这一真实同 commit run。PR synthetic merge、PR head、main squash commit 或 Android artifact provenance 仍不得混为一谈。
 
 ## 5. 自动验收
 
