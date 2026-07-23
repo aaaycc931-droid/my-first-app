@@ -14,8 +14,16 @@ import {
   type LocalPracticeDifficulty,
   type LocalPracticeKind,
 } from "../practice/localPracticeCatalog";
+import {
+  P119_CONTENT_REVIEW_MANIFEST_SCHEMA_VERSION,
+  buildP119ContentReviewManifest,
+  calculateP119ContentReviewManifestSha256,
+  getP119ContentReviewManifestItemIds,
+  serializeP119ContentReviewManifest,
+  type P119ContentReviewManifest,
+} from "./p119ContentReviewManifest";
 
-export const P119_CONTENT_EDUCATION_EVIDENCE_SCHEMA_VERSION = 1 as const;
+export const P119_CONTENT_EDUCATION_EVIDENCE_SCHEMA_VERSION = 2 as const;
 export const P119_V1_VARIANT_MINIMUM = 20 as const;
 export const P119_PROFESSIONAL_VARIANT_TARGET = 40 as const;
 
@@ -40,10 +48,11 @@ export type P119ContentInventoryGroup = {
 };
 
 export type P119ContentEducationEvidenceInput = {
-  schemaVersion: 1;
+  schemaVersion: 2;
   candidate: {
     sourceCommitSha: string;
     catalogVersion: number;
+    reviewManifestFile: string;
     reviewManifestSha256: string;
   };
   automatedEvidence: {
@@ -71,6 +80,12 @@ export type P119ContentEducationEvidenceInput = {
     openFindingCount: number;
     signedEvidenceRef: string;
   }>;
+};
+
+export type P119ContentReviewManifestProof = {
+  manifest: P119ContentReviewManifest;
+  serializedManifest: string;
+  sha256: string;
 };
 
 export type P119ContentEducationEvidenceCheck = {
@@ -143,6 +158,7 @@ const hasExactSet = (actual: readonly string[], expected: readonly string[]) =>
 export const evaluateP119ContentEducationEvidence = (
   input: P119ContentEducationEvidenceInput,
   inventory = buildP119LocalContentInventory(),
+  manifestProof?: P119ContentReviewManifestProof,
 ) => {
   const v1Blocked = inventory.filter((group) => !group.meetsV1Minimum);
   const professionalBlocked = inventory.filter((group) => !group.meetsProfessionalTarget);
@@ -150,7 +166,58 @@ export const evaluateP119ContentEducationEvidence = (
   const schemaValid = input.schemaVersion === P119_CONTENT_EDUCATION_EVIDENCE_SCHEMA_VERSION;
   const candidateValid = isCommitSha(input.candidate.sourceCommitSha)
     && input.candidate.catalogVersion === LOCAL_PRACTICE_CATALOG_VERSION
+    && input.candidate.reviewManifestFile
+      === `review-manifest.${input.candidate.sourceCommitSha}.json`
     && isSha256(input.candidate.reviewManifestSha256);
+  const manifestItemIds = manifestProof
+    ? getP119ContentReviewManifestItemIds(manifestProof.manifest)
+    : [];
+  const currentInventory = buildP119LocalContentInventory();
+  let rebuiltManifestMatches = false;
+  if (manifestProof) {
+    try {
+      rebuiltManifestMatches = serializeP119ContentReviewManifest(
+        buildP119ContentReviewManifest({
+          sourceCommitSha: manifestProof.manifest.source.sourceCommitSha,
+          sourceFiles: manifestProof.manifest.sourceFiles,
+        }),
+      ) === manifestProof.serializedManifest;
+    } catch {
+      rebuiltManifestMatches = false;
+    }
+  }
+  const manifestGroupsMatchInventory = Boolean(
+    manifestProof
+    && manifestProof.manifest.groups.length === currentInventory.length
+    && manifestProof.manifest.items.length
+      === currentInventory.reduce((sum, group) => sum + group.variantCount, 0)
+    && currentInventory.every((group, index) => {
+      const manifestGroup = manifestProof.manifest.groups[index];
+      return manifestGroup?.kind === group.kind
+        && manifestGroup.difficulty === group.difficulty
+        && manifestGroup.variantCount === group.variantCount
+        && manifestGroup.reviewItemIds.length === group.variantCount;
+    })
+  );
+  const manifestValid = Boolean(
+    manifestProof
+    && manifestProof.manifest.schemaVersion
+      === P119_CONTENT_REVIEW_MANIFEST_SCHEMA_VERSION
+    && manifestProof.serializedManifest
+      === serializeP119ContentReviewManifest(manifestProof.manifest)
+    && manifestProof.sha256
+      === calculateP119ContentReviewManifestSha256(manifestProof.manifest)
+    && manifestProof.sha256 === input.candidate.reviewManifestSha256
+    && manifestProof.manifest.source.sourceCommitSha
+      === input.candidate.sourceCommitSha
+    && manifestProof.manifest.source.catalogVersion
+      === input.candidate.catalogVersion
+    && manifestProof.manifest.source.catalogMode === "expanded-local-v2"
+    && manifestProof.manifest.courseItems.length === 3
+    && manifestGroupsMatchInventory
+    && rebuiltManifestMatches
+    && new Set(manifestItemIds).size === manifestItemIds.length
+  );
   const automationValid = isCommitSha(input.automatedEvidence.ciCommitSha)
     && input.automatedEvidence.ciCommitSha === input.candidate.sourceCommitSha
     && Number.isSafeInteger(input.automatedEvidence.ciRunId)
@@ -164,6 +231,7 @@ export const evaluateP119ContentEducationEvidence = (
     && input.reviewPlan.inventorySha256 === input.candidate.reviewManifestSha256
     && sampleItemIds.length > 0
     && new Set(sampleItemIds).size === sampleItemIds.length
+    && sampleItemIds.every((itemId) => manifestItemIds.includes(itemId))
     && hasExactSet(input.reviewPlan.dimensions, P119_REVIEW_DIMENSIONS);
   const completeReviews = input.teacherReviews.filter((review) => review.status === "COMPLETE");
   const reviewerTokens = new Set(completeReviews.map((review) => review.reviewerToken));
@@ -179,6 +247,7 @@ export const evaluateP119ContentEducationEvidence = (
       && review.signedEvidenceRef.length > 0);
   const inventoryReadyForHumanReview = candidateValid
     && schemaValid
+    && manifestValid
     && automationValid
     && v1Blocked.length === 0;
   const teacherReviewBatchApproved = inventoryReadyForHumanReview
@@ -199,6 +268,15 @@ export const evaluateP119ContentEducationEvidence = (
       passed: candidateValid,
       observed: `${input.candidate.sourceCommitSha || "无 commit"} / catalog ${input.candidate.catalogVersion}`,
       required: "40 位 source commit、当前 catalog version、独立的 64 位审核清单 SHA-256",
+    },
+    {
+      id: "review-manifest",
+      label: "审核清单可确定性复核并绑定真实摘要",
+      passed: manifestValid,
+      observed: manifestValid
+        ? `${manifestItemIds.length} 个可引用清单项 / ${manifestProof?.sha256}`
+        : "未提供与候选 commit、catalog 和 SHA-256 一致的 canonical 清单",
+      required: "实际清单字节、重算 SHA-256、source commit、catalog version 与 sample item 引用一致",
     },
     {
       id: "activity-family-contract",

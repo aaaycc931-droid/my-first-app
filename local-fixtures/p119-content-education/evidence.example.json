@@ -1,22 +1,23 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "candidate": {
-    "sourceCommitSha": "",
+    "sourceCommitSha": "bd5c5af211a3a1b36f4fcfacebdfe89b65fbafc1",
     "catalogVersion": 10,
-    "reviewManifestSha256": ""
+    "reviewManifestFile": "review-manifest.bd5c5af211a3a1b36f4fcfacebdfe89b65fbafc1.json",
+    "reviewManifestSha256": "2568ab4e1b09f46d7121fe6f07b522df9fe8fca227c553d8ae325a1d2d3af752"
   },
   "automatedEvidence": {
-    "ciCommitSha": "",
-    "ciRunId": 0,
-    "expandedCatalogPassed": false,
-    "localPracticeCustomizerPassed": false,
-    "legacyActivityAdaptersPassed": false,
-    "localCoursePathPassed": false
+    "ciCommitSha": "02bb1c330426b5bc36893ef70532a659d4080202",
+    "ciRunId": 30001642941,
+    "expandedCatalogPassed": true,
+    "localPracticeCustomizerPassed": true,
+    "legacyActivityAdaptersPassed": true,
+    "localCoursePathPassed": true
   },
   "reviewPlan": {
     "status": "NOT_EXECUTED",
     "approvedBeforeReview": false,
-    "inventorySha256": "",
+    "inventorySha256": "2568ab4e1b09f46d7121fe6f07b522df9fe8fca227c553d8ae325a1d2d3af752",
     "sampleItemIds": [],
     "dimensions": [
       "target-truth",
