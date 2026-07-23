@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "candidate": {
+    "sourceCommitSha": "7c185c88f816e423c7855527bc928a9a4d43b731",
+    "catalogVersion": 9,
+    "reviewManifestSha256": ""
+  },
+  "automatedEvidence": {
+    "ciCommitSha": "",
+    "ciRunId": 0,
+    "expandedCatalogPassed": false,
+    "localPracticeCustomizerPassed": false,
+    "legacyActivityAdaptersPassed": false,
+    "localCoursePathPassed": false
+  },
+  "reviewPlan": {
+    "status": "NOT_EXECUTED",
+    "approvedBeforeReview": false,
+    "inventorySha256": "",
+    "sampleItemIds": [],
+    "dimensions": [
+      "target-truth",
+      "answer-rule",
+      "terminology-solfege",
+      "difficulty-progression",
+      "explanation",
+      "misconception-risk"
+    ]
+  },
+  "teacherReviews": []
+}
