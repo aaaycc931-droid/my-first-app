@@ -192,20 +192,27 @@ for (const expected of [
   assertContains(answerResult, expected, "答题结果提示分支");
 }
 
+assert(
+  answerResult.indexOf("saveMobilePracticeReviewQueue(") < answerResult.indexOf("setReviewQueue(nextQueue)"),
+  "复练队列必须先持久化成功，再更新内存界面",
+);
+
+const weakPointPanelSource = readSource("mobile/src/LocalWeakPointReviewQueuePanel.tsx");
 const clearUi = extractBetween(
-  appSource,
-  "本机复练（{reviewQueue.length}）",
-  "当前测试边界",
+  weakPointPanelSource,
+  "本机复练（{reviewModel.pendingTargetCount}）",
+  "</section>\n  );",
   "复练清除界面",
 );
 for (const expected of [
   "setIsClearConfirmationVisible(true)",
   "isClearConfirmationVisible ?",
   "确认清除全部本机复练记录？",
-  "onClick={clearReviewQueue}",
+  "onClear();",
   "确认清除",
   "setIsClearConfirmationVisible(false)",
   "取消",
+  "不是能力评级、正确率或推荐排序",
 ]) {
   assertContains(clearUi, expected, "复练二次确认清除");
 }

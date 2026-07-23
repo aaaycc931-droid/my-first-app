@@ -1,6 +1,6 @@
 # MVP / Android 私测当前状态
 
-最后更新：2026-07-22
+最后更新：2026-07-23
 
 本文件是当前可验证状态总账，不再作为逐次运行日志无限追加。历史细节保留在 Git 提交记录、PR 与 Actions 中。
 
@@ -33,7 +33,7 @@
 
 - P118a implementation candidate 已通过 PR #403 合并为 `8a31126cfd993ee7f150e0fbe17b1ddaf9b54d5b`；状态同步已通过 PR #405 合并，存储失败关闭修复已通过 PR #406 合并为 `f0c0810acb6e4417329466bcc13decc607589c92`。PR #406 Quality run `29905841378` 的 `quality` 与 `android-local` 均成功。真机、教师和目标用户等外部证据仍为 `NOT_EXECUTED`。
 - P118b implementation candidate 已通过 PR #407 合并为 `03a94882d870ed11339efb727558e74be00f876f`；PR Quality run `29927839993` 的 `quality` 与 `android-local` 均成功，Vercel Ready。它只消费学习画像当前保留的最近 48 条事件，提供 7 天、30 天、全部记录窗口并按练习方式／题目族聚合“记录动作、已核对、开始复练”；完全忽略 `outcome`，不新增持久化或网络能力。
-- P118b 合并后的下一独立教学切片是 P118c 薄弱点复练队列；本次状态同步不实现 P118c。
+- P118c 当前 implementation candidate 复用既有最多 12 项的本机复练目标，按题目族分组并保持原 MRU 顺序，从每个精确目标进入原 Activity；“薄弱点”只表示未解决错题，不是能力评级或推荐排序。它不新增存储/schema，队列保存失败时保留旧 UI，且不改写 P118b 统计。
 - P118a 只消费现有 Activity、复练队列和学习画像协议，不创建平行答案或能力协议；旧数据必须安全迁移或 fail closed。
 - P118a 不生成正式能力评级，不上传课程数据，不新增账户、云端、数据库、网络依赖或 `INTERNET` 权限。P118b 的统计、P118c 的复练队列、P118d 的推荐和 P118e 的整合必须继续拆分。
 - P117e 已形成合并后的 implementation candidate。QA level recommendation 为 strict；P117d 与 P117e 的 Browser 真麦克风、Android 三档真机、真实人声、双教师和目标用户证据仍为 `NOT_EXECUTED`，不能由模拟录音、DOM、CI 或 APK 替代。

@@ -45,9 +45,11 @@ jobs:
           npm run test:mobile-lifecycle
           npm run test:local-practice-answer-lock
           npm run test:local-practice-review-queue
+          npm run test:local-weak-point-review-queue
           npm run test:mobile-practice-review-storage
           npm run test:mobile-practice-review-ui-contract
           npm run test:mobile-practice-review-behavior
+          npm run test:mobile-weak-point-review-behavior
           npm run test:learning-event-profile
           npm run test:mobile-learning-profile-storage
           npm run test:local-practice-statistics

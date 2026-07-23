@@ -1,6 +1,6 @@
 # 正式版 V1 状态矩阵
 
-最后更新：2026-07-22
+最后更新：2026-07-23
 规范来源：`docs/final-release-definition-of-done.md`
 
 本文件只记录可验证的当前状态。`IN_PROGRESS` 不等于失败，也不得对外宣称正式完成；状态必须随合并和生产证据更新。
@@ -12,7 +12,7 @@
 | V1-01 | 范围与规范 | PASS | 正式版 DoD、范围分层、退出条件 | 后续变更必须走范围变更记录 |
 | V1-02 | 账户与会话 | IN_PROGRESS | Supabase Auth、邮箱 magic link、资料读取/更新、生产浏览器 QA | 密码登录、退出/恢复全矩阵、异常邮件路径 |
 | V1-03 | 数据导出与删除 | NOT_STARTED | 数据模型有 deletion request 草案 | 用户入口、导出包、级联删除、24h SLA、端到端演练 |
-| V1-04 | 系统课程与题库 | IN_PROGRESS | 基础课程；单音、音程、节奏持久化；P115a–P115i、P116a–P116d、P117a–P117e、P118a 课程路径与 P118b 本机详细统计已合并 | P118c–P118e 复练与可解释推荐纵向闭环；双教师题量/难度/解释校准；Android 真实用户验证 |
+| V1-04 | 系统课程与题库 | IN_PROGRESS | 基础课程；单音、音程、节奏持久化；P115a–P115i、P116a–P116d、P117a–P117e、P118a 课程路径与 P118b 本机详细统计已合并；P118c 本机薄弱点复练分组为当前 implementation candidate | P118c 远端门禁与合并、P118d–P118e 推荐整合；双教师题量/难度/解释校准；Android 真实用户验证 |
 | V1-05 | 视唱与录音闭环 | IN_PROGRESS | Web 本地录音/回放；Android 实时曲线、录音、本机记录与 P103 观察；P112/P113 分析证据、P114f 固定 A4、P115h 音程模唱、P117d 旋律回唱与 P117e 可见目标视唱均已合并 | Browser/Android 真麦克风 QA；P113/P114f/P115h/P117d/P117e 真实人声；正式课程/云端记录；P104 真机同步/延迟/录音设备矩阵 |
 | V1-06 | 节奏练习与反馈 | IN_PROGRESS | 节拍器、tap/onset、延迟校准、DP 对齐、课程节奏听辨；P116a–P116d 已合并，覆盖视读、回模、找错和听写的非评分闭环 | 真实设备/输入数据基准、长期记录与复练、双教师校准和目标用户验证 |
 | V1-07 | 钢琴辅助 | IN_PROGRESS | P106–P110 已合并；P114g 共享事件/目标与 P114h Android 原生 USB MIDI 已合并；P114j 已有原生 TYPE_BLUETOOTH 候选 | P114j 远端门禁与 BLE 真机；三档真机低延迟/听感/10 指/32 音与设备断连证据；完整应用内 BLE 扫描/选择另行决策；竞品完整任务差距闭环 |
@@ -20,7 +20,7 @@
 | V1-09 | 图片/PDF OMR | IN_PROGRESS | mock flow、Audiveris fixture/runner 研究基础 | 隔离 worker、私有上传、真实 OMR、草稿编辑、失败恢复 |
 | V1-10 | 私有音频素材 | IN_PROGRESS | 浏览器本地导入、decode、音高曲线草稿、检查与临时目标；P114l 会话内非破坏 MediaProject 候选 | 私有上传、worker、持久项目、保留/删除、任务恢复、版权说明 |
 | V1-11 | 私有云任务 | NOT_STARTED | 数据模型和架构蓝图 | Storage、队列 worker、取消/重试、审计、配额和运行手册 |
-| V1-12 | 学习历史与复习 | IN_PROGRESS | 私有 practice attempts、课程答案摘要；Android 本机最小错题队列；P114m 非评分画像已合并；P115a–P115i 已接入相应练习事实、复练与迁移；用户主动保存的练声曲线/可选录音记录 | Web 历史 UI、正式技能画像、跨设备同步；Android 跨版本/跨重启和配额真机验证；教育审核 |
+| V1-12 | 学习历史与复习 | IN_PROGRESS | 私有 practice attempts、课程答案摘要；Android 本机最小错题队列；P114m 非评分画像已合并；P115a–P115i 已接入相应练习事实、复练与迁移；P118c 候选按题目族展示精确未解决目标且写入失败保留旧 UI | P118c 远端门禁与合并；Web 历史 UI、正式技能画像、跨设备同步；Android 跨版本/跨重启和配额真机验证；教育审核 |
 | V1-13 | 音高算法基准 | IN_PROGRESS | P111 共同输入/分层基准基础、P112 多候选连续轨迹已合并；P113 `offline-note-alignment-v1` 独立分段、单调目标对齐、三阶段证据和局部拒答已通过 PR #365 合并；实时生产仍为 `autocorrelation-realtime-v1` | P113 真机/真实人声；200 合成/乐器、100 真实人声/20 位/4 类设备最低证据及专业扩展集、三档性能、量化结果和专家审核 |
 | V1-14 | 节奏算法基准 | IN_PROGRESS | DP 对齐回归、tap/onset/latency 测试 | 真实设备/人声/乐器集、量化报告、低置信度校准 |
 | V1-15 | RLS 与最小权限 | IN_PROGRESS | P78 最小权限；P84 生产 RPC 和跨用户事务 smoke QA | 覆盖所有 owner tables、Storage、签名 URL、删除后访问 |

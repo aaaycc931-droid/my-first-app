@@ -322,6 +322,28 @@ describe("Android 本机复练行为", () => {
     const serialized = window.localStorage.getItem(MOBILE_PRACTICE_REVIEW_STORAGE_KEY) ?? "";
     expect(serialized).not.toMatch(/selected|answer|audio|score|accuracy|pass|fail/i);
     expect(container.textContent).toContain("已加入本机复练");
+    await click(findLink(container, "返回练习首页"));
+    expect(container.textContent).toContain("当前待复练题");
+    expect(container.textContent).toContain("单音听辨待复练 1 题");
+    expect(container.textContent).toContain("不是能力评级、正确率或推荐排序");
+  });
+
+  it("按题目族分组现有精确复练目标，并保持原队列顺序", async () => {
+    window.localStorage.setItem(MOBILE_PRACTICE_REVIEW_STORAGE_KEY, JSON.stringify({
+      schemaVersion: 9,
+      catalogVersion: 9,
+      targets: [
+        { kind: "rhythm", difficulty: "基础", seed: 0, sequence: 0, variantId: "rhythm:even-quarters" },
+        { kind: "single-pitch", difficulty: "基础", seed: 0, sequence: 0, variantId: "pitch:c4" },
+      ],
+    }));
+    const container = await renderApp();
+
+    expect(container.textContent).toContain("本机复练（2）");
+    expect(container.textContent).toContain("节奏听辨待复练 1 题");
+    expect(container.textContent).toContain("单音听辨待复练 1 题");
+    expect(findButton(container, "节奏听辨 · 基础复练 1")).toBeTruthy();
+    expect(findButton(container, "单音听辨 · 基础复练 2")).toBeTruthy();
   });
 
   for (const [practiceLabel, answerLabel] of [
@@ -635,6 +657,9 @@ describe("Android 本机复练行为", () => {
     expect(container.textContent).toContain("本机复练记录保存失败，本次练习仍可继续");
     expect(container.textContent).not.toContain("本题已从本机复练中移除");
     expect(window.localStorage.getItem(MOBILE_PRACTICE_REVIEW_STORAGE_KEY)).toBe(original);
+    await click(findLink(container, "返回练习首页"));
+    expect(container.textContent).toContain("本机复练（1）");
+    expect(container.textContent).toContain("单音听辨待复练 1 题");
     setItem.mockRestore();
   });
 
@@ -1000,6 +1025,9 @@ describe("Android 本机复练行为", () => {
     expect(setItem).toHaveBeenCalled();
     expect(container.textContent).toContain("本机复练记录保存失败，本次练习仍可继续");
     expect(container.textContent).toContain("本题答案：");
+    await click(findLink(container, "返回练习首页"));
+    expect(container.textContent).toContain("本机复练（0）");
+    expect(container.textContent).not.toContain("单音听辨待复练 1 题");
     setItem.mockRestore();
   });
 
