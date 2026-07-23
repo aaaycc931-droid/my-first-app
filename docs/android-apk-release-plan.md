@@ -1,6 +1,6 @@
 # Android 本地 APK 私测路线
 
-状态：**第一代 Android 技术私测载体 / P118a–P118d 已合并，P118e 整合实现中**
+状态：**第一代 Android 技术私测载体 / P118a–P118e 已合并，下一阶段为 P119/Q 联合验收**
 生效日期：2026-07-16
 应用 ID：`com.aaaycc931.solfeggio`
 应用名称：`视唱练耳`
@@ -63,7 +63,7 @@ Android APK
 - Android 本机错题复练队列：查看答案后，答错题置顶加入、答对题移除，最多保留 12 个最小复现目标；首页可查看数量并进入复练；清除全部复练必须经过页面内二次确认；
 - P118c 已合并：把同一队列按题目族分组，保留既有 MRU 顺序并从精确目标进入复练；“薄弱点”不是能力评级或推荐排序。队列写入失败时保留旧 UI，不新增存储、schema、网络或权限；
 - P118d 已合并：建议只复用同一 MRU 队列第 1 项，并解释固定规则、位置、同题目族与全部待复练数；不读取 `outcome`、画像计数或统计。画像存储不可用、损坏或读取失败时默认关闭建议；
-- P118e implementation candidate 实现中：中文“本机学习总览”只组合既有课程核对数、当前保留的练习动作事实、精确复练队列和可解释建议；四类来源独立失败关闭，不生成联合评分、总学习进度或新持久化协议。合并前当前下一切片仍是 P118e；
+- P118e implementation candidate 已通过 PR #413 合并：中文“本机学习总览”只组合既有课程核对数、当前保留的练习动作事实、精确复练队列和可解释建议；四类来源独立失败关闭，不生成联合评分、总学习进度或新持久化协议。PR Quality run `29984984760` 的 `quality` 与 `android-local` 均成功且 Vercel Ready；下一阶段仅为 P119/Q 联合验收与证据准备；
 - React 移动入口行为回归真实挂载 `App`，自动覆盖错题加入、答对移除、清除取消/确认、浏览历史前进后退及存储异常降级；该 DOM 回归不替代真实 WebView 或手机验证；
 - 复练队列存储不可用、内容失效或读写失败时显示简体中文提示，七类本地练习仍须可用；卸载应用或清除应用数据会删除队列；
 - 统一的本地音频启动、播放、停止与定时器清理；音频只能在用户点击后恢复；
@@ -78,7 +78,7 @@ Android APK
 
 | 阶段 | 交付物 | 当前状态 | 退出条件 |
 | --- | --- | --- | --- |
-| A. 本地移动入口 | Vite 入口、统一的十类离线练耳及音程比较/非评分模唱、和声声部线索、本地参考钢琴、本地桩、相对资源路径 | IN_PROGRESS | P116–P118 纵向切片继续通过 PR 门禁；静态构建通过；无生产云端标识；断网边界可自动校验 |
+| A. 本地移动入口 | Vite 入口、统一的十类离线练耳及音程比较/非评分模唱、和声声部线索、本地参考钢琴、本地桩、相对资源路径 | IN_PROGRESS | P115–P118 implementation candidates 已通过 PR 门禁；静态构建通过；无生产云端标识；断网边界可自动校验；仍须完成 P119/Q 联合验收 |
 | B. Android 工程 | Capacitor 工程、固定包名、图标、启动画面、无网络权限 | PASS | Gradle 构建成功；APK 结构、包名、SDK 和权限检查通过 |
 | C. 私测 APK | V2 调试签名 APK、SHA-256 | PASS | APK 可下载；签名验证通过；校验和已记录；每次成功的 Android CI 均产出带 commit、SHA-256 与本地边界报告的可下载 debug APK 工件 |
 | C1. CI 候选下载物 | 每次 Android 本地构建的调试 APK、SHA-256 与可独立复核的报告 | PASS | PR #389 合并后 run `29740400363` 的两个 job 均 PASS；artifact `8460154570` 已上传，GitHub digest 为 `4c0bb0beb440fcb60c9542c97c8ebc8a17a10856b6ee0a4ee0bbddd8314973a8`，内部 APK 摘要由工件内 `.sha256` / JSON 报告给出 |
@@ -87,7 +87,7 @@ Android APK
 
 调试签名 APK 是可安装的私测包，不得冒充最终私下正式包。当前先让真实用户测试功能，再决定专用 release key 和最终版本号。
 
-当前候选包的哈希、签名、结构检查和未执行项记录在 `docs/android-private-test-build-evidence.md`；面向测试者的版本变化记录在 `docs/android-private-test-changelog.md`。0.2.0（versionCode 2）的最新已核对 CI 候选来自 PR #389 合并后 run `29740400363`；内部 APK 摘要必须从下载工件的 `.sha256` / JSON 报告复核。它仍是调试签名技术包，不是覆盖升级、P104 真实证据或最终 release 签名证据。
+历史候选包的哈希、签名、结构检查和未执行项记录在 `docs/android-private-test-build-evidence.md`；面向测试者的历史版本变化记录在 `docs/android-private-test-changelog.md`。0.2.0（versionCode 2）的最新已核对自动候选来自 P118e PR #413 Quality run `29984984760` 的 artifact `8554678659`，当前自动证据记录在本路线、P118e 验收文档与 `docs/mvp-status.md`；GitHub artifact ZIP digest 为 `sha256:27c3e420f85623b1159e59d016873132b70317ff0d6962a48ecafca0e5b1622a`，内部 APK 摘要仍必须从下载工件的 `.sha256` / JSON 报告复核。它仍是调试签名技术包，不是覆盖升级、P104 真实证据或最终 release 签名证据。
 
 ## 5. 构建基线
 
