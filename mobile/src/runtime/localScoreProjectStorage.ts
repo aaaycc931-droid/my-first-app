@@ -9,14 +9,28 @@ const DATABASE_NAME = "solfeggio-local-score-projects";
 const DATABASE_VERSION = 1;
 const STORE_NAME = "projects";
 
+export type LocalScoreProjectStorageLimits = Readonly<{
+  maxProjects: number;
+  maxBytes: number;
+}>;
+
+export const LOCAL_SCORE_PROJECT_STORAGE_LIMITS: LocalScoreProjectStorageLimits =
+  Object.freeze({
+    maxProjects: 50,
+    maxBytes: 5 * 1024 * 1024,
+  });
+
 export type LocalScoreProjectStorageStatus =
+  | "capacity"
   | "blocked"
   | "conflict"
   | "invalid"
   | "quota"
   | "saved"
+  | "transaction-failed"
   | "unchanged"
-  | "unavailable";
+  | "unavailable"
+  | "write-failed";
 
 export class LocalScoreProjectStorageError extends Error {
   constructor(
@@ -87,10 +101,87 @@ const getRequestError = (
   if (request.error?.name === "QuotaExceededError") {
     return new LocalScoreProjectStorageError(
       "quota",
-      "本机存储空间不足，乐谱项目未保存。",
+      "浏览器或 Android WebView 分配给 IndexedDB 的空间不足，乐谱项目未保存。请清理设备空间或恢复存储条件后重试。",
     );
   }
   return new LocalScoreProjectStorageError("unavailable", fallback);
+};
+
+export const getLocalScoreProjectWriteError = (
+  error: Pick<DOMException, "name"> | null,
+) => {
+  if (error?.name === "QuotaExceededError") {
+    return new LocalScoreProjectStorageError(
+      "quota",
+      "浏览器或 Android WebView 分配给 IndexedDB 的空间不足，乐谱项目未保存。请清理设备空间或恢复存储条件后重试。",
+    );
+  }
+  return new LocalScoreProjectStorageError(
+    "write-failed",
+    "本机存储写入失败，乐谱项目未保存；原有项目保持不变。请恢复存储条件后重试。",
+  );
+};
+
+export const getLocalScoreProjectStorageBytes = (value: unknown) => {
+  const serialized = JSON.stringify(value);
+  if (serialized === undefined) {
+    throw new LocalScoreProjectStorageError(
+      "invalid",
+      "乐谱项目无法计算本机容量，未执行保存。",
+    );
+  }
+  return new TextEncoder().encode(serialized).byteLength;
+};
+
+const assertValidLimits = (limits: LocalScoreProjectStorageLimits) => {
+  if (
+    !Number.isSafeInteger(limits.maxProjects)
+    || limits.maxProjects < 1
+    || !Number.isSafeInteger(limits.maxBytes)
+    || limits.maxBytes < 1
+  ) {
+    throw new Error("本机谱项目容量限制配置无效。");
+  }
+};
+
+const assertWithinApplicationLimits = ({
+  records,
+  project,
+  limits,
+}: {
+  records: readonly unknown[];
+  project: LocalScoreProjectV1;
+  limits: LocalScoreProjectStorageLimits;
+}) => {
+  const existingIndex = records.findIndex((value) => {
+    const record = value && typeof value === "object"
+      ? value as Record<string, unknown>
+      : null;
+    return record?.projectId === project.projectId;
+  });
+  const nextProjectCount = records.length + (existingIndex === -1 ? 1 : 0);
+  if (nextProjectCount > limits.maxProjects) {
+    throw new LocalScoreProjectStorageError(
+      "capacity",
+      `已达到应用设定的本机谱项目数量上限（${limits.maxProjects} 个），未新增项目；原有项目保持不变。请清理不再需要的项目后重试。`,
+    );
+  }
+  const existingBytes = existingIndex === -1
+    ? 0
+    : getLocalScoreProjectStorageBytes(records[existingIndex]);
+  const currentBytes = records.reduce<number>(
+    (total, value) => total + getLocalScoreProjectStorageBytes(value),
+    0,
+  );
+  const nextBytes = currentBytes - existingBytes
+    + getLocalScoreProjectStorageBytes(project);
+  if (nextBytes > limits.maxBytes) {
+    const limitMiB = limits.maxBytes / (1024 * 1024);
+    throw new LocalScoreProjectStorageError(
+      "capacity",
+      `本次保存会超过应用设定的本机谱项目容量上限（${Number.isInteger(limitMiB) ? limitMiB : limitMiB.toFixed(2)} MiB），未写入修改；原有项目保持不变。请清理不再需要的项目后重试。`,
+    );
+  }
 };
 
 const requestResult = <T>(request: IDBRequest<T>) =>
@@ -178,11 +269,11 @@ const transactionCompletion = (
           transaction.error?.name === "QuotaExceededError"
             ? new LocalScoreProjectStorageError(
               "quota",
-              "本机存储空间不足，乐谱项目未保存。",
+              "浏览器或 Android WebView 分配给 IndexedDB 的空间不足，乐谱项目未保存。请清理设备空间或恢复存储条件后重试。",
             )
             : new LocalScoreProjectStorageError(
-              "unavailable",
-              "本机乐谱项目操作失败。",
+              "transaction-failed",
+              "IndexedDB 事务失败，乐谱项目未保存；原有项目保持不变。请恢复存储条件后重试。",
             )
         ),
       );
@@ -190,8 +281,8 @@ const transactionCompletion = (
       reject(
         getFailure()
         ?? new LocalScoreProjectStorageError(
-          "unavailable",
-          "本机乐谱项目操作被取消。",
+          "transaction-failed",
+          "IndexedDB 事务被中止，乐谱项目未保存；原有项目保持不变。请恢复存储条件后重试。",
         ),
       );
   });
@@ -199,9 +290,12 @@ const transactionCompletion = (
 export const createIndexedDbLocalScoreProjectStore =
   ({
     indexedDbFactory,
+    limits = LOCAL_SCORE_PROJECT_STORAGE_LIMITS,
   }: {
     indexedDbFactory?: IDBFactory;
+    limits?: LocalScoreProjectStorageLimits;
   } = {}): LocalScoreProjectStore => {
+    assertValidLimits(limits);
     const requireFactory = () => {
       const factory = indexedDbFactory
         ?? (typeof indexedDB === "undefined" ? null : indexedDB);
@@ -275,15 +369,28 @@ export const createIndexedDbLocalScoreProjectStore =
         const transaction = database.transaction(STORE_NAME, "readwrite");
         const completion = transactionCompletion(transaction, () => failure);
         const store = transaction.objectStore(STORE_NAME);
-        const getRequest = store.get(project.projectId);
+        const getRequest = store.getAll();
         getRequest.onerror = () => {
-          failure = new Error("无法读取当前乐谱项目修订。");
+          failure = new LocalScoreProjectStorageError(
+            "transaction-failed",
+            getRequest.error?.name === "AbortError"
+              ? "IndexedDB 事务被中止，乐谱项目未保存；原有项目保持不变。请恢复存储条件后重试。"
+              : "IndexedDB 事务无法读取现有项目，未执行保存；原有项目保持不变。",
+          );
         };
         getRequest.onsuccess = () => {
           try {
-            const existing = getRequest.result as unknown;
+            const records = getRequest.result as unknown[];
+            const existing = records.find((value) => {
+              const record = value && typeof value === "object"
+                ? value as Record<string, unknown>
+                : null;
+              return record?.projectId === project.projectId;
+            });
             if (expectedRevision === null) {
-              if (existing !== undefined) throw new LocalScoreProjectConflictError();
+              if (existing !== undefined) {
+                throw new LocalScoreProjectConflictError();
+              }
             } else {
               if (existing === undefined) throw new LocalScoreProjectConflictError();
               const parsedExisting = parseStoredProject(existing);
@@ -291,11 +398,22 @@ export const createIndexedDbLocalScoreProjectStore =
                 throw new LocalScoreProjectConflictError();
               }
             }
-            store.put(cloneLocalScoreProject(validProject));
+            assertWithinApplicationLimits({
+              records,
+              project: validProject,
+              limits,
+            });
+            const putRequest = store.put(cloneLocalScoreProject(validProject));
+            putRequest.onerror = () => {
+              failure = getLocalScoreProjectWriteError(putRequest.error);
+            };
           } catch (error) {
-            failure = error instanceof Error
+            failure = error instanceof LocalScoreProjectStorageError
+              || error instanceof LocalScoreProjectConflictError
               ? error
-              : new Error("本机乐谱项目保存失败。");
+              : getLocalScoreProjectWriteError(
+                error instanceof DOMException ? error : null,
+              );
             transaction.abort();
           }
         };
@@ -470,9 +588,11 @@ export const loadLocalScoreProject = async ({
         ? "本机乐谱项目无法读取；原记录未被覆盖或清除。"
         : failure.notice,
       sourceStatus: "unavailable",
-      status: failure.status === "conflict"
-        ? "unavailable"
-        : failure.status,
+      status: failure.status === "blocked"
+        || failure.status === "invalid"
+        || failure.status === "quota"
+        ? failure.status
+        : "unavailable",
     };
   }
 };
