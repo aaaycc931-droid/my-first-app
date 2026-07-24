@@ -270,7 +270,9 @@ const transactionCompletion = (
           transaction.error?.name === "QuotaExceededError"
             ? new LocalScoreProjectStorageError(
               "quota",
-              "浏览器或 Android WebView 分配给 IndexedDB 的空间不足，乐谱项目未保存。请清理设备空间或恢复存储条件后重试。",
+              operation === "delete"
+                ? "浏览器或 Android WebView 分配给 IndexedDB 的空间不足，未删除乐谱项目；原项目保持不变。请清理设备空间或恢复存储条件后重试。"
+                : "浏览器或 Android WebView 分配给 IndexedDB 的空间不足，乐谱项目未保存。请清理设备空间或恢复存储条件后重试。",
             )
             : new LocalScoreProjectStorageError(
               "transaction-failed",
@@ -297,6 +299,7 @@ export const createIndexedDbLocalScoreProjectStore =
     indexedDbFactory,
     limits = LOCAL_SCORE_PROJECT_STORAGE_LIMITS,
     writeRequest = (store, project) => store.put(project),
+    deleteRequest = (store, projectId) => store.delete(projectId),
   }: {
     indexedDbFactory?: IDBFactory;
     limits?: LocalScoreProjectStorageLimits;
@@ -304,6 +307,10 @@ export const createIndexedDbLocalScoreProjectStore =
       store: IDBObjectStore,
       project: LocalScoreProjectV1,
     ) => IDBRequest<IDBValidKey>;
+    deleteRequest?: (
+      store: IDBObjectStore,
+      projectId: string,
+    ) => IDBRequest<IDBValidKey> | IDBRequest<undefined>;
   } = {}): LocalScoreProjectStore => {
     assertValidLimits(limits);
     const requireFactory = () => {
@@ -465,9 +472,9 @@ export const createIndexedDbLocalScoreProjectStore =
             if (existing.document.revision !== expectedRevision) {
               throw new LocalScoreProjectConflictError();
             }
-            const deleteRequest = store.delete(projectId);
-            deleteRequest.onerror = () => {
-              failure = deleteRequest.error?.name === "QuotaExceededError"
+            const request = deleteRequest(store, projectId);
+            request.onerror = () => {
+              failure = request.error?.name === "QuotaExceededError"
                 ? new LocalScoreProjectStorageError(
                   "quota",
                   "浏览器或 Android WebView 分配给 IndexedDB 的空间不足，未删除乐谱项目；原项目保持不变。请清理设备空间或恢复存储条件后重试。",
@@ -674,9 +681,11 @@ export const deleteLocalScoreProject = async ({
   } catch (error) {
     const failure = getStorageFailure(error);
     return {
-      notice: failure.status === "unavailable"
-        ? "本机乐谱项目删除失败，当前项目仍被保留。请恢复存储条件后重试。"
-        : failure.notice,
+      notice: failure.status === "conflict"
+        ? "乐谱项目已在其他页面更新，请重新读取后再删除。"
+        : failure.status === "unavailable"
+          ? "本机乐谱项目删除失败，当前项目仍被保留。请恢复存储条件后重试。"
+          : failure.notice,
       deleted: false,
       status: failure.status,
     } as const;

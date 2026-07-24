@@ -294,6 +294,8 @@ const run = async () => {
     },
   });
   assert.equal(staleDelete.deleted, false);
+  assert.equal(staleDelete.status, "conflict");
+  assert.match(staleDelete.notice ?? "", /重新读取后再删除/);
   assert.equal((await loadLocalScoreProject({
     store: firstStore,
     projectId: initial.projectId,
