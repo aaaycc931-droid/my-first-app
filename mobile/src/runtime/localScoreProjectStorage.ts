@@ -259,6 +259,7 @@ const parseStoredProject = (value: unknown) => {
 const transactionCompletion = (
   transaction: IDBTransaction,
   getFailure: () => Error | null,
+  operation: "save" | "delete" = "save",
 ) =>
   new Promise<void>((resolve, reject) => {
     transaction.oncomplete = () => resolve();
@@ -273,7 +274,9 @@ const transactionCompletion = (
             )
             : new LocalScoreProjectStorageError(
               "transaction-failed",
-              "IndexedDB 事务失败，乐谱项目未保存；原有项目保持不变。请恢复存储条件后重试。",
+              operation === "delete"
+                ? "IndexedDB 事务失败，未删除乐谱项目；原项目保持不变。请恢复存储条件后重试。"
+                : "IndexedDB 事务失败，乐谱项目未保存；原有项目保持不变。请恢复存储条件后重试。",
             )
         ),
       );
@@ -282,7 +285,9 @@ const transactionCompletion = (
         getFailure()
         ?? new LocalScoreProjectStorageError(
           "transaction-failed",
-          "IndexedDB 事务被中止，乐谱项目未保存；原有项目保持不变。请恢复存储条件后重试。",
+          operation === "delete"
+            ? "IndexedDB 事务被中止，未删除乐谱项目；原项目保持不变。请恢复存储条件后重试。"
+            : "IndexedDB 事务被中止，乐谱项目未保存；原有项目保持不变。请恢复存储条件后重试。",
         ),
       );
   });
@@ -436,11 +441,20 @@ export const createIndexedDbLocalScoreProjectStore =
       let failure: Error | null = null;
       try {
         const transaction = database.transaction(STORE_NAME, "readwrite");
-        const completion = transactionCompletion(transaction, () => failure);
+        const completion = transactionCompletion(
+          transaction,
+          () => failure,
+          "delete",
+        );
         const store = transaction.objectStore(STORE_NAME);
         const getRequest = store.get(projectId);
         getRequest.onerror = () => {
-          failure = new Error("无法读取当前乐谱项目修订。");
+          failure = new LocalScoreProjectStorageError(
+            "transaction-failed",
+            getRequest.error?.name === "AbortError"
+              ? "IndexedDB 事务被中止，未删除乐谱项目；原项目保持不变。请恢复存储条件后重试。"
+              : "IndexedDB 事务无法读取当前乐谱项目，未执行删除；原项目保持不变。",
+          );
         };
         getRequest.onsuccess = () => {
           try {
@@ -451,7 +465,18 @@ export const createIndexedDbLocalScoreProjectStore =
             if (existing.document.revision !== expectedRevision) {
               throw new LocalScoreProjectConflictError();
             }
-            store.delete(projectId);
+            const deleteRequest = store.delete(projectId);
+            deleteRequest.onerror = () => {
+              failure = deleteRequest.error?.name === "QuotaExceededError"
+                ? new LocalScoreProjectStorageError(
+                  "quota",
+                  "浏览器或 Android WebView 分配给 IndexedDB 的空间不足，未删除乐谱项目；原项目保持不变。请清理设备空间或恢复存储条件后重试。",
+                )
+                : new LocalScoreProjectStorageError(
+                  "write-failed",
+                  "本机存储删除写入失败，未删除乐谱项目；原项目保持不变。请恢复存储条件后重试。",
+                );
+            };
           } catch (error) {
             failure = error instanceof Error
               ? error
@@ -645,13 +670,15 @@ export const deleteLocalScoreProject = async ({
 }) => {
   try {
     await store.delete(project.projectId, project.document.revision);
-    return { notice: null, deleted: true } as const;
+    return { notice: null, deleted: true, status: "deleted" } as const;
   } catch (error) {
+    const failure = getStorageFailure(error);
     return {
-      notice: error instanceof LocalScoreProjectConflictError
-        ? error.message
-        : "本机乐谱项目删除失败，当前项目仍被保留。",
+      notice: failure.status === "unavailable"
+        ? "本机乐谱项目删除失败，当前项目仍被保留。请恢复存储条件后重试。"
+        : failure.notice,
       deleted: false,
+      status: failure.status,
     } as const;
   }
 };

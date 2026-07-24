@@ -16,6 +16,8 @@ import {
 class MemoryProjectStore implements LocalScoreProjectStore {
   readonly values = new Map<string, LocalScoreProjectV1>();
   failNextPut: Error | null = null;
+  failNextDelete: Error | null = null;
+  deleteCalls = 0;
 
   async get(projectId: string) {
     const project = this.values.get(projectId);
@@ -48,6 +50,12 @@ class MemoryProjectStore implements LocalScoreProjectStore {
   }
 
   async delete(projectId: string, expectedRevision: number) {
+    this.deleteCalls += 1;
+    if (this.failNextDelete) {
+      const error = this.failNextDelete;
+      this.failNextDelete = null;
+      throw error;
+    }
     const current = this.values.get(projectId);
     if (current?.document.revision !== expectedRevision) {
       throw new LocalScoreProjectConflictError();
@@ -279,6 +287,51 @@ describe("S1 本机谱项目面板", () => {
       "恢复条件后重试成功",
     );
     expect(Array.from(store.values.values())[0]?.document.revision).toBe(2);
+  });
+
+  it("删除项目需要明确确认，失败保留数据，恢复后可重试", async () => {
+    const store = new MemoryProjectStore();
+    const container = await renderPanel(store);
+    await click(findButton(container, "创建并保存"));
+    await waitFor(
+      () => container.textContent?.includes("第一声部预览") ?? false,
+      "进入已保存项目",
+    );
+    await click(findButton(container, "返回项目列表"));
+    await waitFor(
+      () => container.textContent?.includes("本机已保存项目") ?? false,
+      "返回项目列表",
+    );
+
+    await click(findButton(container, "删除项目"));
+    expect(container.textContent).toContain("确认永久删除");
+    expect(store.deleteCalls).toBe(0);
+    expect(store.values.size).toBe(1);
+
+    await click(findButton(container, "取消"));
+    expect(container.textContent).not.toContain("确认永久删除");
+    expect(store.deleteCalls).toBe(0);
+
+    store.failNextDelete = new LocalScoreProjectStorageError(
+      "transaction-failed",
+      "IndexedDB 事务被中止，未删除乐谱项目；原项目保持不变。请恢复存储条件后重试。",
+    );
+    await click(findButton(container, "删除项目"));
+    await click(findButton(container, "确认删除"));
+    await waitFor(
+      () => container.textContent?.includes("事务被中止") ?? false,
+      "显示删除事务失败",
+    );
+    expect(container.textContent).toContain("确认永久删除");
+    expect(store.values.size).toBe(1);
+
+    await click(findButton(container, "确认删除"));
+    await waitFor(
+      () => container.textContent?.includes("释放的应用容量") ?? false,
+      "恢复后重试删除成功",
+    );
+    expect(store.values.size).toBe(0);
+    expect(container.textContent).toContain("还没有已保存的谱项目");
   });
 
   it("追加第二小节、选择并更新事件，且仅允许删除末尾空小节", async () => {

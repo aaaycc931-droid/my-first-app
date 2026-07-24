@@ -11,6 +11,7 @@ import {
 } from "../lib/music/localScoreProject";
 import {
   createIndexedDbLocalScoreProjectStore,
+  deleteLocalScoreProject,
   getLocalScoreProjectStorageBytes,
   getLocalScoreProjectWriteError,
   loadLocalScoreProject,
@@ -120,6 +121,22 @@ const run = async () => {
     store: countStore,
     projectId: second.projectId,
   })).status, "not-found");
+  assert.equal((await deleteLocalScoreProject({
+    store: countStore,
+    project: first,
+  })).deleted, true);
+  assert.equal((await persistNewLocalScoreProject({
+    store: countStore,
+    project: second,
+  })).status, "saved", "删除项目释放容量后必须允许重试新建");
+  assert.equal((await loadLocalScoreProject({
+    store: countStore,
+    projectId: first.projectId,
+  })).status, "not-found");
+  assert.deepEqual((await loadLocalScoreProject({
+    store: countStore,
+    projectId: second.projectId,
+  })).project, second);
 
   const concurrentFactory = new FakeIDBFactory();
   const concurrentStore = createIndexedDbLocalScoreProjectStore({
