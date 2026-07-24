@@ -42,7 +42,9 @@ export type LocalScoreProjectDomainErrorCode =
   | "clock-regression"
   | "duplicate"
   | "invalid-input"
-  | "not-found";
+  | "not-found"
+  | "not-empty"
+  | "would-empty";
 
 export class LocalScoreProjectDomainError extends Error {
   constructor(
@@ -65,6 +67,12 @@ export type LocalScoreProjectEventInput = Readonly<{
   type: "note" | "rest";
   pitch: NotationPitch | null;
   duration: NotationDuration;
+}>;
+
+export type LocalScoreProjectVoiceLocation = Readonly<{
+  partId: string;
+  staffId: string;
+  voiceId: string;
 }>;
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
@@ -481,6 +489,149 @@ const updateEventsAtLocation = ({
     );
   }
   return { meter: content.meter, parts };
+};
+
+const updateMeasuresAtVoice = ({
+  content,
+  location,
+  update,
+}: {
+  content: LocalScoreProjectContentV1;
+  location: LocalScoreProjectVoiceLocation;
+  update: (
+    measures: LocalScoreProjectContentV1["parts"][number]["staves"][number]["voices"][number]["measures"],
+  ) => LocalScoreProjectContentV1["parts"][number]["staves"][number]["voices"][number]["measures"];
+}): LocalScoreProjectContentV1 => {
+  let matched = 0;
+  const parts = content.parts.map((part) => ({
+    ...part,
+    staves: part.staves.map((staff) => ({
+      ...staff,
+      voices: staff.voices.map((voice) => {
+        if (
+          part.partId !== location.partId
+          || staff.staffId !== location.staffId
+          || voice.voiceId !== location.voiceId
+        ) return voice;
+        matched += 1;
+        return { ...voice, measures: update(voice.measures) };
+      }),
+    })),
+  }));
+  if (matched !== 1) {
+    throw new LocalScoreProjectDomainError(
+      "not-found",
+      "未找到唯一的目标声部，未执行小节修改。",
+    );
+  }
+  return { meter: content.meter, parts };
+};
+
+export const appendLocalScoreProjectMeasure = ({
+  project,
+  expectedRevision,
+  partId,
+  staffId,
+  voiceId,
+  now,
+}: {
+  project: LocalScoreProjectV1;
+  expectedRevision: number;
+  partId: string;
+  staffId: string;
+  voiceId: string;
+  now: string;
+}) => {
+  assertExpectedRevision(project, expectedRevision);
+  const content = getLocalScoreProjectContent(project);
+  const nextContent = updateMeasuresAtVoice({
+    content,
+    location: { partId, staffId, voiceId },
+    update: (measures) => {
+      const lastMeasure = measures.at(-1);
+      if (!lastMeasure) {
+        throw new LocalScoreProjectDomainError(
+          "would-empty",
+          "目标声部至少需要保留一个小节。",
+        );
+      }
+      const nextMeasureNumber = lastMeasure.measureNumber + 1;
+      if (!Number.isSafeInteger(nextMeasureNumber)) {
+        throw new LocalScoreProjectDomainError(
+          "invalid-input",
+          "无法生成有效的下一小节编号。",
+        );
+      }
+      if (measures.some((measure) =>
+        measure.measureNumber === nextMeasureNumber)) {
+        throw new LocalScoreProjectDomainError(
+          "duplicate",
+          "下一小节编号已存在，未执行追加。",
+        );
+      }
+      return [
+        ...measures,
+        { measureNumber: nextMeasureNumber, events: [] },
+      ];
+    },
+  });
+  return applyLocalScoreProjectContent({
+    project,
+    expectedRevision,
+    content: nextContent,
+    now,
+  });
+};
+
+export const deleteEmptyLocalScoreProjectMeasure = ({
+  project,
+  expectedRevision,
+  partId,
+  staffId,
+  voiceId,
+  now,
+}: {
+  project: LocalScoreProjectV1;
+  expectedRevision: number;
+  partId: string;
+  staffId: string;
+  voiceId: string;
+  now: string;
+}) => {
+  assertExpectedRevision(project, expectedRevision);
+  const content = getLocalScoreProjectContent(project);
+  const nextContent = updateMeasuresAtVoice({
+    content,
+    location: { partId, staffId, voiceId },
+    update: (measures) => {
+      if (measures.length <= 1) {
+        throw new LocalScoreProjectDomainError(
+          "would-empty",
+          "目标声部至少需要保留一个小节，未执行删除。",
+        );
+      }
+      const lastMeasure = measures.at(-1);
+      if (!lastMeasure) {
+        throw new LocalScoreProjectDomainError(
+          "would-empty",
+          "目标声部至少需要保留一个小节，未执行删除。",
+        );
+      }
+      if (lastMeasure.events.length > 0) {
+        throw new LocalScoreProjectDomainError(
+          "not-empty",
+          "最后一个小节仍有音符或休止符，未执行删除。",
+        );
+      }
+      return measures.slice(0, -1);
+    },
+  });
+  return applyLocalScoreProjectContent({
+    project,
+    expectedRevision,
+    content: nextContent,
+    now,
+  });
 };
 
 export const addLocalScoreProjectEvent = ({

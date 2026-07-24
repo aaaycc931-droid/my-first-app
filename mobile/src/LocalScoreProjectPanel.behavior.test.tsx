@@ -80,6 +80,18 @@ const findButton = (
   return button;
 };
 
+const findSelect = (
+  container: ParentNode,
+  label: string,
+): HTMLSelectElement => {
+  const wrapper = Array.from(container.querySelectorAll("label")).find(
+    (candidate) => candidate.textContent?.includes(label),
+  );
+  const select = wrapper?.querySelector("select");
+  if (!select) throw new Error(`找不到选择器：${label}`);
+  return select;
+};
+
 const click = async (element: HTMLElement) => {
   await act(async () => {
     element.dispatchEvent(
@@ -146,16 +158,15 @@ describe("S1 本机谱项目面板", () => {
     expect(store.values.size).toBe(1);
     expect(container.textContent).toContain("修订 1");
 
-    await click(findButton(container, "添加到第一小节并保存"));
+    await click(findButton(container, "添加到第 1 小节并保存"));
     await waitFor(
       () => container.textContent?.includes("C4 · 四分音符") ?? false,
       "保存音符",
     );
 
-    const typeSelect = container.querySelectorAll("select")[1];
-    if (!typeSelect) throw new Error("找不到事件类型选择器");
+    const typeSelect = findSelect(container, "类型");
     await change(typeSelect, "rest");
-    await click(findButton(container, "添加到第一小节并保存"));
+    await click(findButton(container, "添加到第 1 小节并保存"));
     await waitFor(
       () => container.textContent?.includes("休止 · 四分音符") ?? false,
       "保存休止符",
@@ -208,7 +219,7 @@ describe("S1 本机谱项目面板", () => {
     );
 
     store.failNextPut = new Error("quota");
-    await click(findButton(container, "添加到第一小节并保存"));
+    await click(findButton(container, "添加到第 1 小节并保存"));
     await waitFor(
       () => container.textContent?.includes("保持不变") ?? false,
       "显示存储失败",
@@ -216,11 +227,72 @@ describe("S1 本机谱项目面板", () => {
     expect(container.textContent).not.toContain("C4 · 四分音符");
 
     store.failNextPut = new LocalScoreProjectConflictError();
-    await click(findButton(container, "添加到第一小节并保存"));
+    await click(findButton(container, "添加到第 1 小节并保存"));
     await waitFor(
       () => container.textContent?.includes("其他页面更新") ?? false,
       "显示并发冲突",
     );
     expect(container.textContent).not.toContain("C4 · 四分音符");
+  });
+
+  it("追加第二小节、选择并更新事件，且仅允许删除末尾空小节", async () => {
+    const store = new MemoryProjectStore();
+    const container = await renderPanel(store);
+    await click(findButton(container, "创建并保存"));
+    await waitFor(
+      () => container.textContent?.includes("第一声部预览") ?? false,
+      "进入已保存项目",
+    );
+
+    await click(findButton(container, "追加空小节"));
+    await waitFor(
+      () => container.textContent?.includes("2 小节") ?? false,
+      "追加第二小节",
+    );
+    await change(findSelect(container, "目标小节"), "2");
+    await click(findButton(container, "添加到第 2 小节并保存"));
+    await waitFor(
+      () => container.textContent?.includes("第 2 小节 · C4 · 四分音符")
+        ?? false,
+      "在第二小节保存音符",
+    );
+
+    await click(findButton(container, "编辑"));
+    expect(container.textContent).toContain("正在编辑第 2 小节");
+    await change(findSelect(container, "音高"), "G4");
+    await click(findButton(container, "更新所选事件并保存"));
+    await waitFor(
+      () => container.textContent?.includes("第 2 小节 · G4 · 四分音符")
+        ?? false,
+      "更新第二小节音符",
+    );
+
+    await click(findButton(container, "删除末尾空小节"));
+    await waitFor(
+      () => container.textContent?.includes("仍有音符或休止符") ?? false,
+      "拒绝删除非空末尾小节",
+    );
+    await click(findButton(container, "删除"));
+    await waitFor(
+      () => !container.textContent?.includes("第 2 小节 · G4"),
+      "删除第二小节事件",
+    );
+    await click(findButton(container, "删除末尾空小节"));
+    await waitFor(
+      () => container.textContent?.includes("1 小节") ?? false,
+      "删除末尾空小节",
+    );
+
+    await click(findButton(container, "撤销"));
+    await waitFor(
+      () => container.textContent?.includes("2 小节") ?? false,
+      "撤销小节删除",
+    );
+    const project = Array.from(store.values.values())[0];
+    expect(
+      project?.document.parts[0]?.staves[0]?.voices[0]?.measures.map(
+        (measure) => measure.measureNumber,
+      ),
+    ).toEqual([1, 2]);
   });
 });

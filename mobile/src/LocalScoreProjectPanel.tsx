@@ -2,16 +2,23 @@
 
 import { useCallback, useEffect, useState } from "react";
 
+import {
+  LocalScoreProjectStaffPreview,
+  type LocalScoreProjectStaffSelection,
+} from "../../components/music/LocalScoreProjectStaffPreview";
 import { useLocalScoreProjectPlayback } from "../../components/piano/useLocalScoreProjectPlayback";
 import {
   LocalScoreProjectDomainError,
   addLocalScoreProjectEvent,
+  appendLocalScoreProjectMeasure,
   changeLocalScoreProjectMeter,
   createLocalScoreProject,
+  deleteEmptyLocalScoreProjectMeasure,
   deleteLocalScoreProjectEvent,
   redoLocalScoreProject,
   renameLocalScoreProject,
   undoLocalScoreProject,
+  updateLocalScoreProjectEvent,
   type LocalScoreProjectV1,
 } from "../../lib/music/localScoreProject";
 import {
@@ -46,7 +53,7 @@ const createDefaultId = () => {
   return `score-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
 };
 
-const getPrimaryLocation = (project: LocalScoreProjectV1) => {
+const getPrimaryVoice = (project: LocalScoreProjectV1) => {
   const part = project.document.parts[0];
   const staff = part?.staves[0];
   const voice = staff?.voices[0];
@@ -60,17 +67,34 @@ const getPrimaryLocation = (project: LocalScoreProjectV1) => {
     partId: part.partId,
     staffId: staff.staffId,
     voiceId: voice.voiceId,
-    measureNumber: 1,
+    voice,
   };
 };
 
+const getPrimaryMeasures = (project: LocalScoreProjectV1) =>
+  [...getPrimaryVoice(project).voice.measures]
+    .sort((left, right) => left.measureNumber - right.measureNumber);
+
+const getPrimaryLocation = (
+  project: LocalScoreProjectV1,
+  measureNumber: number,
+) => {
+  const { partId, staffId, voiceId } = getPrimaryVoice(project);
+  return { partId, staffId, voiceId, measureNumber };
+};
+
 const getPrimaryEvents = (project: LocalScoreProjectV1) => {
-  const voice = project.document.parts[0]?.staves[0]?.voices[0];
-  return voice
-    ? [...voice.measures]
-        .sort((left, right) => left.measureNumber - right.measureNumber)
-        .flatMap((measure) => measure.events)
-    : [];
+  const primary = getPrimaryVoice(project);
+  return getPrimaryMeasures(project).flatMap((measure) =>
+    measure.events.map((event) => ({
+      event,
+      location: {
+        partId: primary.partId,
+        staffId: primary.staffId,
+        voiceId: primary.voiceId,
+        measureNumber: measure.measureNumber,
+      },
+    })));
 };
 
 function LocalScoreProjectPlaybackControls({
@@ -162,6 +186,9 @@ export function LocalScoreProjectPanel({
   const [eventType, setEventType] = useState<EditorEventType>("note");
   const [pitch, setPitch] = useState<NotationPitch>("C4");
   const [duration, setDuration] = useState<NotationDuration>("quarter");
+  const [targetMeasureNumber, setTargetMeasureNumber] = useState(1);
+  const [selectedEvent, setSelectedEvent] =
+    useState<LocalScoreProjectStaffSelection | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [isBusy, setIsBusy] = useState(true);
   const [sourceStatus, setSourceStatus] =
@@ -193,8 +220,21 @@ export function LocalScoreProjectPanel({
   }, [resolvedStore]);
 
   const publishProject = (project: LocalScoreProjectV1) => {
+    const nextMeasures = getPrimaryMeasures(project);
+    const nextEvents = getPrimaryEvents(project);
     setCurrentProject(project);
     setEditorTitle(project.title);
+    setTargetMeasureNumber((previous) =>
+      nextMeasures.some((measure) => measure.measureNumber === previous)
+        ? previous
+        : nextMeasures[0]?.measureNumber ?? 1);
+    setSelectedEvent((previous) =>
+      previous
+      && nextEvents.some(({ event, location }) =>
+        event.id === previous.eventId
+        && location.measureNumber === previous.location.measureNumber)
+        ? previous
+        : null);
     setProjects((previous) => [
       project,
       ...previous.filter((candidate) => candidate.projectId !== project.projectId),
@@ -280,22 +320,51 @@ export function LocalScoreProjectPanel({
     }
   };
 
-  const addEvent = () => {
+  const saveEvent = () => {
     void persistMutation((project) =>
-      addLocalScoreProjectEvent({
-        project,
-        expectedRevision: project.document.revision,
-        location: getPrimaryLocation(project),
-        eventId: `event-${createId()}`,
-        input: eventType === "rest"
+      selectedEvent
+        ? updateLocalScoreProjectEvent({
+          project,
+          expectedRevision: project.document.revision,
+          location: selectedEvent.location,
+          eventId: selectedEvent.eventId,
+          input: eventType === "rest"
+            ? { type: "rest", pitch: null, duration: "quarter" }
+            : { type: "note", pitch, duration },
+          now: now(),
+        })
+        : addLocalScoreProjectEvent({
+          project,
+          expectedRevision: project.document.revision,
+          location: getPrimaryLocation(project, targetMeasureNumber),
+          eventId: `event-${createId()}`,
+          input: eventType === "rest"
           ? { type: "rest", pitch: null, duration: "quarter" }
           : { type: "note", pitch, duration },
-        now: now(),
-      }),
+          now: now(),
+        }),
     );
   };
 
+  const selectEvent = (selection: LocalScoreProjectStaffSelection) => {
+    if (!currentProject) return;
+    const located = getPrimaryEvents(currentProject).find(({ event, location }) =>
+      event.id === selection.eventId
+      && location.measureNumber === selection.location.measureNumber);
+    if (!located) return;
+    setSelectedEvent(selection);
+    setTargetMeasureNumber(selection.location.measureNumber);
+    setEventType(located.event.type);
+    if (located.event.type === "note" && located.event.pitch) {
+      setPitch(located.event.pitch);
+      setDuration(located.event.duration);
+    } else {
+      setDuration("quarter");
+    }
+  };
+
   const events = currentProject ? getPrimaryEvents(currentProject) : [];
+  const measures = currentProject ? getPrimaryMeasures(currentProject) : [];
 
   if (!currentProject) {
     return (
@@ -438,8 +507,44 @@ export function LocalScoreProjectPanel({
       </section>
 
       <section className="rounded-3xl border border-indigo-200 bg-indigo-50 p-5 text-indigo-950 shadow-sm">
-        <h2 className="text-xl font-black">输入音符或休止</h2>
-        <div className="mt-4 grid gap-3 sm:grid-cols-3">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h2 className="text-xl font-black">
+              {selectedEvent ? "编辑所选事件" : "输入音符或休止"}
+            </h2>
+            <p className="mt-1 text-sm text-indigo-800">
+              {selectedEvent
+                ? `正在编辑第 ${selectedEvent.location.measureNumber} 小节的已保存事件。`
+                : `新事件将写入第 ${targetMeasureNumber} 小节。`}
+            </p>
+          </div>
+          {selectedEvent ? (
+            <button
+              type="button"
+              disabled={isBusy}
+              onClick={() => setSelectedEvent(null)}
+              className="min-h-11 rounded-xl border border-indigo-300 bg-white px-3 py-2 text-sm font-bold disabled:text-slate-400"
+            >
+              取消选择
+            </button>
+          ) : null}
+        </div>
+        <div className="mt-4 grid gap-3 sm:grid-cols-4">
+          <label className="text-sm font-bold">
+            目标小节
+            <select
+              value={targetMeasureNumber}
+              disabled={isBusy || Boolean(selectedEvent)}
+              onChange={(event) => setTargetMeasureNumber(Number(event.target.value))}
+              className="mt-2 min-h-11 w-full rounded-xl border border-indigo-300 bg-white px-3 py-2 disabled:bg-slate-100"
+            >
+              {measures.map((measure) => (
+                <option key={measure.measureNumber} value={measure.measureNumber}>
+                  第 {measure.measureNumber} 小节
+                </option>
+              ))}
+            </select>
+          </label>
           <label className="text-sm font-bold">
             类型
             <select
@@ -482,10 +587,12 @@ export function LocalScoreProjectPanel({
         <button
           type="button"
           disabled={isBusy}
-          onClick={addEvent}
+          onClick={saveEvent}
           className="mt-4 min-h-11 rounded-xl bg-indigo-700 px-4 py-2 text-sm font-bold text-white disabled:bg-slate-300"
         >
-          添加到第一小节并保存
+          {selectedEvent
+            ? "更新所选事件并保存"
+            : `添加到第 ${targetMeasureNumber} 小节并保存`}
         </button>
       </section>
 
@@ -494,10 +601,53 @@ export function LocalScoreProjectPanel({
           <div>
             <h2 className="text-xl font-black">第一声部预览</h2>
             <p className="text-sm text-slate-500">
-              {currentProject.document.meter} · {events.length} 个事件
+              {currentProject.document.meter} · {measures.length} 小节 · {events.length} 个事件
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              disabled={isBusy}
+              onClick={() =>
+                void persistMutation((project) => {
+                  const primary = getPrimaryVoice(project);
+                  return appendLocalScoreProjectMeasure({
+                    project,
+                    expectedRevision: project.document.revision,
+                    partId: primary.partId,
+                    staffId: primary.staffId,
+                    voiceId: primary.voiceId,
+                    now: now(),
+                  });
+                })
+              }
+              className="min-h-11 rounded-xl border border-indigo-300 px-3 py-2 text-sm font-bold text-indigo-800 disabled:text-slate-400"
+            >
+              追加空小节
+            </button>
+            <button
+              type="button"
+              disabled={isBusy || measures.length <= 1}
+              title={measures.length <= 1
+                ? "至少需要保留一个小节。"
+                : "只有末尾小节为空时才能删除。"}
+              onClick={() =>
+                void persistMutation((project) => {
+                  const primary = getPrimaryVoice(project);
+                  return deleteEmptyLocalScoreProjectMeasure({
+                    project,
+                    expectedRevision: project.document.revision,
+                    partId: primary.partId,
+                    staffId: primary.staffId,
+                    voiceId: primary.voiceId,
+                    now: now(),
+                  });
+                })
+              }
+              className="min-h-11 rounded-xl border border-rose-300 px-3 py-2 text-sm font-bold text-rose-700 disabled:text-slate-400"
+            >
+              删除末尾空小节
+            </button>
             <button
               type="button"
               disabled={isBusy || currentProject.undoStack.length === 0}
@@ -533,38 +683,65 @@ export function LocalScoreProjectPanel({
           </div>
         </div>
 
+        <div className="mt-4">
+          <LocalScoreProjectStaffPreview
+            document={currentProject.document}
+            selectedEventId={selectedEvent?.eventId}
+            onSelectEvent={selectEvent}
+          />
+        </div>
+
         {events.length === 0 ? (
           <p className="mt-4 rounded-2xl bg-slate-50 p-4 text-sm text-slate-600">
             当前小节为空。添加一个音符或休止符后即可预览和播放。
           </p>
         ) : (
           <ol className="mt-4 grid gap-2">
-            {events.map((event, index) => (
+            {events.map(({ event, location }, index) => (
               <li
                 key={event.id}
-                className="flex items-center justify-between gap-3 rounded-2xl border border-slate-200 p-3"
+                className={`flex items-center justify-between gap-3 rounded-2xl border p-3 ${
+                  selectedEvent?.eventId === event.id
+                    ? "border-indigo-400 bg-indigo-50"
+                    : "border-slate-200"
+                }`}
               >
-                <p className="font-mono text-sm">
-                  {index + 1}. {event.type === "note" ? event.pitch : "休止"} · {durationLabels[event.duration]}
-                </p>
-                <button
-                  type="button"
-                  disabled={isBusy}
-                  onClick={() =>
-                    void persistMutation((project) =>
-                      deleteLocalScoreProjectEvent({
-                        project,
-                        expectedRevision: project.document.revision,
-                        location: getPrimaryLocation(project),
-                        eventId: event.id,
-                        now: now(),
-                      }),
-                    )
-                  }
-                  className="min-h-11 rounded-xl border border-rose-300 px-3 py-2 text-sm font-bold text-rose-700 disabled:text-slate-400"
-                >
-                  删除
-                </button>
+                <div>
+                  <p className="font-mono text-sm">
+                    {index + 1}. 第 {location.measureNumber} 小节 · {event.type === "note" ? event.pitch : "休止"} · {durationLabels[event.duration]}
+                  </p>
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    disabled={isBusy}
+                    onClick={() => selectEvent({ eventId: event.id, location })}
+                    className="min-h-11 rounded-xl border border-indigo-300 px-3 py-2 text-sm font-bold text-indigo-800 disabled:text-slate-400"
+                  >
+                    编辑
+                  </button>
+                  <button
+                    type="button"
+                    disabled={isBusy}
+                    onClick={() => {
+                      if (selectedEvent?.eventId === event.id) {
+                        setSelectedEvent(null);
+                      }
+                      void persistMutation((project) =>
+                        deleteLocalScoreProjectEvent({
+                          project,
+                          expectedRevision: project.document.revision,
+                          location,
+                          eventId: event.id,
+                          now: now(),
+                        }),
+                      );
+                    }}
+                    className="min-h-11 rounded-xl border border-rose-300 px-3 py-2 text-sm font-bold text-rose-700 disabled:text-slate-400"
+                  >
+                    删除
+                  </button>
+                </div>
               </li>
             ))}
           </ol>
@@ -579,6 +756,8 @@ export function LocalScoreProjectPanel({
           disabled={isBusy}
           onClick={() => {
             setCurrentProject(null);
+            setSelectedEvent(null);
+            setTargetMeasureNumber(1);
             setNotice(null);
             void refreshProjects();
           }}
