@@ -75,6 +75,7 @@ jobs:
           npm run test:android-local-artifact-verifier
           npm run test:android-version
           npm run test:ci-supply-chain-policy
+          npm run test:quality-workflow-test-coverage
           npm run test:android-p104-evidence
           npm run test:pitch-benchmark-protocol
           npm run test:p119-content-education-evidence
@@ -144,9 +145,36 @@ jobs:
           npm run test:mobile-rhythm-dictation-behavior
           npm run test:local-ear-training-melody-dictation
           npm run test:local-piano-keyboard
+          npm run test:cloud-practice-attempt
+          npm run test:local-melody-guide-validator
+          npm run test:local-melody-guide-wav-header-inspector
+          npm run test:metronome-foundation
+          npm run test:rhythm-tap-feedback
+          npm run test:rhythm-latency-calibration
+          npm run test:audio-onset-rhythm-feedback
+          npm run test:audio-onset-detection
+          npm run test:local-melody-guide-audio-import
+          npm run test:local-target-pitch-curve-draft
+          npm run test:local-target-pitch-curve-review
+          npm run test:local-target-pitch-curve-draft-review-controls
+          npm run test:local-reviewed-draft-practice-target
+          npm run test:local-sheet-music-import-source
+          npm run test:local-mock-recognition-draft
+          npm run test:local-notation-fragment-draft
+          npm run test:local-notation-draft-validation
+          npm run test:local-notation-draft-practice-target
+          npm run test:non-scoring-notation-target-pitch-feedback
+          npm run test:notation-temporary-rhythm-tap
+          npm run test:practice-module-registry
+          npm run test:note-frequency
+          npm run test:recognition-fail-closed
+          npm run test:auth-ui-policy
+          npm run test:notation-temporary-practice-progress
+          npm run test:notation-reference-melody-playback
+          npm run test:repository-hygiene
 
       - name: Validate local Android bundle
-        run: npm run validate:android-version && npm run android:sync && npm run validate:android-local
+        run: npm run validate:repository-hygiene && npm run validate:android-version && npm run android:sync && npm run validate:android-local
 
       - name: Build
         run: npm run build

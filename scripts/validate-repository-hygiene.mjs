@@ -1,23 +1,7 @@
 import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { extname } from "node:path";
-
-const forbiddenExtensions = new Set([
-  ".pdf",
-  ".mxl",
-  ".omr",
-  ".log",
-  ".jpg",
-  ".jpeg",
-  ".png",
-  ".gif",
-  ".webp",
-  ".tif",
-  ".tiff",
-  ".bmp",
-  ".heic",
-  ".xml",
-]);
+import { findForbiddenTrackedFiles } from "./repository-hygiene.mjs";
 
 const checks = [];
 const failures = [];
@@ -52,17 +36,15 @@ const trackedFiles = execFileSync("git", ["ls-files"], { encoding: "utf8" })
   .split("\n")
   .filter(Boolean);
 
-const forbiddenTrackedFiles = trackedFiles.filter((filePath) =>
-  forbiddenExtensions.has(extname(filePath).toLowerCase()),
-);
+const forbiddenTrackedFiles = findForbiddenTrackedFiles(trackedFiles);
 
 if (forbiddenTrackedFiles.length > 0) {
   fail(
-    "Tracked generated/sample files are forbidden.",
+    "Unexpected tracked generated/sample files are forbidden.",
     forbiddenTrackedFiles.map((filePath) => `${filePath} (${extname(filePath).toLowerCase()})`),
   );
 } else {
-  pass("No forbidden generated/sample file extensions are tracked by git.");
+  pass("No unexpected generated/sample file extensions are tracked by git.");
 }
 
 const recognizerFactoryPath = "lib/recognition/recognizerFactory.ts";
