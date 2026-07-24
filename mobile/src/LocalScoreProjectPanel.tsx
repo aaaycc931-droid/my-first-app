@@ -32,6 +32,7 @@ import {
 import {
   LOCAL_SCORE_PROJECT_STORAGE_LIMITS,
   createIndexedDbLocalScoreProjectStore,
+  deleteLocalScoreProject,
   listLocalScoreProjects,
   loadLocalScoreProject,
   persistLocalScoreProjectChange,
@@ -203,6 +204,8 @@ export function LocalScoreProjectPanel({
   const [selectedEvent, setSelectedEvent] =
     useState<LocalScoreProjectStaffSelection | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [pendingDeleteProjectId, setPendingDeleteProjectId] =
+    useState<string | null>(null);
   const [isBusy, setIsBusy] = useState(true);
   const [sourceStatus, setSourceStatus] =
     useState<"available" | "unavailable">("available");
@@ -297,6 +300,26 @@ export function LocalScoreProjectPanel({
       setNotice("已重新打开本机保存的谱项目。");
     } else {
       setNotice(result.notice ?? "未找到这份本机谱项目。");
+    }
+    setIsBusy(false);
+  };
+
+  const confirmDeleteProject = async (project: LocalScoreProjectV1) => {
+    if (isBusy || pendingDeleteProjectId !== project.projectId) return;
+    setIsBusy(true);
+    setNotice(null);
+    const result = await deleteLocalScoreProject({
+      store: resolvedStore,
+      project,
+    });
+    if (result.deleted) {
+      setProjects((previous) =>
+        previous.filter((candidate) =>
+          candidate.projectId !== project.projectId));
+      setPendingDeleteProjectId(null);
+      setNotice("本机谱项目已删除，释放的应用容量可用于新建或保存。");
+    } else {
+      setNotice(result.notice);
     }
     setIsBusy(false);
   };
@@ -433,22 +456,62 @@ export function LocalScoreProjectPanel({
               {projects.map((project) => (
                 <li
                   key={project.projectId}
-                  className="flex items-center justify-between gap-3 rounded-2xl border border-slate-200 p-3"
+                  className="rounded-2xl border border-slate-200 p-3"
                 >
-                  <div className="min-w-0">
-                    <p className="truncate font-bold">{project.title}</p>
-                    <p className="text-xs text-slate-500">
-                      修订 {project.document.revision} · {project.document.meter}
-                    </p>
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="truncate font-bold">{project.title}</p>
+                      <p className="text-xs text-slate-500">
+                        修订 {project.document.revision} · {project.document.meter}
+                      </p>
+                    </div>
+                    <div className="flex shrink-0 flex-wrap gap-2">
+                      <button
+                        type="button"
+                        disabled={isBusy}
+                        onClick={() => void openProject(project.projectId)}
+                        className="min-h-11 rounded-xl border border-teal-300 bg-teal-50 px-3 py-2 text-sm font-bold text-teal-900 disabled:text-slate-400"
+                      >
+                        打开
+                      </button>
+                      <button
+                        type="button"
+                        disabled={isBusy}
+                        onClick={() => {
+                          setPendingDeleteProjectId(project.projectId);
+                          setNotice(null);
+                        }}
+                        className="min-h-11 rounded-xl border border-rose-300 px-3 py-2 text-sm font-bold text-rose-700 disabled:text-slate-400"
+                      >
+                        删除项目
+                      </button>
+                    </div>
                   </div>
-                  <button
-                    type="button"
-                    disabled={isBusy}
-                    onClick={() => void openProject(project.projectId)}
-                    className="min-h-11 shrink-0 rounded-xl border border-teal-300 bg-teal-50 px-3 py-2 text-sm font-bold text-teal-900 disabled:text-slate-400"
-                  >
-                    打开
-                  </button>
+                  {pendingDeleteProjectId === project.projectId ? (
+                    <div className="mt-3 rounded-xl border border-rose-200 bg-rose-50 p-3">
+                      <p className="text-sm leading-6 text-rose-950">
+                        确认永久删除“{project.title}”？只删除这一份本机项目，无法撤销；其他项目不会被修改。
+                      </p>
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        <button
+                          type="button"
+                          disabled={isBusy}
+                          onClick={() => void confirmDeleteProject(project)}
+                          className="min-h-11 rounded-xl bg-rose-700 px-3 py-2 text-sm font-bold text-white disabled:bg-slate-300"
+                        >
+                          确认删除
+                        </button>
+                        <button
+                          type="button"
+                          disabled={isBusy}
+                          onClick={() => setPendingDeleteProjectId(null)}
+                          className="min-h-11 rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm font-bold disabled:text-slate-400"
+                        >
+                          取消
+                        </button>
+                      </div>
+                    </div>
+                  ) : null}
                 </li>
               ))}
             </ul>

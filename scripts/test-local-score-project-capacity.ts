@@ -11,6 +11,7 @@ import {
 } from "../lib/music/localScoreProject";
 import {
   createIndexedDbLocalScoreProjectStore,
+  deleteLocalScoreProject,
   getLocalScoreProjectStorageBytes,
   getLocalScoreProjectWriteError,
   loadLocalScoreProject,
@@ -42,9 +43,9 @@ const addNote = (project: ReturnType<typeof createProject>) =>
     now: "2026-07-24T10:00:01.000Z",
   });
 
-const asQuotaRequest = (
-  request: IDBRequest<IDBValidKey>,
-): IDBRequest<IDBValidKey> =>
+const asQuotaRequest = <T>(
+  request: IDBRequest<T>,
+): IDBRequest<T> =>
   new Proxy(request, {
     get(target, property) {
       if (property === "error") {
@@ -119,6 +120,75 @@ const run = async () => {
   assert.equal((await loadLocalScoreProject({
     store: countStore,
     projectId: second.projectId,
+  })).status, "not-found");
+  assert.equal((await deleteLocalScoreProject({
+    store: countStore,
+    project: first,
+  })).deleted, true);
+  assert.equal((await persistNewLocalScoreProject({
+    store: countStore,
+    project: second,
+  })).status, "saved", "删除项目释放容量后必须允许重试新建");
+  assert.equal((await loadLocalScoreProject({
+    store: countStore,
+    projectId: first.projectId,
+  })).status, "not-found");
+  assert.deepEqual((await loadLocalScoreProject({
+    store: countStore,
+    projectId: second.projectId,
+  })).project, second);
+
+  const deleteFailureFactory = new FakeIDBFactory();
+  const deleteFailureProject = createProject("delete-request-failure");
+  const healthyDeleteStore = createIndexedDbLocalScoreProjectStore({
+    indexedDbFactory: deleteFailureFactory,
+    limits: { maxProjects: 2, maxBytes: largeLimit },
+  });
+  assert.equal((await persistNewLocalScoreProject({
+    store: healthyDeleteStore,
+    project: deleteFailureProject,
+  })).status, "saved");
+
+  const quotaDeleteStore = createIndexedDbLocalScoreProjectStore({
+    indexedDbFactory: deleteFailureFactory,
+    limits: { maxProjects: 2, maxBytes: largeLimit },
+    deleteRequest: (store, projectId) =>
+      asQuotaRequest(store.add({ projectId })),
+  });
+  const quotaDelete = await deleteLocalScoreProject({
+    store: quotaDeleteStore,
+    project: deleteFailureProject,
+  });
+  assert.equal(quotaDelete.status, "quota");
+  assert.match(quotaDelete.notice ?? "", /未删除乐谱项目.*原项目保持不变/);
+  assert.equal((await loadLocalScoreProject({
+    store: healthyDeleteStore,
+    projectId: deleteFailureProject.projectId,
+  })).status, "loaded");
+
+  const ordinaryDeleteStore = createIndexedDbLocalScoreProjectStore({
+    indexedDbFactory: deleteFailureFactory,
+    limits: { maxProjects: 2, maxBytes: largeLimit },
+    deleteRequest: (store, projectId) => store.add({ projectId }),
+  });
+  const ordinaryDelete = await deleteLocalScoreProject({
+    store: ordinaryDeleteStore,
+    project: deleteFailureProject,
+  });
+  assert.equal(ordinaryDelete.status, "write-failed");
+  assert.match(ordinaryDelete.notice ?? "", /删除写入失败.*原项目保持不变/);
+  assert.equal((await loadLocalScoreProject({
+    store: healthyDeleteStore,
+    projectId: deleteFailureProject.projectId,
+  })).status, "loaded");
+
+  assert.equal((await deleteLocalScoreProject({
+    store: healthyDeleteStore,
+    project: deleteFailureProject,
+  })).deleted, true, "删除存储恢复后必须允许重试");
+  assert.equal((await loadLocalScoreProject({
+    store: healthyDeleteStore,
+    projectId: deleteFailureProject.projectId,
   })).status, "not-found");
 
   const concurrentFactory = new FakeIDBFactory();

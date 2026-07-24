@@ -294,10 +294,46 @@ const run = async () => {
     },
   });
   assert.equal(staleDelete.deleted, false);
+  assert.equal(staleDelete.status, "conflict");
+  assert.match(staleDelete.notice ?? "", /重新读取后再删除/);
   assert.equal((await loadLocalScoreProject({
     store: firstStore,
     projectId: initial.projectId,
   })).status, "loaded");
+
+  abortNextReadwrite = true;
+  FakeIDBDatabase.prototype.transaction = function (
+    storeNames: string | Iterable<string>,
+    mode?: IDBTransactionMode,
+    options?: IDBTransactionOptions,
+  ) {
+    const transaction = originalTransaction.call(
+      this,
+      storeNames,
+      mode,
+      options,
+    );
+    if (abortNextReadwrite && mode === "readwrite") {
+      abortNextReadwrite = false;
+      queueMicrotask(() => transaction.abort());
+    }
+    return transaction;
+  };
+  try {
+    const abortedDelete = await deleteLocalScoreProject({
+      store: firstStore,
+      project: currentForDelete,
+    });
+    assert.equal(abortedDelete.deleted, false);
+    assert.equal(abortedDelete.status, "transaction-failed");
+    assert.match(abortedDelete.notice ?? "", /未删除乐谱项目/);
+  } finally {
+    FakeIDBDatabase.prototype.transaction = originalTransaction;
+  }
+  assert.equal((await loadLocalScoreProject({
+    store: firstStore,
+    projectId: initial.projectId,
+  })).status, "loaded", "删除事务中止后原项目必须完整");
 
   const deleted = await deleteLocalScoreProject({
     store: firstStore,
