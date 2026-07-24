@@ -29,6 +29,7 @@
     "test:android-version": "node scripts/test-android-version.mjs",
     "test:android-local-artifact-verifier": "node scripts/test-verify-android-local-debug-artifact.mjs",
     "test:ci-supply-chain-policy": "node scripts/test-ci-supply-chain-policy.mjs",
+    "test:quality-workflow-test-coverage": "node scripts/test-quality-workflow-test-coverage.mjs",
     "test:p119-content-education-evidence": "rm -rf .next/p119-content-education-evidence && tsc --module NodeNext --moduleResolution NodeNext --target ES2022 --outDir .next/p119-content-education-evidence --noEmit false --declaration false --sourceMap false --incremental false scripts/test-p119-content-education-evidence.ts lib/release/p119ContentEducationEvidence.ts && node .next/p119-content-education-evidence/scripts/test-p119-content-education-evidence.js",
     "validate:p119-content-education-evidence": "rm -rf .next/validate-p119-content-education-evidence && tsc --module NodeNext --moduleResolution NodeNext --target ES2022 --outDir .next/validate-p119-content-education-evidence --noEmit false --declaration false --sourceMap false --incremental false scripts/validate-p119-content-education-evidence.ts lib/release/p119ContentEducationEvidence.ts && node .next/validate-p119-content-education-evidence/scripts/validate-p119-content-education-evidence.js",
     "validate:p119-formal-stage-gate": "npm run validate:p119-content-education-evidence",
