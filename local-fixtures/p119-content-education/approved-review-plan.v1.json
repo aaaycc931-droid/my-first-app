@@ -1,0 +1,44 @@
+{
+  "schemaVersion": "p119-teacher-review-plan-approval-v1",
+  "status": "APPROVED_FOR_DUAL_TEACHER_REVIEW",
+  "approvedBeforeReview": true,
+  "binding": {
+    "candidateFile": "candidate-review-batch.v1.json",
+    "candidateFileSha256": "b0d0311a8e4aa6a4f95356877b656d55beccecc4b7fb51f04f4543928396e01d",
+    "candidateSeedSha256": "d37201ccbdfed0359b0a658aa8fff507d18bf2bb86b4e02e1f2556ae4c1ba241",
+    "reviewManifestFile": "review-manifest.bd5c5af211a3a1b36f4fcfacebdfe89b65fbafc1.json",
+    "reviewManifestSha256": "b8430559e1fc3f102f8f9fce1158b473ea199e4c7f8fec9fef607b0ef42da8a1"
+  },
+  "approvedScope": {
+    "questionStratification": "kind × difficulty",
+    "questionStratumCount": 30,
+    "questionItemsPerStratum": 5,
+    "questionItemCount": 150,
+    "coursePolicy": "include-all-frozen-course-items",
+    "courseItemCount": 3,
+    "totalItemCount": 153,
+    "sampleItemIds": "all sampleItemIds from the bound candidate file",
+    "crossStratumVariantPolicy": "retain 5 linked cross-difficulty variant pairs for difficulty-progression review; do not treat them as independent statistical samples"
+  },
+  "humanAttestation": {
+    "independentTeacherCount": 2,
+    "qualificationsVerifiedExternally": true,
+    "separateSignaturesHeldPrivately": true,
+    "privateRecordCustodian": "PRODUCT_OWNER",
+    "recordedDate": "2026-07-24"
+  },
+  "reviewScheduling": {
+    "status": "DEFERRED",
+    "resumeTrigger": "FORMAL_PROMOTION_TESTING_START",
+    "authorizedBy": "PRODUCT_OWNER",
+    "recordedDate": "2026-07-24",
+    "statement": "两名教师的独立逐题六维审核暂缓，待产品所有者正式开启推广测试时再执行；已批准批次继续冻结。"
+  },
+  "evidenceBoundary": {
+    "teacherItemReview": "NOT_EXECUTED",
+    "openFindingCount": "NOT_YET_AVAILABLE",
+    "educationValidity": "NOT_EXECUTED",
+    "formalEvaluation": "BLOCKED",
+    "statement": "本记录只保存产品所有者对仓库外双教师预批准的无身份摘要，不包含教师身份、资质原件、签署或逐题结论。"
+  }
+}
