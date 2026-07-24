@@ -2,7 +2,9 @@ import {
   isAllowedDuration,
   isAllowedPitch,
   isAllowedTimeSignature,
-  validateNotationDraftEventInput,
+  type NotationDuration,
+  type NotationPitch,
+  type NotationTimeSignature,
 } from "../practice/localNotationFragmentDraft";
 import type {
   LocalNotationProjectScoreDocumentV1,
@@ -36,14 +38,47 @@ export class LocalScoreProjectConflictError extends Error {
   }
 }
 
+export type LocalScoreProjectDomainErrorCode =
+  | "clock-regression"
+  | "duplicate"
+  | "invalid-input"
+  | "not-found";
+
+export class LocalScoreProjectDomainError extends Error {
+  constructor(
+    readonly code: LocalScoreProjectDomainErrorCode,
+    message: string,
+  ) {
+    super(message);
+    this.name = "LocalScoreProjectDomainError";
+  }
+}
+
+export type LocalScoreProjectEventLocation = Readonly<{
+  partId: string;
+  staffId: string;
+  voiceId: string;
+  measureNumber: number;
+}>;
+
+export type LocalScoreProjectEventInput = Readonly<{
+  type: "note" | "rest";
+  pitch: NotationPitch | null;
+  duration: NotationDuration;
+}>;
+
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   Boolean(value) && typeof value === "object" && !Array.isArray(value);
 
 const isValidId = (value: unknown): value is string =>
   typeof value === "string" && value.length > 0 && value.length <= 128;
 
-const isValidIsoDate = (value: unknown): value is string =>
-  typeof value === "string" && Number.isFinite(Date.parse(value));
+const isValidIsoDate = (value: unknown): value is string => {
+  if (typeof value !== "string") return false;
+  const timestamp = Date.parse(value);
+  return Number.isFinite(timestamp)
+    && new Date(timestamp).toISOString() === value;
+};
 
 const cloneEvent = (event: ScoreDocumentEventV1): ScoreDocumentEventV1 => ({
   ...event,
@@ -90,15 +125,12 @@ const isValidScoreEvent = (
   if (!isAllowedDuration(value.duration)) return false;
   if (value.type === "note" && !isAllowedPitch(value.pitch)) return false;
   if (value.type === "rest" && value.pitch !== null) return false;
-  if (value.measure !== measureNumber) return false;
-  return (
-    validateNotationDraftEventInput({
-      type: value.type,
-      pitch: value.pitch as ScoreDocumentEventV1["pitch"],
-      duration: value.duration,
-      measure: value.measure as ScoreDocumentEventV1["measure"],
-    }).length === 0
-  );
+  if (
+    !Number.isSafeInteger(value.measure)
+    || (value.measure as number) < 1
+    || value.measure !== measureNumber
+  ) return false;
+  return value.type !== "rest" || value.duration === "quarter";
 };
 
 export const isLocalScoreProjectContent = (
@@ -260,6 +292,24 @@ const assertExpectedRevision = (
   }
 };
 
+const assertMutationTimestamp = (
+  project: LocalScoreProjectV1,
+  now: string,
+) => {
+  if (!isValidIsoDate(now)) {
+    throw new LocalScoreProjectDomainError(
+      "invalid-input",
+      "乐谱项目时间必须是标准 ISO 时间。",
+    );
+  }
+  if (Date.parse(now) < Date.parse(project.updatedAt)) {
+    throw new LocalScoreProjectDomainError(
+      "clock-regression",
+      "设备时间早于当前乐谱修订时间，未执行修改。",
+    );
+  }
+};
+
 const contentFingerprint = (content: LocalScoreProjectContentV1) =>
   JSON.stringify(content);
 
@@ -275,7 +325,7 @@ export const applyLocalScoreProjectContent = ({
   now: string;
 }): LocalScoreProjectV1 => {
   assertExpectedRevision(project, expectedRevision);
-  if (!isValidIsoDate(now)) throw new Error("乐谱项目时间无效。");
+  assertMutationTimestamp(project, now);
   if (!isLocalScoreProjectContent(content)) {
     throw new Error("乐谱内容无效，未保存本次修改。");
   }
@@ -302,7 +352,7 @@ export const undoLocalScoreProject = ({
   now: string;
 }): LocalScoreProjectV1 => {
   assertExpectedRevision(project, expectedRevision);
-  if (!isValidIsoDate(now)) throw new Error("乐谱项目时间无效。");
+  assertMutationTimestamp(project, now);
   const previous = project.undoStack.at(-1);
   if (!previous) return project;
   return {
@@ -327,7 +377,7 @@ export const redoLocalScoreProject = ({
   now: string;
 }): LocalScoreProjectV1 => {
   assertExpectedRevision(project, expectedRevision);
-  if (!isValidIsoDate(now)) throw new Error("乐谱项目时间无效。");
+  assertMutationTimestamp(project, now);
   const next = project.redoStack.at(-1);
   if (!next) return project;
   return {
@@ -344,14 +394,17 @@ export const redoLocalScoreProject = ({
 
 export const renameLocalScoreProject = ({
   project,
+  expectedRevision,
   title,
   now,
 }: {
   project: LocalScoreProjectV1;
+  expectedRevision: number;
   title: string;
   now: string;
 }): LocalScoreProjectV1 => {
-  if (!isValidIsoDate(now)) throw new Error("乐谱项目时间无效。");
+  assertExpectedRevision(project, expectedRevision);
+  assertMutationTimestamp(project, now);
   const normalizedTitle = normalizeTitle(title);
   if (normalizedTitle === project.title) return project;
   return {
@@ -363,6 +416,225 @@ export const renameLocalScoreProject = ({
       content: getLocalScoreProjectContent(project),
     }),
   };
+};
+
+const normalizeProjectEvent = ({
+  eventId,
+  location,
+  input,
+}: {
+  eventId: string;
+  location: LocalScoreProjectEventLocation;
+  input: LocalScoreProjectEventInput;
+}): ScoreDocumentEventV1 => {
+  const event = {
+    id: eventId,
+    type: input.type,
+    pitch: input.type === "note" ? input.pitch : null,
+    duration: input.duration,
+    measure: location.measureNumber,
+  } as const;
+  if (!isValidScoreEvent(event, location.measureNumber)) {
+    throw new LocalScoreProjectDomainError(
+      "invalid-input",
+      "音符或休止符内容无效，未执行修改。",
+    );
+  }
+  return event;
+};
+
+const updateEventsAtLocation = ({
+  content,
+  location,
+  update,
+}: {
+  content: LocalScoreProjectContentV1;
+  location: LocalScoreProjectEventLocation;
+  update: (
+    events: readonly ScoreDocumentEventV1[],
+  ) => readonly ScoreDocumentEventV1[];
+}): LocalScoreProjectContentV1 => {
+  let matched = 0;
+  const parts = content.parts.map((part) => ({
+    ...part,
+    staves: part.staves.map((staff) => ({
+      ...staff,
+      voices: staff.voices.map((voice) => ({
+        ...voice,
+        measures: voice.measures.map((measure) => {
+          if (
+            part.partId !== location.partId
+            || staff.staffId !== location.staffId
+            || voice.voiceId !== location.voiceId
+            || measure.measureNumber !== location.measureNumber
+          ) return measure;
+          matched += 1;
+          return { ...measure, events: update(measure.events) };
+        }),
+      })),
+    })),
+  }));
+  if (matched !== 1) {
+    throw new LocalScoreProjectDomainError(
+      "not-found",
+      "未找到唯一的目标声部或小节，未执行修改。",
+    );
+  }
+  return { meter: content.meter, parts };
+};
+
+export const addLocalScoreProjectEvent = ({
+  project,
+  expectedRevision,
+  location,
+  eventId,
+  input,
+  now,
+}: {
+  project: LocalScoreProjectV1;
+  expectedRevision: number;
+  location: LocalScoreProjectEventLocation;
+  eventId: string;
+  input: LocalScoreProjectEventInput;
+  now: string;
+}) => {
+  assertExpectedRevision(project, expectedRevision);
+  if (!isValidId(eventId)) {
+    throw new LocalScoreProjectDomainError(
+      "invalid-input",
+      "乐谱事件标识无效。",
+    );
+  }
+  const content = getLocalScoreProjectContent(project);
+  const hasDuplicate = content.parts.some((part) =>
+    part.staves.some((staff) =>
+      staff.voices.some((voice) =>
+        voice.measures.some((measure) =>
+          measure.events.some((event) => event.id === eventId)))));
+  if (hasDuplicate) {
+    throw new LocalScoreProjectDomainError(
+      "duplicate",
+      "乐谱事件标识重复，未执行修改。",
+    );
+  }
+  const event = normalizeProjectEvent({ eventId, location, input });
+  return applyLocalScoreProjectContent({
+    project,
+    expectedRevision,
+    content: updateEventsAtLocation({
+      content,
+      location,
+      update: (events) => [...events, event],
+    }),
+    now,
+  });
+};
+
+export const updateLocalScoreProjectEvent = ({
+  project,
+  expectedRevision,
+  location,
+  eventId,
+  input,
+  now,
+}: {
+  project: LocalScoreProjectV1;
+  expectedRevision: number;
+  location: LocalScoreProjectEventLocation;
+  eventId: string;
+  input: LocalScoreProjectEventInput;
+  now: string;
+}) => {
+  assertExpectedRevision(project, expectedRevision);
+  const content = getLocalScoreProjectContent(project);
+  const event = normalizeProjectEvent({ eventId, location, input });
+  let found = false;
+  const nextContent = updateEventsAtLocation({
+    content,
+    location,
+    update: (events) => events.map((existing) => {
+      if (existing.id !== eventId) return existing;
+      found = true;
+      return event;
+    }),
+  });
+  if (!found) {
+    throw new LocalScoreProjectDomainError(
+      "not-found",
+      "未找到要修改的乐谱事件。",
+    );
+  }
+  return applyLocalScoreProjectContent({
+    project,
+    expectedRevision,
+    content: nextContent,
+    now,
+  });
+};
+
+export const deleteLocalScoreProjectEvent = ({
+  project,
+  expectedRevision,
+  location,
+  eventId,
+  now,
+}: {
+  project: LocalScoreProjectV1;
+  expectedRevision: number;
+  location: LocalScoreProjectEventLocation;
+  eventId: string;
+  now: string;
+}) => {
+  assertExpectedRevision(project, expectedRevision);
+  const content = getLocalScoreProjectContent(project);
+  let found = false;
+  const nextContent = updateEventsAtLocation({
+    content,
+    location,
+    update: (events) => events.filter((event) => {
+      if (event.id !== eventId) return true;
+      found = true;
+      return false;
+    }),
+  });
+  if (!found) {
+    throw new LocalScoreProjectDomainError(
+      "not-found",
+      "未找到要删除的乐谱事件。",
+    );
+  }
+  return applyLocalScoreProjectContent({
+    project,
+    expectedRevision,
+    content: nextContent,
+    now,
+  });
+};
+
+export const changeLocalScoreProjectMeter = ({
+  project,
+  expectedRevision,
+  meter,
+  now,
+}: {
+  project: LocalScoreProjectV1;
+  expectedRevision: number;
+  meter: NotationTimeSignature;
+  now: string;
+}) => {
+  if (!isAllowedTimeSignature(meter)) {
+    throw new LocalScoreProjectDomainError(
+      "invalid-input",
+      "拍号超出当前乐谱项目范围。",
+    );
+  }
+  const content = getLocalScoreProjectContent(project);
+  return applyLocalScoreProjectContent({
+    project,
+    expectedRevision,
+    content: { ...content, meter },
+    now,
+  });
 };
 
 const isLocalNotationProjectDocument = (
