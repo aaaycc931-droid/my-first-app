@@ -3,6 +3,7 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { LocalScoreProjectStaffPreview } from "../../components/music/LocalScoreProjectStaffPreview";
 import { useLocalScoreProjectPlayback } from "../../components/piano/useLocalScoreProjectPlayback";
 import type { LocalPianoAudioChannelFactory } from "../../components/piano/useLocalPianoAudio";
 import { stopAllBrowserAudio } from "../../lib/audio/browserAudioEngine";
@@ -131,6 +132,13 @@ const PlaybackHarness = ({
   return (
     <div>
       <span data-state={playback.playbackState}>{playback.playbackState}</span>
+      <span data-active-events={playback.activeSourceEventIds.join(",")}>
+        {playback.activeSourceEventIds.join(",")}
+      </span>
+      <LocalScoreProjectStaffPreview
+        document={document}
+        activeEventIds={playback.activeSourceEventIds}
+      />
       <button type="button" onClick={playback.play}>播放</button>
       <button type="button" onClick={playback.stop}>停止</button>
     </div>
@@ -231,16 +239,47 @@ describe("本地乐谱项目播放 hook", () => {
     await click("播放");
     expect(audio.voices.map((voice) => voice.midi)).toEqual([60]);
     expect(container?.querySelector("[data-state]")?.textContent).toBe("播放中");
+    expect(
+      container?.querySelector("[data-active-events]")?.textContent,
+    ).toBe("c4");
+    expect(
+      container?.querySelector('[data-event-id="c4"]')?.getAttribute(
+        "data-active",
+      ),
+    ).toBe("true");
 
     await advance(440);
     expect(audio.voices[0]?.release).toHaveBeenCalledTimes(1);
-    await advance(559);
+    expect(
+      container?.querySelector("[data-active-events]")?.textContent,
+    ).toBe("c4");
+    await advance(60);
+    expect(
+      container?.querySelector("[data-active-events]")?.textContent,
+    ).toBe("rest");
+    expect(
+      container?.querySelector('[data-event-id="rest"]')?.getAttribute(
+        "data-active",
+      ),
+    ).toBe("true");
+    await advance(499);
     expect(audio.voices.map((voice) => voice.midi)).toEqual([60]);
     await advance(1);
     expect(audio.voices.map((voice) => voice.midi)).toEqual([60, 62]);
+    expect(
+      container?.querySelector("[data-active-events]")?.textContent,
+    ).toBe("d4");
+    expect(
+      container?.querySelector('[data-event-id="d4"]')?.getAttribute(
+        "data-active",
+      ),
+    ).toBe("true");
 
     await advance(1_000);
     expect(container?.querySelector("[data-state]")?.textContent).toBe("空闲");
+    expect(
+      container?.querySelector("[data-active-events]")?.textContent,
+    ).toBe("");
     expect(audio.channels.every((channel) => channel.stopped)).toBe(true);
   });
 
@@ -258,6 +297,9 @@ describe("本地乐谱项目播放 hook", () => {
     await advance(2_000);
     expect(audio.voices.map((voice) => voice.midi)).toEqual([60]);
     expect(container?.querySelector("[data-state]")?.textContent).toBe("空闲");
+    expect(
+      container?.querySelector("[data-active-events]")?.textContent,
+    ).toBe("");
 
     await click("播放");
     await advance(100);
@@ -265,6 +307,9 @@ describe("本地乐谱项目播放 hook", () => {
     await advance(2_000);
     expect(audio.voices.map((voice) => voice.midi)).toEqual([60, 60]);
     expect(container?.querySelector("[data-state]")?.textContent).toBe("空闲");
+    expect(
+      container?.querySelector("[data-active-events]")?.textContent,
+    ).toBe("");
   });
 
   it("文档 revision 变化和卸载都会停止旧计划且不会复活", async () => {
@@ -285,6 +330,9 @@ describe("本地乐谱项目播放 hook", () => {
     await advance(2_000);
     expect(audio.voices.map((voice) => voice.midi)).toEqual([60]);
     expect(container?.querySelector("[data-state]")?.textContent).toBe("空闲");
+    expect(
+      container?.querySelector("[data-active-events]")?.textContent,
+    ).toBe("");
 
     await click("播放");
     await advance(100);

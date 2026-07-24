@@ -99,8 +99,12 @@ const getPrimaryEvents = (project: LocalScoreProjectV1) => {
 
 function LocalScoreProjectPlaybackControls({
   project,
+  selectedEventId,
+  onSelectEvent,
 }: {
   project: LocalScoreProjectV1;
+  selectedEventId?: string | null;
+  onSelectEvent: (selection: LocalScoreProjectStaffSelection) => void;
 }) {
   const [bpm, setBpm] = useState(90);
   const playback = useLocalScoreProjectPlayback({
@@ -109,7 +113,14 @@ function LocalScoreProjectPlaybackControls({
   });
 
   return (
-    <section className="rounded-3xl border border-rose-200 bg-rose-50 p-5 text-rose-950 shadow-sm">
+    <>
+      <LocalScoreProjectStaffPreview
+        document={project.document}
+        selectedEventId={selectedEventId}
+        activeEventIds={playback.activeSourceEventIds}
+        onSelectEvent={onSelectEvent}
+      />
+      <section className="rounded-3xl border border-rose-200 bg-rose-50 p-5 text-rose-950 shadow-sm">
       <p className="text-sm font-semibold text-rose-700">本机采样钢琴预览</p>
       <h2 className="mt-1 text-xl font-black">播放当前已保存修订</h2>
       <p className="mt-2 text-sm leading-6">
@@ -162,7 +173,8 @@ function LocalScoreProjectPlaybackControls({
           {playback.notice}
         </p>
       ) : null}
-    </section>
+      </section>
+    </>
   );
 }
 
@@ -683,14 +695,6 @@ export function LocalScoreProjectPanel({
           </div>
         </div>
 
-        <div className="mt-4">
-          <LocalScoreProjectStaffPreview
-            document={currentProject.document}
-            selectedEventId={selectedEvent?.eventId}
-            onSelectEvent={selectEvent}
-          />
-        </div>
-
         {events.length === 0 ? (
           <p className="mt-4 rounded-2xl bg-slate-50 p-4 text-sm text-slate-600">
             当前小节为空。添加一个音符或休止符后即可预览和播放。
@@ -748,7 +752,11 @@ export function LocalScoreProjectPanel({
         )}
       </section>
 
-      <LocalScoreProjectPlaybackControls project={currentProject} />
+      <LocalScoreProjectPlaybackControls
+        project={currentProject}
+        selectedEventId={selectedEvent?.eventId}
+        onSelectEvent={selectEvent}
+      />
 
       <div className="flex flex-wrap gap-2">
         <button
