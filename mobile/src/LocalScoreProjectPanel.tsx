@@ -30,6 +30,7 @@ import {
   type NotationTimeSignature,
 } from "../../lib/practice/localNotationFragmentDraft";
 import {
+  LOCAL_SCORE_PROJECT_STORAGE_LIMITS,
   createIndexedDbLocalScoreProjectStore,
   listLocalScoreProjects,
   loadLocalScoreProject,
@@ -386,6 +387,9 @@ export function LocalScoreProjectPanel({
           <h1 className="mt-1 text-2xl font-black">创建并保存一份基础谱</h1>
           <p className="mt-2 text-sm leading-6">
             内容、撤销历史和播放都只在本机处理，不登录、不上传，也不产生评分。
+          </p>
+          <p className="mt-2 text-xs leading-5 text-teal-800">
+            应用保护上限：最多 {LOCAL_SCORE_PROJECT_STORAGE_LIMITS.maxProjects} 个项目、合计 5 MiB。达到上限后只拒绝新增或超限写入，不会自动删除、覆盖或压缩已有项目；清理空间或恢复存储后可直接重试。
           </p>
           <label className="mt-4 block text-sm font-bold">
             项目名称
