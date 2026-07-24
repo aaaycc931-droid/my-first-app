@@ -291,9 +291,14 @@ export const createIndexedDbLocalScoreProjectStore =
   ({
     indexedDbFactory,
     limits = LOCAL_SCORE_PROJECT_STORAGE_LIMITS,
+    writeRequest = (store, project) => store.put(project),
   }: {
     indexedDbFactory?: IDBFactory;
     limits?: LocalScoreProjectStorageLimits;
+    writeRequest?: (
+      store: IDBObjectStore,
+      project: LocalScoreProjectV1,
+    ) => IDBRequest<IDBValidKey>;
   } = {}): LocalScoreProjectStore => {
     assertValidLimits(limits);
     const requireFactory = () => {
@@ -403,7 +408,10 @@ export const createIndexedDbLocalScoreProjectStore =
               project: validProject,
               limits,
             });
-            const putRequest = store.put(cloneLocalScoreProject(validProject));
+            const putRequest = writeRequest(
+              store,
+              cloneLocalScoreProject(validProject),
+            );
             putRequest.onerror = () => {
               failure = getLocalScoreProjectWriteError(putRequest.error);
             };

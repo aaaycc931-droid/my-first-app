@@ -42,6 +42,21 @@ const addNote = (project: ReturnType<typeof createProject>) =>
     now: "2026-07-24T10:00:01.000Z",
   });
 
+const asQuotaRequest = (
+  request: IDBRequest<IDBValidKey>,
+): IDBRequest<IDBValidKey> =>
+  new Proxy(request, {
+    get(target, property) {
+      if (property === "error") {
+        return new DOMException("quota", "QuotaExceededError");
+      }
+      return Reflect.get(target, property, target);
+    },
+    set(target, property, value) {
+      return Reflect.set(target, property, value, target);
+    },
+  });
+
 const run = async () => {
   const boundaryProject = createProject("boundary");
   const boundaryBytes = getLocalScoreProjectStorageBytes(boundaryProject);
@@ -106,6 +121,32 @@ const run = async () => {
     projectId: second.projectId,
   })).status, "not-found");
 
+  const concurrentFactory = new FakeIDBFactory();
+  const concurrentStore = createIndexedDbLocalScoreProjectStore({
+    indexedDbFactory: concurrentFactory,
+    limits: { maxProjects: 1, maxBytes: largeLimit },
+  });
+  const concurrentResults = await Promise.all([
+    persistNewLocalScoreProject({
+      store: concurrentStore,
+      project: createProject("concurrent-a"),
+    }),
+    persistNewLocalScoreProject({
+      store: concurrentStore,
+      project: createProject("concurrent-b"),
+    }),
+  ]);
+  assert.deepEqual(
+    concurrentResults.map(({ status }) => status).sort(),
+    ["capacity", "saved"],
+    "并发争用最后一个项目名额时只能保存一个项目",
+  );
+  assert.equal(
+    (await concurrentStore.list()).length,
+    1,
+    "并发容量检查与写入必须保持在同一原子事务内",
+  );
+
   const editFactory = new FakeIDBFactory();
   const editInitial = createProject("edit-capacity");
   const editProposal = addNote(editInitial);
@@ -160,6 +201,62 @@ const run = async () => {
   );
   assert.equal(ordinaryWrite.code, "write-failed");
   assert.match(ordinaryWrite.message, /本机存储写入失败/);
+
+  const requestFailureFactory = new FakeIDBFactory();
+  const requestFailureInitial = createProject("request-failure");
+  const requestFailureProposal = addNote(requestFailureInitial);
+  const healthyRequestStore = createIndexedDbLocalScoreProjectStore({
+    indexedDbFactory: requestFailureFactory,
+    limits: { maxProjects: 2, maxBytes: largeLimit },
+  });
+  assert.equal((await persistNewLocalScoreProject({
+    store: healthyRequestStore,
+    project: requestFailureInitial,
+  })).status, "saved");
+
+  const quotaRequestStore = createIndexedDbLocalScoreProjectStore({
+    indexedDbFactory: requestFailureFactory,
+    limits: { maxProjects: 2, maxBytes: largeLimit },
+    writeRequest: (store, project) =>
+      asQuotaRequest(store.add(project)),
+  });
+  const quotaRequestResult = await persistLocalScoreProjectChange({
+    store: quotaRequestStore,
+    currentProject: requestFailureInitial,
+    proposedProject: requestFailureProposal,
+  });
+  assert.equal(quotaRequestResult.status, "quota");
+  assert.deepEqual((await loadLocalScoreProject({
+    store: healthyRequestStore,
+    projectId: requestFailureInitial.projectId,
+  })).project, requestFailureInitial);
+
+  const ordinaryRequestStore = createIndexedDbLocalScoreProjectStore({
+    indexedDbFactory: requestFailureFactory,
+    limits: { maxProjects: 2, maxBytes: largeLimit },
+    writeRequest: (store, project) => store.add(project),
+  });
+  const ordinaryRequestResult = await persistLocalScoreProjectChange({
+    store: ordinaryRequestStore,
+    currentProject: requestFailureInitial,
+    proposedProject: requestFailureProposal,
+  });
+  assert.equal(ordinaryRequestResult.status, "write-failed");
+  assert.deepEqual((await loadLocalScoreProject({
+    store: healthyRequestStore,
+    projectId: requestFailureInitial.projectId,
+  })).project, requestFailureInitial);
+
+  const recoveredRequestResult = await persistLocalScoreProjectChange({
+    store: healthyRequestStore,
+    currentProject: requestFailureInitial,
+    proposedProject: requestFailureProposal,
+  });
+  assert.equal(recoveredRequestResult.status, "saved");
+  assert.deepEqual((await loadLocalScoreProject({
+    store: healthyRequestStore,
+    projectId: requestFailureInitial.projectId,
+  })).project, requestFailureProposal);
 
   const abortFactory = new FakeIDBFactory();
   const abortProject = createProject("abort");
