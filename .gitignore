@@ -26,8 +26,10 @@ local-fixtures/melody-guide-audio/metadata.local.json
 # P104 release evidence contains local device and participant summaries.
 local-fixtures/android-p104/evidence.local.json
 
-# P119a teacher identities, signatures, and local review summaries stay private.
+# P119 teacher identities, signatures, filled review forms, and local summaries stay private.
 local-fixtures/p119-content-education/evidence.local.json
+local-fixtures/p119-content-education/*.filled.local.md
+local-fixtures/p119-content-education/private-*.local.*
 
 # P111 pitch benchmark rows and reports may summarize private local recordings.
 local-fixtures/pitch-benchmark/benchmark.local.json

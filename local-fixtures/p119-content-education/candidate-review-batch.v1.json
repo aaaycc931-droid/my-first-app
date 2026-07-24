@@ -1,0 +1,628 @@
+{
+  "schemaVersion": "p119-teacher-review-candidate-v1",
+  "status": "CANDIDATE_NOT_APPROVED",
+  "approval": {
+    "approvedBeforeReview": false,
+    "approvedByTeachers": false,
+    "statement": "本文件是可复现候选，不是责任方或教师批准的正式样本；批准前不得进入正式审核、正式样本或正式评估。"
+  },
+  "source": {
+    "sourceCommitSha": "bd5c5af211a3a1b36f4fcfacebdfe89b65fbafc1",
+    "catalogVersion": 10,
+    "reviewManifestFile": "review-manifest.bd5c5af211a3a1b36f4fcfacebdfe89b65fbafc1.json",
+    "reviewManifestSha256": "b8430559e1fc3f102f8f9fce1158b473ea199e4c7f8fec9fef607b0ef42da8a1"
+  },
+  "selection": {
+    "method": "sha256-rank-within-kind-difficulty-v1",
+    "seed": "p119d-candidate-v1|d6d9162a3892a4050f713312c430dd0ea420a114|b8430559e1fc3f102f8f9fce1158b473ea199e4c7f8fec9fef607b0ef42da8a1",
+    "seedSha256": "d37201ccbdfed0359b0a658aa8fff507d18bf2bb86b4e02e1f2556ae4c1ba241",
+    "questionStratification": "kind × difficulty",
+    "questionItemsPerStratum": 5,
+    "coursePolicy": "include-all-frozen-course-items",
+    "tieBreak": "reviewItemId ASCII ascending"
+  },
+  "summary": {
+    "questionPopulationCount": 1855,
+    "questionStratumCount": 30,
+    "questionCandidateCount": 150,
+    "coursePopulationCount": 3,
+    "courseCandidateCount": 3,
+    "totalCandidateCount": 153
+  },
+  "checks": {
+    "duplicateCandidateItemIdCount": 0,
+    "missingCandidateItemIdCount": 0,
+    "strataWithUnexpectedCandidateCount": 0,
+    "crossStratumVariantIdOverlapCount": 5,
+    "crossStratumVariantIdOverlaps": [
+      {
+        "variantId": "interval:e4:major-third",
+        "itemIds": [
+          "question:interval:进阶:interval:e4:major-third",
+          "question:interval:挑战:interval:e4:major-third"
+        ]
+      },
+      {
+        "variantId": "modulation:a3:stay-tonic:diatonic-predominant",
+        "itemIds": [
+          "question:modulation:基础:modulation:a3:stay-tonic:diatonic-predominant",
+          "question:modulation:进阶:modulation:a3:stay-tonic:diatonic-predominant"
+        ]
+      },
+      {
+        "variantId": "pitch:c4:brief",
+        "itemIds": [
+          "question:single-pitch:进阶:pitch:c4:brief",
+          "question:single-pitch:挑战:pitch:c4:brief"
+        ]
+      },
+      {
+        "variantId": "pitch:c4:long",
+        "itemIds": [
+          "question:single-pitch:基础:pitch:c4:long",
+          "question:single-pitch:进阶:pitch:c4:long"
+        ]
+      },
+      {
+        "variantId": "seventh-chord-spacing:f3:major-seventh:root:close",
+        "itemIds": [
+          "question:seventh-chord-spacing:基础:seventh-chord-spacing:f3:major-seventh:root:close",
+          "question:seventh-chord-spacing:进阶:seventh-chord-spacing:f3:major-seventh:root:close"
+        ]
+      }
+    ],
+    "leakageRiskStatement": "题库是生成式变体，跨难度可能共享 variantId、音高材料或概念。候选生成只防止 reviewItemId 重复，不把相似移调或共享概念误称为独立统计样本；教师须在批准时确认该风险与必要扩样。"
+  },
+  "strata": [
+    {
+      "kind": "single-pitch",
+      "difficulty": "基础",
+      "populationCount": 20,
+      "candidateCount": 5,
+      "candidateItemIds": [
+        "question:single-pitch:基础:pitch:g4",
+        "question:single-pitch:基础:pitch:d4:short",
+        "question:single-pitch:基础:pitch:d4:brief",
+        "question:single-pitch:基础:pitch:c4:sustained",
+        "question:single-pitch:基础:pitch:c4:long"
+      ]
+    },
+    {
+      "kind": "single-pitch",
+      "difficulty": "进阶",
+      "populationCount": 24,
+      "candidateCount": 5,
+      "candidateItemIds": [
+        "question:single-pitch:进阶:pitch:e4:brief",
+        "question:single-pitch:进阶:pitch:c4",
+        "question:single-pitch:进阶:pitch:c4:brief",
+        "question:single-pitch:进阶:pitch:g4:sustained",
+        "question:single-pitch:进阶:pitch:c4:long"
+      ]
+    },
+    {
+      "kind": "single-pitch",
+      "difficulty": "挑战",
+      "populationCount": 24,
+      "candidateCount": 5,
+      "candidateItemIds": [
+        "question:single-pitch:挑战:pitch:c-sharp-4:brief",
+        "question:single-pitch:挑战:pitch:c4:standard",
+        "question:single-pitch:挑战:pitch:a4:brief",
+        "question:single-pitch:挑战:pitch:c4:brief",
+        "question:single-pitch:挑战:pitch:a-sharp-4:standard"
+      ]
+    },
+    {
+      "kind": "interval",
+      "difficulty": "基础",
+      "populationCount": 21,
+      "candidateCount": 5,
+      "candidateItemIds": [
+        "question:interval:基础:interval:a4:major-third",
+        "question:interval:基础:interval:f4:major-third",
+        "question:interval:基础:interval:d4:perfect-fifth",
+        "question:interval:基础:interval:g4:perfect-fourth",
+        "question:interval:基础:interval:b4:perfect-fourth"
+      ]
+    },
+    {
+      "kind": "interval",
+      "difficulty": "进阶",
+      "populationCount": 24,
+      "candidateCount": 5,
+      "candidateItemIds": [
+        "question:interval:进阶:interval:e4:major-third",
+        "question:interval:进阶:interval:g4:minor-second",
+        "question:interval:进阶:interval:e4:minor-second",
+        "question:interval:进阶:interval:g4:minor-third",
+        "question:interval:进阶:interval:d4:major-second"
+      ]
+    },
+    {
+      "kind": "interval",
+      "difficulty": "挑战",
+      "populationCount": 24,
+      "candidateCount": 5,
+      "candidateItemIds": [
+        "question:interval:挑战:interval:e4:minor-seventh",
+        "question:interval:挑战:interval:e4:tritone",
+        "question:interval:挑战:interval:e4:major-third",
+        "question:interval:挑战:interval:c4:major-second",
+        "question:interval:挑战:interval:e4:minor-third"
+      ]
+    },
+    {
+      "kind": "chord-inversion",
+      "difficulty": "基础",
+      "populationCount": 20,
+      "candidateCount": 5,
+      "candidateItemIds": [
+        "question:chord-inversion:基础:chord:f5:minor:root",
+        "question:chord-inversion:基础:chord:g4:minor:root",
+        "question:chord-inversion:基础:chord:e4:minor:root",
+        "question:chord-inversion:基础:chord:d4:major:root",
+        "question:chord-inversion:基础:chord:f5:major:root"
+      ]
+    },
+    {
+      "kind": "chord-inversion",
+      "difficulty": "进阶",
+      "populationCount": 48,
+      "candidateCount": 5,
+      "candidateItemIds": [
+        "question:chord-inversion:进阶:chord:e4:diminished:first",
+        "question:chord-inversion:进阶:chord:c4:augmented:first",
+        "question:chord-inversion:进阶:chord:c4:major:first",
+        "question:chord-inversion:进阶:chord:a4:major:root",
+        "question:chord-inversion:进阶:chord:g4:diminished:root"
+      ]
+    },
+    {
+      "kind": "chord-inversion",
+      "difficulty": "挑战",
+      "populationCount": 72,
+      "candidateCount": 5,
+      "candidateItemIds": [
+        "question:chord-inversion:挑战:chord:g4:major:first",
+        "question:chord-inversion:挑战:chord:e4:augmented:root",
+        "question:chord-inversion:挑战:chord:d4:minor:second",
+        "question:chord-inversion:挑战:chord:e4:major:second",
+        "question:chord-inversion:挑战:chord:d4:diminished:second"
+      ]
+    },
+    {
+      "kind": "harmony-progression",
+      "difficulty": "基础",
+      "populationCount": 20,
+      "candidateCount": 5,
+      "candidateItemIds": [
+        "question:harmony-progression:基础:progression:f3:plagal-three",
+        "question:harmony-progression:基础:progression:g3:authentic-three",
+        "question:harmony-progression:基础:progression:c3:authentic-three",
+        "question:harmony-progression:基础:progression:eb3:plagal-three",
+        "question:harmony-progression:基础:progression:f3:authentic-three"
+      ]
+    },
+    {
+      "kind": "harmony-progression",
+      "difficulty": "进阶",
+      "populationCount": 24,
+      "candidateCount": 5,
+      "candidateItemIds": [
+        "question:harmony-progression:进阶:progression:g3:pop-axis",
+        "question:harmony-progression:进阶:progression:g3:turnaround",
+        "question:harmony-progression:进阶:progression:c3:cadence-four",
+        "question:harmony-progression:进阶:progression:f3:two-five-one",
+        "question:harmony-progression:进阶:progression:c3:pop-axis"
+      ]
+    },
+    {
+      "kind": "harmony-progression",
+      "difficulty": "挑战",
+      "populationCount": 42,
+      "candidateCount": 5,
+      "candidateItemIds": [
+        "question:harmony-progression:挑战:progression:a3:two-five-one",
+        "question:harmony-progression:挑战:progression:d3:cadence-four",
+        "question:harmony-progression:挑战:progression:eb3:deceptive",
+        "question:harmony-progression:挑战:progression:eb3:pop-axis",
+        "question:harmony-progression:挑战:progression:eb3:turnaround"
+      ]
+    },
+    {
+      "kind": "scale-mode",
+      "difficulty": "基础",
+      "populationCount": 48,
+      "candidateCount": 5,
+      "candidateItemIds": [
+        "question:scale-mode:基础:scale:c4:major",
+        "question:scale-mode:基础:scale:g4:minor-pentatonic",
+        "question:scale-mode:基础:scale:b4:major-pentatonic",
+        "question:scale-mode:基础:scale:f4:major",
+        "question:scale-mode:基础:scale:d4:major"
+      ]
+    },
+    {
+      "kind": "scale-mode",
+      "difficulty": "进阶",
+      "populationCount": 96,
+      "candidateCount": 5,
+      "candidateItemIds": [
+        "question:scale-mode:进阶:scale:gb4:mixolydian",
+        "question:scale-mode:进阶:scale:a4:mixolydian",
+        "question:scale-mode:进阶:scale:gb4:major",
+        "question:scale-mode:进阶:scale:db4:major-pentatonic",
+        "question:scale-mode:进阶:scale:eb4:major-pentatonic"
+      ]
+    },
+    {
+      "kind": "scale-mode",
+      "difficulty": "挑战",
+      "populationCount": 144,
+      "candidateCount": 5,
+      "candidateItemIds": [
+        "question:scale-mode:挑战:scale:g4:natural-minor",
+        "question:scale-mode:挑战:scale:b4:harmonic-minor",
+        "question:scale-mode:挑战:scale:g4:lydian",
+        "question:scale-mode:挑战:scale:d4:melodic-minor-ascending",
+        "question:scale-mode:挑战:scale:eb4:melodic-minor-ascending"
+      ]
+    },
+    {
+      "kind": "seventh-chord",
+      "difficulty": "基础",
+      "populationCount": 48,
+      "candidateCount": 5,
+      "candidateItemIds": [
+        "question:seventh-chord:基础:seventh-chord:eb3:half-diminished-seventh:root",
+        "question:seventh-chord:基础:seventh-chord:db3:major-seventh:root",
+        "question:seventh-chord:基础:seventh-chord:bb3:major-seventh:root",
+        "question:seventh-chord:基础:seventh-chord:ab3:major-seventh:root",
+        "question:seventh-chord:基础:seventh-chord:b3:minor-seventh:root"
+      ]
+    },
+    {
+      "kind": "seventh-chord",
+      "difficulty": "进阶",
+      "populationCount": 96,
+      "candidateCount": 5,
+      "candidateItemIds": [
+        "question:seventh-chord:进阶:seventh-chord:c3:half-diminished-seventh:first",
+        "question:seventh-chord:进阶:seventh-chord:c3:dominant-seventh:first",
+        "question:seventh-chord:进阶:seventh-chord:e3:dominant-seventh:root",
+        "question:seventh-chord:进阶:seventh-chord:db3:half-diminished-seventh:root",
+        "question:seventh-chord:进阶:seventh-chord:b3:dominant-seventh:first"
+      ]
+    },
+    {
+      "kind": "seventh-chord",
+      "difficulty": "挑战",
+      "populationCount": 192,
+      "candidateCount": 5,
+      "candidateItemIds": [
+        "question:seventh-chord:挑战:seventh-chord:d3:half-diminished-seventh:root",
+        "question:seventh-chord:挑战:seventh-chord:bb3:minor-seventh:root",
+        "question:seventh-chord:挑战:seventh-chord:d3:dominant-seventh:third",
+        "question:seventh-chord:挑战:seventh-chord:c3:minor-seventh:third",
+        "question:seventh-chord:挑战:seventh-chord:d3:half-diminished-seventh:third"
+      ]
+    },
+    {
+      "kind": "seventh-chord-spacing",
+      "difficulty": "基础",
+      "populationCount": 48,
+      "candidateCount": 5,
+      "candidateItemIds": [
+        "question:seventh-chord-spacing:基础:seventh-chord-spacing:ab3:major-seventh:root:close",
+        "question:seventh-chord-spacing:基础:seventh-chord-spacing:bb3:major-seventh:root:close",
+        "question:seventh-chord-spacing:基础:seventh-chord-spacing:f3:major-seventh:root:close",
+        "question:seventh-chord-spacing:基础:seventh-chord-spacing:c3:major-seventh:root:open",
+        "question:seventh-chord-spacing:基础:seventh-chord-spacing:db3:major-seventh:root:open"
+      ]
+    },
+    {
+      "kind": "seventh-chord-spacing",
+      "difficulty": "进阶",
+      "populationCount": 96,
+      "candidateCount": 5,
+      "candidateItemIds": [
+        "question:seventh-chord-spacing:进阶:seventh-chord-spacing:bb3:minor-seventh:root:open",
+        "question:seventh-chord-spacing:进阶:seventh-chord-spacing:d3:minor-seventh:root:open",
+        "question:seventh-chord-spacing:进阶:seventh-chord-spacing:f3:major-seventh:root:close",
+        "question:seventh-chord-spacing:进阶:seventh-chord-spacing:bb3:minor-seventh:root:close",
+        "question:seventh-chord-spacing:进阶:seventh-chord-spacing:e3:major-seventh:root:open"
+      ]
+    },
+    {
+      "kind": "seventh-chord-spacing",
+      "difficulty": "挑战",
+      "populationCount": 384,
+      "candidateCount": 5,
+      "candidateItemIds": [
+        "question:seventh-chord-spacing:挑战:seventh-chord-spacing:g3:half-diminished-seventh:root:close",
+        "question:seventh-chord-spacing:挑战:seventh-chord-spacing:eb3:half-diminished-seventh:second:close",
+        "question:seventh-chord-spacing:挑战:seventh-chord-spacing:b3:dominant-seventh:third:close",
+        "question:seventh-chord-spacing:挑战:seventh-chord-spacing:b3:minor-seventh:first:close",
+        "question:seventh-chord-spacing:挑战:seventh-chord-spacing:f3:half-diminished-seventh:root:close"
+      ]
+    },
+    {
+      "kind": "modulation",
+      "difficulty": "基础",
+      "populationCount": 48,
+      "candidateCount": 5,
+      "candidateItemIds": [
+        "question:modulation:基础:modulation:c3:dominant:diatonic-predominant",
+        "question:modulation:基础:modulation:d3:dominant:diatonic-predominant",
+        "question:modulation:基础:modulation:e3:stay-tonic:diatonic-predominant",
+        "question:modulation:基础:modulation:bb3:dominant:alternate-predominant",
+        "question:modulation:基础:modulation:a3:stay-tonic:diatonic-predominant"
+      ]
+    },
+    {
+      "kind": "modulation",
+      "difficulty": "进阶",
+      "populationCount": 72,
+      "candidateCount": 5,
+      "candidateItemIds": [
+        "question:modulation:进阶:modulation:g3:dominant:diatonic-predominant",
+        "question:modulation:进阶:modulation:a3:stay-tonic:diatonic-predominant",
+        "question:modulation:进阶:modulation:eb3:relative-minor:diatonic-predominant",
+        "question:modulation:进阶:modulation:e3:relative-minor:diatonic-predominant",
+        "question:modulation:进阶:modulation:g3:stay-tonic:diatonic-predominant"
+      ]
+    },
+    {
+      "kind": "modulation",
+      "difficulty": "挑战",
+      "populationCount": 96,
+      "candidateCount": 5,
+      "candidateItemIds": [
+        "question:modulation:挑战:modulation:e3:parallel-minor:alternate-predominant",
+        "question:modulation:挑战:modulation:f3:parallel-minor:diatonic-predominant",
+        "question:modulation:挑战:modulation:a3:relative-minor:diatonic-predominant",
+        "question:modulation:挑战:modulation:ab3:stay-tonic:alternate-predominant",
+        "question:modulation:挑战:modulation:d3:dominant:alternate-predominant"
+      ]
+    },
+    {
+      "kind": "rhythm",
+      "difficulty": "基础",
+      "populationCount": 20,
+      "candidateCount": 5,
+      "candidateItemIds": [
+        "question:rhythm:基础:rhythm:even-quarters:bpm-104",
+        "question:rhythm:基础:rhythm:outer-dense:bpm-104",
+        "question:rhythm:基础:rhythm:front-dense:bpm-72",
+        "question:rhythm:基础:rhythm:outer-dense:bpm-92",
+        "question:rhythm:基础:rhythm:back-dense:bpm-92"
+      ]
+    },
+    {
+      "kind": "rhythm",
+      "difficulty": "进阶",
+      "populationCount": 24,
+      "candidateCount": 5,
+      "candidateItemIds": [
+        "question:rhythm:进阶:rhythm:syncopated-bridge:bpm-100",
+        "question:rhythm:进阶:rhythm:staggered-eighths:bpm-100",
+        "question:rhythm:进阶:rhythm:syncopated-bridge:bpm-112",
+        "question:rhythm:进阶:rhythm:even-quarters:bpm-88",
+        "question:rhythm:进阶:rhythm:even-quarters"
+      ]
+    },
+    {
+      "kind": "rhythm",
+      "difficulty": "挑战",
+      "populationCount": 20,
+      "candidateCount": 5,
+      "candidateItemIds": [
+        "question:rhythm:挑战:rhythm:staggered-eighths:bpm-120",
+        "question:rhythm:挑战:rhythm:even-eighths:bpm-96",
+        "question:rhythm:挑战:rhythm:front-dense:bpm-96",
+        "question:rhythm:挑战:rhythm:even-quarters:bpm-96",
+        "question:rhythm:挑战:rhythm:even-quarters:bpm-120"
+      ]
+    },
+    {
+      "kind": "melody-dictation",
+      "difficulty": "基础",
+      "populationCount": 20,
+      "candidateCount": 5,
+      "candidateItemIds": [
+        "question:melody-dictation:基础:melody:up-step",
+        "question:melody-dictation:基础:melody:basic-06-e4-d4-e4",
+        "question:melody-dictation:基础:melody:basic-15-e4-c4-d4",
+        "question:melody-dictation:基础:melody:basic-08-g4-e4-d4",
+        "question:melody-dictation:基础:melody:basic-07-d4-c4-d4"
+      ]
+    },
+    {
+      "kind": "melody-dictation",
+      "difficulty": "进阶",
+      "populationCount": 20,
+      "candidateCount": 5,
+      "candidateItemIds": [
+        "question:melody-dictation:进阶:melody:open-fifth",
+        "question:melody-dictation:进阶:melody:advanced-09-a4-e4-d4",
+        "question:melody-dictation:进阶:melody:advanced-19-a4-c4-e4",
+        "question:melody-dictation:进阶:melody:advanced-15-e4-d4-a4",
+        "question:melody-dictation:进阶:melody:advanced-05-a4-g4-e4"
+      ]
+    },
+    {
+      "kind": "melody-dictation",
+      "difficulty": "挑战",
+      "populationCount": 20,
+      "candidateCount": 5,
+      "candidateItemIds": [
+        "question:melody-dictation:挑战:melody:challenge-08-f-sharp-4-e4-d4",
+        "question:melody-dictation:挑战:melody:challenge-20-c5-a4-f4",
+        "question:melody-dictation:挑战:melody:challenge-11-c4-g4-f-sharp-4",
+        "question:melody-dictation:挑战:melody:challenge-01-c4-d4-e4",
+        "question:melody-dictation:挑战:melody:challenge-19-b4-f-sharp-4-c5"
+      ]
+    }
+  ],
+  "courseCandidateItemIds": [
+    "course:00000000-0000-0000-0000-000000000001:00000000-0000-0000-0000-000000000101",
+    "course:00000000-0000-0000-0000-000000000001:00000000-0000-0000-0000-000000000102",
+    "course:00000000-0000-0000-0000-000000000001:00000000-0000-0000-0000-000000000103"
+  ],
+  "sampleItemIds": [
+    "question:single-pitch:基础:pitch:g4",
+    "question:single-pitch:基础:pitch:d4:short",
+    "question:single-pitch:基础:pitch:d4:brief",
+    "question:single-pitch:基础:pitch:c4:sustained",
+    "question:single-pitch:基础:pitch:c4:long",
+    "question:single-pitch:进阶:pitch:e4:brief",
+    "question:single-pitch:进阶:pitch:c4",
+    "question:single-pitch:进阶:pitch:c4:brief",
+    "question:single-pitch:进阶:pitch:g4:sustained",
+    "question:single-pitch:进阶:pitch:c4:long",
+    "question:single-pitch:挑战:pitch:c-sharp-4:brief",
+    "question:single-pitch:挑战:pitch:c4:standard",
+    "question:single-pitch:挑战:pitch:a4:brief",
+    "question:single-pitch:挑战:pitch:c4:brief",
+    "question:single-pitch:挑战:pitch:a-sharp-4:standard",
+    "question:interval:基础:interval:a4:major-third",
+    "question:interval:基础:interval:f4:major-third",
+    "question:interval:基础:interval:d4:perfect-fifth",
+    "question:interval:基础:interval:g4:perfect-fourth",
+    "question:interval:基础:interval:b4:perfect-fourth",
+    "question:interval:进阶:interval:e4:major-third",
+    "question:interval:进阶:interval:g4:minor-second",
+    "question:interval:进阶:interval:e4:minor-second",
+    "question:interval:进阶:interval:g4:minor-third",
+    "question:interval:进阶:interval:d4:major-second",
+    "question:interval:挑战:interval:e4:minor-seventh",
+    "question:interval:挑战:interval:e4:tritone",
+    "question:interval:挑战:interval:e4:major-third",
+    "question:interval:挑战:interval:c4:major-second",
+    "question:interval:挑战:interval:e4:minor-third",
+    "question:chord-inversion:基础:chord:f5:minor:root",
+    "question:chord-inversion:基础:chord:g4:minor:root",
+    "question:chord-inversion:基础:chord:e4:minor:root",
+    "question:chord-inversion:基础:chord:d4:major:root",
+    "question:chord-inversion:基础:chord:f5:major:root",
+    "question:chord-inversion:进阶:chord:e4:diminished:first",
+    "question:chord-inversion:进阶:chord:c4:augmented:first",
+    "question:chord-inversion:进阶:chord:c4:major:first",
+    "question:chord-inversion:进阶:chord:a4:major:root",
+    "question:chord-inversion:进阶:chord:g4:diminished:root",
+    "question:chord-inversion:挑战:chord:g4:major:first",
+    "question:chord-inversion:挑战:chord:e4:augmented:root",
+    "question:chord-inversion:挑战:chord:d4:minor:second",
+    "question:chord-inversion:挑战:chord:e4:major:second",
+    "question:chord-inversion:挑战:chord:d4:diminished:second",
+    "question:harmony-progression:基础:progression:f3:plagal-three",
+    "question:harmony-progression:基础:progression:g3:authentic-three",
+    "question:harmony-progression:基础:progression:c3:authentic-three",
+    "question:harmony-progression:基础:progression:eb3:plagal-three",
+    "question:harmony-progression:基础:progression:f3:authentic-three",
+    "question:harmony-progression:进阶:progression:g3:pop-axis",
+    "question:harmony-progression:进阶:progression:g3:turnaround",
+    "question:harmony-progression:进阶:progression:c3:cadence-four",
+    "question:harmony-progression:进阶:progression:f3:two-five-one",
+    "question:harmony-progression:进阶:progression:c3:pop-axis",
+    "question:harmony-progression:挑战:progression:a3:two-five-one",
+    "question:harmony-progression:挑战:progression:d3:cadence-four",
+    "question:harmony-progression:挑战:progression:eb3:deceptive",
+    "question:harmony-progression:挑战:progression:eb3:pop-axis",
+    "question:harmony-progression:挑战:progression:eb3:turnaround",
+    "question:scale-mode:基础:scale:c4:major",
+    "question:scale-mode:基础:scale:g4:minor-pentatonic",
+    "question:scale-mode:基础:scale:b4:major-pentatonic",
+    "question:scale-mode:基础:scale:f4:major",
+    "question:scale-mode:基础:scale:d4:major",
+    "question:scale-mode:进阶:scale:gb4:mixolydian",
+    "question:scale-mode:进阶:scale:a4:mixolydian",
+    "question:scale-mode:进阶:scale:gb4:major",
+    "question:scale-mode:进阶:scale:db4:major-pentatonic",
+    "question:scale-mode:进阶:scale:eb4:major-pentatonic",
+    "question:scale-mode:挑战:scale:g4:natural-minor",
+    "question:scale-mode:挑战:scale:b4:harmonic-minor",
+    "question:scale-mode:挑战:scale:g4:lydian",
+    "question:scale-mode:挑战:scale:d4:melodic-minor-ascending",
+    "question:scale-mode:挑战:scale:eb4:melodic-minor-ascending",
+    "question:seventh-chord:基础:seventh-chord:eb3:half-diminished-seventh:root",
+    "question:seventh-chord:基础:seventh-chord:db3:major-seventh:root",
+    "question:seventh-chord:基础:seventh-chord:bb3:major-seventh:root",
+    "question:seventh-chord:基础:seventh-chord:ab3:major-seventh:root",
+    "question:seventh-chord:基础:seventh-chord:b3:minor-seventh:root",
+    "question:seventh-chord:进阶:seventh-chord:c3:half-diminished-seventh:first",
+    "question:seventh-chord:进阶:seventh-chord:c3:dominant-seventh:first",
+    "question:seventh-chord:进阶:seventh-chord:e3:dominant-seventh:root",
+    "question:seventh-chord:进阶:seventh-chord:db3:half-diminished-seventh:root",
+    "question:seventh-chord:进阶:seventh-chord:b3:dominant-seventh:first",
+    "question:seventh-chord:挑战:seventh-chord:d3:half-diminished-seventh:root",
+    "question:seventh-chord:挑战:seventh-chord:bb3:minor-seventh:root",
+    "question:seventh-chord:挑战:seventh-chord:d3:dominant-seventh:third",
+    "question:seventh-chord:挑战:seventh-chord:c3:minor-seventh:third",
+    "question:seventh-chord:挑战:seventh-chord:d3:half-diminished-seventh:third",
+    "question:seventh-chord-spacing:基础:seventh-chord-spacing:ab3:major-seventh:root:close",
+    "question:seventh-chord-spacing:基础:seventh-chord-spacing:bb3:major-seventh:root:close",
+    "question:seventh-chord-spacing:基础:seventh-chord-spacing:f3:major-seventh:root:close",
+    "question:seventh-chord-spacing:基础:seventh-chord-spacing:c3:major-seventh:root:open",
+    "question:seventh-chord-spacing:基础:seventh-chord-spacing:db3:major-seventh:root:open",
+    "question:seventh-chord-spacing:进阶:seventh-chord-spacing:bb3:minor-seventh:root:open",
+    "question:seventh-chord-spacing:进阶:seventh-chord-spacing:d3:minor-seventh:root:open",
+    "question:seventh-chord-spacing:进阶:seventh-chord-spacing:f3:major-seventh:root:close",
+    "question:seventh-chord-spacing:进阶:seventh-chord-spacing:bb3:minor-seventh:root:close",
+    "question:seventh-chord-spacing:进阶:seventh-chord-spacing:e3:major-seventh:root:open",
+    "question:seventh-chord-spacing:挑战:seventh-chord-spacing:g3:half-diminished-seventh:root:close",
+    "question:seventh-chord-spacing:挑战:seventh-chord-spacing:eb3:half-diminished-seventh:second:close",
+    "question:seventh-chord-spacing:挑战:seventh-chord-spacing:b3:dominant-seventh:third:close",
+    "question:seventh-chord-spacing:挑战:seventh-chord-spacing:b3:minor-seventh:first:close",
+    "question:seventh-chord-spacing:挑战:seventh-chord-spacing:f3:half-diminished-seventh:root:close",
+    "question:modulation:基础:modulation:c3:dominant:diatonic-predominant",
+    "question:modulation:基础:modulation:d3:dominant:diatonic-predominant",
+    "question:modulation:基础:modulation:e3:stay-tonic:diatonic-predominant",
+    "question:modulation:基础:modulation:bb3:dominant:alternate-predominant",
+    "question:modulation:基础:modulation:a3:stay-tonic:diatonic-predominant",
+    "question:modulation:进阶:modulation:g3:dominant:diatonic-predominant",
+    "question:modulation:进阶:modulation:a3:stay-tonic:diatonic-predominant",
+    "question:modulation:进阶:modulation:eb3:relative-minor:diatonic-predominant",
+    "question:modulation:进阶:modulation:e3:relative-minor:diatonic-predominant",
+    "question:modulation:进阶:modulation:g3:stay-tonic:diatonic-predominant",
+    "question:modulation:挑战:modulation:e3:parallel-minor:alternate-predominant",
+    "question:modulation:挑战:modulation:f3:parallel-minor:diatonic-predominant",
+    "question:modulation:挑战:modulation:a3:relative-minor:diatonic-predominant",
+    "question:modulation:挑战:modulation:ab3:stay-tonic:alternate-predominant",
+    "question:modulation:挑战:modulation:d3:dominant:alternate-predominant",
+    "question:rhythm:基础:rhythm:even-quarters:bpm-104",
+    "question:rhythm:基础:rhythm:outer-dense:bpm-104",
+    "question:rhythm:基础:rhythm:front-dense:bpm-72",
+    "question:rhythm:基础:rhythm:outer-dense:bpm-92",
+    "question:rhythm:基础:rhythm:back-dense:bpm-92",
+    "question:rhythm:进阶:rhythm:syncopated-bridge:bpm-100",
+    "question:rhythm:进阶:rhythm:staggered-eighths:bpm-100",
+    "question:rhythm:进阶:rhythm:syncopated-bridge:bpm-112",
+    "question:rhythm:进阶:rhythm:even-quarters:bpm-88",
+    "question:rhythm:进阶:rhythm:even-quarters",
+    "question:rhythm:挑战:rhythm:staggered-eighths:bpm-120",
+    "question:rhythm:挑战:rhythm:even-eighths:bpm-96",
+    "question:rhythm:挑战:rhythm:front-dense:bpm-96",
+    "question:rhythm:挑战:rhythm:even-quarters:bpm-96",
+    "question:rhythm:挑战:rhythm:even-quarters:bpm-120",
+    "question:melody-dictation:基础:melody:up-step",
+    "question:melody-dictation:基础:melody:basic-06-e4-d4-e4",
+    "question:melody-dictation:基础:melody:basic-15-e4-c4-d4",
+    "question:melody-dictation:基础:melody:basic-08-g4-e4-d4",
+    "question:melody-dictation:基础:melody:basic-07-d4-c4-d4",
+    "question:melody-dictation:进阶:melody:open-fifth",
+    "question:melody-dictation:进阶:melody:advanced-09-a4-e4-d4",
+    "question:melody-dictation:进阶:melody:advanced-19-a4-c4-e4",
+    "question:melody-dictation:进阶:melody:advanced-15-e4-d4-a4",
+    "question:melody-dictation:进阶:melody:advanced-05-a4-g4-e4",
+    "question:melody-dictation:挑战:melody:challenge-08-f-sharp-4-e4-d4",
+    "question:melody-dictation:挑战:melody:challenge-20-c5-a4-f4",
+    "question:melody-dictation:挑战:melody:challenge-11-c4-g4-f-sharp-4",
+    "question:melody-dictation:挑战:melody:challenge-01-c4-d4-e4",
+    "question:melody-dictation:挑战:melody:challenge-19-b4-f-sharp-4-c5",
+    "course:00000000-0000-0000-0000-000000000001:00000000-0000-0000-0000-000000000101",
+    "course:00000000-0000-0000-0000-000000000001:00000000-0000-0000-0000-000000000102",
+    "course:00000000-0000-0000-0000-000000000001:00000000-0000-0000-0000-000000000103"
+  ]
+}
