@@ -40,7 +40,7 @@
 - P119a 已通过 PR #415 合并：它盘点当前 10 类本机生成题型的三档稳定变体，冻结同 commit 自动门禁与双教师六维审核协议，并保持教师身份、资质、签署与逐题记录不入 Git。
 - P119b 已通过 PR #417 合并：`chord-inversion / 基础` 与 `harmony-progression / 基础` 均从 8 个 append-only 扩到 20 个稳定移调组合，原前 8 个 ID、基础答案概念与进阶／挑战题库保持冻结；catalog/review queue 已升至 v10 并无损迁移真实 v9 目标。
 - P119c 已通过 PR #419 合并为 `de9ab7f9a6d050a951e70835fbe97cecc693b9f4`：它冻结 P119b source commit `bd5c5af211a3a1b36f4fcfacebdfe89b65fbafc1` 的 catalog v10 清单，包含 30 个盘点组、1,855 个题目 review item、1,924 个 representation、3 个课节及 18 个真源文件摘要；canonical manifest SHA-256 为 `b8430559e1fc3f102f8f9fce1158b473ea199e4c7f8fec9fef607b0ef42da8a1`。
-- 当前 30 个自动盘点组达到 V1 每档至少 20 的数量前置，审核清单也已可复核；责任方预先批准的抽样数量／分层／item ID、专业 40 目标、双教师真实签署、教育有效性与完整 P119/Q 仍为 `NOT_EXECUTED / BLOCKED`。工具不得代替责任方选样或批准计划。
+- 当前 30 个自动盘点组达到 V1 每档至少 20 的数量前置，审核清单也已可复核。产品所有者已确认两名独立教师在仓库外完成资质核验并分别签署，原样批准 P119d 的 30 层各 5 项、全部 3 个课程项和共 153 个 item ID；5 组跨难度相同 variant 保留为难度递进配对审核项，不视为独立统计样本。逐题六维双教师审核、finding 闭环、专业 40 目标、教育有效性与完整 P119/Q 仍为 `NOT_EXECUTED / BLOCKED`。
 - P118a 只消费现有 Activity、复练队列和学习画像协议，不创建平行答案或能力协议；旧数据必须安全迁移或 fail closed。
 - P118a 不生成正式能力评级，不上传课程数据，不新增账户、云端、数据库、网络依赖或 `INTERNET` 权限。P118e 只整合 P118a–P118d 已有视图与入口，不把课程、统计、复练或推荐合并为新的评分、画像或存储协议。
 - P117e 已形成合并后的 implementation candidate。QA level recommendation 为 strict；P117d 与 P117e 的 Browser 真麦克风、Android 三档真机、真实人声、双教师和目标用户证据仍为 `NOT_EXECUTED`，不能由模拟录音、DOM、CI 或 APK 替代。

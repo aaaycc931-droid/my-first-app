@@ -13,6 +13,8 @@ export const P119_TEACHER_REVIEW_MANIFEST_FILE =
   "review-manifest.bd5c5af211a3a1b36f4fcfacebdfe89b65fbafc1.json";
 export const P119_TEACHER_REVIEW_CANDIDATE_FILE =
   "candidate-review-batch.v1.json";
+export const P119_TEACHER_REVIEW_WORKSHEET_FILE =
+  "teacher-review-worksheet.v1.csv";
 
 type ManifestGroup = {
   kind: string;
@@ -227,6 +229,40 @@ export const serializeP119TeacherReviewCandidate = (
   candidate: P119TeacherReviewCandidate,
 ) => `${JSON.stringify(candidate, null, 2)}\n`;
 
+const serializeCsvCell = (value: string) =>
+  `"${value.replaceAll("\"", "\"\"")}"`;
+
+export const serializeP119TeacherReviewWorksheet = (
+  candidate: P119TeacherReviewCandidate,
+) => {
+  const header = [
+    "itemId",
+    "target-truth",
+    "answer-rule",
+    "terminology-solfege",
+    "difficulty-progression",
+    "explanation",
+    "misconception-risk",
+    "findingId",
+    "notes",
+  ];
+  const rows = candidate.sampleItemIds.map((itemId) => [
+    itemId,
+    "PENDING",
+    "PENDING",
+    "PENDING",
+    "PENDING",
+    "PENDING",
+    "PENDING",
+    "",
+    "",
+  ]);
+  return [header, ...rows]
+    .map((row) => row.map(serializeCsvCell).join(","))
+    .join("\n")
+    .concat("\n");
+};
+
 const getArgValue = (name: string) => {
   const index = process.argv.indexOf(name);
   return index >= 0 ? process.argv[index + 1] : undefined;
@@ -243,24 +279,42 @@ const runCli = () => {
     getArgValue("--output")
       ?? `local-fixtures/p119-content-education/${P119_TEACHER_REVIEW_CANDIDATE_FILE}`,
   );
+  const worksheetPath = resolve(
+    process.cwd(),
+    getArgValue("--worksheet")
+      ?? `local-fixtures/p119-content-education/${P119_TEACHER_REVIEW_WORKSHEET_FILE}`,
+  );
   const serializedManifest = readFileSync(manifestPath, "utf8");
   const manifest = JSON.parse(serializedManifest) as P119ReviewManifest;
-  const serializedCandidate = serializeP119TeacherReviewCandidate(
-    buildP119TeacherReviewCandidate(manifest, serializedManifest),
+  const candidate = buildP119TeacherReviewCandidate(
+    manifest,
+    serializedManifest,
   );
+  const serializedCandidate = serializeP119TeacherReviewCandidate(candidate);
+  const serializedWorksheet = serializeP119TeacherReviewWorksheet(candidate);
 
   if (process.argv.includes("--check")) {
     assert(existsSync(outputPath), `候选清单不存在：${outputPath}`);
+    assert(existsSync(worksheetPath), `审核工作表不存在：${worksheetPath}`);
     assert(
       readFileSync(outputPath, "utf8") === serializedCandidate,
       "候选清单不是由当前 manifest、seed 与生成器确定性重建的结果。",
     );
-    console.log(`P119 双教师候选清单复现检查通过：${outputPath}`);
+    assert(
+      readFileSync(worksheetPath, "utf8") === serializedWorksheet,
+      "审核工作表与已批准候选 item ID 不一致。",
+    );
+    console.log(
+      `P119 双教师候选清单与审核工作表复现检查通过：${outputPath}`,
+    );
     return;
   }
 
   writeFileSync(outputPath, serializedCandidate, "utf8");
-  console.log(`已写入 P119 双教师候选清单（未批准）：${outputPath}`);
+  writeFileSync(worksheetPath, serializedWorksheet, "utf8");
+  console.log(
+    `已写入 P119 双教师候选清单（未批准）与审核工作表：${outputPath}`,
+  );
 };
 
 if (
