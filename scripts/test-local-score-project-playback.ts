@@ -97,6 +97,20 @@ const documentWithVoices = (
     ],
   );
   assert.equal(plan.warnings.length, 0);
+  assert.deepEqual(
+    plan.spans.map((span) => ({
+      id: span.sourceEventId,
+      measure: span.measureNumber,
+      startMs: span.startMs,
+      endMs: span.endMs,
+    })),
+    [
+      { id: "c4", measure: 1, startMs: 0, endMs: 500 },
+      { id: "rest", measure: 1, startMs: 500, endMs: 1_000 },
+      { id: "d4", measure: 1, startMs: 1_000, endMs: 2_000 },
+    ],
+    "cursor spans must cover notes and rests for their full notation duration",
+  );
   const noteEvents = plan.events.filter(isNoteEvent);
   assert.ok(noteEvents.every((event) =>
     event.pointerId.includes("local.score-project.playback-test")
@@ -132,6 +146,11 @@ const documentWithVoices = (
   assert.equal(first.status, "ready");
   assert.equal(all.status, "ready");
   assert.equal(first.bpm, 30);
+  assert.deepEqual(
+    first.spans.map((span) => span.sourceEventId),
+    ["first-voice-rest"],
+    "rest-only playback must still expose a cursor span",
+  );
   assert.equal(first.events.filter((event) => event.type === "note-on").length, 0);
   assert.equal(all.bpm, 240);
   assert.deepEqual(
@@ -167,6 +186,14 @@ const documentWithVoices = (
     .map((event) => event.pointerId);
   assert.equal(allPointers.length, 2);
   assert.equal(new Set(allPointers).size, 2);
+  assert.deepEqual(
+    all.spans.map((span) => [span.sourceEventId, span.startMs, span.endMs]),
+    [
+      ["shared-c4-a", 0, 1_000],
+      ["shared-c4-b", 0, 1_000],
+    ],
+    "simultaneous voices must expose deterministic concurrent cursor spans",
+  );
   assert.deepEqual(
     all.events.slice(0, 2).map((event) => event.type),
     ["note-on", "note-on"],
