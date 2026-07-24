@@ -1,4 +1,6 @@
 import {
+  LOCAL_SCORE_PROJECT_LEGACY_SCHEMA_VERSION,
+  LOCAL_SCORE_PROJECT_SCHEMA_VERSION,
   LocalScoreProjectConflictError,
   cloneLocalScoreProject,
   parseLocalScoreProject,
@@ -239,7 +241,8 @@ const getStoredProjectIssue = (
       ? record.projectId
       : null,
     status: typeof record?.schemaVersion === "string"
-      && record.schemaVersion !== "local-score-project-storage-v1"
+      && record.schemaVersion !== LOCAL_SCORE_PROJECT_LEGACY_SCHEMA_VERSION
+      && record.schemaVersion !== LOCAL_SCORE_PROJECT_SCHEMA_VERSION
       ? "unsupported"
       : "corrupt",
   };

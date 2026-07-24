@@ -12,6 +12,7 @@ import {
   addLocalScoreProjectEvent,
   appendLocalScoreProjectMeasure,
   changeLocalScoreProjectMeter,
+  changeLocalScoreProjectTempo,
   createLocalScoreProject,
   deleteEmptyLocalScoreProjectMeasure,
   deleteLocalScoreProjectEvent,
@@ -108,10 +109,9 @@ function LocalScoreProjectPlaybackControls({
   selectedEventId?: string | null;
   onSelectEvent: (selection: LocalScoreProjectStaffSelection) => void;
 }) {
-  const [bpm, setBpm] = useState(90);
   const playback = useLocalScoreProjectPlayback({
     document: project.document,
-    bpm,
+    bpm: project.tempoBpm,
   });
 
   return (
@@ -129,18 +129,9 @@ function LocalScoreProjectPlaybackControls({
         休止会保留时长；离开页面、进入后台或主动停止时会关闭全部声音。播放不创建练习目标、演奏记录或成绩。
       </p>
       <div className="mt-4 flex flex-wrap items-end gap-3">
-        <label className="text-sm font-bold">
-          速度（BPM）
-          <input
-            type="number"
-            min="30"
-            max="240"
-            value={bpm}
-            disabled={playback.isPlaying}
-            onChange={(event) => setBpm(Number(event.target.value))}
-            className="mt-2 block min-h-11 w-28 rounded-xl border border-rose-300 bg-white px-3 py-2 disabled:bg-slate-100"
-          />
-        </label>
+        <p className="self-center text-sm font-bold">
+          已保存速度：{project.tempoBpm} BPM
+        </p>
         {playback.isPlaying ? (
           <button
             type="button"
@@ -197,6 +188,7 @@ export function LocalScoreProjectPanel({
     useState<LocalScoreProjectV1 | null>(null);
   const [newTitle, setNewTitle] = useState("我的第一份谱");
   const [editorTitle, setEditorTitle] = useState("");
+  const [editorTempoBpm, setEditorTempoBpm] = useState("90");
   const [eventType, setEventType] = useState<EditorEventType>("note");
   const [pitch, setPitch] = useState<NotationPitch>("C4");
   const [duration, setDuration] = useState<NotationDuration>("quarter");
@@ -240,6 +232,7 @@ export function LocalScoreProjectPanel({
     const nextEvents = getPrimaryEvents(project);
     setCurrentProject(project);
     setEditorTitle(project.title);
+    setEditorTempoBpm(String(project.tempoBpm));
     setTargetMeasureNumber((previous) =>
       nextMeasures.some((measure) => measure.measureNumber === previous)
         ? previous
@@ -583,6 +576,38 @@ export function LocalScoreProjectPanel({
             ))}
           </select>
         </label>
+        <div className="mt-4 flex flex-wrap items-end gap-2">
+          <label className="text-sm font-bold">
+            速度（BPM）
+            <input
+              type="number"
+              min="30"
+              max="240"
+              step="1"
+              value={editorTempoBpm}
+              disabled={isBusy}
+              onChange={(event) => setEditorTempoBpm(event.target.value)}
+              className="mt-2 block min-h-11 w-28 rounded-xl border border-slate-300 px-3 py-2 disabled:bg-slate-100"
+            />
+          </label>
+          <button
+            type="button"
+            disabled={isBusy}
+            onClick={() =>
+              void persistMutation((project) =>
+                changeLocalScoreProjectTempo({
+                  project,
+                  expectedRevision: project.document.revision,
+                  tempoBpm: Number(editorTempoBpm),
+                  now: now(),
+                }),
+              )
+            }
+            className="min-h-11 rounded-xl border border-teal-300 bg-teal-50 px-4 py-2 text-sm font-bold text-teal-900 disabled:text-slate-400"
+          >
+            保存速度
+          </button>
+        </div>
       </section>
 
       <section className="rounded-3xl border border-indigo-200 bg-indigo-50 p-5 text-indigo-950 shadow-sm">
