@@ -8,6 +8,7 @@ import {
 import {
   addLocalScoreProjectEvent,
   changeLocalScoreProjectMeter,
+  changeLocalScoreProjectTempo,
   createLocalScoreProject,
   redoLocalScoreProject,
   undoLocalScoreProject,
@@ -37,6 +38,19 @@ const waitForTransaction = (transaction: IDBTransaction) =>
     transaction.onerror = () => reject(transaction.error);
   });
 
+const asQuotaRequest = <T>(request: IDBRequest<T>): IDBRequest<T> =>
+  new Proxy(request, {
+    get(target, property) {
+      if (property === "error") {
+        return new DOMException("quota", "QuotaExceededError");
+      }
+      return Reflect.get(target, property, target);
+    },
+    set(target, property, value) {
+      return Reflect.set(target, property, value, target);
+    },
+  });
+
 const putRawRecord = async ({
   factory,
   value,
@@ -49,6 +63,25 @@ const putRawRecord = async ({
     const transaction = database.transaction(STORE_NAME, "readwrite");
     transaction.objectStore(STORE_NAME).put(value);
     await waitForTransaction(transaction);
+  } finally {
+    database.close();
+  }
+};
+
+const getRawRecord = async ({
+  factory,
+  projectId,
+}: {
+  factory: IDBFactory;
+  projectId: string;
+}) => {
+  const database = await waitForRequest(factory.open(DATABASE_NAME, 1));
+  try {
+    return await waitForRequest(
+      database.transaction(STORE_NAME, "readonly")
+        .objectStore(STORE_NAME)
+        .get(projectId),
+    ) as unknown;
   } finally {
     database.close();
   }
@@ -95,6 +128,157 @@ const run = async () => {
     project: initial,
   });
   assert.equal(created.status, "saved");
+
+  const migrationFactory = new FakeIDBFactory();
+  const migrationSeed = createLocalScoreProject({
+    projectId: "legacy-tempo-project",
+    title: "旧版速度谱",
+    now: "2026-07-24T03:00:00.000Z",
+  });
+  const legacyRaw = {
+    ...structuredClone(migrationSeed),
+    schemaVersion: "local-score-project-storage-v1",
+    tempoBpm: undefined,
+  };
+  delete (legacyRaw as { tempoBpm?: number }).tempoBpm;
+  const legacyRawBefore = structuredClone(legacyRaw);
+  const migrationStore = createIndexedDbLocalScoreProjectStore({
+    indexedDbFactory: migrationFactory,
+  });
+  await migrationStore.list();
+  await putRawRecord({ factory: migrationFactory, value: legacyRaw });
+  const migratedList = await migrationStore.list();
+  assert.equal(migratedList[0]?.schemaVersion, "local-score-project-storage-v2");
+  assert.equal(migratedList[0]?.tempoBpm, 90);
+  const migratedLoad = await loadLocalScoreProject({
+    store: migrationStore,
+    projectId: migrationSeed.projectId,
+  });
+  assert.equal(migratedLoad.project?.schemaVersion, "local-score-project-storage-v2");
+  assert.equal(migratedLoad.project?.tempoBpm, 90);
+  assert.deepEqual(
+    await getRawRecord({
+      factory: migrationFactory,
+      projectId: migrationSeed.projectId,
+    }),
+    legacyRawBefore,
+    "读取旧版项目不得自动回写",
+  );
+  const migratedTempo = changeLocalScoreProjectTempo({
+    project: migratedLoad.project!,
+    expectedRevision: migratedLoad.project!.document.revision,
+    tempoBpm: 72,
+    now: "2026-07-24T03:00:01.000Z",
+  });
+
+  const legacyBytes = new TextEncoder().encode(
+    JSON.stringify(legacyRawBefore),
+  ).byteLength;
+  const migrationCapacityStore = createIndexedDbLocalScoreProjectStore({
+    indexedDbFactory: migrationFactory,
+    limits: { maxProjects: 1, maxBytes: legacyBytes },
+  });
+  const capacityMigration = await persistLocalScoreProjectChange({
+    store: migrationCapacityStore,
+    currentProject: migratedLoad.project!,
+    proposedProject: migratedTempo,
+  });
+  assert.equal(capacityMigration.status, "capacity");
+  assert.deepEqual(
+    await getRawRecord({
+      factory: migrationFactory,
+      projectId: migrationSeed.projectId,
+    }),
+    legacyRawBefore,
+    "旧版迁移容量不足时必须保留原始记录",
+  );
+
+  const quotaMigrationStore = createIndexedDbLocalScoreProjectStore({
+    indexedDbFactory: migrationFactory,
+    writeRequest: (store, project) =>
+      asQuotaRequest(store.add(project)),
+  });
+  assert.equal((await persistLocalScoreProjectChange({
+    store: quotaMigrationStore,
+    currentProject: migratedLoad.project!,
+    proposedProject: migratedTempo,
+  })).status, "quota");
+  assert.deepEqual(
+    await getRawRecord({
+      factory: migrationFactory,
+      projectId: migrationSeed.projectId,
+    }),
+    legacyRawBefore,
+    "旧版迁移 quota 失败时必须保留原始记录",
+  );
+
+  const writeFailureMigrationStore = createIndexedDbLocalScoreProjectStore({
+    indexedDbFactory: migrationFactory,
+    writeRequest: (store, project) => store.add(project),
+  });
+  assert.equal((await persistLocalScoreProjectChange({
+    store: writeFailureMigrationStore,
+    currentProject: migratedLoad.project!,
+    proposedProject: migratedTempo,
+  })).status, "write-failed");
+  assert.deepEqual(
+    await getRawRecord({
+      factory: migrationFactory,
+      projectId: migrationSeed.projectId,
+    }),
+    legacyRawBefore,
+    "旧版迁移普通写失败时必须保留原始记录",
+  );
+
+  const migrationOriginalTransaction =
+    FakeIDBDatabase.prototype.transaction;
+  let abortMigrationWrite = true;
+  FakeIDBDatabase.prototype.transaction = function (
+    storeNames: string | Iterable<string>,
+    mode?: IDBTransactionMode,
+    options?: IDBTransactionOptions,
+  ) {
+    const transaction = migrationOriginalTransaction.call(
+      this,
+      storeNames,
+      mode,
+      options,
+    );
+    if (abortMigrationWrite && mode === "readwrite") {
+      abortMigrationWrite = false;
+      queueMicrotask(() => transaction.abort());
+    }
+    return transaction;
+  };
+  try {
+    assert.equal((await persistLocalScoreProjectChange({
+      store: migrationStore,
+      currentProject: migratedLoad.project!,
+      proposedProject: migratedTempo,
+    })).status, "transaction-failed");
+  } finally {
+    FakeIDBDatabase.prototype.transaction = migrationOriginalTransaction;
+  }
+  assert.deepEqual(
+    await getRawRecord({
+      factory: migrationFactory,
+      projectId: migrationSeed.projectId,
+    }),
+    legacyRawBefore,
+    "旧版迁移事务中止时必须保留原始记录",
+  );
+
+  assert.equal((await persistLocalScoreProjectChange({
+    store: migrationStore,
+    currentProject: migratedLoad.project!,
+    proposedProject: migratedTempo,
+  })).status, "saved");
+  const migratedRaw = await getRawRecord({
+    factory: migrationFactory,
+    projectId: migrationSeed.projectId,
+  }) as { schemaVersion?: string; tempoBpm?: number };
+  assert.equal(migratedRaw.schemaVersion, "local-score-project-storage-v2");
+  assert.equal(migratedRaw.tempoBpm, 72);
 
   const reopenedStore = createIndexedDbLocalScoreProjectStore({
     indexedDbFactory: factory,
@@ -205,7 +389,7 @@ const run = async () => {
     factory,
     value: {
       projectId: "future-project",
-      schemaVersion: "local-score-project-storage-v2",
+      schemaVersion: "local-score-project-storage-v3",
     },
   });
   const mixedList = await listLocalScoreProjects({

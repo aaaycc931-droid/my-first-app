@@ -103,6 +103,18 @@ const findSelect = (
   return select;
 };
 
+const findInput = (
+  container: ParentNode,
+  label: string,
+): HTMLInputElement => {
+  const wrapper = Array.from(container.querySelectorAll("label")).find(
+    (candidate) => candidate.textContent?.includes(label),
+  );
+  const input = wrapper?.querySelector("input");
+  if (!input) throw new Error(`找不到输入框：${label}`);
+  return input;
+};
+
 const click = async (element: HTMLElement) => {
   await act(async () => {
     element.dispatchEvent(
@@ -117,8 +129,15 @@ const change = async (
   value: string,
 ) => {
   await act(async () => {
-    element.value = value;
-    element.dispatchEvent(new Event("change", { bubbles: true }));
+    const prototype = element instanceof HTMLInputElement
+      ? HTMLInputElement.prototype
+      : HTMLSelectElement.prototype;
+    const setter = Object.getOwnPropertyDescriptor(prototype, "value")?.set;
+    setter?.call(element, value);
+    element.dispatchEvent(new Event(
+      element instanceof HTMLInputElement ? "input" : "change",
+      { bubbles: true },
+    ));
   });
   await flushReact();
 };
@@ -287,6 +306,45 @@ describe("S1 本机谱项目面板", () => {
       "恢复条件后重试成功",
     );
     expect(Array.from(store.values.values())[0]?.document.revision).toBe(2);
+  });
+
+  it("速度保存失败时播放区保持旧值，恢复后可按原草稿重试并重开", async () => {
+    const store = new MemoryProjectStore();
+    const container = await renderPanel(store);
+    await click(findButton(container, "创建并保存"));
+    await waitFor(
+      () => container.textContent?.includes("已保存速度：90 BPM") ?? false,
+      "显示默认已保存速度",
+    );
+
+    await change(findInput(container, "速度（BPM）"), "72");
+    store.failNextPut = new LocalScoreProjectStorageError(
+      "write-failed",
+      "本机存储写入失败，乐谱项目未保存；原有项目保持不变。请恢复存储条件后重试。",
+    );
+    await click(findButton(container, "保存速度"));
+    await waitFor(
+      () => container.textContent?.includes("本机存储写入失败") ?? false,
+      "显示速度保存失败",
+    );
+    expect(container.textContent).toContain("已保存速度：90 BPM");
+    expect(findInput(container, "速度（BPM）").value).toBe("72");
+    expect(Array.from(store.values.values())[0]?.tempoBpm).toBe(90);
+
+    await click(findButton(container, "保存速度"));
+    await waitFor(
+      () => container.textContent?.includes("已保存速度：72 BPM") ?? false,
+      "恢复后保存速度",
+    );
+    expect(Array.from(store.values.values())[0]?.tempoBpm).toBe(72);
+    expect(Array.from(store.values.values())[0]?.document.revision).toBe(2);
+
+    await click(findButton(container, "返回项目列表"));
+    await click(findButton(container, "打开"));
+    await waitFor(
+      () => container.textContent?.includes("已保存速度：72 BPM") ?? false,
+      "重开后恢复速度",
+    );
   });
 
   it("删除项目需要明确确认，失败保留数据，恢复后可重试", async () => {
