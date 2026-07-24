@@ -179,6 +179,7 @@ jobs:
           npm run test:local-score-project-playback
           npm run test:mobile-local-score-project-playback-behavior
           npm run test:mobile-local-score-project-metronome-behavior
+          npm run test:mobile-local-score-project-transport-behavior
           npm run test:mobile-local-score-project-behavior
           npm run test:mobile-local-score-project-staff-preview-behavior
 
