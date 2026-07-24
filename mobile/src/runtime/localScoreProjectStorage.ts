@@ -9,9 +9,42 @@ const DATABASE_NAME = "solfeggio-local-score-projects";
 const DATABASE_VERSION = 1;
 const STORE_NAME = "projects";
 
+export type LocalScoreProjectStorageStatus =
+  | "blocked"
+  | "conflict"
+  | "invalid"
+  | "quota"
+  | "saved"
+  | "unchanged"
+  | "unavailable";
+
+export class LocalScoreProjectStorageError extends Error {
+  constructor(
+    readonly code: Exclude<
+      LocalScoreProjectStorageStatus,
+      "saved" | "unchanged"
+    >,
+    message: string,
+  ) {
+    super(message);
+    this.name = "LocalScoreProjectStorageError";
+  }
+}
+
+export type LocalScoreProjectListIssue = Readonly<{
+  projectId: string | null;
+  status: "corrupt" | "unsupported";
+}>;
+
+export type LocalScoreProjectListSnapshot = Readonly<{
+  projects: readonly LocalScoreProjectV1[];
+  issues: readonly LocalScoreProjectListIssue[];
+}>;
+
 export type LocalScoreProjectStore = {
   get: (projectId: string) => Promise<LocalScoreProjectV1 | null>;
   list: () => Promise<readonly LocalScoreProjectV1[]>;
+  listWithIssues?: () => Promise<LocalScoreProjectListSnapshot>;
   put: (
     project: LocalScoreProjectV1,
     expectedRevision: number | null,
@@ -23,27 +56,54 @@ export type LocalScoreProjectStorageResult = Readonly<{
   project: LocalScoreProjectV1;
   notice: string | null;
   saved: boolean;
+  status: LocalScoreProjectStorageStatus;
 }>;
 
 export type LocalScoreProjectLoadResult = Readonly<{
   project: LocalScoreProjectV1 | null;
   notice: string | null;
   sourceStatus: "available" | "unavailable";
+  status:
+    | "blocked"
+    | "invalid"
+    | "loaded"
+    | "not-found"
+    | "quota"
+    | "unavailable";
 }>;
+
+export type LocalScoreProjectListResult = Readonly<{
+  projects: readonly LocalScoreProjectV1[];
+  issues: readonly LocalScoreProjectListIssue[];
+  notice: string | null;
+  sourceStatus: "available" | "unavailable";
+  status: "loaded" | "partial" | "blocked" | "unavailable";
+}>;
+
+const getRequestError = (
+  request: IDBRequest,
+  fallback: string,
+) => {
+  if (request.error?.name === "QuotaExceededError") {
+    return new LocalScoreProjectStorageError(
+      "quota",
+      "本机存储空间不足，乐谱项目未保存。",
+    );
+  }
+  return new LocalScoreProjectStorageError("unavailable", fallback);
+};
 
 const requestResult = <T>(request: IDBRequest<T>) =>
   new Promise<T>((resolve, reject) => {
     request.onsuccess = () => resolve(request.result);
-    request.onerror = () => reject(new Error("本机乐谱项目操作失败。"));
+    request.onerror = () =>
+      reject(getRequestError(request, "本机乐谱项目操作失败。"));
   });
 
-const openDatabase = () =>
+const openDatabase = (indexedDbFactory: IDBFactory) =>
   new Promise<IDBDatabase>((resolve, reject) => {
-    if (typeof indexedDB === "undefined") {
-      reject(new Error("本机乐谱项目存储不可用。"));
-      return;
-    }
-    const request = indexedDB.open(DATABASE_NAME, DATABASE_VERSION);
+    const request = indexedDbFactory.open(DATABASE_NAME, DATABASE_VERSION);
+    let settled = false;
     request.onupgradeneeded = () => {
       if (!request.result.objectStoreNames.contains(STORE_NAME)) {
         request.result.createObjectStore(STORE_NAME, {
@@ -52,20 +112,55 @@ const openDatabase = () =>
       }
     };
     request.onsuccess = () => {
+      if (settled) {
+        request.result.close();
+        return;
+      }
+      settled = true;
       request.result.onversionchange = () => request.result.close();
       resolve(request.result);
     };
-    request.onerror = () => reject(new Error("无法打开本机乐谱项目存储。"));
-    request.onblocked = () =>
+    request.onerror = () => {
+      if (settled) return;
+      settled = true;
+      reject(getRequestError(request, "无法打开本机乐谱项目存储。"));
+    };
+    request.onblocked = () => {
+      if (settled) return;
+      settled = true;
       reject(
-        new Error("本机乐谱项目存储正在被其他页面占用，请关闭其他页面后重试。"),
+        new LocalScoreProjectStorageError(
+          "blocked",
+          "本机乐谱项目存储正在被其他页面占用，请关闭其他页面后重试。",
+        ),
       );
+    };
   });
+
+const getStoredProjectIssue = (
+  value: unknown,
+): LocalScoreProjectListIssue => {
+  const record = value && typeof value === "object"
+    ? value as Record<string, unknown>
+    : null;
+  return {
+    projectId: typeof record?.projectId === "string"
+      ? record.projectId
+      : null,
+    status: typeof record?.schemaVersion === "string"
+      && record.schemaVersion !== "local-score-project-storage-v1"
+      ? "unsupported"
+      : "corrupt",
+  };
+};
 
 const parseStoredProject = (value: unknown) => {
   const project = parseLocalScoreProject(value);
   if (!project) {
-    throw new Error("本机乐谱项目记录损坏或版本不受支持，原记录未被覆盖。");
+    throw new LocalScoreProjectStorageError(
+      "invalid",
+      "本机乐谱项目记录损坏或版本不受支持，原记录未被覆盖。",
+    );
   }
   return project;
 };
@@ -77,15 +172,73 @@ const transactionCompletion = (
   new Promise<void>((resolve, reject) => {
     transaction.oncomplete = () => resolve();
     transaction.onerror = () =>
-      reject(getFailure() ?? new Error("本机乐谱项目操作失败。"));
+      reject(
+        getFailure()
+        ?? (
+          transaction.error?.name === "QuotaExceededError"
+            ? new LocalScoreProjectStorageError(
+              "quota",
+              "本机存储空间不足，乐谱项目未保存。",
+            )
+            : new LocalScoreProjectStorageError(
+              "unavailable",
+              "本机乐谱项目操作失败。",
+            )
+        ),
+      );
     transaction.onabort = () =>
-      reject(getFailure() ?? new Error("本机乐谱项目操作被取消。"));
+      reject(
+        getFailure()
+        ?? new LocalScoreProjectStorageError(
+          "unavailable",
+          "本机乐谱项目操作被取消。",
+        ),
+      );
   });
 
 export const createIndexedDbLocalScoreProjectStore =
-  (): LocalScoreProjectStore => ({
+  ({
+    indexedDbFactory,
+  }: {
+    indexedDbFactory?: IDBFactory;
+  } = {}): LocalScoreProjectStore => {
+    const requireFactory = () => {
+      const factory = indexedDbFactory
+        ?? (typeof indexedDB === "undefined" ? null : indexedDB);
+      if (!factory) {
+        throw new LocalScoreProjectStorageError(
+          "unavailable",
+          "本机乐谱项目存储不可用。",
+        );
+      }
+      return factory;
+    };
+    const listWithIssues = async (): Promise<LocalScoreProjectListSnapshot> => {
+      const database = await openDatabase(requireFactory());
+      try {
+        const values = await requestResult(
+          database.transaction(STORE_NAME, "readonly")
+            .objectStore(STORE_NAME)
+            .getAll(),
+        ) as unknown[];
+        const projects: LocalScoreProjectV1[] = [];
+        const issues: LocalScoreProjectListIssue[] = [];
+        for (const value of values) {
+          const project = parseLocalScoreProject(value);
+          if (project) projects.push(project);
+          else issues.push(getStoredProjectIssue(value));
+        }
+        projects.sort(
+          (left, right) => right.updatedAt.localeCompare(left.updatedAt),
+        );
+        return { projects, issues };
+      } finally {
+        database.close();
+      }
+    };
+    return ({
     async get(projectId) {
-      const database = await openDatabase();
+      const database = await openDatabase(requireFactory());
       try {
         const value = await requestResult(
           database.transaction(STORE_NAME, "readonly")
@@ -99,20 +252,10 @@ export const createIndexedDbLocalScoreProjectStore =
     },
 
     async list() {
-      const database = await openDatabase();
-      try {
-        const values = await requestResult(
-          database.transaction(STORE_NAME, "readonly")
-            .objectStore(STORE_NAME)
-            .getAll(),
-        ) as unknown[];
-        return values
-          .map(parseStoredProject)
-          .sort((left, right) => right.updatedAt.localeCompare(left.updatedAt));
-      } finally {
-        database.close();
-      }
+      return (await listWithIssues()).projects;
     },
+
+    listWithIssues,
 
     async put(project, expectedRevision) {
       const validProject = parseLocalScoreProject(project);
@@ -126,7 +269,7 @@ export const createIndexedDbLocalScoreProjectStore =
       ) {
         throw new LocalScoreProjectConflictError();
       }
-      const database = await openDatabase();
+      const database = await openDatabase(requireFactory());
       let failure: Error | null = null;
       try {
         const transaction = database.transaction(STORE_NAME, "readwrite");
@@ -163,7 +306,7 @@ export const createIndexedDbLocalScoreProjectStore =
     },
 
     async delete(projectId, expectedRevision) {
-      const database = await openDatabase();
+      const database = await openDatabase(requireFactory());
       let failure: Error | null = null;
       try {
         const transaction = database.transaction(STORE_NAME, "readwrite");
@@ -196,11 +339,23 @@ export const createIndexedDbLocalScoreProjectStore =
       }
     },
   });
+  };
 
-const getSaveFailureNotice = (error: unknown) =>
-  error instanceof LocalScoreProjectConflictError
-    ? error.message
-    : "本机乐谱项目保存失败，当前已保存版本保持不变。";
+const getStorageFailure = (error: unknown): {
+  status: Exclude<LocalScoreProjectStorageStatus, "saved" | "unchanged">;
+  notice: string;
+} => {
+  if (error instanceof LocalScoreProjectConflictError) {
+    return { status: "conflict", notice: error.message };
+  }
+  if (error instanceof LocalScoreProjectStorageError) {
+    return { status: error.code, notice: error.message };
+  }
+  return {
+    status: "unavailable",
+    notice: "本机乐谱项目保存失败，当前已保存版本保持不变。",
+  };
+};
 
 export const persistNewLocalScoreProject = async ({
   store,
@@ -211,9 +366,10 @@ export const persistNewLocalScoreProject = async ({
 }): Promise<LocalScoreProjectStorageResult> => {
   try {
     await store.put(project, null);
-    return { project, notice: null, saved: true };
+    return { project, notice: null, saved: true, status: "saved" };
   } catch (error) {
-    return { project, notice: getSaveFailureNotice(error), saved: false };
+    const failure = getStorageFailure(error);
+    return { project, notice: failure.notice, saved: false, status: failure.status };
   }
 };
 
@@ -230,24 +386,63 @@ export const persistLocalScoreProjectChange = async ({
     proposedProject.projectId !== currentProject.projectId
     || proposedProject.document.documentId
       !== currentProject.document.documentId
+    || proposedProject.createdAt !== currentProject.createdAt
+    || !parseLocalScoreProject(currentProject)
+    || !parseLocalScoreProject(proposedProject)
   ) {
     return {
       project: currentProject,
       notice: "乐谱项目身份不一致，未保存本次修改。",
       saved: false,
+      status: "invalid",
     };
   }
   if (proposedProject === currentProject) {
-    return { project: currentProject, notice: null, saved: true };
+    return {
+      project: currentProject,
+      notice: null,
+      saved: true,
+      status: "unchanged",
+    };
+  }
+  if (
+    proposedProject.document.revision === currentProject.document.revision
+    && JSON.stringify(parseLocalScoreProject(proposedProject))
+      === JSON.stringify(parseLocalScoreProject(currentProject))
+  ) {
+    return {
+      project: currentProject,
+      notice: null,
+      saved: true,
+      status: "unchanged",
+    };
+  }
+  if (
+    proposedProject.document.revision
+      !== currentProject.document.revision + 1
+  ) {
+    return {
+      project: currentProject,
+      notice: "乐谱项目修订号不连续，未保存本次修改。",
+      saved: false,
+      status: "invalid",
+    };
   }
   try {
     await store.put(proposedProject, currentProject.document.revision);
-    return { project: proposedProject, notice: null, saved: true };
+    return {
+      project: proposedProject,
+      notice: null,
+      saved: true,
+      status: "saved",
+    };
   } catch (error) {
+    const failure = getStorageFailure(error);
     return {
       project: currentProject,
-      notice: getSaveFailureNotice(error),
+      notice: failure.notice,
       saved: false,
+      status: failure.status,
     };
   }
 };
@@ -260,16 +455,55 @@ export const loadLocalScoreProject = async ({
   projectId: string;
 }): Promise<LocalScoreProjectLoadResult> => {
   try {
+    const project = await store.get(projectId);
     return {
-      project: await store.get(projectId),
+      project,
       notice: null,
       sourceStatus: "available",
+      status: project ? "loaded" : "not-found",
     };
-  } catch {
+  } catch (error) {
+    const failure = getStorageFailure(error);
     return {
       project: null,
-      notice: "本机乐谱项目无法读取；原记录未被覆盖或清除。",
+      notice: failure.status === "unavailable"
+        ? "本机乐谱项目无法读取；原记录未被覆盖或清除。"
+        : failure.notice,
       sourceStatus: "unavailable",
+      status: failure.status === "conflict"
+        ? "unavailable"
+        : failure.status,
+    };
+  }
+};
+
+export const listLocalScoreProjects = async ({
+  store,
+}: {
+  store: LocalScoreProjectStore;
+}): Promise<LocalScoreProjectListResult> => {
+  try {
+    const snapshot = store.listWithIssues
+      ? await store.listWithIssues()
+      : { projects: await store.list(), issues: [] };
+    return {
+      ...snapshot,
+      notice: snapshot.issues.length > 0
+        ? "部分本机乐谱项目记录损坏或版本不受支持，原记录已保留。"
+        : null,
+      sourceStatus: "available",
+      status: snapshot.issues.length > 0 ? "partial" : "loaded",
+    };
+  } catch (error) {
+    const failure = getStorageFailure(error);
+    return {
+      projects: [],
+      issues: [],
+      notice: failure.status === "blocked"
+        ? failure.notice
+        : "本机乐谱项目列表无法读取，原记录未被覆盖或清除。",
+      sourceStatus: "unavailable",
+      status: failure.status === "blocked" ? "blocked" : "unavailable",
     };
   }
 };

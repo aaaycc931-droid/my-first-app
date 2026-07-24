@@ -53,6 +53,7 @@ import type {
 import { LocalCoursePathPanel } from "./LocalCoursePathPanel";
 import { LocalLearningOverviewPanel } from "./LocalLearningOverviewPanel";
 import { LocalPracticeStatisticsPanel } from "./LocalPracticeStatisticsPanel";
+import { LocalScoreProjectPanel } from "./LocalScoreProjectPanel";
 
 const LocalEarTrainingHarmonyProgressionPanel = lazy(() =>
   import("../../components/practice/LocalEarTrainingHarmonyProgressionPanel").then((module) => ({
@@ -81,9 +82,9 @@ const LocalEarTrainingChordPanel = lazy(() =>
   })),
 );
 
-const screens = ["home", "course", "statistics", "custom", "monitor", "pitch", "interval", "compare", "chord", "seventh", "seventh-spacing", "progression", "modulation", "scale", "rhythm", "melody", "piano"] as const;
+const screens = ["home", "course", "statistics", "custom", "score", "monitor", "pitch", "interval", "compare", "chord", "seventh", "seventh-spacing", "progression", "modulation", "scale", "rhythm", "melody", "piano"] as const;
 type Screen = (typeof screens)[number];
-type PracticeScreenName = Exclude<Screen, "home" | "course" | "statistics" | "custom" | "piano" | "monitor">;
+type PracticeScreenName = Exclude<Screen, "home" | "course" | "statistics" | "custom" | "score" | "piano" | "monitor">;
 
 const screenDetails: Record<
   Exclude<Screen, "home">,
@@ -103,6 +104,11 @@ const screenDetails: Record<
     title: "定制练习",
     summary: "选择题型、难度和答案类别，开始一组仅当前会话有效的本地练习。",
     tone: "bg-violet-50 text-violet-950 ring-violet-200",
+  },
+  score: {
+    title: "本机谱项目",
+    summary: "新建、编辑、保存、播放并重新打开一份只留在当前设备的基础谱。",
+    tone: "bg-teal-50 text-teal-950 ring-teal-200",
   },
   monitor: {
     title: "实时音高反馈",
@@ -722,6 +728,20 @@ export function App() {
               />
             )}
           </section>
+        ) : activeScreen === "score" ? (
+          <section aria-label={screenDetails.score.title} className="grid gap-4">
+            <a
+              href="#home"
+              onClick={() => {
+                stopActiveAudio();
+                setActiveReviewTarget(null);
+              }}
+              className="inline-flex min-h-11 w-fit items-center rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-bold text-slate-800 shadow-sm"
+            >
+              返回练习首页
+            </a>
+            {lifecycle.isForeground ? <LocalScoreProjectPanel /> : null}
+          </section>
         ) : activeScreen === "piano" ? (
           <section aria-label={screenDetails.piano.title}>
             <a
@@ -768,6 +788,8 @@ export function App() {
           {screens.map((screen) => {
             const label = screen === "home"
               ? "首页"
+              : screen === "score"
+                ? "制谱"
               : screen === "piano"
                 ? "钢琴"
                 : screen === "monitor"
