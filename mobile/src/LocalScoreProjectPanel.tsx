@@ -8,6 +8,9 @@ import {
 } from "../../components/music/LocalScoreProjectStaffPreview";
 import { useLocalScoreProjectPlayback } from "../../components/piano/useLocalScoreProjectPlayback";
 import {
+  useLocalScoreProjectMetronome,
+} from "../../components/piano/useLocalScoreProjectMetronome";
+import {
   LocalScoreProjectDomainError,
   addLocalScoreProjectEvent,
   appendLocalScoreProjectMeasure,
@@ -113,6 +116,11 @@ function LocalScoreProjectPlaybackControls({
     document: project.document,
     bpm: project.tempoBpm,
   });
+  const metronome = useLocalScoreProjectMetronome({
+    bpm: project.tempoBpm,
+    meter: project.document.meter,
+    revision: project.document.revision,
+  });
 
   return (
     <>
@@ -144,13 +152,43 @@ function LocalScoreProjectPlaybackControls({
           <button
             type="button"
             disabled={playback.plan.status === "blocked"}
-            onClick={playback.play}
+            onClick={() => {
+              metronome.stop();
+              playback.play();
+            }}
             className="min-h-11 rounded-xl bg-rose-700 px-4 py-2 text-sm font-bold text-white disabled:bg-slate-300"
           >
             播放草稿
           </button>
         )}
+        {metronome.isRunning ? (
+          <button
+            type="button"
+            onClick={metronome.stop}
+            className="min-h-11 rounded-xl border border-rose-300 bg-white px-4 py-2 text-sm font-bold text-rose-800"
+          >
+            停止节拍器
+          </button>
+        ) : (
+          <button
+            type="button"
+            disabled={metronome.isStarting}
+            onClick={() => {
+              playback.stop();
+              void metronome.start();
+            }}
+            className="min-h-11 rounded-xl border border-rose-300 bg-white px-4 py-2 text-sm font-bold text-rose-800 disabled:text-slate-400"
+          >
+            {metronome.isStarting ? "正在启动节拍器…" : "启动节拍器"}
+          </button>
+        )}
       </div>
+      <p className="mt-3 text-xs leading-5 text-rose-800">
+        节拍器使用已保存的 {project.tempoBpm} BPM 与 {project.document.meter}；与谱面播放互斥，当前不表示精确相位同步。
+        {metronome.beat
+          ? ` 当前调度拍点：第 ${metronome.beat.barNumber} 小节第 ${metronome.beat.beatNumber} 拍${metronome.beat.isStrongBeat ? "（强拍）" : ""}。`
+          : ""}
+      </p>
       {playback.plan.status === "ready" && playback.plan.warnings.length > 0 ? (
         <p className="mt-3 text-xs leading-5 text-rose-800">
           {playback.plan.warnings.join(" ")}
@@ -164,6 +202,11 @@ function LocalScoreProjectPlaybackControls({
       {playback.notice ? (
         <p className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950" role="status">
           {playback.notice}
+        </p>
+      ) : null}
+      {metronome.notice ? (
+        <p className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950" role="status">
+          {metronome.notice}
         </p>
       ) : null}
       </section>
