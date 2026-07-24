@@ -171,9 +171,10 @@ jobs:
           npm run test:auth-ui-policy
           npm run test:notation-temporary-practice-progress
           npm run test:notation-reference-melody-playback
+          npm run test:repository-hygiene
 
       - name: Validate local Android bundle
-        run: npm run validate:android-version && npm run android:sync && npm run validate:android-local
+        run: npm run validate:repository-hygiene && npm run validate:android-version && npm run android:sync && npm run validate:android-local
 
       - name: Build
         run: npm run build
