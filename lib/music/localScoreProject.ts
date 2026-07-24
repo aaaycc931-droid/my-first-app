@@ -50,6 +50,7 @@ export type LocalScoreProjectDomainErrorCode =
   | "clock-regression"
   | "duplicate"
   | "invalid-input"
+  | "measure-capacity"
   | "not-found"
   | "not-empty"
   | "would-empty";
@@ -495,6 +496,47 @@ const normalizeProjectEvent = ({
   return event;
 };
 
+const eventDurationBeats: Readonly<Record<NotationDuration, number>> = {
+  half: 2,
+  quarter: 1,
+  eighth: 0.5,
+};
+
+const sameEventLocation = (
+  left: LocalScoreProjectEventLocation,
+  right: LocalScoreProjectEventLocation,
+) =>
+  left.partId === right.partId
+  && left.staffId === right.staffId
+  && left.voiceId === right.voiceId
+  && left.measureNumber === right.measureNumber;
+
+const assertMeasureHasCapacity = ({
+  events,
+  event,
+  meter,
+  measureNumber,
+  action,
+}: {
+  events: readonly ScoreDocumentEventV1[];
+  event: ScoreDocumentEventV1;
+  meter: NotationTimeSignature;
+  measureNumber: number;
+  action: "移动" | "粘贴";
+}) => {
+  const capacity = Number(meter.split("/")[0]);
+  const used = events.reduce(
+    (total, existing) => total + eventDurationBeats[existing.duration],
+    0,
+  );
+  if (used + eventDurationBeats[event.duration] > capacity) {
+    throw new LocalScoreProjectDomainError(
+      "measure-capacity",
+      `第 ${measureNumber} 小节剩余拍数不足，未${action}事件；已保存谱面保持不变。`,
+    );
+  }
+};
+
 const updateEventsAtLocation = ({
   content,
   location,
@@ -759,6 +801,204 @@ export const updateLocalScoreProjectEvent = ({
       "未找到要修改的乐谱事件。",
     );
   }
+  return applyLocalScoreProjectContent({
+    project,
+    expectedRevision,
+    content: nextContent,
+    now,
+  });
+};
+
+export const moveLocalScoreProjectEvent = ({
+  project,
+  expectedRevision,
+  source,
+  destination,
+  eventId,
+  targetIndex,
+  now,
+}: {
+  project: LocalScoreProjectV1;
+  expectedRevision: number;
+  source: LocalScoreProjectEventLocation;
+  destination: LocalScoreProjectEventLocation;
+  eventId: string;
+  targetIndex?: number;
+  now: string;
+}) => {
+  assertExpectedRevision(project, expectedRevision);
+  if (!isValidId(eventId)) {
+    throw new LocalScoreProjectDomainError(
+      "invalid-input",
+      "乐谱事件标识无效。",
+    );
+  }
+  if (
+    targetIndex !== undefined
+    && (!Number.isSafeInteger(targetIndex) || targetIndex < 0)
+  ) {
+    throw new LocalScoreProjectDomainError(
+      "invalid-input",
+      "目标事件位置无效，未执行移动。",
+    );
+  }
+
+  const content = getLocalScoreProjectContent(project);
+  let movedEvent: ScoreDocumentEventV1 | undefined;
+  const withoutSource = updateEventsAtLocation({
+    content,
+    location: source,
+    update: (events) => {
+      const sourceIndex = events.findIndex((event) => event.id === eventId);
+      if (sourceIndex < 0) return events;
+      movedEvent = events[sourceIndex];
+      return [
+        ...events.slice(0, sourceIndex),
+        ...events.slice(sourceIndex + 1),
+      ];
+    },
+  });
+  if (!movedEvent) {
+    throw new LocalScoreProjectDomainError(
+      "not-found",
+      "未在来源位置找到要移动的乐谱事件。",
+    );
+  }
+
+  const movedToDestination: ScoreDocumentEventV1 = {
+    ...movedEvent,
+    measure: destination.measureNumber,
+  };
+  const nextContent = updateEventsAtLocation({
+    content: withoutSource,
+    location: destination,
+    update: (events) => {
+      if (!sameEventLocation(source, destination)) {
+        assertMeasureHasCapacity({
+          events,
+          event: movedToDestination,
+          meter: content.meter,
+          measureNumber: destination.measureNumber,
+          action: "移动",
+        });
+      }
+      const insertionIndex = targetIndex ?? events.length;
+      if (insertionIndex > events.length) {
+        throw new LocalScoreProjectDomainError(
+          "invalid-input",
+          "目标事件位置超出当前小节范围，未执行移动。",
+        );
+      }
+      return [
+        ...events.slice(0, insertionIndex),
+        movedToDestination,
+        ...events.slice(insertionIndex),
+      ];
+    },
+  });
+  return applyLocalScoreProjectContent({
+    project,
+    expectedRevision,
+    content: nextContent,
+    now,
+  });
+};
+
+export const copyLocalScoreProjectEvent = ({
+  project,
+  location,
+  eventId,
+}: {
+  project: LocalScoreProjectV1;
+  location: LocalScoreProjectEventLocation;
+  eventId: string;
+}): LocalScoreProjectEventInput => {
+  let copied: ScoreDocumentEventV1 | undefined;
+  updateEventsAtLocation({
+    content: getLocalScoreProjectContent(project),
+    location,
+    update: (events) => {
+      copied = events.find((event) => event.id === eventId);
+      return events;
+    },
+  });
+  if (!copied) {
+    throw new LocalScoreProjectDomainError(
+      "not-found",
+      "未找到要复制的乐谱事件。",
+    );
+  }
+  return copied.type === "rest"
+    ? { type: "rest", pitch: null, duration: "quarter" }
+    : { type: "note", pitch: copied.pitch, duration: copied.duration };
+};
+
+export const pasteLocalScoreProjectEvent = ({
+  project,
+  expectedRevision,
+  destination,
+  targetIndex,
+  eventId,
+  input,
+  now,
+}: {
+  project: LocalScoreProjectV1;
+  expectedRevision: number;
+  destination: LocalScoreProjectEventLocation;
+  targetIndex?: number;
+  eventId: string;
+  input: LocalScoreProjectEventInput;
+  now: string;
+}) => {
+  assertExpectedRevision(project, expectedRevision);
+  if (
+    targetIndex !== undefined
+    && (!Number.isSafeInteger(targetIndex) || targetIndex < 0)
+  ) {
+    throw new LocalScoreProjectDomainError(
+      "invalid-input",
+      "目标事件位置无效，未执行粘贴。",
+    );
+  }
+  const content = getLocalScoreProjectContent(project);
+  if (content.parts.some((part) => part.staves.some((staff) =>
+    staff.voices.some((voice) => voice.measures.some((measure) =>
+      measure.events.some((event) => event.id === eventId)))))) {
+    throw new LocalScoreProjectDomainError(
+      "duplicate",
+      "乐谱事件标识重复，未执行粘贴。",
+    );
+  }
+  const pasted = normalizeProjectEvent({
+    eventId,
+    location: destination,
+    input,
+  });
+  const nextContent = updateEventsAtLocation({
+    content,
+    location: destination,
+    update: (events) => {
+      assertMeasureHasCapacity({
+        events,
+        event: pasted,
+        meter: content.meter,
+        measureNumber: destination.measureNumber,
+        action: "粘贴",
+      });
+      const insertionIndex = targetIndex ?? events.length;
+      if (insertionIndex > events.length) {
+        throw new LocalScoreProjectDomainError(
+          "invalid-input",
+          "目标事件位置超出当前小节范围，未执行粘贴。",
+        );
+      }
+      return [
+        ...events.slice(0, insertionIndex),
+        pasted,
+        ...events.slice(insertionIndex),
+      ];
+    },
+  });
   return applyLocalScoreProjectContent({
     project,
     expectedRevision,
