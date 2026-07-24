@@ -29,7 +29,7 @@
 | V1-18 | 浏览器与真实设备 | IN_PROGRESS | 多次桌面 Preview QA；历史移动端 magic-link/播放 QA | 固定矩阵、2 台 iOS + 3 台 Android APK、麦克风/录音全流程 |
 | V1-19 | 备份、恢复与回滚 | NOT_STARTED | Git/Vercel 可回退；迁移有局部事务验证 | 数据库恢复演练、RPO/RTO、不可逆迁移策略、30 分钟演练 |
 | V1-20 | 观测与事故响应 | NOT_STARTED | GitHub Actions、Vercel 状态 | 错误追踪、指标、隐私日志、告警接收人和故障手册 |
-| V1-21 | 内容与教学审核 | IN_PROGRESS | P119a 已合并双教师六维审核协议；P119b 已使 30 个盘点组达到 V1 数量前置；P119c 已冻结可复核清单；P119d 已记录两名独立教师在仓库外签署的 153 项样本计划无身份摘要 | 由 2 名独立教师分别完成同一获批批次的逐题六维审核并闭环 finding；专业 40 目标另行补足 |
+| V1-21 | 内容与教学审核 | DEFERRED | P119a 已合并双教师六维审核协议；P119b 已使 30 个盘点组达到 V1 数量前置；P119c 已冻结可复核清单；P119d 已记录两名独立教师在仓库外签署的 153 项样本计划无身份摘要 | 正式推广测试启动时，由 2 名独立教师分别完成同一获批批次的逐题六维审核并闭环 finding；专业 40 目标另行补足 |
 | V1-22 | 用户可用性验收 | NOT_STARTED | 开发与所有者 QA | 5 名目标用户、核心任务成功率和误解检查 |
 | V1-23 | 发布证据包 | IN_PROGRESS | P119c 合并后的 main run `30006334599` 的 quality、Android API 36 构建及独立 APK 复核已核对；artifact `8563190826` 的 GitHub ZIP digest 为 `e282b857aff76ecdcf580d29283f2a490e08c0c1b346a88ba9c705a03ec28103` | 专用签名与 APK 内部独立摘要证据、P104 真实数据/设备/教育证据、删除/恢复与用户验收证据 |
 | V1-24 | Android 本地 APK | IN_PROGRESS | 离线题库、实时曲线/录音/目标/观察、本机记录/复练与共享 Activity 能力；P115–P118 implementation candidates 均已合并并通过 `android-local` Debug APK 门禁 | P104 三档真机/真实人声、专用签名、升级与前向回滚 |

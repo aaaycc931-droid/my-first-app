@@ -7,7 +7,7 @@
 3. schema v2 必须引用同一 source commit、catalog version、manifest 文件和实际 SHA-256；旧 schema v1 不得伪装成已绑定清单的证据。
 4. `candidate-review-batch.v1.json` 是按固定 seed 对 30 个 `kind × difficulty` 层各选 5 项并纳入全部 3 个课程项的可复现候选；运行 `npm run test:p119-teacher-review-candidate` 可检查重建、重复、缺失与分层。
 5. `approved-review-plan.v1.json` 保存产品所有者对仓库外双教师预批准的无身份摘要，并以 SHA-256 绑定上述候选。两名教师已原样批准全部 153 个 ID，并接受 5 组跨难度相同 variant 作为配对审核项，不把它们视为独立统计样本。
-6. 分别复制 `teacher-review-worksheet.v1.csv` 到两个私有位置。两名教师必须独立审核同一冻结批次；仓库只记录匿名 reviewer token 与汇总，身份、资质、签署和逐题原件保存在产品所有者控制的私有位置。
+6. 获批批次继续冻结，逐题审核已由产品所有者延期到正式推广测试启动时。启动后分别复制 `teacher-review-worksheet.v1.csv` 到两个私有位置；两名教师必须独立审核同一冻结批次。仓库只记录匿名 reviewer token 与汇总，身份、资质、签署和逐题原件保存在产品所有者控制的私有位置。
 7. 若修改获批样本，必须保存新版本、选择规则、seed 与修改记录，由两位教师重新预批准，不得静默覆盖。
 8. 正式评估或正式发布步骤前运行 `npm run validate:p119-formal-stage-gate`。逐题双教师证据未完成时，预期为 `BLOCKED` / exit 2。
 

@@ -27,6 +27,13 @@
     "privateRecordCustodian": "PRODUCT_OWNER",
     "recordedDate": "2026-07-24"
   },
+  "reviewScheduling": {
+    "status": "DEFERRED",
+    "resumeTrigger": "FORMAL_PROMOTION_TESTING_START",
+    "authorizedBy": "PRODUCT_OWNER",
+    "recordedDate": "2026-07-24",
+    "statement": "两名教师的独立逐题六维审核暂缓，待产品所有者正式开启推广测试时再执行；已批准批次继续冻结。"
+  },
   "evidenceBoundary": {
     "teacherItemReview": "NOT_EXECUTED",
     "openFindingCount": "NOT_YET_AVAILABLE",

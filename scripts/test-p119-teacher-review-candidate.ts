@@ -43,6 +43,11 @@ const approvedPlan = JSON.parse(
     qualificationsVerifiedExternally: boolean;
     separateSignaturesHeldPrivately: boolean;
   };
+  reviewScheduling: {
+    status: string;
+    resumeTrigger: string;
+    authorizedBy: string;
+  };
   evidenceBoundary: {
     teacherItemReview: string;
     educationValidity: string;
@@ -130,6 +135,12 @@ assert.equal(
 assert.equal(approvedPlan.humanAttestation.independentTeacherCount, 2);
 assert.equal(approvedPlan.humanAttestation.qualificationsVerifiedExternally, true);
 assert.equal(approvedPlan.humanAttestation.separateSignaturesHeldPrivately, true);
+assert.equal(approvedPlan.reviewScheduling.status, "DEFERRED");
+assert.equal(
+  approvedPlan.reviewScheduling.resumeTrigger,
+  "FORMAL_PROMOTION_TESTING_START",
+);
+assert.equal(approvedPlan.reviewScheduling.authorizedBy, "PRODUCT_OWNER");
 assert.equal(approvedPlan.evidenceBoundary.teacherItemReview, "NOT_EXECUTED");
 assert.equal(approvedPlan.evidenceBoundary.educationValidity, "NOT_EXECUTED");
 assert.equal(approvedPlan.evidenceBoundary.formalEvaluation, "BLOCKED");
