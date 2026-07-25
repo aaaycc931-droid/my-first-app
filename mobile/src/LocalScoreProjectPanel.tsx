@@ -6,10 +6,7 @@ import {
   LocalScoreProjectStaffPreview,
   type LocalScoreProjectStaffSelection,
 } from "../../components/music/LocalScoreProjectStaffPreview";
-import { useLocalScoreProjectPlayback } from "../../components/piano/useLocalScoreProjectPlayback";
-import {
-  useLocalScoreProjectMetronome,
-} from "../../components/piano/useLocalScoreProjectMetronome";
+import { useLocalScoreProjectTransport } from "../../components/piano/useLocalScoreProjectTransport";
 import {
   LocalScoreProjectDomainError,
   addLocalScoreProjectEvent,
@@ -112,14 +109,9 @@ function LocalScoreProjectPlaybackControls({
   selectedEventId?: string | null;
   onSelectEvent: (selection: LocalScoreProjectStaffSelection) => void;
 }) {
-  const playback = useLocalScoreProjectPlayback({
+  const transport = useLocalScoreProjectTransport({
     document: project.document,
     bpm: project.tempoBpm,
-  });
-  const metronome = useLocalScoreProjectMetronome({
-    bpm: project.tempoBpm,
-    meter: project.document.meter,
-    revision: project.document.revision,
   });
 
   return (
@@ -127,7 +119,7 @@ function LocalScoreProjectPlaybackControls({
       <LocalScoreProjectStaffPreview
         document={project.document}
         selectedEventId={selectedEventId}
-        activeEventIds={playback.activeSourceEventIds}
+        activeEventIds={transport.activeSourceEventIds}
         onSelectEvent={onSelectEvent}
       />
       <section className="rounded-3xl border border-rose-200 bg-rose-50 p-5 text-rose-950 shadow-sm">
@@ -140,10 +132,10 @@ function LocalScoreProjectPlaybackControls({
         <p className="self-center text-sm font-bold">
           已保存速度：{project.tempoBpm} BPM
         </p>
-        {playback.isPlaying ? (
+        {transport.mode === "score-playing" ? (
           <button
             type="button"
-            onClick={playback.stop}
+            onClick={transport.stop}
             className="min-h-11 rounded-xl border border-rose-300 bg-white px-4 py-2 text-sm font-bold text-rose-800"
           >
             停止播放
@@ -151,62 +143,50 @@ function LocalScoreProjectPlaybackControls({
         ) : (
           <button
             type="button"
-            disabled={playback.plan.status === "blocked"}
-            onClick={() => {
-              metronome.stop();
-              playback.play();
-            }}
+            disabled={transport.plan.status === "blocked"}
+            onClick={transport.playScore}
             className="min-h-11 rounded-xl bg-rose-700 px-4 py-2 text-sm font-bold text-white disabled:bg-slate-300"
           >
             播放草稿
           </button>
         )}
-        {metronome.isRunning ? (
+        {transport.mode === "metronome-running" || transport.mode === "metronome-starting" ? (
           <button
             type="button"
-            onClick={metronome.stop}
+            onClick={transport.stop}
             className="min-h-11 rounded-xl border border-rose-300 bg-white px-4 py-2 text-sm font-bold text-rose-800"
           >
-            停止节拍器
+            {transport.mode === "metronome-starting" ? "取消启动节拍器" : "停止节拍器"}
           </button>
         ) : (
           <button
             type="button"
-            disabled={metronome.isStarting}
-            onClick={() => {
-              playback.stop();
-              void metronome.start();
-            }}
-            className="min-h-11 rounded-xl border border-rose-300 bg-white px-4 py-2 text-sm font-bold text-rose-800 disabled:text-slate-400"
+            onClick={() => void transport.startMetronome()}
+            className="min-h-11 rounded-xl border border-rose-300 bg-white px-4 py-2 text-sm font-bold text-rose-800"
           >
-            {metronome.isStarting ? "正在启动节拍器…" : "启动节拍器"}
+            启动节拍器
           </button>
         )}
       </div>
       <p className="mt-3 text-xs leading-5 text-rose-800">
         节拍器使用已保存的 {project.tempoBpm} BPM 与 {project.document.meter}；与谱面播放互斥，当前不表示精确相位同步。
-        {metronome.beat
-          ? ` 当前调度拍点：第 ${metronome.beat.barNumber} 小节第 ${metronome.beat.beatNumber} 拍${metronome.beat.isStrongBeat ? "（强拍）" : ""}。`
+        {transport.beat
+          ? ` 当前调度拍点：第 ${transport.beat.barNumber} 小节第 ${transport.beat.beatNumber} 拍${transport.beat.isStrongBeat ? "（强拍）" : ""}。`
           : ""}
       </p>
-      {playback.plan.status === "ready" && playback.plan.warnings.length > 0 ? (
+      {transport.plan.status === "ready" && transport.plan.warnings.length > 0 ? (
         <p className="mt-3 text-xs leading-5 text-rose-800">
-          {playback.plan.warnings.join(" ")}
+          {transport.plan.warnings.join(" ")}
         </p>
       ) : null}
-      {playback.plan.status === "blocked" ? (
+      {transport.plan.status === "blocked" ? (
         <p className="mt-3 text-sm leading-6 text-slate-600">
-          {playback.plan.reason}
+          {transport.plan.reason}
         </p>
       ) : null}
-      {playback.notice ? (
+      {transport.notice ? (
         <p className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950" role="status">
-          {playback.notice}
-        </p>
-      ) : null}
-      {metronome.notice ? (
-        <p className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950" role="status">
-          {metronome.notice}
+          {transport.notice}
         </p>
       ) : null}
       </section>
