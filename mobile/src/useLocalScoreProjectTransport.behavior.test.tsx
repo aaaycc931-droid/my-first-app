@@ -11,7 +11,7 @@ import type {
 } from "../../components/piano/useLocalScoreProjectMetronome";
 import type { LocalPianoAudioChannelFactory } from "../../components/piano/useLocalPianoAudio";
 import { stopAllBrowserAudio } from "../../lib/audio/browserAudioEngine";
-import type { LocalNotationProjectScoreDocumentV1 } from "../../lib/music/scoreDocument";
+import type { LocalNotationProjectScoreDocumentV2 } from "../../lib/music/scoreDocument";
 import type {
   PianoVoiceHandle,
   PianoVoiceProvider,
@@ -21,8 +21,8 @@ type FakeScheduler = LocalScoreProjectMetronomeScheduler & {
   stopCalls: number;
 };
 
-const createDocument = (): LocalNotationProjectScoreDocumentV1 => ({
-  schemaVersion: "score-document-v1",
+const createDocument = (): LocalNotationProjectScoreDocumentV2 => ({
+  schemaVersion: "score-document-v2",
   documentKind: "notation-project",
   documentId: "local.score-project.transport-test",
   revision: 1,
@@ -50,18 +50,25 @@ const createDocument = (): LocalNotationProjectScoreDocumentV1 => ({
             pitch: "C4",
             duration: "quarter",
             measure: 1,
+            augmentationDots: 0,
+            tieToNext: false,
+            lyric: null,
           }, {
             id: "rest",
             type: "rest",
             pitch: null,
             duration: "quarter",
             measure: 1,
+            augmentationDots: 0,
           }, {
             id: "d4",
             type: "note",
             pitch: "D4",
             duration: "half",
             measure: 1,
+            augmentationDots: 0,
+            tieToNext: false,
+            lyric: null,
           }],
         }],
       }],
@@ -114,7 +121,7 @@ function TransportHarness({
   voiceProvider,
   createMetronomeScheduler,
 }: {
-  scoreDocument: LocalNotationProjectScoreDocumentV1;
+  scoreDocument: LocalNotationProjectScoreDocumentV2;
   bpm: number;
   createAudioChannel: LocalPianoAudioChannelFactory;
   voiceProvider: PianoVoiceProvider;
@@ -180,7 +187,7 @@ const renderTransport = async ({
   voiceProvider,
   createMetronomeScheduler,
 }: {
-  scoreDocument?: LocalNotationProjectScoreDocumentV1;
+  scoreDocument?: LocalNotationProjectScoreDocumentV2;
   bpm?: number;
   createAudioChannel: LocalPianoAudioChannelFactory;
   voiceProvider: PianoVoiceProvider;

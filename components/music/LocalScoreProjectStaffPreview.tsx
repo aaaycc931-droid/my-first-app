@@ -8,7 +8,7 @@ import {
   type LocalScoreStaffEventLocation,
   type LocalScoreStaffToken,
 } from "../../lib/music/localScoreProjectStaffPresentation";
-import type { LocalNotationProjectScoreDocumentV1 } from "../../lib/music/scoreDocument";
+import type { LocalNotationProjectScoreDocumentV2 } from "../../lib/music/scoreDocument";
 
 export type LocalScoreProjectStaffSelection = Readonly<{
   eventId: string;
@@ -16,7 +16,7 @@ export type LocalScoreProjectStaffSelection = Readonly<{
 }>;
 
 export type LocalScoreProjectStaffPreviewProps = Readonly<{
-  document: LocalNotationProjectScoreDocumentV1;
+  document: LocalNotationProjectScoreDocumentV2;
   selectedEventId?: string | null;
   activeEventIds?: readonly string[];
   onSelectEvent?: (selection: LocalScoreProjectStaffSelection) => void;
@@ -69,6 +69,9 @@ export function LocalScoreProjectStaffPreview({
   const previewLabel =
     `第一声部五线谱预览，拍号 ${presentation.meter}，`
     + `共 ${presentation.measures.length} 小节。${eventSummary}。`;
+  const tokenById = new Map(
+    presentation.tokens.map((token) => [token.eventId, token]),
+  );
 
   return (
     <section
@@ -171,6 +174,31 @@ export function LocalScoreProjectStaffPreview({
           ))}
 
           {presentation.tokens.map((token) => {
+            if (token.type !== "note" || !token.tieToNext) return null;
+            const target = token.tieTargetEventId === null
+              ? null
+              : tokenById.get(token.tieTargetEventId);
+            if (!target || target.type !== "note") return null;
+            const startX = token.x + 9;
+            const endX = target.x - 9;
+            const startY = token.y - 9;
+            const endY = target.y - 9;
+            const archY = Math.min(startY, endY) - 14;
+            return (
+              <path
+                key={`tie-${token.eventId}`}
+                d={`M ${startX} ${startY} C ${startX + 18} ${archY}, ${endX - 18} ${archY}, ${endX} ${endY}`}
+                fill="none"
+                stroke="#7c3aed"
+                strokeWidth="2"
+                strokeLinecap="round"
+                data-testid={`local-score-tie-${token.eventId}-${target.eventId}`}
+                aria-hidden="true"
+              />
+            );
+          })}
+
+          {presentation.tokens.map((token) => {
             const selected = token.eventId === selectedEventId;
             const active = activeIds.has(token.eventId);
             const stateLabel = [
@@ -253,6 +281,16 @@ export function LocalScoreProjectStaffPreview({
                       data-testid={`local-score-notehead-${token.eventId}`}
                       aria-hidden="true"
                     />
+                    {token.augmentationDots === 1 ? (
+                      <circle
+                        cx={token.x + 13}
+                        cy={token.y}
+                        r="2.4"
+                        fill="#312e81"
+                        data-testid={`local-score-augmentation-dot-${token.eventId}`}
+                        aria-hidden="true"
+                      />
+                    ) : null}
                     <line
                       x1={token.x + 7}
                       y1={token.y}
@@ -274,18 +312,44 @@ export function LocalScoreProjectStaffPreview({
                         aria-hidden="true"
                       />
                     ) : null}
+                    {token.lyric !== null ? (
+                      <text
+                        x={token.x}
+                        y="124"
+                        fill="#334155"
+                        fontFamily="sans-serif"
+                        fontSize="12"
+                        textAnchor="middle"
+                        data-testid={`local-score-lyric-${token.eventId}`}
+                        aria-hidden="true"
+                      >
+                        {token.lyric}
+                      </text>
+                    ) : null}
                   </>
                 ) : (
-                  <path
-                    d={`M ${token.x - 4} ${token.y - 17} L ${token.x + 5} ${token.y - 8} L ${token.x - 2} ${token.y + 1} L ${token.x + 7} ${token.y + 10} L ${token.x + 1} ${token.y + 20}`}
-                    fill="none"
-                    stroke="#312e81"
-                    strokeWidth="4"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    data-testid={`local-score-quarter-rest-${token.eventId}`}
-                    aria-hidden="true"
-                  />
+                  <>
+                    <path
+                      d={`M ${token.x - 4} ${token.y - 17} L ${token.x + 5} ${token.y - 8} L ${token.x - 2} ${token.y + 1} L ${token.x + 7} ${token.y + 10} L ${token.x + 1} ${token.y + 20}`}
+                      fill="none"
+                      stroke="#312e81"
+                      strokeWidth="4"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      data-testid={`local-score-quarter-rest-${token.eventId}`}
+                      aria-hidden="true"
+                    />
+                    {token.augmentationDots === 1 ? (
+                      <circle
+                        cx={token.x + 12}
+                        cy={token.y}
+                        r="2.4"
+                        fill="#312e81"
+                        data-testid={`local-score-augmentation-dot-${token.eventId}`}
+                        aria-hidden="true"
+                      />
+                    ) : null}
+                  </>
                 )}
               </g>
             );

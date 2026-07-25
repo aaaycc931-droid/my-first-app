@@ -3,9 +3,9 @@ import type {
   NotationPitch,
 } from "../practice/localNotationFragmentDraft";
 import { isLocalScoreProjectContent } from "./localScoreProject";
-import type { LocalNotationProjectScoreDocumentV1 } from "./scoreDocument";
+import type { LocalNotationProjectScoreDocumentV2 } from "./scoreDocument";
 
-export const LOCAL_SCORE_STAFF_HEIGHT = 132;
+export const LOCAL_SCORE_STAFF_HEIGHT = 148;
 export const LOCAL_SCORE_STAFF_LINE_Y = [36, 48, 60, 72, 84] as const;
 export const LOCAL_SCORE_STAFF_HEADER_WIDTH = 96;
 export const LOCAL_SCORE_STAFF_MEASURE_WIDTH = 240;
@@ -25,6 +25,7 @@ type LocalScoreStaffTokenBase = Readonly<{
   onsetBeatInMeasure: number;
   duration: NotationDuration;
   durationBeats: number;
+  augmentationDots: 0 | 1;
   x: number;
   y: number;
   accessibleLabel: string;
@@ -37,6 +38,9 @@ export type LocalScoreStaffNoteToken = LocalScoreStaffTokenBase & Readonly<{
   hasStem: true;
   hasEighthFlag: boolean;
   hasC4LedgerLine: boolean;
+  tieToNext: boolean;
+  tieTargetEventId: string | null;
+  lyric: string | null;
 }>;
 
 export type LocalScoreStaffRestToken = LocalScoreStaffTokenBase & Readonly<{
@@ -64,7 +68,7 @@ export type LocalScoreStaffPresentation =
     status: "ready";
     documentId: string;
     revision: number;
-    meter: LocalNotationProjectScoreDocumentV1["meter"];
+    meter: LocalNotationProjectScoreDocumentV2["meter"];
     meterNumerator: number;
     meterDenominator: 4;
     width: number;
@@ -124,9 +128,9 @@ const getIdentity = (document: unknown) => {
 
 const isLocalScoreProjectDocument = (
   document: unknown,
-): document is LocalNotationProjectScoreDocumentV1 =>
+): document is LocalNotationProjectScoreDocumentV2 =>
   isRecord(document)
-  && document.schemaVersion === "score-document-v1"
+  && document.schemaVersion === "score-document-v2"
   && document.documentKind === "notation-project"
   && typeof document.documentId === "string"
   && document.documentId.length > 0
@@ -181,6 +185,10 @@ export const createLocalScoreProjectStaffPresentation = (
   const meterNumerator = Number(document.meter.split("/")[0]);
   const warnings: string[] = [];
   const measures: LocalScoreStaffMeasureLayout[] = [];
+  const orderedEvents = voice.measures.flatMap((measure) => measure.events);
+  const eventIndexById = new Map(
+    orderedEvents.map((event, index) => [event.id, index]),
+  );
 
   for (
     let measureIndex = 0;
@@ -203,7 +211,8 @@ export const createLocalScoreProjectStaffPresentation = (
     ) {
       const event = measure.events[eventIndex];
       if (!event) continue;
-      const durationBeats = DURATION_BEATS[event.duration];
+      const durationBeats =
+        DURATION_BEATS[event.duration] * (event.augmentationDots === 1 ? 1.5 : 1);
       if (cursorBeat + durationBeats > meterNumerator) {
         return blocked(
           `第一声部第 ${measure.measureNumber} 小节超过 ${document.meter} 拍号容量。`,
@@ -223,6 +232,15 @@ export const createLocalScoreProjectStaffPresentation = (
       const positionLabel =
         `第 ${measure.measureNumber} 小节第 ${eventIndex + 1} 个事件`;
       if (event.type === "note" && event.pitch !== null) {
+        const orderedEventIndex = eventIndexById.get(event.id);
+        const tieTarget = event.tieToNext && orderedEventIndex !== undefined
+          ? orderedEvents[orderedEventIndex + 1]
+          : undefined;
+        const detailLabels = [
+          `${event.augmentationDots === 1 ? "附点" : ""}${DURATION_LABELS[event.duration]}音符`,
+          event.tieToNext ? "与下一音符用延音线相连" : "",
+          event.lyric === null ? "" : `歌词“${event.lyric}”`,
+        ].filter(Boolean);
         tokens.push({
           eventId: event.id,
           location,
@@ -233,14 +251,18 @@ export const createLocalScoreProjectStaffPresentation = (
           onsetBeatInMeasure: cursorBeat,
           duration: event.duration,
           durationBeats,
+          augmentationDots: event.augmentationDots,
           x,
           y: PITCH_Y[event.pitch],
           head: event.duration === "half" ? "open" : "filled",
           hasStem: true,
           hasEighthFlag: event.duration === "eighth",
           hasC4LedgerLine: event.pitch === "C4",
+          tieToNext: event.tieToNext,
+          tieTargetEventId: tieTarget?.id ?? null,
+          lyric: event.lyric,
           accessibleLabel:
-            `${positionLabel}，${event.pitch} ${DURATION_LABELS[event.duration]}音符`,
+            `${positionLabel}，${event.pitch} ${detailLabels.join("，")}`,
         });
       } else {
         tokens.push({
@@ -253,10 +275,12 @@ export const createLocalScoreProjectStaffPresentation = (
           onsetBeatInMeasure: cursorBeat,
           duration: event.duration,
           durationBeats,
+          augmentationDots: event.augmentationDots,
           x,
           y: 66,
           rest: "quarter",
-          accessibleLabel: `${positionLabel}，四分休止符`,
+          accessibleLabel:
+            `${positionLabel}，${event.augmentationDots === 1 ? "附点" : ""}四分休止符`,
         });
       }
       cursorBeat += durationBeats;

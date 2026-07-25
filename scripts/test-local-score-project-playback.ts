@@ -8,6 +8,8 @@ import {
 } from "../lib/music/localScoreProjectPlayback";
 import type {
   LocalNotationProjectScoreDocumentV1,
+  LocalNotationProjectScoreDocumentV2,
+  LocalScoreProjectEventV2,
   ScoreDocumentEventV1,
 } from "../lib/music/scoreDocument";
 
@@ -30,6 +32,48 @@ const rest = (id: string, measure = 1): ScoreDocumentEventV1 => ({
   pitch: null,
   duration: "quarter",
   measure,
+});
+
+const noteV2 = (
+  id: string,
+  pitch: NonNullable<ScoreDocumentEventV1["pitch"]>,
+  duration: ScoreDocumentEventV1["duration"],
+  {
+    measure = 1,
+    augmentationDots = 0,
+    tieToNext = false,
+  }: {
+    measure?: number;
+    augmentationDots?: 0 | 1;
+    tieToNext?: boolean;
+  } = {},
+): LocalScoreProjectEventV2 => ({
+  id,
+  type: "note",
+  pitch,
+  duration,
+  measure,
+  augmentationDots,
+  tieToNext,
+  lyric: null,
+});
+
+const restV2 = (
+  id: string,
+  {
+    measure = 1,
+    augmentationDots = 0,
+  }: {
+    measure?: number;
+    augmentationDots?: 0 | 1;
+  } = {},
+): LocalScoreProjectEventV2 => ({
+  id,
+  type: "rest",
+  pitch: null,
+  duration: "quarter",
+  measure,
+  augmentationDots,
 });
 
 const isNoteEvent = (
@@ -73,6 +117,38 @@ const documentWithVoices = (
           events,
         }],
       })),
+    }],
+  }],
+});
+
+const documentV2WithMeasures = (
+  measures: readonly (readonly LocalScoreProjectEventV2[])[],
+): LocalNotationProjectScoreDocumentV2 => ({
+  schemaVersion: "score-document-v2",
+  documentKind: "notation-project",
+  documentId: "local.score-project.playback-v2-test",
+  revision: 11,
+  reviewState: "draft",
+  localOnly: true,
+  sessionOnly: false,
+  source: {
+    kind: "local-score-project",
+    projectId: "playback-v2-test",
+  },
+  meter: "4/4",
+  parts: [{
+    partId: "part-1",
+    staves: [{
+      staffId: "staff-1",
+      staffKind: "pitched",
+      clef: "treble",
+      voices: [{
+        voiceId: "voice-1",
+        measures: measures.map((events, index) => ({
+          measureNumber: index + 1,
+          events,
+        })),
+      }],
     }],
   }],
 });
@@ -237,6 +313,92 @@ const documentWithVoices = (
   assert.equal(left.status, "ready");
   assert.match(left.scheduleId, /r9/);
   assert.equal(left.events.at(-1)?.type, "all-notes-off");
+}
+
+{
+  const document = documentV2WithMeasures([[
+    noteV2("dotted-c4", "C4", "quarter", { augmentationDots: 1 }),
+    restV2("dotted-rest", { augmentationDots: 1 }),
+    noteV2("final-d4", "D4", "quarter"),
+  ]]);
+  const plan = createLocalScoreProjectPlaybackPlan({ document, bpm: 120 });
+  assert.equal(plan.status, "ready");
+  assert.equal(plan.durationMs, 2_000);
+  assert.deepEqual(
+    plan.spans.map((span) => [
+      span.sourceEventId,
+      span.startMs,
+      span.endMs,
+    ]),
+    [
+      ["dotted-c4", 0, 750],
+      ["dotted-rest", 750, 1_500],
+      ["final-d4", 1_500, 2_000],
+    ],
+    "augmentation dots must extend notes, rests, cursor spans, and total duration",
+  );
+}
+
+{
+  const document = documentV2WithMeasures([
+    [
+      noteV2("lead-c4", "C4", "half"),
+      noteV2("tie-start", "D4", "half", { tieToNext: true }),
+    ],
+    [
+      noteV2("tie-middle", "D4", "quarter", {
+        measure: 2,
+        augmentationDots: 1,
+        tieToNext: true,
+      }),
+      noteV2("tie-end", "D4", "quarter", { measure: 2 }),
+      restV2("tail-rest", { measure: 2, augmentationDots: 1 }),
+    ],
+  ]);
+  const plan = createLocalScoreProjectPlaybackPlan({ document, bpm: 120 });
+  assert.equal(plan.status, "ready");
+  const noteEvents = plan.events.filter(isNoteEvent);
+  const tiedEvents = noteEvents.filter((event) =>
+    event.sourceEventId === "tie-start");
+  assert.deepEqual(
+    tiedEvents.map((event) => [event.type, event.delayMs]),
+    [
+      ["note-on", 1_000],
+      ["note-off", 2_750 + 500 * LOCAL_SCORE_PROJECT_PLAYBACK_GATE],
+    ],
+    "a tied chain must have one attack and one release after the final note gate",
+  );
+  assert.equal(
+    noteEvents.filter((event) =>
+      event.sourceEventId === "tie-middle"
+      || event.sourceEventId === "tie-end").length,
+    0,
+  );
+  assert.deepEqual(
+    plan.spans
+      .filter((span) => span.sourceEventId.startsWith("tie-"))
+      .map((span) => [span.sourceEventId, span.startMs, span.endMs]),
+    [
+      ["tie-start", 1_000, 2_000],
+      ["tie-middle", 2_000, 2_750],
+      ["tie-end", 2_750, 3_250],
+    ],
+    "each event in a tied chain must retain its own cursor span",
+  );
+}
+
+{
+  const invalidTie = documentV2WithMeasures([[
+    noteV2("invalid-tie", "C4", "quarter", { tieToNext: true }),
+    restV2("break"),
+  ]]);
+  const plan = createLocalScoreProjectPlaybackPlan({
+    document: invalidTie,
+    bpm: 120,
+  });
+  assert.equal(plan.status, "blocked");
+  if (plan.status !== "blocked") throw new Error("expected blocked plan");
+  assert.match(plan.reason, /延音线/);
 }
 
 console.log("local score project playback checks passed");

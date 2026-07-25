@@ -7,7 +7,10 @@ import {
   type LocalScoreProjectPlaybackEvent,
   type LocalScoreProjectPlaybackVoiceSelection,
 } from "../../lib/music/localScoreProjectPlayback";
-import type { LocalNotationProjectScoreDocumentV1 } from "../../lib/music/scoreDocument";
+import type {
+  LocalNotationProjectScoreDocumentV1,
+  LocalNotationProjectScoreDocumentV2,
+} from "../../lib/music/scoreDocument";
 import { getFullPianoKeys } from "../../lib/piano/localPianoKeyboard";
 import type { PianoVoiceProvider } from "../../lib/piano/pianoAudioProvider";
 import {
@@ -26,7 +29,9 @@ export function useLocalScoreProjectPlayback({
   createAudioChannel,
   voiceProvider,
 }: {
-  document: LocalNotationProjectScoreDocumentV1;
+  document:
+    | LocalNotationProjectScoreDocumentV1
+    | LocalNotationProjectScoreDocumentV2;
   bpm: number;
   voiceSelection?: LocalScoreProjectPlaybackVoiceSelection;
   createAudioChannel?: LocalPianoAudioChannelFactory;

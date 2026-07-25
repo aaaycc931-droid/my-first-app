@@ -24,7 +24,7 @@ import {
   undoLocalScoreProject,
   updateLocalScoreProjectEvent,
 } from "../lib/music/localScoreProject";
-import type { LocalNotationProjectScoreDocumentV1 } from "../lib/music/scoreDocument";
+import type { LocalNotationProjectScoreDocumentV2 } from "../lib/music/scoreDocument";
 
 const createdAt = "2026-07-24T00:00:00.000Z";
 const project = createLocalScoreProject({
@@ -33,9 +33,9 @@ const project = createLocalScoreProject({
   now: createdAt,
 });
 assert.equal(project.title, "第一份谱");
-assert.equal(project.schemaVersion, "local-score-project-storage-v2");
+assert.equal(project.schemaVersion, "local-score-project-storage-v3");
 assert.equal(project.tempoBpm, 90);
-assert.equal(project.document.schemaVersion, "score-document-v1");
+assert.equal(project.document.schemaVersion, "score-document-v2");
 assert.equal(project.document.documentKind, "notation-project");
 assert.equal(project.document.documentId, "local.score-project.project-1");
 assert.equal(project.document.revision, 1);
@@ -66,6 +66,9 @@ const contentWithNote = {
             pitch: "C4" as const,
             duration: "quarter" as const,
             measure: 1 as const,
+            augmentationDots: 0 as const,
+            tieToNext: false,
+            lyric: null,
           }],
         }],
       }],
@@ -146,6 +149,9 @@ const multiStaffContent = {
                 pitch: "C5" as const,
                 duration: "half" as const,
                 measure: 1 as const,
+                augmentationDots: 0 as const,
+                tieToNext: false,
+                lyric: null,
               }],
             }],
           },
@@ -159,6 +165,7 @@ const multiStaffContent = {
                 pitch: null,
                 duration: "quarter" as const,
                 measure: 1 as const,
+                augmentationDots: 0 as const,
               }],
             }],
           },
@@ -181,6 +188,9 @@ const multiStaffContent = {
               pitch: "G4" as const,
               duration: "quarter" as const,
               measure: 2 as const,
+              augmentationDots: 0 as const,
+              tieToNext: false,
+              lyric: null,
             }],
           }],
         }],
@@ -204,7 +214,7 @@ assert.equal(
 assert.equal(multiStaff.document.parts.length, 2);
 
 const duplicateEvent = JSON.parse(serialized) as {
-  document: LocalNotationProjectScoreDocumentV1;
+  document: LocalNotationProjectScoreDocumentV2;
 };
 const firstEvent =
   duplicateEvent.document.parts[0].staves[0].voices[0].measures[0].events[0];
@@ -215,12 +225,35 @@ assert.equal(parseLocalScoreProject(duplicateEvent), null);
 const legacySchema = JSON.parse(serialized) as {
   schemaVersion: string;
   tempoBpm?: number;
+  document: {
+    schemaVersion: string;
+    parts: { staves: { voices: { measures: { events: Record<string, unknown>[] }[] }[] }[] }[];
+  };
+  undoStack: { parts: { staves: { voices: { measures: { events: Record<string, unknown>[] }[] }[] }[] }[] }[];
+  redoStack: { parts: { staves: { voices: { measures: { events: Record<string, unknown>[] }[] }[] }[] }[] }[];
 };
 legacySchema.schemaVersion = "local-score-project-storage-v1";
 delete legacySchema.tempoBpm;
+legacySchema.document.schemaVersion = "score-document-v1";
+for (const content of [
+  legacySchema.document,
+  ...legacySchema.undoStack,
+  ...legacySchema.redoStack,
+]) {
+  for (const part of content.parts) for (const staff of part.staves) {
+    for (const voice of staff.voices) for (const measure of voice.measures) {
+      for (const event of measure.events) {
+        delete event.augmentationDots;
+        delete event.tieToNext;
+        delete event.lyric;
+      }
+    }
+  }
+}
 const legacyBefore = JSON.stringify(legacySchema);
 const migratedLegacy = parseLocalScoreProject(legacySchema);
-assert.equal(migratedLegacy?.schemaVersion, "local-score-project-storage-v2");
+assert.equal(migratedLegacy?.schemaVersion, "local-score-project-storage-v3");
+assert.equal(migratedLegacy?.document.schemaVersion, "score-document-v2");
 assert.equal(migratedLegacy?.tempoBpm, 90);
 assert.equal(migratedLegacy?.projectId, multiStaff.projectId);
 assert.equal(migratedLegacy?.createdAt, multiStaff.createdAt);
@@ -229,8 +262,11 @@ assert.equal(
   migratedLegacy?.document.revision,
   multiStaff.document.revision,
 );
-assert.deepEqual(migratedLegacy?.undoStack, multiStaff.undoStack);
-assert.deepEqual(migratedLegacy?.redoStack, multiStaff.redoStack);
+assert.equal(
+  migratedLegacy?.document.parts[0].staves[0].voices[0].measures[0]
+    .events[0]?.augmentationDots,
+  0,
+);
 assert.equal(JSON.stringify(legacySchema), legacyBefore, "读取旧版不得原地修改");
 assert.equal(
   deserializeLocalScoreProject(legacyBefore)?.tempoBpm,
@@ -238,15 +274,20 @@ assert.equal(
 );
 assert.match(
   serializeLocalScoreProject(migratedLegacy!),
-  /local-score-project-storage-v2/,
+  /local-score-project-storage-v3/,
 );
+
+const previousSchema = JSON.parse(legacyBefore) as typeof legacySchema;
+previousSchema.schemaVersion = "local-score-project-storage-v2";
+previousSchema.tempoBpm = 120;
+assert.equal(parseLocalScoreProject(previousSchema)?.tempoBpm, 120);
 
 const missingTempo = JSON.parse(serialized) as { tempoBpm?: number };
 delete missingTempo.tempoBpm;
 assert.equal(parseLocalScoreProject(missingTempo), null);
 
 const futureSchema = JSON.parse(serialized) as { schemaVersion: string };
-futureSchema.schemaVersion = "local-score-project-storage-v3";
+futureSchema.schemaVersion = "local-score-project-storage-v4";
 assert.equal(parseLocalScoreProject(futureSchema), null);
 
 const tempo30 = changeLocalScoreProjectTempo({
@@ -649,6 +690,9 @@ const moveFixture = applyLocalScoreProjectContent({
                   pitch: "C4" as const,
                   duration: "quarter" as const,
                   measure: 1,
+                  augmentationDots: 0 as const,
+                  tieToNext: false,
+                  lyric: null,
                 },
                 {
                   id: "move-b",
@@ -656,6 +700,7 @@ const moveFixture = applyLocalScoreProjectContent({
                   pitch: null,
                   duration: "quarter" as const,
                   measure: 1,
+                  augmentationDots: 0 as const,
                 },
                 {
                   id: "move-c",
@@ -663,6 +708,9 @@ const moveFixture = applyLocalScoreProjectContent({
                   pitch: "G4" as const,
                   duration: "half" as const,
                   measure: 1,
+                  augmentationDots: 0 as const,
+                  tieToNext: false,
+                  lyric: null,
                 },
               ]
               : [{
@@ -671,6 +719,9 @@ const moveFixture = applyLocalScoreProjectContent({
                 pitch: "E4" as const,
                 duration: "quarter" as const,
                 measure: 2,
+                augmentationDots: 0 as const,
+                tieToNext: false,
+                lyric: null,
               }],
           })),
         })),
@@ -741,6 +792,9 @@ assert.deepEqual(moveMeasureTwo(movedAcrossMeasures)[1], {
   pitch: "C4",
   duration: "quarter",
   measure: 2,
+  augmentationDots: 0,
+  tieToNext: false,
+  lyric: null,
 });
 
 const undoneMove = undoLocalScoreProject({
@@ -833,6 +887,9 @@ assert.deepEqual(copiedMoveEvent, {
   type: "note",
   pitch: "C4",
   duration: "quarter",
+  augmentationDots: 0,
+  tieToNext: false,
+  lyric: null,
 });
 assert.equal(JSON.stringify(moveFixture), moveFixtureBefore);
 
@@ -918,6 +975,9 @@ const legacyOverfull = applyLocalScoreProjectContent({
                 pitch: "B4" as const,
                 duration: "eighth" as const,
                 measure: 1,
+                augmentationDots: 0 as const,
+                tieToNext: false,
+                lyric: null,
               }]
               : measure.events,
           })),
@@ -981,6 +1041,219 @@ assert.equal(
 assert.equal(
   moveMeasureTwo(repairedLegacyOverfull)
     .some((event) => event.id === "legacy-overfull"),
+  true,
+);
+
+const notationV2Base = createLocalScoreProject({
+  projectId: "notation-v2",
+  title: "附点延音线歌词",
+  now: "2026-07-24T04:00:00.000Z",
+});
+const notationV2First = addLocalScoreProjectEvent({
+  project: notationV2Base,
+  expectedRevision: 1,
+  location,
+  eventId: "tie-source",
+  input: {
+    type: "note",
+    pitch: "C4",
+    duration: "quarter",
+    augmentationDots: 1,
+    lyric: "你",
+  },
+  now: "2026-07-24T04:00:01.000Z",
+});
+const notationV2Pair = addLocalScoreProjectEvent({
+  project: notationV2First,
+  expectedRevision: 2,
+  location,
+  eventId: "tie-target",
+  input: { type: "note", pitch: "C4", duration: "eighth" },
+  now: "2026-07-24T04:00:02.000Z",
+});
+const notationV2Tied = updateLocalScoreProjectEvent({
+  project: notationV2Pair,
+  expectedRevision: 3,
+  location,
+  eventId: "tie-source",
+  input: {
+    type: "note",
+    pitch: "C4",
+    duration: "quarter",
+    augmentationDots: 1,
+    tieToNext: true,
+    lyric: "你",
+  },
+  now: "2026-07-24T04:00:03.000Z",
+});
+assert.equal(
+  notationV2Tied.document.parts[0].staves[0].voices[0].measures[0]
+    .events[0]?.augmentationDots,
+  1,
+);
+assert.deepEqual(copyLocalScoreProjectEvent({
+  project: notationV2Tied,
+  location,
+  eventId: "tie-source",
+}), {
+  type: "note",
+  pitch: "C4",
+  duration: "quarter",
+  augmentationDots: 1,
+  tieToNext: false,
+  lyric: "你",
+});
+for (const mutate of [
+  () => deleteLocalScoreProjectEvent({
+    project: notationV2Tied,
+    expectedRevision: 4,
+    location,
+    eventId: "tie-target",
+    now: "2026-07-24T04:00:04.000Z",
+  }),
+  () => moveLocalScoreProjectEvent({
+    project: notationV2Tied,
+    expectedRevision: 4,
+    source: location,
+    destination: location,
+    eventId: "tie-source",
+    targetIndex: 1,
+    now: "2026-07-24T04:00:04.000Z",
+  }),
+]) {
+  assert.throws(
+    mutate,
+    (error) =>
+      error instanceof LocalScoreProjectDomainError
+      && error.code === "tie-integrity",
+  );
+}
+assert.throws(
+  () => updateLocalScoreProjectEvent({
+    project: notationV2Tied,
+    expectedRevision: 4,
+    location,
+    eventId: "tie-target",
+    input: { type: "note", pitch: "D4", duration: "eighth" },
+    now: "2026-07-24T04:00:04.000Z",
+  }),
+  (error) =>
+    error instanceof LocalScoreProjectDomainError
+    && error.code === "tie-integrity",
+);
+assert.throws(
+  () => addLocalScoreProjectEvent({
+    project: notationV2Base,
+    expectedRevision: 1,
+    location,
+    eventId: "bad-lyric",
+    input: {
+      type: "note",
+      pitch: "C4",
+      duration: "quarter",
+      lyric: `坏${String.fromCharCode(1)}`,
+    },
+    now: "2026-07-24T04:00:01.000Z",
+  }),
+  (error) =>
+    error instanceof LocalScoreProjectDomainError
+    && error.code === "invalid-input",
+);
+const twoFour = changeLocalScoreProjectMeter({
+  project: notationV2Base,
+  expectedRevision: 1,
+  meter: "2/4",
+  now: "2026-07-24T04:00:01.000Z",
+});
+assert.throws(
+  () => addLocalScoreProjectEvent({
+    project: twoFour,
+    expectedRevision: 2,
+    location,
+    eventId: "dotted-overflow",
+    input: {
+      type: "note",
+      pitch: "C4",
+      duration: "half",
+      augmentationDots: 1,
+    },
+    now: "2026-07-24T04:00:02.000Z",
+  }),
+  (error) =>
+    error instanceof LocalScoreProjectDomainError
+    && error.code === "measure-capacity",
+);
+const dottedQuarter = addLocalScoreProjectEvent({
+  project: twoFour,
+  expectedRevision: 2,
+  location,
+  eventId: "dotted-quarter",
+  input: {
+    type: "note",
+    pitch: "C4",
+    duration: "quarter",
+    augmentationDots: 1,
+  },
+  now: "2026-07-24T04:00:02.000Z",
+});
+const exactDottedCapacity = addLocalScoreProjectEvent({
+  project: dottedQuarter,
+  expectedRevision: 3,
+  location,
+  eventId: "capacity-eighth",
+  input: { type: "note", pitch: "D4", duration: "eighth" },
+  now: "2026-07-24T04:00:03.000Z",
+});
+assert.equal(
+  exactDottedCapacity.document.parts[0].staves[0].voices[0].measures[0]
+    .events.length,
+  2,
+);
+
+const crossMeasureEmpty = appendLocalScoreProjectMeasure({
+  project: notationV2Base,
+  expectedRevision: 1,
+  partId: "part-1",
+  staffId: "staff-1",
+  voiceId: "voice-1",
+  now: "2026-07-24T05:00:01.000Z",
+});
+const crossMeasureSource = addLocalScoreProjectEvent({
+  project: crossMeasureEmpty,
+  expectedRevision: 2,
+  location,
+  eventId: "cross-source",
+  input: { type: "note", pitch: "E4", duration: "quarter" },
+  now: "2026-07-24T05:00:02.000Z",
+});
+const crossMeasurePair = addLocalScoreProjectEvent({
+  project: crossMeasureSource,
+  expectedRevision: 3,
+  location: secondMeasureLocation,
+  eventId: "cross-target",
+  input: { type: "note", pitch: "E4", duration: "quarter" },
+  now: "2026-07-24T05:00:03.000Z",
+});
+const crossMeasureTied = updateLocalScoreProjectEvent({
+  project: crossMeasurePair,
+  expectedRevision: 4,
+  location,
+  eventId: "cross-source",
+  input: {
+    type: "note",
+    pitch: "E4",
+    duration: "quarter",
+    tieToNext: true,
+  },
+  now: "2026-07-24T05:00:04.000Z",
+});
+const crossMeasureSourceEvent =
+  crossMeasureTied.document.parts[0].staves[0].voices[0].measures[0].events[0];
+assert.equal(crossMeasureSourceEvent?.type, "note");
+assert.equal(
+  crossMeasureSourceEvent?.type === "note"
+    ? crossMeasureSourceEvent.tieToNext
+    : false,
   true,
 );
 

@@ -13,8 +13,8 @@ import {
   LOCAL_SCORE_STAFF_MEASURE_WIDTH,
 } from "../../lib/music/localScoreProjectStaffPresentation";
 import type {
-  LocalNotationProjectScoreDocumentV1,
-  ScoreDocumentEventV1,
+  LocalNotationProjectScoreDocumentV2,
+  LocalScoreProjectEventV2,
 } from "../../lib/music/scoreDocument";
 
 const note = ({
@@ -22,31 +22,43 @@ const note = ({
   pitch,
   duration,
   measure,
+  augmentationDots = 0,
+  tieToNext = false,
+  lyric = null,
 }: {
   id: string;
-  pitch: NonNullable<ScoreDocumentEventV1["pitch"]>;
-  duration: ScoreDocumentEventV1["duration"];
+  pitch: Extract<LocalScoreProjectEventV2, { type: "note" }>["pitch"];
+  duration: LocalScoreProjectEventV2["duration"];
   measure: number;
-}): ScoreDocumentEventV1 => ({
+  augmentationDots?: 0 | 1;
+  tieToNext?: boolean;
+  lyric?: string | null;
+}): LocalScoreProjectEventV2 => ({
   id,
   type: "note",
   pitch,
   duration,
   measure,
+  augmentationDots,
+  tieToNext,
+  lyric,
 });
 
 const rest = ({
   id,
   measure,
+  augmentationDots = 0,
 }: {
   id: string;
   measure: number;
-}): ScoreDocumentEventV1 => ({
+  augmentationDots?: 0 | 1;
+}): LocalScoreProjectEventV2 => ({
   id,
   type: "rest",
   pitch: null,
   duration: "quarter",
   measure,
+  augmentationDots,
 });
 
 const createDocument = ({
@@ -54,14 +66,14 @@ const createDocument = ({
   firstVoiceMeasures,
   secondVoiceEvents = [],
 }: {
-  meter?: LocalNotationProjectScoreDocumentV1["meter"];
+  meter?: LocalNotationProjectScoreDocumentV2["meter"];
   firstVoiceMeasures?: readonly Readonly<{
     measureNumber: number;
-    events: readonly ScoreDocumentEventV1[];
+    events: readonly LocalScoreProjectEventV2[];
   }>[];
-  secondVoiceEvents?: readonly ScoreDocumentEventV1[];
-} = {}): LocalNotationProjectScoreDocumentV1 => ({
-  schemaVersion: "score-document-v1",
+  secondVoiceEvents?: readonly LocalScoreProjectEventV2[];
+} = {}): LocalNotationProjectScoreDocumentV2 => ({
+  schemaVersion: "score-document-v2",
   documentKind: "notation-project",
   documentId: "local.score-project.staff-preview-test",
   revision: 6,
@@ -251,6 +263,65 @@ describe("本地谱项目五线谱 pure presentation", () => {
     if (presentation.status !== "blocked") throw new Error("expected blocked");
     expect(presentation.reason).toContain("超过 4/4");
   });
+
+  it("附点参与拍位与容量计算，并为延音线和歌词生成中文可访问描述", () => {
+    const presentation = createLocalScoreProjectStaffPresentation(
+      createDocument({
+        firstVoiceMeasures: [{
+          measureNumber: 1,
+          events: [
+            note({
+              id: "dotted-half",
+              pitch: "C4",
+              duration: "half",
+              measure: 1,
+              augmentationDots: 1,
+              lyric: "春",
+            }),
+            note({
+              id: "tie-source",
+              pitch: "E4",
+              duration: "quarter",
+              measure: 1,
+              tieToNext: true,
+            }),
+          ],
+        }, {
+          measureNumber: 2,
+          events: [
+            note({
+              id: "tie-target",
+              pitch: "E4",
+              duration: "quarter",
+              measure: 2,
+            }),
+          ],
+        }],
+      }),
+    );
+
+    expect(presentation.status).toBe("ready");
+    if (presentation.status !== "ready") throw new Error(presentation.reason);
+    expect(presentation.measures[0]?.usedBeats).toBe(4);
+    expect(presentation.tokens.map((token) => ({
+      id: token.eventId,
+      onset: token.onsetBeat,
+      duration: token.durationBeats,
+      x: token.x,
+    }))).toEqual([
+      { id: "dotted-half", onset: 0, duration: 3, x: 120 },
+      { id: "tie-source", onset: 3, duration: 1, x: 264 },
+      { id: "tie-target", onset: 4, duration: 1, x: 360 },
+    ]);
+    const dotted = presentation.tokens[0];
+    const tieSource = presentation.tokens[1];
+    expect(dotted?.accessibleLabel).toContain("附点二分音符");
+    expect(dotted?.accessibleLabel).toContain("歌词“春”");
+    expect(tieSource?.type).toBe("note");
+    if (tieSource?.type !== "note") throw new Error("expected note");
+    expect(tieSource.tieTargetEventId).toBe("tie-target");
+    expect(tieSource.accessibleLabel).toContain("与下一音符用延音线相连");
+  });
 });
 
 describe("本地谱项目五线谱 SVG 预览", () => {
@@ -375,5 +446,75 @@ describe("本地谱项目五线谱 SVG 预览", () => {
       .toContain("当前没有音符或休止符");
     expect(container?.querySelectorAll("[data-event-id]")).toHaveLength(0);
     expect(container?.textContent).toContain("当前第一声部没有音符或休止符");
+  });
+
+  it("以附点、跨小节延音线和歌词呈现 v2 事件，同时保留选择与播放状态", async () => {
+    const onSelectEvent =
+      vi.fn<(selection: LocalScoreProjectStaffSelection) => void>();
+    const document = createDocument({
+      firstVoiceMeasures: [{
+        measureNumber: 1,
+        events: [
+          note({
+            id: "dotted-half",
+            pitch: "C4",
+            duration: "half",
+            measure: 1,
+            augmentationDots: 1,
+            lyric: "春",
+          }),
+          note({
+            id: "tie-source",
+            pitch: "E4",
+            duration: "quarter",
+            measure: 1,
+            tieToNext: true,
+          }),
+        ],
+      }, {
+        measureNumber: 2,
+        events: [
+          note({
+            id: "tie-target",
+            pitch: "E4",
+            duration: "quarter",
+            measure: 2,
+          }),
+        ],
+      }],
+    });
+
+    await act(async () => {
+      root?.render(
+        <LocalScoreProjectStaffPreview
+          document={document}
+          selectedEventId="dotted-half"
+          activeEventIds={["tie-source", "tie-target"]}
+          onSelectEvent={onSelectEvent}
+        />,
+      );
+    });
+
+    expect(container?.querySelector(
+      '[data-testid="local-score-augmentation-dot-dotted-half"]',
+    )).not.toBeNull();
+    expect(container?.querySelector(
+      '[data-testid="local-score-tie-tie-source-tie-target"]',
+    )).not.toBeNull();
+    expect(container?.querySelector(
+      '[data-testid="local-score-lyric-dotted-half"]',
+    )?.textContent).toBe("春");
+    expect(container?.querySelector(
+      '[data-event-id="dotted-half"]',
+    )?.getAttribute("aria-label")).toContain("歌词“春”，已选择");
+    expect(container?.querySelector(
+      '[data-event-id="tie-source"]',
+    )?.getAttribute("aria-label")).toContain("延音线");
+    expect(container?.querySelector(
+      '[data-event-id="tie-source"]',
+    )?.getAttribute("aria-current")).toBe("true");
+    expect(container?.querySelector(
+      '[data-event-id="tie-target"]',
+    )?.getAttribute("aria-current")).toBe("true");
   });
 });
