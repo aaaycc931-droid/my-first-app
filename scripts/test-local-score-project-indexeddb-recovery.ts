@@ -14,8 +14,12 @@ import {
   undoLocalScoreProject,
 } from "../lib/music/localScoreProject";
 import {
+  createLocalScoreProjectRecoveryCandidate,
+} from "../lib/music/localScoreProjectRecovery";
+import {
   createIndexedDbLocalScoreProjectStore,
   deleteLocalScoreProject,
+  getLocalScoreProjectStorageBytes,
   listLocalScoreProjects,
   loadLocalScoreProject,
   persistLocalScoreProjectChange,
@@ -23,7 +27,9 @@ import {
 } from "../mobile/src/runtime/localScoreProjectStorage";
 
 const DATABASE_NAME = "solfeggio-local-score-projects";
+const DATABASE_VERSION = 2;
 const STORE_NAME = "projects";
+const RECOVERY_CANDIDATE_STORE_NAME = "recovery-candidates";
 
 const waitForRequest = <T>(request: IDBRequest<T>) =>
   new Promise<T>((resolve, reject) => {
@@ -58,7 +64,9 @@ const putRawRecord = async ({
   factory: IDBFactory;
   value: unknown;
 }) => {
-  const database = await waitForRequest(factory.open(DATABASE_NAME, 1));
+  const database = await waitForRequest(
+    factory.open(DATABASE_NAME, DATABASE_VERSION),
+  );
   try {
     const transaction = database.transaction(STORE_NAME, "readwrite");
     transaction.objectStore(STORE_NAME).put(value);
@@ -75,13 +83,36 @@ const getRawRecord = async ({
   factory: IDBFactory;
   projectId: string;
 }) => {
-  const database = await waitForRequest(factory.open(DATABASE_NAME, 1));
+  const database = await waitForRequest(
+    factory.open(DATABASE_NAME, DATABASE_VERSION),
+  );
   try {
     return await waitForRequest(
       database.transaction(STORE_NAME, "readonly")
         .objectStore(STORE_NAME)
         .get(projectId),
     ) as unknown;
+  } finally {
+    database.close();
+  }
+};
+
+const seedVersionOneProject = async ({
+  factory,
+  value,
+}: {
+  factory: IDBFactory;
+  value: unknown;
+}) => {
+  const request = factory.open(DATABASE_NAME, 1);
+  request.onupgradeneeded = () => {
+    request.result.createObjectStore(STORE_NAME, { keyPath: "projectId" });
+  };
+  const database = await waitForRequest(request);
+  try {
+    const transaction = database.transaction(STORE_NAME, "readwrite");
+    transaction.objectStore(STORE_NAME).put(value);
+    await waitForTransaction(transaction);
   } finally {
     database.close();
   }
@@ -113,6 +144,42 @@ const createEditedProject = ({
   });
 
 const run = async () => {
+  const upgradeFactory = new FakeIDBFactory();
+  const upgradeSeed = createLocalScoreProject({
+    projectId: "database-v1-upgrade-project",
+    title: "升级保留谱",
+    now: "2026-07-24T02:00:00.000Z",
+  });
+  const upgradeRawBefore = structuredClone(upgradeSeed);
+  await seedVersionOneProject({
+    factory: upgradeFactory,
+    value: upgradeRawBefore,
+  });
+  const upgradedStore = createIndexedDbLocalScoreProjectStore({
+    indexedDbFactory: upgradeFactory,
+  });
+  assert.deepEqual(await upgradedStore.get(upgradeSeed.projectId), upgradeSeed);
+  assert.deepEqual(
+    await getRawRecord({
+      factory: upgradeFactory,
+      projectId: upgradeSeed.projectId,
+    }),
+    upgradeRawBefore,
+    "数据库 v1→v2 升级不得改写 projects 记录",
+  );
+  const upgradedDatabase = await waitForRequest(
+    upgradeFactory.open(DATABASE_NAME, DATABASE_VERSION),
+  );
+  assert.equal(
+    upgradedDatabase.objectStoreNames.contains(RECOVERY_CANDIDATE_STORE_NAME),
+    true,
+  );
+  const upgradeCandidateStore = upgradedDatabase
+    .transaction(RECOVERY_CANDIDATE_STORE_NAME, "readonly")
+    .objectStore(RECOVERY_CANDIDATE_STORE_NAME);
+  assert.equal(upgradeCandidateStore.indexNames.contains("projectId"), true);
+  upgradedDatabase.close();
+
   const factory = new FakeIDBFactory();
   const firstStore = createIndexedDbLocalScoreProjectStore({
     indexedDbFactory: factory,
@@ -502,6 +569,438 @@ const run = async () => {
     }),
     projectId: abortInitial.projectId,
   })).project, abortInitial);
+
+  const candidateFactory = new FakeIDBFactory();
+  const candidateBase = createLocalScoreProject({
+    projectId: "candidate-project",
+    title: "恢复候选谱",
+    now: "2026-07-24T06:00:00.000Z",
+  });
+  const candidateProposal = createEditedProject({
+    project: candidateBase,
+    eventId: "candidate-note",
+    pitch: "E4",
+    now: "2026-07-24T06:00:01.000Z",
+  });
+  const candidateStore = createIndexedDbLocalScoreProjectStore({
+    indexedDbFactory: candidateFactory,
+  });
+  await candidateStore.put(candidateBase, null);
+  const firstCandidate = createLocalScoreProjectRecoveryCandidate({
+    candidateId: "candidate-project-editor",
+    baseProject: candidateBase,
+    candidateSequence: 1,
+    capturedAt: "2026-07-24T06:00:02.000Z",
+    proposedProject: candidateProposal,
+  });
+  await assert.rejects(
+    () => candidateStore.stageRecoveryCandidate!({
+      ...firstCandidate,
+      baseFingerprint: firstCandidate.baseFingerprint.endsWith("0")
+        ? `${firstCandidate.baseFingerprint.slice(0, -1)}1`
+        : `${firstCandidate.baseFingerprint.slice(0, -1)}0`,
+    }),
+    /基线身份或内容已变化/,
+  );
+  await assert.rejects(
+    () => candidateStore.stageRecoveryCandidate!({
+      ...firstCandidate,
+      proposedProject: {
+        ...firstCandidate.proposedProject,
+        createdAt: "2026-07-24T05:59:59.000Z",
+      },
+    }),
+    /基线身份或内容已变化/,
+  );
+  await candidateStore.stageRecoveryCandidate?.(firstCandidate);
+  assert.deepEqual(
+    await candidateStore.listRecoveryCandidates?.(candidateBase.projectId),
+    [firstCandidate],
+    "候选必须可按 projectId 索引读取",
+  );
+  const reopenedCandidateStore = createIndexedDbLocalScoreProjectStore({
+    indexedDbFactory: candidateFactory,
+  });
+  assert.deepEqual(
+    await reopenedCandidateStore.listRecoveryCandidates?.(
+      candidateBase.projectId,
+    ),
+    [firstCandidate],
+    "关闭并重开 store 后必须保留 staged candidate",
+  );
+
+  const differentIdCandidate = createLocalScoreProjectRecoveryCandidate({
+    candidateId: "candidate-project-other-editor",
+    baseProject: candidateBase,
+    candidateSequence: 2,
+    capturedAt: "2026-07-24T06:00:02.500Z",
+    proposedProject: candidateProposal,
+  });
+  await assert.rejects(
+    () => reopenedCandidateStore.stageRecoveryCandidate!(
+      differentIdCandidate,
+      1,
+    ),
+    /最多保留一个恢复候选|不同候选/,
+  );
+  const skippedSequenceCandidate = createLocalScoreProjectRecoveryCandidate({
+    candidateId: firstCandidate.candidateId,
+    baseProject: candidateBase,
+    candidateSequence: 3,
+    capturedAt: "2026-07-24T06:00:02.600Z",
+    proposedProject: candidateProposal,
+  });
+  await assert.rejects(
+    () => reopenedCandidateStore.stageRecoveryCandidate!(
+      skippedSequenceCandidate,
+      1,
+    ),
+    /严格连续/,
+  );
+  await assert.rejects(
+    () => reopenedCandidateStore.stageRecoveryCandidate!(
+      skippedSequenceCandidate,
+    ),
+    /严格连续/,
+  );
+  await assert.rejects(
+    () => reopenedCandidateStore.stageRecoveryCandidate!({
+      ...firstCandidate,
+      candidateSequence: Number.MAX_SAFE_INTEGER,
+    }),
+    /结构无效|序号/,
+  );
+
+  const secondCandidate = createLocalScoreProjectRecoveryCandidate({
+    candidateId: firstCandidate.candidateId,
+    baseProject: candidateBase,
+    candidateSequence: 2,
+    capturedAt: "2026-07-24T06:00:03.000Z",
+    proposedProject: candidateProposal,
+  });
+  await reopenedCandidateStore.stageRecoveryCandidate?.(secondCandidate, 1);
+  await assert.rejects(
+    () => reopenedCandidateStore.stageRecoveryCandidate!(firstCandidate),
+    /较新的候选|序号/,
+    "迟到 sequence 不得覆盖较新的候选",
+  );
+  assert.deepEqual(
+    await reopenedCandidateStore.listRecoveryCandidates?.(
+      candidateBase.projectId,
+    ),
+    [secondCandidate],
+  );
+  const promotedCandidate =
+    await reopenedCandidateStore.promoteRecoveryCandidate?.(
+      secondCandidate.candidateId,
+      secondCandidate.candidateSequence,
+    );
+  assert.deepEqual(promotedCandidate, candidateProposal);
+  assert.deepEqual(
+    await reopenedCandidateStore.get(candidateBase.projectId),
+    candidateProposal,
+  );
+  assert.deepEqual(
+    await reopenedCandidateStore.listRecoveryCandidates?.(
+      candidateBase.projectId,
+    ),
+    [],
+    "promote 必须在同一事务删除候选",
+  );
+
+  const atomicFactory = new FakeIDBFactory();
+  const atomicBase = createLocalScoreProject({
+    projectId: "atomic-candidate-project",
+    title: "原子恢复谱",
+    now: "2026-07-24T06:10:00.000Z",
+  });
+  const atomicProposal = createEditedProject({
+    project: atomicBase,
+    eventId: "atomic-note",
+    pitch: "F4",
+    now: "2026-07-24T06:10:01.000Z",
+  });
+  const atomicCandidate = createLocalScoreProjectRecoveryCandidate({
+    candidateId: "atomic-candidate",
+    baseProject: atomicBase,
+    candidateSequence: 1,
+    capturedAt: "2026-07-24T06:10:02.000Z",
+    proposedProject: atomicProposal,
+  });
+  const atomicSeedStore = createIndexedDbLocalScoreProjectStore({
+    indexedDbFactory: atomicFactory,
+  });
+  await atomicSeedStore.put(atomicBase, null);
+  await atomicSeedStore.stageRecoveryCandidate?.(atomicCandidate);
+  const atomicFailureStore = createIndexedDbLocalScoreProjectStore({
+    indexedDbFactory: atomicFactory,
+    writeRequest: (store, project) => store.add(project),
+  });
+  await assert.rejects(
+    () => atomicFailureStore.promoteRecoveryCandidate!(
+      atomicCandidate.candidateId,
+      atomicCandidate.candidateSequence,
+    ),
+  );
+  assert.deepEqual(await atomicFailureStore.get(atomicBase.projectId), atomicBase);
+  assert.deepEqual(
+    await atomicFailureStore.listRecoveryCandidates?.(atomicBase.projectId),
+    [atomicCandidate],
+    "项目写失败时 candidate 删除也必须回滚",
+  );
+
+  const capacityPromotionStore = createIndexedDbLocalScoreProjectStore({
+    indexedDbFactory: atomicFactory,
+    limits: {
+      maxProjects: 1,
+      maxBytes: getLocalScoreProjectStorageBytes(atomicBase),
+    },
+  });
+  await assert.rejects(
+    () => capacityPromotionStore.promoteRecoveryCandidate!(
+      atomicCandidate.candidateId,
+      atomicCandidate.candidateSequence,
+    ),
+    /容量上限/,
+  );
+  assert.deepEqual(
+    await capacityPromotionStore.get(atomicBase.projectId),
+    atomicBase,
+  );
+  assert.deepEqual(
+    await capacityPromotionStore.listRecoveryCandidates?.(
+      atomicBase.projectId,
+    ),
+    [atomicCandidate],
+    "容量检查失败时项目和候选必须同时保持不变",
+  );
+
+  await atomicSeedStore.discardRecoveryCandidate?.(
+    atomicCandidate.candidateId,
+    atomicCandidate.candidateSequence,
+  );
+  assert.deepEqual(
+    await atomicSeedStore.listRecoveryCandidates?.(atomicBase.projectId),
+    [],
+  );
+
+  const recoveryCapacityFactory = new FakeIDBFactory();
+  const recoveryCapacityBaseA = createLocalScoreProject({
+    projectId: "recovery-capacity-a",
+    title: "恢复容量甲",
+    now: "2026-07-24T06:15:00.000Z",
+  });
+  const recoveryCapacityBaseB = createLocalScoreProject({
+    projectId: "recovery-capacity-b",
+    title: "恢复容量乙",
+    now: "2026-07-24T06:15:01.000Z",
+  });
+  const recoveryCapacityCandidateA =
+    createLocalScoreProjectRecoveryCandidate({
+      candidateId: "recovery-capacity-candidate-a",
+      baseProject: recoveryCapacityBaseA,
+      candidateSequence: 1,
+      capturedAt: "2026-07-24T06:15:02.000Z",
+      proposedProject: changeLocalScoreProjectTempo({
+        project: recoveryCapacityBaseA,
+        expectedRevision: recoveryCapacityBaseA.document.revision,
+        tempoBpm: 91,
+        now: "2026-07-24T06:15:02.000Z",
+      }),
+    });
+  const recoveryCapacityCandidateB =
+    createLocalScoreProjectRecoveryCandidate({
+      candidateId: "recovery-capacity-candidate-b",
+      baseProject: recoveryCapacityBaseB,
+      candidateSequence: 1,
+      capturedAt: "2026-07-24T06:15:03.000Z",
+      proposedProject: changeLocalScoreProjectTempo({
+        project: recoveryCapacityBaseB,
+        expectedRevision: recoveryCapacityBaseB.document.revision,
+        tempoBpm: 92,
+        now: "2026-07-24T06:15:03.000Z",
+      }),
+    });
+  const recoveryCapacityStore = createIndexedDbLocalScoreProjectStore({
+    indexedDbFactory: recoveryCapacityFactory,
+    recoveryCandidateMaxBytes: getLocalScoreProjectStorageBytes(
+      recoveryCapacityCandidateA,
+    ),
+  });
+  await recoveryCapacityStore.put(recoveryCapacityBaseA, null);
+  await recoveryCapacityStore.put(recoveryCapacityBaseB, null);
+  await recoveryCapacityStore.stageRecoveryCandidate?.(
+    recoveryCapacityCandidateA,
+  );
+  const replacementCandidateA = createLocalScoreProjectRecoveryCandidate({
+    candidateId: recoveryCapacityCandidateA.candidateId,
+    baseProject: recoveryCapacityBaseA,
+    candidateSequence: 2,
+    capturedAt: "2026-07-24T06:15:04.000Z",
+    proposedProject: recoveryCapacityCandidateA.proposedProject,
+  });
+  assert.equal(
+    getLocalScoreProjectStorageBytes(replacementCandidateA),
+    getLocalScoreProjectStorageBytes(recoveryCapacityCandidateA),
+  );
+  await recoveryCapacityStore.stageRecoveryCandidate?.(
+    replacementCandidateA,
+    1,
+  );
+  await assert.rejects(
+    () => recoveryCapacityStore.stageRecoveryCandidate!(
+      recoveryCapacityCandidateB,
+    ),
+    /恢复候选总容量上限/,
+  );
+  assert.deepEqual(
+    await recoveryCapacityStore.get(recoveryCapacityBaseB.projectId),
+    recoveryCapacityBaseB,
+    "候选容量失败不得影响 canonical 项目",
+  );
+  assert.deepEqual(
+    await recoveryCapacityStore.listRecoveryCandidates?.(),
+    [replacementCandidateA],
+    "候选容量按同 candidateId 替换语义计算",
+  );
+
+  const staleFactory = new FakeIDBFactory();
+  const staleCandidateBase = createLocalScoreProject({
+    projectId: "stale-candidate-project",
+    title: "过期恢复谱",
+    now: "2026-07-24T06:20:00.000Z",
+  });
+  const staleCandidateProposal = createEditedProject({
+    project: staleCandidateBase,
+    eventId: "stale-candidate-note",
+    pitch: "C4",
+    now: "2026-07-24T06:20:01.000Z",
+  });
+  const staleCandidate = createLocalScoreProjectRecoveryCandidate({
+    candidateId: "stale-candidate",
+    baseProject: staleCandidateBase,
+    candidateSequence: 1,
+    capturedAt: "2026-07-24T06:20:02.000Z",
+    proposedProject: staleCandidateProposal,
+  });
+  const staleCandidateStore = createIndexedDbLocalScoreProjectStore({
+    indexedDbFactory: staleFactory,
+  });
+  await staleCandidateStore.put(staleCandidateBase, null);
+  await staleCandidateStore.stageRecoveryCandidate?.(staleCandidate);
+  const competingProject = changeLocalScoreProjectTempo({
+    project: staleCandidateBase,
+    expectedRevision: staleCandidateBase.document.revision,
+    tempoBpm: 72,
+    now: "2026-07-24T06:20:03.000Z",
+  });
+  await staleCandidateStore.put(
+    competingProject,
+    staleCandidateBase.document.revision,
+  );
+  await assert.rejects(
+    () => staleCandidateStore.promoteRecoveryCandidate!(
+      staleCandidate.candidateId,
+      staleCandidate.candidateSequence,
+    ),
+    /基线身份或内容已变化/,
+  );
+  assert.deepEqual(
+    await staleCandidateStore.get(staleCandidateBase.projectId),
+    competingProject,
+  );
+  assert.deepEqual(
+    await staleCandidateStore.listRecoveryCandidates?.(
+      staleCandidateBase.projectId,
+    ),
+    [staleCandidate],
+    "stale promote 冲突时不得删除候选",
+  );
+
+  const recreatedFactory = new FakeIDBFactory();
+  const recreatedBase = createLocalScoreProject({
+    projectId: "recreated-project-id",
+    title: "原始身份谱",
+    now: "2026-07-24T06:25:00.000Z",
+  });
+  const recreatedProposal = changeLocalScoreProjectTempo({
+    project: recreatedBase,
+    expectedRevision: recreatedBase.document.revision,
+    tempoBpm: 93,
+    now: "2026-07-24T06:25:01.000Z",
+  });
+  const recreatedCandidate = createLocalScoreProjectRecoveryCandidate({
+    candidateId: "recreated-project-candidate",
+    baseProject: recreatedBase,
+    candidateSequence: 1,
+    capturedAt: "2026-07-24T06:25:02.000Z",
+    proposedProject: recreatedProposal,
+  });
+  const recreatedStore = createIndexedDbLocalScoreProjectStore({
+    indexedDbFactory: recreatedFactory,
+  });
+  await recreatedStore.put(recreatedBase, null);
+  await recreatedStore.stageRecoveryCandidate?.(recreatedCandidate);
+  const replacementWithSameIds = createLocalScoreProject({
+    projectId: recreatedBase.projectId,
+    title: "重建身份谱",
+    now: "2026-07-24T06:26:00.000Z",
+  });
+  await putRawRecord({
+    factory: recreatedFactory,
+    value: replacementWithSameIds,
+  });
+  await assert.rejects(
+    () => recreatedStore.promoteRecoveryCandidate!(
+      recreatedCandidate.candidateId,
+      recreatedCandidate.candidateSequence,
+    ),
+    /基线身份或内容已变化/,
+  );
+  assert.deepEqual(
+    await recreatedStore.get(recreatedBase.projectId),
+    replacementWithSameIds,
+  );
+  assert.deepEqual(
+    await recreatedStore.listRecoveryCandidates?.(recreatedBase.projectId),
+    [recreatedCandidate],
+    "复用 projectId/documentId 的重建项目不得消费旧候选",
+  );
+
+  const cascadeFactory = new FakeIDBFactory();
+  const cascadeBase = createLocalScoreProject({
+    projectId: "cascade-candidate-project",
+    title: "连带删除谱",
+    now: "2026-07-24T06:30:00.000Z",
+  });
+  const cascadeProposal = createEditedProject({
+    project: cascadeBase,
+    eventId: "cascade-note",
+    pitch: "D4",
+    now: "2026-07-24T06:30:01.000Z",
+  });
+  const cascadeCandidate = createLocalScoreProjectRecoveryCandidate({
+    candidateId: "cascade-candidate",
+    baseProject: cascadeBase,
+    candidateSequence: 1,
+    capturedAt: "2026-07-24T06:30:02.000Z",
+    proposedProject: cascadeProposal,
+  });
+  const cascadeStore = createIndexedDbLocalScoreProjectStore({
+    indexedDbFactory: cascadeFactory,
+  });
+  await cascadeStore.put(cascadeBase, null);
+  await cascadeStore.stageRecoveryCandidate?.(cascadeCandidate);
+  await cascadeStore.delete(
+    cascadeBase.projectId,
+    cascadeBase.document.revision,
+  );
+  assert.equal(await cascadeStore.get(cascadeBase.projectId), null);
+  assert.deepEqual(
+    await cascadeStore.listRecoveryCandidates?.(cascadeBase.projectId),
+    [],
+    "删除项目必须在同一事务连带删除候选",
+  );
 
   const currentForDelete = (await loadLocalScoreProject({
     store: firstStore,
