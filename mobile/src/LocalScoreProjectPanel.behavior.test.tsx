@@ -1,13 +1,21 @@
-import { StrictMode, act } from "react";
+import { StrictMode, act, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   LocalScoreProjectConflictError,
+  changeLocalScoreProjectSettings,
   cloneLocalScoreProject,
+  createLocalScoreProject,
   type LocalScoreProjectV1,
 } from "../../lib/music/localScoreProject";
+import {
+  cloneLocalScoreProjectRecoveryCandidate,
+  createLocalScoreProjectRecoveryCandidate,
+  type LocalScoreProjectRecoveryCandidateV1,
+} from "../../lib/music/localScoreProjectRecovery";
 import { LocalScoreProjectPanel } from "./LocalScoreProjectPanel";
+import { useLocalScoreProjectAutosave } from "./useLocalScoreProjectAutosave";
 import {
   LocalScoreProjectStorageError,
   type LocalScoreProjectStore,
@@ -15,9 +23,17 @@ import {
 
 class MemoryProjectStore implements LocalScoreProjectStore {
   readonly values = new Map<string, LocalScoreProjectV1>();
+  readonly candidates =
+    new Map<string, LocalScoreProjectRecoveryCandidateV1>();
   failNextPut: Error | null = null;
   failNextDelete: Error | null = null;
+  failNextStage: Error | null = null;
+  failNextPromote: Error | null = null;
+  failNextDiscard: Error | null = null;
+  beforePromote: (() => Promise<void>) | null = null;
   deleteCalls = 0;
+  promoteCalls = 0;
+  stageCalls = 0;
 
   async get(projectId: string) {
     const project = this.values.get(projectId);
@@ -62,6 +78,109 @@ class MemoryProjectStore implements LocalScoreProjectStore {
     }
     this.values.delete(projectId);
   }
+
+  async stageRecoveryCandidate(
+    candidate: LocalScoreProjectRecoveryCandidateV1,
+    expectedSequence: number | null = null,
+  ) {
+    this.stageCalls += 1;
+    if (this.failNextStage) {
+      const error = this.failNextStage;
+      this.failNextStage = null;
+      throw error;
+    }
+    const current = this.candidates.get(candidate.candidateId);
+    if (
+      (expectedSequence === null && current)
+      || (
+        expectedSequence !== null
+        && current?.candidateSequence !== expectedSequence
+      )
+    ) {
+      throw new LocalScoreProjectConflictError();
+    }
+    this.candidates.set(
+      candidate.candidateId,
+      cloneLocalScoreProjectRecoveryCandidate(candidate),
+    );
+  }
+
+  async listRecoveryCandidates(projectId?: string) {
+    return Array.from(this.candidates.values())
+      .filter((candidate) => !projectId || candidate.projectId === projectId)
+      .map(cloneLocalScoreProjectRecoveryCandidate)
+      .sort((left, right) => right.candidateSequence - left.candidateSequence);
+  }
+
+  async promoteRecoveryCandidate(
+    candidateId: string,
+    expectedSequence: number,
+  ) {
+    this.promoteCalls += 1;
+    if (this.beforePromote) await this.beforePromote();
+    if (this.failNextPromote) {
+      const error = this.failNextPromote;
+      this.failNextPromote = null;
+      throw error;
+    }
+    const candidate = this.candidates.get(candidateId);
+    if (!candidate || candidate.candidateSequence !== expectedSequence) {
+      throw new LocalScoreProjectConflictError();
+    }
+    await this.put(candidate.proposedProject, candidate.baseRevision);
+    this.candidates.delete(candidateId);
+    return cloneLocalScoreProject(candidate.proposedProject);
+  }
+
+  async discardRecoveryCandidate(
+    candidateId: string,
+    expectedSequence: number,
+  ) {
+    if (this.failNextDiscard) {
+      const error = this.failNextDiscard;
+      this.failNextDiscard = null;
+      throw error;
+    }
+    const candidate = this.candidates.get(candidateId);
+    if (!candidate || candidate.candidateSequence !== expectedSequence) {
+      throw new LocalScoreProjectConflictError();
+    }
+    this.candidates.delete(candidateId);
+  }
+}
+
+function AutosaveTransportHarness({
+  store,
+  initialProject,
+  initialMode = "metronome-running",
+}: {
+  store: MemoryProjectStore;
+  initialProject: LocalScoreProjectV1;
+  initialMode?: "idle" | "metronome-running";
+}) {
+  const [project, setProject] = useState(initialProject);
+  const [title, setTitle] = useState(initialProject.title);
+  const [mode, setMode] =
+    useState<"idle" | "metronome-running">(initialMode);
+  const autosave = useLocalScoreProjectAutosave({
+    store,
+    project,
+    title,
+    tempoBpm: String(project.tempoBpm),
+    transportMode: mode,
+    now: () => "2026-07-24T07:00:00.000Z",
+    onProjectSaved: (saved) => setProject(saved),
+  });
+  return (
+    <div>
+      <label>
+        项目名称
+        <input value={title} onChange={(event) => setTitle(event.target.value)} />
+      </label>
+      <button type="button" onClick={() => setMode("idle")}>停止播放</button>
+      <p>{autosave.status}</p>
+    </div>
+  );
 }
 
 let root: Root | null = null;
@@ -78,6 +197,13 @@ const waitFor = async (predicate: () => boolean, message: string) => {
     await flushReact();
   }
   throw new Error(`等待超时：${message}`);
+};
+
+const waitForAutosave = async () => {
+  await act(async () => {
+    await new Promise((resolve) => window.setTimeout(resolve, 650));
+  });
+  await flushReact();
 };
 
 const findButton = (
@@ -393,7 +519,7 @@ describe("S1 本机谱项目面板", () => {
     expect(Array.from(store.values.values())[0]?.document.revision).toBe(2);
   });
 
-  it("速度保存失败时播放区保持旧值，恢复后可按原草稿重试并重开", async () => {
+  it("速度自动保存失败时播放区保持旧值，恢复后可按原草稿重试并重开", async () => {
     const store = new MemoryProjectStore();
     const container = await renderPanel(store);
     await click(findButton(container, "创建并保存"));
@@ -407,7 +533,7 @@ describe("S1 本机谱项目面板", () => {
       "write-failed",
       "本机存储写入失败，乐谱项目未保存；原有项目保持不变。请恢复存储条件后重试。",
     );
-    await click(findButton(container, "保存速度"));
+    await waitForAutosave();
     await waitFor(
       () => container.textContent?.includes("本机存储写入失败") ?? false,
       "显示速度保存失败",
@@ -416,7 +542,7 @@ describe("S1 本机谱项目面板", () => {
     expect(findInput(container, "速度（BPM）").value).toBe("72");
     expect(Array.from(store.values.values())[0]?.tempoBpm).toBe(90);
 
-    await click(findButton(container, "保存速度"));
+    await click(findButton(container, "重试自动保存"));
     await waitFor(
       () => container.textContent?.includes("已保存速度：72 BPM") ?? false,
       "恢复后保存速度",
@@ -430,6 +556,518 @@ describe("S1 本机谱项目面板", () => {
       () => container.textContent?.includes("已保存速度：72 BPM") ?? false,
       "重开后恢复速度",
     );
+  });
+
+  it("恢复候选暂存失败时 canonical 保持不变并可重试", async () => {
+    const store = new MemoryProjectStore();
+    const container = await renderPanel(store);
+    await click(findButton(container, "创建并保存"));
+    store.failNextStage = new LocalScoreProjectStorageError(
+      "quota",
+      "恢复候选暂存空间不足。",
+    );
+    await change(findInput(container, "项目名称"), "暂存失败草稿");
+    await waitForAutosave();
+    await waitFor(
+      () => container.textContent?.includes("恢复候选暂存空间不足") ?? false,
+      "显示候选暂存失败",
+    );
+    expect(Array.from(store.values.values())[0]?.document.revision).toBe(1);
+    expect(store.candidates.size).toBe(0);
+
+    await click(findButton(container, "重试自动保存"));
+    await waitFor(
+      () => Array.from(store.values.values())[0]?.title === "暂存失败草稿",
+      "暂存恢复后重试成功",
+    );
+    expect(Array.from(store.values.values())[0]?.document.revision).toBe(2);
+  });
+
+  it("名称与速度在停止输入后合并为一个自动保存修订", async () => {
+    const store = new MemoryProjectStore();
+    const container = await renderPanel(store);
+    await click(findButton(container, "创建并保存"));
+
+    await change(findInput(container, "项目名称"), "自动保存练习");
+    await change(findInput(container, "速度（BPM）"), "108");
+    expect(findButton(container, "启动节拍器").disabled).toBe(true);
+    expect(
+      Array.from(container.querySelectorAll("button"))
+        .some((button) => button.textContent?.trim() === "保存名称"),
+    ).toBe(false);
+    expect(
+      Array.from(container.querySelectorAll("button"))
+        .some((button) => button.textContent?.trim() === "保存速度"),
+    ).toBe(false);
+
+    await waitForAutosave();
+    await waitFor(
+      () => container.textContent?.includes("名称与速度已自动保存到修订 2")
+        ?? false,
+      "名称与速度自动保存完成",
+    );
+    const stored = Array.from(store.values.values())[0];
+    expect(stored?.title).toBe("自动保存练习");
+    expect(stored?.tempoBpm).toBe(108);
+    expect(stored?.document.revision).toBe(2);
+    expect(store.candidates.size).toBe(0);
+    expect(findButton(container, "启动节拍器").disabled).toBe(false);
+  });
+
+  it("停止输入 599 毫秒不保存，到 600 毫秒才启动保存", async () => {
+    vi.useFakeTimers();
+    try {
+      const store = new MemoryProjectStore();
+      const project = createLocalScoreProject({
+        projectId: "debounce-project",
+        title: "防抖项目",
+        now: "2026-07-24T06:10:00.000Z",
+      });
+      await store.put(project, null);
+      const container = document.createElement("div");
+      document.body.append(container);
+      root = createRoot(container);
+      await act(async () => {
+        root?.render(
+          <StrictMode>
+            <AutosaveTransportHarness
+              store={store}
+              initialProject={project}
+              initialMode="idle"
+            />
+          </StrictMode>,
+        );
+        await Promise.resolve();
+      });
+      await act(async () => {
+        await Promise.resolve();
+      });
+
+      const input = findInput(container, "项目名称");
+      await act(async () => {
+        const setter = Object.getOwnPropertyDescriptor(
+          HTMLInputElement.prototype,
+          "value",
+        )?.set;
+        setter?.call(input, "600 毫秒草稿");
+        input.dispatchEvent(new Event("input", { bubbles: true }));
+      });
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(599);
+      });
+      expect(store.stageCalls).toBe(0);
+      expect(store.promoteCalls).toBe(0);
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(1);
+        await Promise.resolve();
+      });
+      expect(store.stageCalls).toBe(1);
+      expect(store.promoteCalls).toBe(1);
+      expect(Array.from(store.values.values())[0]?.title).toBe("600 毫秒草稿");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("设置草稿保存完成前阻止谱面结构写入，避免跨修订竞态", async () => {
+    const store = new MemoryProjectStore();
+    const container = await renderPanel(store);
+    await click(findButton(container, "创建并保存"));
+
+    await change(findInput(container, "项目名称"), "待保存设置");
+    await click(findButton(container, "添加到第 1 小节并保存"));
+    expect(container.textContent).toContain(
+      "请先等待名称与速度自动保存，或处理恢复候选后再修改谱面",
+    );
+    expect(Array.from(store.values.values())[0]?.document.revision).toBe(1);
+    expect(container.textContent).not.toContain("C4 · 四分音符");
+
+    await waitForAutosave();
+    await waitFor(
+      () => Array.from(store.values.values())[0]?.title === "待保存设置",
+      "先完成设置自动保存",
+    );
+    await click(findButton(container, "添加到第 1 小节并保存"));
+    await waitFor(
+      () => container.textContent?.includes("C4 · 四分音符") ?? false,
+      "设置保存后允许谱面写入",
+    );
+    expect(Array.from(store.values.values())[0]?.document.revision).toBe(3);
+  });
+
+  it("较旧的异步保存完成时不覆盖更新的名称草稿", async () => {
+    const store = new MemoryProjectStore();
+    let releasePromotion: () => void = () => {
+      throw new Error("第一轮自动保存没有等待提交");
+    };
+    store.beforePromote = () => new Promise<void>((resolve) => {
+      releasePromotion = resolve;
+    });
+    const container = await renderPanel(store);
+    await click(findButton(container, "创建并保存"));
+
+    await change(findInput(container, "项目名称"), "较旧草稿");
+    await waitForAutosave();
+    await waitFor(() => store.promoteCalls === 1, "第一轮自动保存进入提交阶段");
+    await change(findInput(container, "项目名称"), "较新草稿");
+    store.beforePromote = null;
+    await act(async () => {
+      releasePromotion();
+    });
+    await flushReact();
+
+    expect(findInput(container, "项目名称").value).toBe("较新草稿");
+    expect(Array.from(store.values.values())[0]?.title).toBe("较旧草稿");
+    await waitForAutosave();
+    await waitFor(
+      () => Array.from(store.values.values())[0]?.title === "较新草稿",
+      "第二轮自动保存提交较新草稿",
+    );
+    expect(findInput(container, "项目名称").value).toBe("较新草稿");
+    expect(Array.from(store.values.values())[0]?.document.revision).toBe(3);
+  });
+
+  it("返回列表后迟到的自动保存结果不会重新打开旧项目", async () => {
+    const store = new MemoryProjectStore();
+    let releasePromotion: () => void = () => {
+      throw new Error("自动保存没有进入提交阶段");
+    };
+    store.beforePromote = () => new Promise<void>((resolve) => {
+      releasePromotion = resolve;
+    });
+    const container = await renderPanel(store);
+    await click(findButton(container, "创建并保存"));
+    await change(findInput(container, "项目名称"), "离开前草稿");
+    await waitForAutosave();
+    await waitFor(() => store.promoteCalls === 1, "自动保存进入提交阶段");
+
+    await click(findButton(container, "返回项目列表"));
+    expect(container.textContent).toContain("本机已保存项目");
+    store.beforePromote = null;
+    await act(async () => {
+      releasePromotion();
+    });
+    await flushReact();
+
+    expect(container.textContent).toContain("本机已保存项目");
+    expect(container.textContent).not.toContain("第一声部预览");
+  });
+
+  it("播放期间只暂存一次同一候选，停止后再提升为正式修订", async () => {
+    const store = new MemoryProjectStore();
+    const project = createLocalScoreProject({
+      projectId: "transport-autosave-project",
+      title: "播放中项目",
+      now: "2026-07-24T07:00:00.000Z",
+    });
+    await store.put(project, null);
+    const container = document.createElement("div");
+    document.body.append(container);
+    root = createRoot(container);
+    await act(async () => {
+      root?.render(
+        <StrictMode>
+          <AutosaveTransportHarness store={store} initialProject={project} />
+        </StrictMode>,
+      );
+    });
+    await flushReact();
+
+    await change(findInput(container, "项目名称"), "播放中草稿");
+    await waitForAutosave();
+    await waitFor(
+      () => store.stageCalls === 1 && store.candidates.size === 1,
+      "播放时只暂存恢复候选",
+    );
+    expect(Array.from(store.values.values())[0]?.document.revision).toBe(1);
+    expect(container.textContent).toContain("deferred");
+
+    await waitForAutosave();
+    expect(store.stageCalls).toBe(1);
+    expect(store.promoteCalls).toBe(0);
+
+    await click(findButton(container, "停止播放"));
+    await waitForAutosave();
+    await waitFor(
+      () => Array.from(store.values.values())[0]?.title === "播放中草稿",
+      "停止播放后提升恢复候选",
+    );
+    expect(store.stageCalls).toBe(1);
+    expect(store.promoteCalls).toBe(1);
+    expect(store.candidates.size).toBe(0);
+    expect(Array.from(store.values.values())[0]?.document.revision).toBe(2);
+  });
+
+  it("初次加载后出现的外部候选会阻塞自动保存而不会被递增覆盖", async () => {
+    const store = new MemoryProjectStore();
+    const project = createLocalScoreProject({
+      projectId: "concurrent-recovery-project",
+      title: "并发恢复项目",
+      now: "2026-07-24T07:10:00.000Z",
+    });
+    await store.put(project, null);
+    const container = document.createElement("div");
+    document.body.append(container);
+    root = createRoot(container);
+    await act(async () => {
+      root?.render(
+        <StrictMode>
+          <AutosaveTransportHarness store={store} initialProject={project} />
+        </StrictMode>,
+      );
+    });
+    await flushReact();
+
+    const externalProposal = changeLocalScoreProjectSettings({
+      project,
+      expectedRevision: project.document.revision,
+      title: "另一页面草稿",
+      tempoBpm: project.tempoBpm,
+      now: "2026-07-24T07:10:01.000Z",
+    });
+    await store.stageRecoveryCandidate(
+      createLocalScoreProjectRecoveryCandidate({
+        candidateId: project.projectId,
+        candidateSequence: 1,
+        capturedAt: "2026-07-24T07:10:02.000Z",
+        baseProject: project,
+        proposedProject: externalProposal,
+      }),
+      null,
+    );
+
+    await change(findInput(container, "项目名称"), "当前页面草稿");
+    await click(findButton(container, "停止播放"));
+    await waitForAutosave();
+    await waitFor(
+      () => container.textContent?.includes("recovery-available") ?? false,
+      "外部候选阻塞当前自动保存",
+    );
+    expect(store.stageCalls).toBe(1);
+    expect(store.promoteCalls).toBe(0);
+    expect(Array.from(store.values.values())[0]?.document.revision).toBe(1);
+    expect(Array.from(store.candidates.values())[0]?.proposedProject.title)
+      .toBe("另一页面草稿");
+  });
+
+  it("重新打开时明确选择恢复或丢弃候选，不会自动套用", async () => {
+    const store = new MemoryProjectStore();
+    const container = await renderPanel(store);
+    await click(findButton(container, "创建并保存"));
+    const baseProject = Array.from(store.values.values())[0];
+    if (!baseProject) throw new Error("找不到恢复测试的基准项目");
+    const proposedProject = changeLocalScoreProjectSettings({
+      project: baseProject,
+      expectedRevision: baseProject.document.revision,
+      title: "中断前草稿",
+      tempoBpm: 76,
+      now: "2026-07-24T06:00:00.000Z",
+    });
+    await store.stageRecoveryCandidate(
+      createLocalScoreProjectRecoveryCandidate({
+        candidateId: baseProject.projectId,
+        candidateSequence: 1,
+        capturedAt: "2026-07-24T06:00:01.000Z",
+        baseProject,
+        proposedProject,
+      }),
+      null,
+    );
+
+    await click(findButton(container, "返回项目列表"));
+    await click(findButton(container, "打开"));
+    await waitFor(
+      () => container.textContent?.includes("发现一份未完成的名称或速度修改")
+        ?? false,
+      "显示恢复候选",
+    );
+    expect(findInput(container, "项目名称").value).toBe(baseProject.title);
+    expect(findInput(container, "速度（BPM）").value).toBe("90");
+    expect(Array.from(store.values.values())[0]?.document.revision).toBe(1);
+
+    store.failNextPromote = new LocalScoreProjectStorageError(
+      "transaction-failed",
+      "恢复事务暂时失败。",
+    );
+    await click(findButton(container, "恢复并保存"));
+    await waitFor(
+      () => container.textContent?.includes("恢复事务暂时失败") ?? false,
+      "显示恢复失败",
+    );
+    expect(findButton(container, "恢复并保存")).toBeTruthy();
+    expect(findButton(container, "丢弃")).toBeTruthy();
+    expect(store.candidates.size).toBe(1);
+
+    await click(findButton(container, "恢复并保存"));
+    await waitFor(
+      () => findInput(container, "项目名称").value === "中断前草稿",
+      "明确恢复候选",
+    );
+    expect(findInput(container, "速度（BPM）").value).toBe("76");
+    expect(Array.from(store.values.values())[0]?.document.revision).toBe(2);
+    expect(store.candidates.size).toBe(0);
+
+    const recovered = Array.from(store.values.values())[0];
+    if (!recovered) throw new Error("找不到恢复后的项目");
+    const discardedProposal = changeLocalScoreProjectSettings({
+      project: recovered,
+      expectedRevision: recovered.document.revision,
+      title: "应被丢弃",
+      tempoBpm: 64,
+      now: "2026-07-24T06:00:02.000Z",
+    });
+    await store.stageRecoveryCandidate(
+      createLocalScoreProjectRecoveryCandidate({
+        candidateId: recovered.projectId,
+        candidateSequence: 1,
+        capturedAt: "2026-07-24T06:00:03.000Z",
+        baseProject: recovered,
+        proposedProject: discardedProposal,
+      }),
+      null,
+    );
+    await click(findButton(container, "返回项目列表"));
+    await click(findButton(container, "打开"));
+    await waitFor(
+      () => container.textContent?.includes("发现一份未完成的名称或速度修改")
+        ?? false,
+      "再次显示恢复候选",
+    );
+    store.failNextDiscard = new LocalScoreProjectStorageError(
+      "transaction-failed",
+      "丢弃事务暂时失败。",
+    );
+    await click(findButton(container, "丢弃"));
+    await waitFor(
+      () => container.textContent?.includes("丢弃事务暂时失败") ?? false,
+      "显示丢弃失败",
+    );
+    expect(findButton(container, "恢复并保存")).toBeTruthy();
+    expect(findButton(container, "丢弃")).toBeTruthy();
+    expect(store.candidates.size).toBe(1);
+
+    await click(findButton(container, "丢弃"));
+    await waitFor(
+      () => container.textContent?.includes("未完成恢复候选已丢弃") ?? false,
+      "明确丢弃恢复候选",
+    );
+    expect(Array.from(store.values.values())[0]?.document.revision).toBe(2);
+    expect(Array.from(store.values.values())[0]?.title).toBe("中断前草稿");
+    expect(store.candidates.size).toBe(0);
+  });
+
+  it("显式恢复单飞，返回列表后迟到结果不会重新打开项目", async () => {
+    const store = new MemoryProjectStore();
+    const container = await renderPanel(store);
+    await click(findButton(container, "创建并保存"));
+    const baseProject = Array.from(store.values.values())[0];
+    if (!baseProject) throw new Error("找不到显式恢复基准项目");
+    const proposedProject = changeLocalScoreProjectSettings({
+      project: baseProject,
+      expectedRevision: baseProject.document.revision,
+      title: "显式恢复草稿",
+      tempoBpm: 84,
+      now: "2026-07-24T06:20:00.000Z",
+    });
+    await store.stageRecoveryCandidate(
+      createLocalScoreProjectRecoveryCandidate({
+        candidateId: baseProject.projectId,
+        candidateSequence: 1,
+        capturedAt: "2026-07-24T06:20:01.000Z",
+        baseProject,
+        proposedProject,
+      }),
+      null,
+    );
+    await click(findButton(container, "返回项目列表"));
+    await click(findButton(container, "打开"));
+    await waitFor(
+      () => container.textContent?.includes("发现一份未完成的名称或速度修改")
+        ?? false,
+      "显示待恢复候选",
+    );
+
+    let releasePromotion: () => void = () => {
+      throw new Error("显式恢复没有进入提交阶段");
+    };
+    store.beforePromote = () => new Promise<void>((resolve) => {
+      releasePromotion = resolve;
+    });
+    await click(findButton(container, "恢复并保存"));
+    expect(findButton(container, "恢复并保存").disabled).toBe(true);
+    expect(findButton(container, "丢弃").disabled).toBe(true);
+    await click(findButton(container, "返回项目列表"));
+    store.beforePromote = null;
+    await act(async () => {
+      releasePromotion();
+    });
+    await flushReact();
+
+    expect(container.textContent).toContain("本机已保存项目");
+    expect(container.textContent).not.toContain("第一声部预览");
+  });
+
+  it("显式恢复 pending 时重开同项目不会启动第二个事务", async () => {
+    const store = new MemoryProjectStore();
+    const container = await renderPanel(store);
+    await click(findButton(container, "创建并保存"));
+    const baseProject = Array.from(store.values.values())[0];
+    if (!baseProject) throw new Error("找不到重入恢复基准项目");
+    const proposedProject = changeLocalScoreProjectSettings({
+      project: baseProject,
+      expectedRevision: baseProject.document.revision,
+      title: "单飞恢复草稿",
+      tempoBpm: 82,
+      now: "2026-07-24T06:25:00.000Z",
+    });
+    await store.stageRecoveryCandidate(
+      createLocalScoreProjectRecoveryCandidate({
+        candidateId: baseProject.projectId,
+        candidateSequence: 1,
+        capturedAt: "2026-07-24T06:25:01.000Z",
+        baseProject,
+        proposedProject,
+      }),
+      null,
+    );
+    await click(findButton(container, "返回项目列表"));
+    await click(findButton(container, "打开"));
+    await waitFor(
+      () => container.textContent?.includes("发现一份未完成的名称或速度修改")
+        ?? false,
+      "显示单飞恢复候选",
+    );
+
+    let releasePromotion: () => void = () => {
+      throw new Error("单飞恢复没有进入提交阶段");
+    };
+    store.beforePromote = () => new Promise<void>((resolve) => {
+      releasePromotion = resolve;
+    });
+    await click(findButton(container, "恢复并保存"));
+    await click(findButton(container, "返回项目列表"));
+    await click(findButton(container, "打开"));
+    await waitFor(
+      () => container.textContent?.includes("发现一份未完成的名称或速度修改")
+        ?? false,
+      "pending 时重开同项目",
+    );
+    expect(findButton(container, "恢复并保存").disabled).toBe(true);
+    expect(findButton(container, "丢弃").disabled).toBe(true);
+    expect(store.promoteCalls).toBe(1);
+
+    store.beforePromote = null;
+    await act(async () => {
+      releasePromotion();
+    });
+    await waitFor(
+      () => findInput(container, "项目名称").value === "单飞恢复草稿",
+      "原恢复事务完成后同步当前项目",
+    );
+    expect(store.promoteCalls).toBe(1);
+    expect(store.candidates.size).toBe(0);
+    expect(container.textContent).not.toContain("发现一份未完成的名称或速度修改");
   });
 
   it("删除项目需要明确确认，失败保留数据，恢复后可重试", async () => {
