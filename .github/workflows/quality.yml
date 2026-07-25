@@ -80,6 +80,7 @@ jobs:
           npm run test:p119-content-education-evidence
           npm run test:p119-content-review-manifest
           npm run verify:p119-content-review-manifest -- --manifest local-fixtures/p119-content-education/review-manifest.bd5c5af211a3a1b36f4fcfacebdfe89b65fbafc1.json
+          npm run test:p119-teacher-review-candidate
           npm run test:offline-pitch-analysis
           npm run test:offline-note-alignment
           npm run test:activity-protocol

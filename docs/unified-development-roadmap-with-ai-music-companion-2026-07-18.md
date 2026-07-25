@@ -4,7 +4,7 @@
 
 状态：**Canonical integrated roadmap / 统一长期开发主路线**
 
-当前执行状态：**P119a–P119c MERGED / NEXT RESPONSIBLE-PARTY SAMPLE PLAN APPROVAL**
+当前执行状态：**P119a–P119c MERGED / P119d SAMPLE PLAN APPROVED / NEXT DUAL-TEACHER ITEM REVIEW**
 
 适用项目：`aaaycc931-droid/my-first-app`
 
@@ -38,11 +38,11 @@
 - P118a–P118e 已完成最小本机课程、当前保留练习事实统计、精确复练队列、可解释非评分建议与独立失败关闭总览；P118e PR #413 的 Quality run `29984984760` 中 `quality` 与 `android-local` 均成功且 Vercel Ready。
 - P119a 已通过 PR #415 合并为 `28a448faf1f387a1c7f394f5baac6a2a7dbc4eac`；它只建立 Q3 内容盘点和双教师审核证据协议。自动盘点暴露两个基础档各 8 个变体的数量缺口，外部教师审核仍为 `NOT_EXECUTED`。
 - P119b 已通过 PR #417 合并为 `bd5c5af211a3a1b36f4fcfacebdfe89b65fbafc1`；两个基础档各达到 20，当前 30 个自动盘点组满足 V1 数量前置。
-- P119c 已通过 PR #419 合并为 `de9ab7f9a6d050a951e70835fbe97cecc693b9f4`；catalog v10 可复核清单已绑定 P119b source commit、18 个真源文件、1,855 个题目 item、3 个课节和 canonical SHA-256。责任方预先批准的抽样计划、专业 40、双教师与教育有效性仍未完成。
+- P119c 已通过 PR #419 合并为 `de9ab7f9a6d050a951e70835fbe97cecc693b9f4`；catalog v10 可复核清单已绑定 P119b source commit、18 个真源文件、1,855 个题目 item、3 个课节和 canonical SHA-256。P119d 已记录产品所有者对仓库外双教师预批准的无身份摘要：30 层各 5 项、3 个课程项，共 153 项；获批批次继续冻结，逐题六维双教师审核与 finding 闭环延期到正式推广测试启动时，专业 40 与教育有效性仍未完成。
 
 本次产品决策是：
 
-> AI 音乐伙伴正式进入全能音乐学习系统的长期产品终局和开发主路线，但伙伴不能先于可信音乐能力成为装饰性聊天壳。P114–P118 与 P119a–P119c 已合并；当前 V1 数量前置与可复核清单已具备，但自动盘点和清单不能冒充教师审核。下一门槛是责任方在审核前批准抽样数量、分层与清单内 item ID，完整 P119/Q 仍等待 Q1–Q5 真实证据。首发伙伴仍须在可信证据和活动状态机可用后作为完整 vertical slice 进入。
+> AI 音乐伙伴正式进入全能音乐学习系统的长期产品终局和开发主路线，但伙伴不能先于可信音乐能力成为装饰性聊天壳。P114–P118 与 P119a–P119c 已合并；当前 V1 数量前置、可复核清单和双教师预批准的 153 项样本计划已具备，但它们不能冒充逐题教师审核。该获批批次继续冻结，逐题六维双教师审核与 finding 闭环延期到正式推广测试启动时；完整 P119/Q 仍等待 Q1–Q5 真实证据。首发伙伴仍须在可信证据和活动状态机可用后作为完整 vertical slice 进入。
 
 ## 2. 文件职责与规范优先级
 
