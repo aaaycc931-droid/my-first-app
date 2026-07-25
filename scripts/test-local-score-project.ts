@@ -8,6 +8,7 @@ import {
   appendLocalScoreProjectMeasure,
   applyLocalScoreProjectContent,
   changeLocalScoreProjectMeter,
+  changeLocalScoreProjectTempo,
   createLocalScoreProject,
   deleteEmptyLocalScoreProjectMeasure,
   deleteLocalScoreProjectEvent,
@@ -29,6 +30,8 @@ const project = createLocalScoreProject({
   now: createdAt,
 });
 assert.equal(project.title, "第一份谱");
+assert.equal(project.schemaVersion, "local-score-project-storage-v2");
+assert.equal(project.tempoBpm, 90);
 assert.equal(project.document.schemaVersion, "score-document-v1");
 assert.equal(project.document.documentKind, "notation-project");
 assert.equal(project.document.documentId, "local.score-project.project-1");
@@ -206,9 +209,104 @@ const firstEvent =
   .push({ ...firstEvent });
 assert.equal(parseLocalScoreProject(duplicateEvent), null);
 
+const legacySchema = JSON.parse(serialized) as {
+  schemaVersion: string;
+  tempoBpm?: number;
+};
+legacySchema.schemaVersion = "local-score-project-storage-v1";
+delete legacySchema.tempoBpm;
+const legacyBefore = JSON.stringify(legacySchema);
+const migratedLegacy = parseLocalScoreProject(legacySchema);
+assert.equal(migratedLegacy?.schemaVersion, "local-score-project-storage-v2");
+assert.equal(migratedLegacy?.tempoBpm, 90);
+assert.equal(migratedLegacy?.projectId, multiStaff.projectId);
+assert.equal(migratedLegacy?.createdAt, multiStaff.createdAt);
+assert.equal(migratedLegacy?.updatedAt, multiStaff.updatedAt);
+assert.equal(
+  migratedLegacy?.document.revision,
+  multiStaff.document.revision,
+);
+assert.deepEqual(migratedLegacy?.undoStack, multiStaff.undoStack);
+assert.deepEqual(migratedLegacy?.redoStack, multiStaff.redoStack);
+assert.equal(JSON.stringify(legacySchema), legacyBefore, "读取旧版不得原地修改");
+assert.equal(
+  deserializeLocalScoreProject(legacyBefore)?.tempoBpm,
+  90,
+);
+assert.match(
+  serializeLocalScoreProject(migratedLegacy!),
+  /local-score-project-storage-v2/,
+);
+
+const missingTempo = JSON.parse(serialized) as { tempoBpm?: number };
+delete missingTempo.tempoBpm;
+assert.equal(parseLocalScoreProject(missingTempo), null);
+
 const futureSchema = JSON.parse(serialized) as { schemaVersion: string };
-futureSchema.schemaVersion = "local-score-project-storage-v2";
+futureSchema.schemaVersion = "local-score-project-storage-v3";
 assert.equal(parseLocalScoreProject(futureSchema), null);
+
+const tempo30 = changeLocalScoreProjectTempo({
+  project,
+  expectedRevision: project.document.revision,
+  tempoBpm: 30,
+  now: "2026-07-24T00:00:01.000Z",
+});
+assert.equal(tempo30.tempoBpm, 30);
+assert.equal(tempo30.document.revision, 2);
+assert.deepEqual(tempo30.undoStack, project.undoStack);
+assert.deepEqual(tempo30.redoStack, project.redoStack);
+const tempo240 = changeLocalScoreProjectTempo({
+  project: tempo30,
+  expectedRevision: tempo30.document.revision,
+  tempoBpm: 240,
+  now: "2026-07-24T00:00:02.000Z",
+});
+assert.equal(tempo240.tempoBpm, 240);
+const tempoAfterContent = changeLocalScoreProjectTempo({
+  project: edited,
+  expectedRevision: edited.document.revision,
+  tempoBpm: 72,
+  now: "2026-07-24T00:00:02.000Z",
+});
+const contentUndoAfterTempo = undoLocalScoreProject({
+  project: tempoAfterContent,
+  expectedRevision: tempoAfterContent.document.revision,
+  now: "2026-07-24T00:00:03.000Z",
+});
+assert.equal(contentUndoAfterTempo.tempoBpm, 72);
+assert.equal(contentUndoAfterTempo.document.revision, 4);
+assert.deepEqual(getLocalScoreProjectContent(contentUndoAfterTempo), firstContent);
+const contentRedoAfterTempo = redoLocalScoreProject({
+  project: contentUndoAfterTempo,
+  expectedRevision: contentUndoAfterTempo.document.revision,
+  now: "2026-07-24T00:00:04.000Z",
+});
+assert.equal(contentRedoAfterTempo.tempoBpm, 72);
+assert.equal(contentRedoAfterTempo.document.revision, 5);
+assert.deepEqual(
+  getLocalScoreProjectContent(contentRedoAfterTempo),
+  contentWithNote,
+);
+assert.equal(changeLocalScoreProjectTempo({
+  project,
+  expectedRevision: project.document.revision,
+  tempoBpm: 90,
+  now: "2026-07-24T00:00:01.000Z",
+}), project);
+for (const tempoBpm of [29, 241, 90.5, Number.NaN]) {
+  assert.throws(
+    () => changeLocalScoreProjectTempo({
+      project,
+      expectedRevision: project.document.revision,
+      tempoBpm,
+      now: "2026-07-24T00:00:01.000Z",
+    }),
+    /30–240.*整数 BPM/,
+  );
+  assert.equal(project.tempoBpm, 90);
+  assert.equal(project.document.revision, 1);
+}
 
 let historyProject = project;
 for (let index = 0; index < LOCAL_SCORE_PROJECT_MAX_HISTORY + 5; index += 1) {

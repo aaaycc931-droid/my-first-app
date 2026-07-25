@@ -11,25 +11,33 @@ import type {
   ScoreDocumentEventV1,
 } from "./scoreDocument";
 
-export const LOCAL_SCORE_PROJECT_SCHEMA_VERSION =
+export const LOCAL_SCORE_PROJECT_LEGACY_SCHEMA_VERSION =
   "local-score-project-storage-v1" as const;
+export const LOCAL_SCORE_PROJECT_SCHEMA_VERSION =
+  "local-score-project-storage-v2" as const;
 export const LOCAL_SCORE_PROJECT_MAX_HISTORY = 50;
 export const LOCAL_SCORE_PROJECT_MAX_TITLE_LENGTH = 80;
+export const LOCAL_SCORE_PROJECT_DEFAULT_TEMPO_BPM = 90;
+export const LOCAL_SCORE_PROJECT_MIN_TEMPO_BPM = 30;
+export const LOCAL_SCORE_PROJECT_MAX_TEMPO_BPM = 240;
 
 export type LocalScoreProjectContentV1 = Readonly<
   Pick<LocalNotationProjectScoreDocumentV1, "meter" | "parts">
 >;
 
-export type LocalScoreProjectV1 = Readonly<{
+export type LocalScoreProjectV2 = Readonly<{
   schemaVersion: typeof LOCAL_SCORE_PROJECT_SCHEMA_VERSION;
   projectId: string;
   title: string;
+  tempoBpm: number;
   createdAt: string;
   updatedAt: string;
   document: LocalNotationProjectScoreDocumentV1;
   undoStack: readonly LocalScoreProjectContentV1[];
   redoStack: readonly LocalScoreProjectContentV1[];
 }>;
+
+export type LocalScoreProjectV1 = LocalScoreProjectV2;
 
 export class LocalScoreProjectConflictError extends Error {
   constructor() {
@@ -266,6 +274,7 @@ export const createLocalScoreProject = ({
     schemaVersion: LOCAL_SCORE_PROJECT_SCHEMA_VERSION,
     projectId,
     title: normalizeTitle(title),
+    tempoBpm: LOCAL_SCORE_PROJECT_DEFAULT_TEMPO_BPM,
     createdAt: now,
     updatedAt: now,
     document: createEmptyProjectDocument({ projectId }),
@@ -418,6 +427,41 @@ export const renameLocalScoreProject = ({
   return {
     ...project,
     title: normalizedTitle,
+    updatedAt: now,
+    document: createDocumentRevision({
+      project,
+      content: getLocalScoreProjectContent(project),
+    }),
+  };
+};
+
+export const changeLocalScoreProjectTempo = ({
+  project,
+  expectedRevision,
+  tempoBpm,
+  now,
+}: {
+  project: LocalScoreProjectV1;
+  expectedRevision: number;
+  tempoBpm: number;
+  now: string;
+}): LocalScoreProjectV1 => {
+  assertExpectedRevision(project, expectedRevision);
+  assertMutationTimestamp(project, now);
+  if (
+    !Number.isSafeInteger(tempoBpm)
+    || tempoBpm < LOCAL_SCORE_PROJECT_MIN_TEMPO_BPM
+    || tempoBpm > LOCAL_SCORE_PROJECT_MAX_TEMPO_BPM
+  ) {
+    throw new LocalScoreProjectDomainError(
+      "invalid-input",
+      `速度必须是 ${LOCAL_SCORE_PROJECT_MIN_TEMPO_BPM}–${LOCAL_SCORE_PROJECT_MAX_TEMPO_BPM} 之间的整数 BPM。`,
+    );
+  }
+  if (tempoBpm === project.tempoBpm) return project;
+  return {
+    ...project,
+    tempoBpm,
     updatedAt: now,
     document: createDocumentRevision({
       project,
@@ -814,7 +858,10 @@ export const parseLocalScoreProject = (
 ): LocalScoreProjectV1 | null => {
   if (
     !isRecord(value)
-    || value.schemaVersion !== LOCAL_SCORE_PROJECT_SCHEMA_VERSION
+    || (
+      value.schemaVersion !== LOCAL_SCORE_PROJECT_SCHEMA_VERSION
+      && value.schemaVersion !== LOCAL_SCORE_PROJECT_LEGACY_SCHEMA_VERSION
+    )
     || !isValidId(value.projectId)
     || typeof value.title !== "string"
     || value.title.length === 0
@@ -830,7 +877,19 @@ export const parseLocalScoreProject = (
     || value.redoStack.length > LOCAL_SCORE_PROJECT_MAX_HISTORY
     || !value.redoStack.every(isLocalScoreProjectContent)
   ) return null;
-  return cloneLocalScoreProject(value as LocalScoreProjectV1);
+  const tempoBpm = value.schemaVersion === LOCAL_SCORE_PROJECT_LEGACY_SCHEMA_VERSION
+    ? LOCAL_SCORE_PROJECT_DEFAULT_TEMPO_BPM
+    : value.tempoBpm;
+  if (
+    !Number.isSafeInteger(tempoBpm)
+    || (tempoBpm as number) < LOCAL_SCORE_PROJECT_MIN_TEMPO_BPM
+    || (tempoBpm as number) > LOCAL_SCORE_PROJECT_MAX_TEMPO_BPM
+  ) return null;
+  return cloneLocalScoreProject({
+    ...value,
+    schemaVersion: LOCAL_SCORE_PROJECT_SCHEMA_VERSION,
+    tempoBpm,
+  } as LocalScoreProjectV1);
 };
 
 export const cloneLocalScoreProject = (
