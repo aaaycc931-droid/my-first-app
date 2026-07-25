@@ -5,9 +5,11 @@ import {
   LocalScoreProjectConflictError,
   LocalScoreProjectDomainError,
   addLocalScoreProjectEvent,
+  appendLocalScoreProjectMeasure,
   applyLocalScoreProjectContent,
   changeLocalScoreProjectMeter,
   createLocalScoreProject,
+  deleteEmptyLocalScoreProjectMeasure,
   deleteLocalScoreProjectEvent,
   deserializeLocalScoreProject,
   getLocalScoreProjectContent,
@@ -303,6 +305,150 @@ assert.throws(
     error instanceof LocalScoreProjectDomainError
     && error.code === "not-found",
 );
+
+const appendedMeasure = appendLocalScoreProjectMeasure({
+  project,
+  expectedRevision: 1,
+  partId: "part-1",
+  staffId: "staff-1",
+  voiceId: "voice-1",
+  now: "2026-07-24T00:00:01.000Z",
+});
+assert.equal(appendedMeasure.document.revision, 2);
+assert.deepEqual(
+  appendedMeasure.document.parts[0].staves[0].voices[0].measures.map(
+    (measure) => measure.measureNumber,
+  ),
+  [1, 2],
+);
+assert.equal(appendedMeasure.undoStack.length, 1);
+assert.throws(
+  () => appendLocalScoreProjectMeasure({
+    project: appendedMeasure,
+    expectedRevision: 1,
+    partId: "part-1",
+    staffId: "staff-1",
+    voiceId: "voice-1",
+    now: "2026-07-24T00:00:02.000Z",
+  }),
+  LocalScoreProjectConflictError,
+);
+
+const appendedThirdMeasure = appendLocalScoreProjectMeasure({
+  project: appendedMeasure,
+  expectedRevision: 2,
+  partId: "part-1",
+  staffId: "staff-1",
+  voiceId: "voice-1",
+  now: "2026-07-24T00:00:02.000Z",
+});
+const appendedMeasureNumbers =
+  appendedThirdMeasure.document.parts[0].staves[0].voices[0].measures.map(
+    (measure) => measure.measureNumber,
+  );
+assert.deepEqual(appendedMeasureNumbers, [1, 2, 3]);
+assert.equal(
+  new Set(appendedMeasureNumbers).size,
+  appendedMeasureNumbers.length,
+  "追加小节必须保持编号唯一且连续，不得产生重复或 gap",
+);
+
+const deletedEmptyMeasure = deleteEmptyLocalScoreProjectMeasure({
+  project: appendedThirdMeasure,
+  expectedRevision: 3,
+  partId: "part-1",
+  staffId: "staff-1",
+  voiceId: "voice-1",
+  now: "2026-07-24T00:00:03.000Z",
+});
+assert.equal(deletedEmptyMeasure.document.revision, 4);
+assert.deepEqual(
+  deletedEmptyMeasure.document.parts[0].staves[0].voices[0].measures.map(
+    (measure) => measure.measureNumber,
+  ),
+  [1, 2],
+);
+assert.throws(
+  () => deleteEmptyLocalScoreProjectMeasure({
+    project: appendedThirdMeasure,
+    expectedRevision: 2,
+    partId: "part-1",
+    staffId: "staff-1",
+    voiceId: "voice-1",
+    now: "2026-07-24T00:00:03.000Z",
+  }),
+  LocalScoreProjectConflictError,
+);
+assert.throws(
+  () => deleteEmptyLocalScoreProjectMeasure({
+    project,
+    expectedRevision: 1,
+    partId: "part-1",
+    staffId: "staff-1",
+    voiceId: "voice-1",
+    now: "2026-07-24T00:00:01.000Z",
+  }),
+  (error) =>
+    error instanceof LocalScoreProjectDomainError
+    && error.code === "would-empty",
+);
+
+const secondMeasureLocation = {
+  partId: "part-1",
+  staffId: "staff-1",
+  voiceId: "voice-1",
+  measureNumber: 2,
+};
+const nonEmptyLastMeasure = addLocalScoreProjectEvent({
+  project: appendedMeasure,
+  expectedRevision: 2,
+  location: secondMeasureLocation,
+  eventId: "measure-2-note",
+  input: { type: "note", pitch: "G4", duration: "quarter" },
+  now: "2026-07-24T00:00:02.000Z",
+});
+assert.throws(
+  () => deleteEmptyLocalScoreProjectMeasure({
+    project: nonEmptyLastMeasure,
+    expectedRevision: 3,
+    partId: "part-1",
+    staffId: "staff-1",
+    voiceId: "voice-1",
+    now: "2026-07-24T00:00:03.000Z",
+  }),
+  (error) =>
+    error instanceof LocalScoreProjectDomainError
+    && error.code === "not-empty",
+);
+
+const undoneMeasureDelete = undoLocalScoreProject({
+  project: deletedEmptyMeasure,
+  expectedRevision: 4,
+  now: "2026-07-24T00:00:04.000Z",
+});
+assert.equal(undoneMeasureDelete.document.revision, 5);
+assert.deepEqual(
+  undoneMeasureDelete.document.parts[0].staves[0].voices[0].measures.map(
+    (measure) => measure.measureNumber,
+  ),
+  [1, 2, 3],
+);
+const redoneMeasureDelete = redoLocalScoreProject({
+  project: undoneMeasureDelete,
+  expectedRevision: 5,
+  now: "2026-07-24T00:00:05.000Z",
+});
+assert.equal(redoneMeasureDelete.document.revision, 6);
+assert.deepEqual(
+  redoneMeasureDelete.document.parts[0].staves[0].voices[0].measures.map(
+    (measure) => measure.measureNumber,
+  ),
+  [1, 2],
+);
+const reopenedMeasureProject = deserializeLocalScoreProject(
+  serializeLocalScoreProject(redoneMeasureDelete),
+);
+assert.deepEqual(reopenedMeasureProject, redoneMeasureDelete);
 
 const meterChanged = changeLocalScoreProjectMeter({
   project,
