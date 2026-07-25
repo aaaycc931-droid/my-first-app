@@ -8,7 +8,10 @@ import {
   type LocalScoreProjectV1,
 } from "../../lib/music/localScoreProject";
 import { LocalScoreProjectPanel } from "./LocalScoreProjectPanel";
-import type { LocalScoreProjectStore } from "./runtime/localScoreProjectStorage";
+import {
+  LocalScoreProjectStorageError,
+  type LocalScoreProjectStore,
+} from "./runtime/localScoreProjectStorage";
 
 class MemoryProjectStore implements LocalScoreProjectStore {
   readonly values = new Map<string, LocalScoreProjectV1>();
@@ -233,6 +236,49 @@ describe("S1 本机谱项目面板", () => {
       "显示并发冲突",
     );
     expect(container.textContent).not.toContain("C4 · 四分音符");
+  });
+
+  it("容量或 IndexedDB quota 失败时显示明确原因并允许恢复后重试", async () => {
+    const store = new MemoryProjectStore();
+    const container = await renderPanel(store);
+
+    expect(container.textContent).toContain("最多 50 个项目、合计 5 MiB");
+    await click(findButton(container, "创建并保存"));
+    await waitFor(
+      () => container.textContent?.includes("第一声部预览") ?? false,
+      "进入已保存项目",
+    );
+
+    store.failNextPut = new LocalScoreProjectStorageError(
+      "capacity",
+      "本次保存会超过应用设定的本机谱项目容量上限，未写入修改；原有项目保持不变。",
+    );
+    await click(findButton(container, "添加到第 1 小节并保存"));
+    await waitFor(
+      () => container.textContent?.includes("应用设定的本机谱项目容量上限")
+        ?? false,
+      "显示应用容量限制",
+    );
+    expect(container.textContent).not.toContain("C4 · 四分音符");
+
+    store.failNextPut = new LocalScoreProjectStorageError(
+      "quota",
+      "浏览器或 Android WebView 分配给 IndexedDB 的空间不足，乐谱项目未保存。",
+    );
+    await click(findButton(container, "添加到第 1 小节并保存"));
+    await waitFor(
+      () => container.textContent?.includes("浏览器或 Android WebView")
+        ?? false,
+      "显示 IndexedDB quota",
+    );
+    expect(container.textContent).not.toContain("C4 · 四分音符");
+
+    await click(findButton(container, "添加到第 1 小节并保存"));
+    await waitFor(
+      () => container.textContent?.includes("C4 · 四分音符") ?? false,
+      "恢复条件后重试成功",
+    );
+    expect(Array.from(store.values.values())[0]?.document.revision).toBe(2);
   });
 
   it("追加第二小节、选择并更新事件，且仅允许删除末尾空小节", async () => {
