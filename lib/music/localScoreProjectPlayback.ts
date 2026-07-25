@@ -1,7 +1,12 @@
 import { noteNameToMidi } from "../audio/noteFrequency";
 import type { NotationDuration } from "../practice/localNotationFragmentDraft";
 import { isLocalScoreProjectContent } from "./localScoreProject";
-import type { LocalNotationProjectScoreDocumentV1 } from "./scoreDocument";
+import type {
+  LocalNotationProjectScoreDocumentV1,
+  LocalNotationProjectScoreDocumentV2,
+  LocalScoreProjectEventV2,
+  ScoreDocumentEventV1,
+} from "./scoreDocument";
 
 export const LOCAL_SCORE_PROJECT_PLAYBACK_MIN_BPM = 30;
 export const LOCAL_SCORE_PROJECT_PLAYBACK_MAX_BPM = 240;
@@ -56,7 +61,13 @@ export type LocalScoreProjectPlaybackPlan =
     reason: string;
   }>;
 
-type ScoreVoice = LocalNotationProjectScoreDocumentV1["parts"][number]["staves"][number]["voices"][number];
+type PlaybackDocument =
+  | LocalNotationProjectScoreDocumentV1
+  | LocalNotationProjectScoreDocumentV2;
+
+type PlaybackEvent = ScoreDocumentEventV1 | LocalScoreProjectEventV2;
+
+type ScoreVoice = PlaybackDocument["parts"][number]["staves"][number]["voices"][number];
 
 type LocatedVoice = Readonly<{
   partId: string;
@@ -91,11 +102,57 @@ const getDocumentIdentity = (document: unknown) => {
   };
 };
 
+const isLegacyPlaybackContent = (document: Record<string, unknown>): boolean => {
+  if (!Array.isArray(document.parts)) return false;
+  const parts = document.parts.map((part) => {
+    if (!isRecord(part) || !Array.isArray(part.staves)) return null;
+    const staves = part.staves.map((staff) => {
+      if (!isRecord(staff) || !Array.isArray(staff.voices)) return null;
+      const voices = staff.voices.map((voice) => {
+        if (!isRecord(voice) || !Array.isArray(voice.measures)) return null;
+        const measures = voice.measures.map((measure) => {
+          if (!isRecord(measure) || !Array.isArray(measure.events)) return null;
+          const events = measure.events.map((event) => {
+            if (!isRecord(event)) return null;
+            return event.type === "note"
+              ? {
+                ...event,
+                augmentationDots: 0,
+                tieToNext: false,
+                lyric: null,
+              }
+              : {
+                ...event,
+                augmentationDots: 0,
+              };
+          });
+          if (events.some((event) => event === null)) return null;
+          return { ...measure, events };
+        });
+        if (measures.some((measure) => measure === null)) return null;
+        return { ...voice, measures };
+      });
+      if (voices.some((voice) => voice === null)) return null;
+      return { ...staff, voices };
+    });
+    if (staves.some((staff) => staff === null)) return null;
+    return { ...part, staves };
+  });
+  return !parts.some((part) => part === null)
+    && isLocalScoreProjectContent({
+      meter: document.meter,
+      parts,
+    });
+};
+
 const isPlaybackDocument = (
   document: unknown,
-): document is LocalNotationProjectScoreDocumentV1 =>
+): document is PlaybackDocument =>
   isRecord(document)
-  && document.schemaVersion === "score-document-v1"
+  && (
+    document.schemaVersion === "score-document-v1"
+    || document.schemaVersion === "score-document-v2"
+  )
   && document.documentKind === "notation-project"
   && typeof document.documentId === "string"
   && document.documentId.length > 0
@@ -108,13 +165,19 @@ const isPlaybackDocument = (
   && document.source.kind === "local-score-project"
   && typeof document.source.projectId === "string"
   && document.source.projectId.length > 0
-  && isLocalScoreProjectContent(document);
+  && (
+    (
+      document.schemaVersion === "score-document-v1"
+      && isLegacyPlaybackContent(document)
+    )
+    || isLocalScoreProjectContent(document)
+  );
 
-const meterBeats = (meter: LocalNotationProjectScoreDocumentV1["meter"]): number =>
+const meterBeats = (meter: PlaybackDocument["meter"]): number =>
   Number(meter.split("/")[0]);
 
 const locateVoices = (
-  document: LocalNotationProjectScoreDocumentV1,
+  document: PlaybackDocument,
 ): readonly LocatedVoice[] =>
   document.parts.flatMap((part) =>
     part.staves.flatMap((staff) =>
@@ -132,7 +195,7 @@ const pointerIdFor = ({
   eventId,
   measureNumber,
 }: {
-  document: LocalNotationProjectScoreDocumentV1;
+  document: PlaybackDocument;
   locatedVoice: LocatedVoice;
   eventId: string;
   measureNumber: number;
@@ -146,6 +209,22 @@ const pointerIdFor = ({
   `m${measureNumber}`,
   eventId,
 ].map(encodeURIComponent).join(":");
+
+const durationBeatsFor = (event: PlaybackEvent): number =>
+  DURATION_BEATS[event.duration]
+  * ("augmentationDots" in event && event.augmentationDots === 1 ? 1.5 : 1);
+
+const tiesToNext = (event: PlaybackEvent): boolean =>
+  event.type === "note"
+  && "tieToNext" in event
+  && event.tieToNext === true;
+
+type TimedVoiceEvent = Readonly<{
+  event: PlaybackEvent;
+  measureNumber: number;
+  onsetBeat: number;
+  endBeat: number;
+}>;
 
 export const createLocalScoreProjectPlaybackPlan = ({
   document,
@@ -195,13 +274,14 @@ export const createLocalScoreProjectPlaybackPlan = ({
   let totalBeats = 0;
 
   for (const locatedVoice of selectedVoices) {
+    const timedVoiceEvents: TimedVoiceEvent[] = [];
     for (const measure of locatedVoice.voice.measures) {
       const measureStartBeat = (measure.measureNumber - 1) * beatsPerMeasure;
       let cursorBeat = 0;
       sourceEventCount += measure.events.length;
 
       for (const event of measure.events) {
-        const durationBeats = DURATION_BEATS[event.duration];
+        const durationBeats = durationBeatsFor(event);
         if (cursorBeat + durationBeats > beatsPerMeasure) {
           return blocked(
             `声部 ${locatedVoice.voice.voiceId} 的第 ${measure.measureNumber} 小节超过 ${document.meter} 拍号容量。`,
@@ -219,31 +299,12 @@ export const createLocalScoreProjectPlaybackPlan = ({
           endMs: (onsetBeat + durationBeats) * beatMs,
         });
 
-        if (event.type === "note") {
-          const midi = event.pitch === null ? null : noteNameToMidi(event.pitch);
-          if (midi === null || midi < 21 || midi > 108) {
-            return blocked(`事件 ${event.id} 的音高不在本地钢琴 A0–C8 范围内。`);
-          }
-          const pointerId = pointerIdFor({
-            document,
-            locatedVoice,
-            eventId: event.id,
-            measureNumber: measure.measureNumber,
-          });
-          noteEvents.push({
-            type: "note-on",
-            delayMs: onsetBeat * beatMs,
-            midi,
-            pointerId,
-            sourceEventId: event.id,
-          }, {
-            type: "note-off",
-            delayMs: (onsetBeat + durationBeats * LOCAL_SCORE_PROJECT_PLAYBACK_GATE) * beatMs,
-            midi,
-            pointerId,
-            sourceEventId: event.id,
-          });
-        }
+        timedVoiceEvents.push({
+          event,
+          measureNumber: measure.measureNumber,
+          onsetBeat,
+          endBeat: onsetBeat + durationBeats,
+        });
         cursorBeat += durationBeats;
       }
 
@@ -253,6 +314,58 @@ export const createLocalScoreProjectPlaybackPlan = ({
           `声部 ${locatedVoice.voice.voiceId} 的第 ${measure.measureNumber} 小节未填满 ${document.meter}。`,
         );
       }
+    }
+
+    for (let index = 0; index < timedVoiceEvents.length; index += 1) {
+      const first = timedVoiceEvents[index];
+      if (first.event.type !== "note") continue;
+      const midi = first.event.pitch === null
+        ? null
+        : noteNameToMidi(first.event.pitch);
+      if (midi === null || midi < 21 || midi > 108) {
+        return blocked(`事件 ${first.event.id} 的音高不在本地钢琴 A0–C8 范围内。`);
+      }
+
+      let last = first;
+      while (tiesToNext(last.event)) {
+        const next = timedVoiceEvents[index + 1];
+        if (
+          !next
+          || next.event.type !== "note"
+          || next.event.pitch !== first.event.pitch
+          || next.onsetBeat !== last.endBeat
+        ) {
+          return blocked(
+            `事件 ${last.event.id} 的延音线未连接同一声部中相邻、同音高且时值连续的音符。`,
+          );
+        }
+        index += 1;
+        last = next;
+      }
+
+      const pointerId = pointerIdFor({
+        document,
+        locatedVoice,
+        eventId: first.event.id,
+        measureNumber: first.measureNumber,
+      });
+      const finalDurationBeats = last.endBeat - last.onsetBeat;
+      noteEvents.push({
+        type: "note-on",
+        delayMs: first.onsetBeat * beatMs,
+        midi,
+        pointerId,
+        sourceEventId: first.event.id,
+      }, {
+        type: "note-off",
+        delayMs: (
+          last.onsetBeat
+          + finalDurationBeats * LOCAL_SCORE_PROJECT_PLAYBACK_GATE
+        ) * beatMs,
+        midi,
+        pointerId,
+        sourceEventId: first.event.id,
+      });
     }
   }
 

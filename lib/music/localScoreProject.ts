@@ -8,36 +8,45 @@ import {
 } from "../practice/localNotationFragmentDraft";
 import type {
   LocalNotationProjectScoreDocumentV1,
-  ScoreDocumentEventV1,
+  LocalNotationProjectScoreDocumentV2,
+  LocalScoreProjectAugmentationDots,
+  LocalScoreProjectEventV2,
 } from "./scoreDocument";
 
 export const LOCAL_SCORE_PROJECT_LEGACY_SCHEMA_VERSION =
   "local-score-project-storage-v1" as const;
-export const LOCAL_SCORE_PROJECT_SCHEMA_VERSION =
+export const LOCAL_SCORE_PROJECT_PREVIOUS_SCHEMA_VERSION =
   "local-score-project-storage-v2" as const;
+export const LOCAL_SCORE_PROJECT_SCHEMA_VERSION =
+  "local-score-project-storage-v3" as const;
 export const LOCAL_SCORE_PROJECT_MAX_HISTORY = 50;
 export const LOCAL_SCORE_PROJECT_MAX_TITLE_LENGTH = 80;
 export const LOCAL_SCORE_PROJECT_DEFAULT_TEMPO_BPM = 90;
 export const LOCAL_SCORE_PROJECT_MIN_TEMPO_BPM = 30;
 export const LOCAL_SCORE_PROJECT_MAX_TEMPO_BPM = 240;
+export const LOCAL_SCORE_PROJECT_MAX_LYRIC_CODE_POINTS = 80;
+export const LOCAL_SCORE_PROJECT_COPY_TIE_NOTICE =
+  "单个事件复制不包含跨事件延音线；附点和歌词已保留，延音线已清除。" as const;
 
 export type LocalScoreProjectContentV1 = Readonly<
-  Pick<LocalNotationProjectScoreDocumentV1, "meter" | "parts">
+  Pick<LocalNotationProjectScoreDocumentV2, "meter" | "parts">
 >;
 
-export type LocalScoreProjectV2 = Readonly<{
+export type LocalScoreProjectV3 = Readonly<{
   schemaVersion: typeof LOCAL_SCORE_PROJECT_SCHEMA_VERSION;
   projectId: string;
   title: string;
   tempoBpm: number;
   createdAt: string;
   updatedAt: string;
-  document: LocalNotationProjectScoreDocumentV1;
+  document: LocalNotationProjectScoreDocumentV2;
   undoStack: readonly LocalScoreProjectContentV1[];
   redoStack: readonly LocalScoreProjectContentV1[];
 }>;
 
-export type LocalScoreProjectV1 = LocalScoreProjectV2;
+/** 兼容既有调用方名称；运行时值始终为 storage-v3。 */
+export type LocalScoreProjectV1 = LocalScoreProjectV3;
+export type LocalScoreProjectV2 = LocalScoreProjectV3;
 
 export class LocalScoreProjectConflictError extends Error {
   constructor() {
@@ -53,7 +62,8 @@ export type LocalScoreProjectDomainErrorCode =
   | "measure-capacity"
   | "not-found"
   | "not-empty"
-  | "would-empty";
+  | "would-empty"
+  | "tie-integrity";
 
 export class LocalScoreProjectDomainError extends Error {
   constructor(
@@ -76,6 +86,9 @@ export type LocalScoreProjectEventInput = Readonly<{
   type: "note" | "rest";
   pitch: NotationPitch | null;
   duration: NotationDuration;
+  augmentationDots?: LocalScoreProjectAugmentationDots;
+  tieToNext?: boolean;
+  lyric?: string | null;
 }>;
 
 export type LocalScoreProjectVoiceLocation = Readonly<{
@@ -97,7 +110,15 @@ const isValidIsoDate = (value: unknown): value is string => {
     && new Date(timestamp).toISOString() === value;
 };
 
-const cloneEvent = (event: ScoreDocumentEventV1): ScoreDocumentEventV1 => ({
+const containsControlCharacter = (value: string) =>
+  Array.from(value).some((character) => {
+    const codePoint = character.codePointAt(0) ?? 0;
+    return codePoint <= 0x1f || (codePoint >= 0x7f && codePoint <= 0x9f);
+  });
+
+const cloneEvent = (
+  event: LocalScoreProjectEventV2,
+): LocalScoreProjectEventV2 => ({
   ...event,
 });
 
@@ -133,21 +154,68 @@ const hasUniqueIds = (values: readonly string[]) =>
 const isValidScoreEvent = (
   value: unknown,
   measureNumber: number,
-): value is ScoreDocumentEventV1 => {
+): value is LocalScoreProjectEventV2 => {
   if (!isRecord(value) || !isValidId(value.id)) return false;
   if (
     value.type !== "note"
     && value.type !== "rest"
   ) return false;
   if (!isAllowedDuration(value.duration)) return false;
+  if (value.augmentationDots !== 0 && value.augmentationDots !== 1) {
+    return false;
+  }
   if (value.type === "note" && !isAllowedPitch(value.pitch)) return false;
   if (value.type === "rest" && value.pitch !== null) return false;
+  if (
+    value.type === "note"
+    && (
+      typeof value.tieToNext !== "boolean"
+      || (
+        value.lyric !== null
+        && (
+          typeof value.lyric !== "string"
+          || value.lyric.length === 0
+          || Array.from(value.lyric).length > LOCAL_SCORE_PROJECT_MAX_LYRIC_CODE_POINTS
+          || containsControlCharacter(value.lyric)
+        )
+      )
+    )
+  ) return false;
+  if (
+    value.type === "rest"
+    && ("tieToNext" in value || "lyric" in value)
+  ) return false;
   if (
     !Number.isSafeInteger(value.measure)
     || (value.measure as number) < 1
     || value.measure !== measureNumber
   ) return false;
   return value.type !== "rest" || value.duration === "quarter";
+};
+
+const hasValidTies = (content: LocalScoreProjectContentV1) =>
+  content.parts.every((part) => part.staves.every((staff) =>
+    staff.voices.every((voice) => {
+      const events = voice.measures.flatMap((measure) => measure.events);
+      return events.every((event, index) => {
+        if (event.type !== "note" || !event.tieToNext) return true;
+        const next = events[index + 1];
+        return next?.type === "note"
+          && next.pitch === event.pitch
+          && (
+            next.measure === event.measure
+            || next.measure === event.measure + 1
+          );
+      });
+    })));
+
+const assertValidTies = (content: LocalScoreProjectContentV1) => {
+  if (!hasValidTies(content)) {
+    throw new LocalScoreProjectDomainError(
+      "tie-integrity",
+      "延音线必须连接同一声部中相邻、同音高的音符，且最多跨越相邻小节；未执行修改，已保存谱面保持不变。",
+    );
+  }
 };
 
 export const isLocalScoreProjectContent = (
@@ -230,8 +298,8 @@ const createEmptyProjectDocument = ({
   projectId,
 }: {
   projectId: string;
-}): LocalNotationProjectScoreDocumentV1 => ({
-  schemaVersion: "score-document-v1",
+}): LocalNotationProjectScoreDocumentV2 => ({
+  schemaVersion: "score-document-v2",
   documentKind: "notation-project",
   documentId: `local.score-project.${projectId}`,
   revision: 1,
@@ -290,7 +358,7 @@ const createDocumentRevision = ({
 }: {
   project: LocalScoreProjectV1;
   content: LocalScoreProjectContentV1;
-}): LocalNotationProjectScoreDocumentV1 => ({
+}): LocalNotationProjectScoreDocumentV2 => ({
   ...project.document,
   revision: project.document.revision + 1,
   ...cloneLocalScoreProjectContent(content),
@@ -347,6 +415,7 @@ export const applyLocalScoreProjectContent = ({
   if (!isLocalScoreProjectContent(content)) {
     throw new Error("乐谱内容无效，未保存本次修改。");
   }
+  assertValidTies(content);
   const previousContent = getLocalScoreProjectContent(project);
   if (contentFingerprint(previousContent) === contentFingerprint(content)) {
     return project;
@@ -479,14 +548,41 @@ const normalizeProjectEvent = ({
   eventId: string;
   location: LocalScoreProjectEventLocation;
   input: LocalScoreProjectEventInput;
-}): ScoreDocumentEventV1 => {
-  const event = {
-    id: eventId,
-    type: input.type,
-    pitch: input.type === "note" ? input.pitch : null,
-    duration: input.duration,
-    measure: location.measureNumber,
-  } as const;
+}): LocalScoreProjectEventV2 => {
+  const augmentationDots = input.augmentationDots ?? 0;
+  const normalizedLyric = input.lyric?.trim() || null;
+  if (
+    input.type === "note"
+    && normalizedLyric !== null
+    && (
+      Array.from(normalizedLyric).length > LOCAL_SCORE_PROJECT_MAX_LYRIC_CODE_POINTS
+      || containsControlCharacter(normalizedLyric)
+    )
+  ) {
+    throw new LocalScoreProjectDomainError(
+      "invalid-input",
+      `歌词不能包含控制字符，且最多 ${LOCAL_SCORE_PROJECT_MAX_LYRIC_CODE_POINTS} 个字符；未执行修改。`,
+    );
+  }
+  const event: LocalScoreProjectEventV2 = input.type === "note"
+    ? {
+      id: eventId,
+      type: "note",
+      pitch: input.pitch as NotationPitch,
+      duration: input.duration,
+      measure: location.measureNumber,
+      augmentationDots,
+      tieToNext: input.tieToNext ?? false,
+      lyric: normalizedLyric,
+    }
+    : {
+      id: eventId,
+      type: "rest",
+      pitch: null,
+      duration: input.duration,
+      measure: location.measureNumber,
+      augmentationDots,
+    };
   if (!isValidScoreEvent(event, location.measureNumber)) {
     throw new LocalScoreProjectDomainError(
       "invalid-input",
@@ -500,6 +596,34 @@ const eventDurationBeats: Readonly<Record<NotationDuration, number>> = {
   half: 2,
   quarter: 1,
   eighth: 0.5,
+};
+
+export const getLocalScoreProjectEventDurationBeats = (
+  event: Pick<LocalScoreProjectEventV2, "duration" | "augmentationDots">,
+) =>
+  eventDurationBeats[event.duration]
+  * (event.augmentationDots === 1 ? 1.5 : 1);
+
+const assertAllMeasuresFitMeter = (
+  content: LocalScoreProjectContentV1,
+  meter: NotationTimeSignature,
+) => {
+  const capacity = Number(meter.split("/")[0]);
+  for (const part of content.parts) for (const staff of part.staves) {
+    for (const voice of staff.voices) for (const measure of voice.measures) {
+      const used = measure.events.reduce(
+        (total, event) =>
+          total + getLocalScoreProjectEventDurationBeats(event),
+        0,
+      );
+      if (used > capacity) {
+        throw new LocalScoreProjectDomainError(
+          "measure-capacity",
+          `改为 ${meter} 后第 ${measure.measureNumber} 小节会超过容量，未修改拍号；已保存谱面保持不变。`,
+        );
+      }
+    }
+  }
 };
 
 const sameEventLocation = (
@@ -518,18 +642,19 @@ const assertMeasureHasCapacity = ({
   measureNumber,
   action,
 }: {
-  events: readonly ScoreDocumentEventV1[];
-  event: ScoreDocumentEventV1;
+  events: readonly LocalScoreProjectEventV2[];
+  event: LocalScoreProjectEventV2;
   meter: NotationTimeSignature;
   measureNumber: number;
-  action: "移动" | "粘贴";
+  action: "添加" | "修改" | "移动" | "粘贴";
 }) => {
   const capacity = Number(meter.split("/")[0]);
   const used = events.reduce(
-    (total, existing) => total + eventDurationBeats[existing.duration],
+    (total, existing) =>
+      total + getLocalScoreProjectEventDurationBeats(existing),
     0,
   );
-  if (used + eventDurationBeats[event.duration] > capacity) {
+  if (used + getLocalScoreProjectEventDurationBeats(event) > capacity) {
     throw new LocalScoreProjectDomainError(
       "measure-capacity",
       `第 ${measureNumber} 小节剩余拍数不足，未${action}事件；已保存谱面保持不变。`,
@@ -545,8 +670,8 @@ const updateEventsAtLocation = ({
   content: LocalScoreProjectContentV1;
   location: LocalScoreProjectEventLocation;
   update: (
-    events: readonly ScoreDocumentEventV1[],
-  ) => readonly ScoreDocumentEventV1[];
+    events: readonly LocalScoreProjectEventV2[],
+  ) => readonly LocalScoreProjectEventV2[];
 }): LocalScoreProjectContentV1 => {
   let matched = 0;
   const parts = content.parts.map((part) => ({
@@ -761,7 +886,16 @@ export const addLocalScoreProjectEvent = ({
     content: updateEventsAtLocation({
       content,
       location,
-      update: (events) => [...events, event],
+      update: (events) => {
+        assertMeasureHasCapacity({
+          events,
+          event,
+          meter: content.meter,
+          measureNumber: location.measureNumber,
+          action: "添加",
+        });
+        return [...events, event];
+      },
     }),
     now,
   });
@@ -789,11 +923,20 @@ export const updateLocalScoreProjectEvent = ({
   const nextContent = updateEventsAtLocation({
     content,
     location,
-    update: (events) => events.map((existing) => {
-      if (existing.id !== eventId) return existing;
+    update: (events) => {
+      const existing = events.find((candidate) => candidate.id === eventId);
+      if (!existing) return events;
       found = true;
-      return event;
-    }),
+      assertMeasureHasCapacity({
+        events: events.filter((candidate) => candidate.id !== eventId),
+        event,
+        meter: content.meter,
+        measureNumber: location.measureNumber,
+        action: "修改",
+      });
+      return events.map((candidate) =>
+        candidate.id === eventId ? event : candidate);
+    },
   });
   if (!found) {
     throw new LocalScoreProjectDomainError(
@@ -807,6 +950,38 @@ export const updateLocalScoreProjectEvent = ({
     content: nextContent,
     now,
   });
+};
+
+const assertEventIsNotTieParticipant = (
+  content: LocalScoreProjectContentV1,
+  eventId: string,
+  action: "移动" | "删除",
+) => {
+  for (const part of content.parts) {
+    for (const staff of part.staves) {
+      for (const voice of staff.voices) {
+        const events = voice.measures.flatMap((measure) => measure.events);
+        const index = events.findIndex((event) => event.id === eventId);
+        const current = events[index];
+        const previous = events[index - 1];
+        if (
+          index >= 0
+          && (
+            (current?.type === "note" && current.tieToNext)
+            || (
+              previous?.type === "note"
+              && previous.tieToNext
+            )
+          )
+        ) {
+          throw new LocalScoreProjectDomainError(
+            "tie-integrity",
+            `该音符属于延音线连接，请先取消延音线再${action}；未执行修改，已保存谱面保持不变。`,
+          );
+        }
+      }
+    }
+  }
 };
 
 export const moveLocalScoreProjectEvent = ({
@@ -844,7 +1019,8 @@ export const moveLocalScoreProjectEvent = ({
   }
 
   const content = getLocalScoreProjectContent(project);
-  let movedEvent: ScoreDocumentEventV1 | undefined;
+  assertEventIsNotTieParticipant(content, eventId, "移动");
+  let movedEvent: LocalScoreProjectEventV2 | undefined;
   const withoutSource = updateEventsAtLocation({
     content,
     location: source,
@@ -865,7 +1041,7 @@ export const moveLocalScoreProjectEvent = ({
     );
   }
 
-  const movedToDestination: ScoreDocumentEventV1 = {
+  const movedToDestination: LocalScoreProjectEventV2 = {
     ...movedEvent,
     measure: destination.measureNumber,
   };
@@ -913,7 +1089,7 @@ export const copyLocalScoreProjectEvent = ({
   location: LocalScoreProjectEventLocation;
   eventId: string;
 }): LocalScoreProjectEventInput => {
-  let copied: ScoreDocumentEventV1 | undefined;
+  let copied: LocalScoreProjectEventV2 | undefined;
   updateEventsAtLocation({
     content: getLocalScoreProjectContent(project),
     location,
@@ -929,8 +1105,20 @@ export const copyLocalScoreProjectEvent = ({
     );
   }
   return copied.type === "rest"
-    ? { type: "rest", pitch: null, duration: "quarter" }
-    : { type: "note", pitch: copied.pitch, duration: copied.duration };
+    ? {
+      type: "rest",
+      pitch: null,
+      duration: "quarter",
+      augmentationDots: copied.augmentationDots,
+    }
+    : {
+      type: "note",
+      pitch: copied.pitch,
+      duration: copied.duration,
+      augmentationDots: copied.augmentationDots,
+      tieToNext: false,
+      lyric: copied.lyric,
+    };
 };
 
 export const pasteLocalScoreProjectEvent = ({
@@ -1022,6 +1210,7 @@ export const deleteLocalScoreProjectEvent = ({
 }) => {
   assertExpectedRevision(project, expectedRevision);
   const content = getLocalScoreProjectContent(project);
+  assertEventIsNotTieParticipant(content, eventId, "删除");
   let found = false;
   const nextContent = updateEventsAtLocation({
     content,
@@ -1064,6 +1253,7 @@ export const changeLocalScoreProjectMeter = ({
     );
   }
   const content = getLocalScoreProjectContent(project);
+  assertAllMeasuresFitMeter(content, meter);
   return applyLocalScoreProjectContent({
     project,
     expectedRevision,
@@ -1075,10 +1265,10 @@ export const changeLocalScoreProjectMeter = ({
 const isLocalNotationProjectDocument = (
   value: unknown,
   projectId: string,
-): value is LocalNotationProjectScoreDocumentV1 => {
+): value is LocalNotationProjectScoreDocumentV2 => {
   if (!isRecord(value)) return false;
   return (
-    value.schemaVersion === "score-document-v1"
+    value.schemaVersion === "score-document-v2"
     && value.documentKind === "notation-project"
     && value.documentId === `local.score-project.${projectId}`
     && Number.isSafeInteger(value.revision)
@@ -1090,7 +1280,146 @@ const isLocalNotationProjectDocument = (
     && value.source.kind === "local-score-project"
     && value.source.projectId === projectId
     && isLocalScoreProjectContent(value)
+    && hasValidTies(value)
   );
+};
+
+const migrateLegacyLocalScoreProjectContent = (
+  value: unknown,
+): LocalScoreProjectContentV1 | null => {
+  if (!isRecord(value) || !isAllowedTimeSignature(value.meter)) return null;
+  if (!Array.isArray(value.parts) || value.parts.length === 0) return null;
+  try {
+    const migrated: LocalScoreProjectContentV1 = {
+      meter: value.meter,
+      parts: value.parts.map((partValue) => {
+        if (!isRecord(partValue) || !isValidId(partValue.partId)
+          || !Array.isArray(partValue.staves) || partValue.staves.length === 0) {
+          throw new Error("invalid part");
+        }
+        return {
+          partId: partValue.partId,
+          staves: partValue.staves.map((staffValue) => {
+            if (
+              !isRecord(staffValue)
+              || !isValidId(staffValue.staffId)
+              || staffValue.staffKind !== "pitched"
+              || staffValue.clef !== "treble"
+              || !Array.isArray(staffValue.voices)
+              || staffValue.voices.length === 0
+            ) throw new Error("invalid staff");
+            return {
+              staffId: staffValue.staffId,
+              staffKind: "pitched" as const,
+              clef: "treble" as const,
+              voices: staffValue.voices.map((voiceValue) => {
+                if (
+                  !isRecord(voiceValue)
+                  || !isValidId(voiceValue.voiceId)
+                  || !Array.isArray(voiceValue.measures)
+                  || voiceValue.measures.length === 0
+                ) throw new Error("invalid voice");
+                return {
+                  voiceId: voiceValue.voiceId,
+                  measures: voiceValue.measures.map((measureValue) => {
+                    if (
+                      !isRecord(measureValue)
+                      || !Number.isSafeInteger(measureValue.measureNumber)
+                      || (measureValue.measureNumber as number) < 1
+                      || !Array.isArray(measureValue.events)
+                    ) throw new Error("invalid measure");
+                    const measureNumber = measureValue.measureNumber as number;
+                    return {
+                      measureNumber,
+                      events: measureValue.events.map((eventValue) => {
+                        if (
+                          !isRecord(eventValue)
+                          || !isValidId(eventValue.id)
+                          || (eventValue.type !== "note"
+                            && eventValue.type !== "rest")
+                          || !isAllowedDuration(eventValue.duration)
+                          || !Number.isSafeInteger(eventValue.measure)
+                          || eventValue.measure !== measureNumber
+                          || (
+                            eventValue.type === "note"
+                            && !isAllowedPitch(eventValue.pitch)
+                          )
+                          || (
+                            eventValue.type === "rest"
+                            && (
+                              eventValue.pitch !== null
+                              || eventValue.duration !== "quarter"
+                            )
+                          )
+                        ) throw new Error("invalid event");
+                        return eventValue.type === "note"
+                          ? {
+                            id: eventValue.id,
+                            type: "note" as const,
+                            pitch: eventValue.pitch as NotationPitch,
+                            duration: eventValue.duration,
+                            measure: measureNumber,
+                            augmentationDots: 0 as const,
+                            tieToNext: false,
+                            lyric: null,
+                          }
+                          : {
+                            id: eventValue.id,
+                            type: "rest" as const,
+                            pitch: null,
+                            duration: "quarter" as const,
+                            measure: measureNumber,
+                            augmentationDots: 0 as const,
+                          };
+                      }),
+                    };
+                  }),
+                };
+              }),
+            };
+          }),
+        };
+      }),
+    };
+    return isLocalScoreProjectContent(migrated) && hasValidTies(migrated)
+      ? migrated
+      : null;
+  } catch {
+    return null;
+  }
+};
+
+const migrateLegacyLocalNotationProjectDocument = (
+  value: unknown,
+  projectId: string,
+): LocalNotationProjectScoreDocumentV2 | null => {
+  if (
+    !isRecord(value)
+    || value.schemaVersion !== "score-document-v1"
+    || value.documentKind !== "notation-project"
+    || value.documentId !== `local.score-project.${projectId}`
+    || !Number.isSafeInteger(value.revision)
+    || (value.revision as number) < 1
+    || value.reviewState !== "draft"
+    || value.localOnly !== true
+    || value.sessionOnly !== false
+    || !isRecord(value.source)
+    || value.source.kind !== "local-score-project"
+    || value.source.projectId !== projectId
+  ) return null;
+  const content = migrateLegacyLocalScoreProjectContent(value);
+  if (!content) return null;
+  return {
+    schemaVersion: "score-document-v2",
+    documentKind: "notation-project",
+    documentId: value.documentId,
+    revision: value.revision as number,
+    reviewState: "draft",
+    localOnly: true,
+    sessionOnly: false,
+    source: { kind: "local-score-project", projectId },
+    ...content,
+  };
 };
 
 export const parseLocalScoreProject = (
@@ -1100,6 +1429,7 @@ export const parseLocalScoreProject = (
     !isRecord(value)
     || (
       value.schemaVersion !== LOCAL_SCORE_PROJECT_SCHEMA_VERSION
+      && value.schemaVersion !== LOCAL_SCORE_PROJECT_PREVIOUS_SCHEMA_VERSION
       && value.schemaVersion !== LOCAL_SCORE_PROJECT_LEGACY_SCHEMA_VERSION
     )
     || !isValidId(value.projectId)
@@ -1109,13 +1439,12 @@ export const parseLocalScoreProject = (
     || !isValidIsoDate(value.createdAt)
     || !isValidIsoDate(value.updatedAt)
     || Date.parse(value.updatedAt) < Date.parse(value.createdAt)
-    || !isLocalNotationProjectDocument(value.document, value.projectId)
-    || !Array.isArray(value.undoStack)
+  ) return null;
+  if (
+    !Array.isArray(value.undoStack)
     || value.undoStack.length > LOCAL_SCORE_PROJECT_MAX_HISTORY
-    || !value.undoStack.every(isLocalScoreProjectContent)
     || !Array.isArray(value.redoStack)
     || value.redoStack.length > LOCAL_SCORE_PROJECT_MAX_HISTORY
-    || !value.redoStack.every(isLocalScoreProjectContent)
   ) return null;
   const tempoBpm = value.schemaVersion === LOCAL_SCORE_PROJECT_LEGACY_SCHEMA_VERSION
     ? LOCAL_SCORE_PROJECT_DEFAULT_TEMPO_BPM
@@ -1125,11 +1454,41 @@ export const parseLocalScoreProject = (
     || (tempoBpm as number) < LOCAL_SCORE_PROJECT_MIN_TEMPO_BPM
     || (tempoBpm as number) > LOCAL_SCORE_PROJECT_MAX_TEMPO_BPM
   ) return null;
+  if (value.schemaVersion === LOCAL_SCORE_PROJECT_SCHEMA_VERSION) {
+    if (
+      !isLocalNotationProjectDocument(value.document, value.projectId)
+      || !value.undoStack.every((content) =>
+        isLocalScoreProjectContent(content) && hasValidTies(content))
+      || !value.redoStack.every((content) =>
+        isLocalScoreProjectContent(content) && hasValidTies(content))
+    ) return null;
+    return cloneLocalScoreProject({
+      ...value,
+      tempoBpm,
+    } as LocalScoreProjectV1);
+  }
+  const document = migrateLegacyLocalNotationProjectDocument(
+    value.document,
+    value.projectId,
+  );
+  const undoStack = value.undoStack.map(migrateLegacyLocalScoreProjectContent);
+  const redoStack = value.redoStack.map(migrateLegacyLocalScoreProjectContent);
+  if (
+    !document
+    || undoStack.some((content) => content === null)
+    || redoStack.some((content) => content === null)
+  ) return null;
   return cloneLocalScoreProject({
-    ...value,
     schemaVersion: LOCAL_SCORE_PROJECT_SCHEMA_VERSION,
-    tempoBpm,
-  } as LocalScoreProjectV1);
+    projectId: value.projectId,
+    title: value.title,
+    tempoBpm: tempoBpm as number,
+    createdAt: value.createdAt,
+    updatedAt: value.updatedAt,
+    document,
+    undoStack: undoStack as readonly LocalScoreProjectContentV1[],
+    redoStack: redoStack as readonly LocalScoreProjectContentV1[],
+  });
 };
 
 export const cloneLocalScoreProject = (

@@ -7,7 +7,9 @@ import { LocalScoreProjectStaffPreview } from "../../components/music/LocalScore
 import { useLocalScoreProjectPlayback } from "../../components/piano/useLocalScoreProjectPlayback";
 import type { LocalPianoAudioChannelFactory } from "../../components/piano/useLocalPianoAudio";
 import { stopAllBrowserAudio } from "../../lib/audio/browserAudioEngine";
-import type { LocalNotationProjectScoreDocumentV1 } from "../../lib/music/scoreDocument";
+import type {
+  LocalNotationProjectScoreDocumentV2,
+} from "../../lib/music/scoreDocument";
 import type {
   PianoVoiceHandle,
   PianoVoiceProvider,
@@ -64,8 +66,8 @@ const createAudioHarness = () => {
 
 const createDocument = (
   revision = 1,
-): LocalNotationProjectScoreDocumentV1 => ({
-  schemaVersion: "score-document-v1",
+): LocalNotationProjectScoreDocumentV2 => ({
+  schemaVersion: "score-document-v2",
   documentKind: "notation-project",
   documentId: "local.score-project.hook-test",
   revision,
@@ -93,18 +95,25 @@ const createDocument = (
             pitch: "C4",
             duration: "quarter",
             measure: 1,
+            augmentationDots: 0,
+            tieToNext: false,
+            lyric: null,
           }, {
             id: "rest",
             type: "rest",
             pitch: null,
             duration: "quarter",
             measure: 1,
+            augmentationDots: 0,
           }, {
             id: "d4",
             type: "note",
             pitch: "D4",
             duration: "half",
             measure: 1,
+            augmentationDots: 0,
+            tieToNext: false,
+            lyric: null,
           }],
         }],
       }],
@@ -112,13 +121,77 @@ const createDocument = (
   }],
 });
 
+const createTiedDocument = (): LocalNotationProjectScoreDocumentV2 => ({
+  schemaVersion: "score-document-v2",
+  documentKind: "notation-project",
+  documentId: "local.score-project.hook-tie-test",
+  revision: 1,
+  reviewState: "draft",
+  localOnly: true,
+  sessionOnly: false,
+  source: {
+    kind: "local-score-project",
+    projectId: "hook-tie-test",
+  },
+  meter: "4/4",
+  parts: [{
+    partId: "part-1",
+    staves: [{
+      staffId: "staff-1",
+      staffKind: "pitched",
+      clef: "treble",
+      voices: [{
+        voiceId: "voice-1",
+        measures: [{
+          measureNumber: 1,
+          events: [{
+            id: "tie-start",
+            type: "note",
+            pitch: "C4",
+            duration: "quarter",
+            measure: 1,
+            augmentationDots: 0,
+            tieToNext: true,
+            lyric: null,
+          }, {
+            id: "tie-end",
+            type: "note",
+            pitch: "C4",
+            duration: "quarter",
+            measure: 1,
+            augmentationDots: 0,
+            tieToNext: false,
+            lyric: null,
+          }, {
+            id: "rest-1",
+            type: "rest",
+            pitch: null,
+            duration: "quarter",
+            measure: 1,
+            augmentationDots: 0,
+          }, {
+            id: "rest-2",
+            type: "rest",
+            pitch: null,
+            duration: "quarter",
+            measure: 1,
+            augmentationDots: 0,
+          }],
+        }],
+      }],
+    }],
+  }],
+});
+
+type PlaybackDocument = LocalNotationProjectScoreDocumentV2;
+
 const PlaybackHarness = ({
   document,
   bpm,
   createAudioChannel,
   voiceProvider,
 }: {
-  document: LocalNotationProjectScoreDocumentV1;
+  document: PlaybackDocument;
   bpm: number;
   createAudioChannel: LocalPianoAudioChannelFactory;
   voiceProvider: PianoVoiceProvider;
@@ -181,7 +254,7 @@ const renderPlayback = async ({
   createAudioChannel,
   voiceProvider,
 }: {
-  document: LocalNotationProjectScoreDocumentV1;
+  document: PlaybackDocument;
   bpm?: number;
   createAudioChannel: LocalPianoAudioChannelFactory;
   voiceProvider: PianoVoiceProvider;
@@ -341,5 +414,39 @@ describe("本地乐谱项目播放 hook", () => {
     await advance(2_000);
     expect(audio.voices.map((voice) => voice.midi)).toEqual([60, 60]);
     expect(audio.channels.every((channel) => channel.stopped)).toBe(true);
+  });
+
+  it("延音线只触发一次发声，但光标仍按链内事件推进", async () => {
+    const audio = createAudioHarness();
+    await renderPlayback({
+      document: createTiedDocument(),
+      createAudioChannel: audio.createChannel,
+      voiceProvider: audio.voiceProvider,
+    });
+
+    await click("播放");
+    expect(audio.voices.map((voice) => voice.midi)).toEqual([60]);
+    expect(
+      container?.querySelector("[data-active-events]")?.textContent,
+    ).toBe("tie-start");
+
+    await advance(500);
+    expect(audio.voices.map((voice) => voice.midi)).toEqual([60]);
+    expect(audio.voices[0]?.release).not.toHaveBeenCalled();
+    expect(
+      container?.querySelector("[data-active-events]")?.textContent,
+    ).toBe("tie-end");
+
+    await advance(440);
+    expect(audio.voices[0]?.release).toHaveBeenCalledTimes(1);
+    expect(
+      container?.querySelector("[data-active-events]")?.textContent,
+    ).toBe("tie-end");
+
+    await advance(60);
+    expect(
+      container?.querySelector("[data-active-events]")?.textContent,
+    ).toBe("rest-1");
+    expect(audio.voices).toHaveLength(1);
   });
 });

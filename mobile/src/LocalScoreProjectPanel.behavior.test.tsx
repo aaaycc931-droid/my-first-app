@@ -572,4 +572,72 @@ describe("S1 本机谱项目面板", () => {
     );
     expect(findButton(container, "尚未复制事件").disabled).toBe(true);
   });
+
+  it("附点、延音线和歌词只在保存成功后发布，非法破坏延音关系会保留原谱", async () => {
+    const store = new MemoryProjectStore();
+    const container = await renderPanel(store);
+    await click(findButton(container, "创建并保存"));
+    await click(findButton(container, "添加到第 1 小节并保存"));
+    await click(findButton(container, "添加到第 1 小节并保存"));
+    await waitFor(
+      () => container.querySelectorAll("button").length > 0
+        && (container.textContent?.match(/C4 · 四分音符/g)?.length ?? 0) === 2,
+      "保存两个相邻同音",
+    );
+
+    const editButtons = Array.from(container.querySelectorAll("button"))
+      .filter((button) => button.textContent?.trim() === "编辑");
+    if (!editButtons[0]) throw new Error("找不到第一个事件编辑按钮");
+    await click(editButtons[0]);
+    await click(findInput(container, "一个附点"));
+    await click(findInput(container, "延音到下一个同音"));
+    await change(findInput(container, "歌词"), "啦");
+
+    store.failNextPut = new LocalScoreProjectStorageError(
+      "write-failed",
+      "本机存储写入失败，乐谱项目未保存；原有项目保持不变。请恢复存储条件后重试。",
+    );
+    await click(findButton(container, "更新所选事件并保存"));
+    await waitFor(
+      () => container.textContent?.includes("本机存储写入失败") ?? false,
+      "扩展记谱保存失败",
+    );
+    let firstEvent = Array.from(store.values.values())[0]
+      ?.document.parts[0]?.staves[0]?.voices[0]?.measures[0]?.events[0];
+    expect(firstEvent?.augmentationDots).toBe(0);
+    expect(firstEvent?.type === "note" && firstEvent.tieToNext).toBe(false);
+    expect(firstEvent?.type === "note" && firstEvent.lyric).toBe(null);
+    expect(container.textContent).not.toContain("歌词：啦");
+
+    await click(findButton(container, "更新所选事件并保存"));
+    await waitFor(
+      () => container.textContent?.includes("歌词：啦") ?? false,
+      "恢复后保存附点延音和歌词",
+    );
+    firstEvent = Array.from(store.values.values())[0]
+      ?.document.parts[0]?.staves[0]?.voices[0]?.measures[0]?.events[0];
+    expect(firstEvent?.augmentationDots).toBe(1);
+    expect(firstEvent?.type === "note" && firstEvent.tieToNext).toBe(true);
+    expect(firstEvent?.type === "note" && firstEvent.lyric).toBe("啦");
+
+    await click(findButton(container, "复制所选事件"));
+    expect(container.textContent).toContain("单事件复制不包含跨事件延音关系");
+
+    const refreshedEditButtons = Array.from(container.querySelectorAll("button"))
+      .filter((button) => button.textContent?.trim() === "编辑");
+    if (!refreshedEditButtons[1]) throw new Error("找不到第二个事件编辑按钮");
+    await click(refreshedEditButtons[1]);
+    await change(findSelect(container, "音高"), "G4");
+    await click(findButton(container, "更新所选事件并保存"));
+    await waitFor(
+      () => container.textContent?.includes("延音") ?? false,
+      "显示延音关系拒绝原因",
+    );
+    const storedEvents = Array.from(store.values.values())[0]
+      ?.document.parts[0]?.staves[0]?.voices[0]?.measures[0]?.events;
+    expect(storedEvents?.[0]?.type === "note" && storedEvents[0].tieToNext)
+      .toBe(true);
+    expect(storedEvents?.[1]?.type === "note" && storedEvents[1].pitch)
+      .toBe("C4");
+  });
 });

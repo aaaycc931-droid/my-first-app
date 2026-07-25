@@ -219,6 +219,9 @@ export function LocalScoreProjectPanel({
   const [eventType, setEventType] = useState<EditorEventType>("note");
   const [pitch, setPitch] = useState<NotationPitch>("C4");
   const [duration, setDuration] = useState<NotationDuration>("quarter");
+  const [augmentationDots, setAugmentationDots] = useState<0 | 1>(0);
+  const [tieToNext, setTieToNext] = useState(false);
+  const [lyric, setLyric] = useState("");
   const [targetMeasureNumber, setTargetMeasureNumber] = useState(1);
   const [selectedEvent, setSelectedEvent] =
     useState<LocalScoreProjectStaffSelection | null>(null);
@@ -387,8 +390,20 @@ export function LocalScoreProjectPanel({
           location: selectedEvent.location,
           eventId: selectedEvent.eventId,
           input: eventType === "rest"
-            ? { type: "rest", pitch: null, duration: "quarter" }
-            : { type: "note", pitch, duration },
+            ? {
+              type: "rest",
+              pitch: null,
+              duration: "quarter",
+              augmentationDots,
+            }
+            : {
+              type: "note",
+              pitch,
+              duration,
+              augmentationDots,
+              tieToNext,
+              lyric,
+            },
           now: now(),
         })
         : addLocalScoreProjectEvent({
@@ -397,8 +412,20 @@ export function LocalScoreProjectPanel({
           location: getPrimaryLocation(project, targetMeasureNumber),
           eventId: `event-${createId()}`,
           input: eventType === "rest"
-          ? { type: "rest", pitch: null, duration: "quarter" }
-          : { type: "note", pitch, duration },
+          ? {
+            type: "rest",
+            pitch: null,
+            duration: "quarter",
+            augmentationDots,
+          }
+          : {
+            type: "note",
+            pitch,
+            duration,
+            augmentationDots,
+            tieToNext,
+            lyric,
+          },
           now: now(),
         }),
     );
@@ -416,9 +443,14 @@ export function LocalScoreProjectPanel({
     if (located.event.type === "note" && located.event.pitch) {
       setPitch(located.event.pitch);
       setDuration(located.event.duration);
+      setTieToNext(located.event.tieToNext);
+      setLyric(located.event.lyric ?? "");
     } else {
       setDuration("quarter");
+      setTieToNext(false);
+      setLyric("");
     }
+    setAugmentationDots(located.event.augmentationDots);
   };
 
   const events = currentProject ? getPrimaryEvents(currentProject) : [];
@@ -683,7 +715,14 @@ export function LocalScoreProjectPanel({
             <select
               value={eventType}
               disabled={isBusy}
-              onChange={(event) => setEventType(event.target.value as EditorEventType)}
+              onChange={(event) => {
+                const nextType = event.target.value as EditorEventType;
+                setEventType(nextType);
+                if (nextType === "rest") {
+                  setTieToNext(false);
+                  setLyric("");
+                }
+              }}
               className="mt-2 min-h-11 w-full rounded-xl border border-indigo-300 bg-white px-3 py-2"
             >
               <option value="note">音符</option>
@@ -717,6 +756,40 @@ export function LocalScoreProjectPanel({
             </select>
           </label>
         </div>
+        <div className="mt-3 grid gap-3 sm:grid-cols-3">
+          <label className="flex min-h-11 items-center gap-2 rounded-xl border border-indigo-300 bg-white px-3 py-2 text-sm font-bold">
+            <input
+              type="checkbox"
+              checked={augmentationDots === 1}
+              disabled={isBusy}
+              onChange={(event) => setAugmentationDots(event.target.checked ? 1 : 0)}
+            />
+            一个附点
+          </label>
+          <label className="flex min-h-11 items-center gap-2 rounded-xl border border-indigo-300 bg-white px-3 py-2 text-sm font-bold">
+            <input
+              type="checkbox"
+              checked={tieToNext}
+              disabled={isBusy || eventType === "rest"}
+              onChange={(event) => setTieToNext(event.target.checked)}
+            />
+            延音到下一个同音
+          </label>
+          <label className="text-sm font-bold">
+            歌词
+            <input
+              value={lyric}
+              maxLength={160}
+              disabled={isBusy || eventType === "rest"}
+              onChange={(event) => setLyric(event.target.value)}
+              placeholder="可选，最多 80 个字符"
+              className="mt-2 min-h-11 w-full rounded-xl border border-indigo-300 bg-white px-3 py-2 disabled:bg-slate-100"
+            />
+          </label>
+        </div>
+        <p className="mt-2 text-xs leading-5 text-indigo-800">
+          延音线只允许连接同一声部中紧邻的同音音符；可跨连续小节。歌词只附着在音符上。
+        </p>
         <button
           type="button"
           disabled={isBusy}
@@ -736,12 +809,17 @@ export function LocalScoreProjectPanel({
                 onClick={() => {
                   if (!currentProject) return;
                   try {
+                    const sourceEvent = getPrimaryEvents(currentProject)
+                      .find(({ event }) => event.id === selectedEvent.eventId)
+                      ?.event;
                     setCopiedEvent(copyLocalScoreProjectEvent({
                       project: currentProject,
                       location: selectedEvent.location,
                       eventId: selectedEvent.eventId,
                     }));
-                    setNotice("已复制所选事件；谱面尚未修改，可选择目标小节后粘贴。");
+                    setNotice(sourceEvent?.type === "note" && sourceEvent.tieToNext
+                      ? "已复制附点和歌词，但单事件复制不包含跨事件延音关系；粘贴副本不会带延音线。谱面尚未修改。"
+                      : "已复制所选事件；谱面尚未修改，可选择目标小节后粘贴。");
                   } catch (error) {
                     setNotice(error instanceof Error
                       ? error.message
@@ -906,6 +984,9 @@ export function LocalScoreProjectPanel({
                 <div>
                   <p className="font-mono text-sm">
                     {index + 1}. 第 {location.measureNumber} 小节 · {event.type === "note" ? event.pitch : "休止"} · {durationLabels[event.duration]}
+                    {event.augmentationDots === 1 ? " · 附点" : ""}
+                    {event.type === "note" && event.tieToNext ? " · 延音到下一音" : ""}
+                    {event.type === "note" && event.lyric ? ` · 歌词：${event.lyric}` : ""}
                   </p>
                 </div>
                 <div className="flex gap-2">

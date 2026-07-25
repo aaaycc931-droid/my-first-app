@@ -102,6 +102,66 @@ export type LocalNotationProjectScoreDocumentV1 = Readonly<{
   }>[];
 }>;
 
+export type LocalScoreProjectAugmentationDots = 0 | 1;
+
+export type LocalScoreProjectNoteEventV2 = Readonly<{
+  id: string;
+  type: "note";
+  pitch: NonNullable<ScoreDocumentEventV1["pitch"]>;
+  duration: ScoreDocumentEventV1["duration"];
+  measure: number;
+  augmentationDots: LocalScoreProjectAugmentationDots;
+  tieToNext: boolean;
+  lyric: string | null;
+}>;
+
+export type LocalScoreProjectRestEventV2 = Readonly<{
+  id: string;
+  type: "rest";
+  pitch: null;
+  duration: ScoreDocumentEventV1["duration"];
+  measure: number;
+  augmentationDots: LocalScoreProjectAugmentationDots;
+}>;
+
+export type LocalScoreProjectEventV2 =
+  | LocalScoreProjectNoteEventV2
+  | LocalScoreProjectRestEventV2;
+
+/**
+ * 本机乐谱项目独立演进到 v2；通用 ScoreDocumentEventV1 及其他练习文档
+ * 保持不变，避免把本切片的编辑语义扩散到既有练习数据。
+ */
+export type LocalNotationProjectScoreDocumentV2 = Readonly<{
+  schemaVersion: "score-document-v2";
+  documentKind: "notation-project";
+  documentId: string;
+  revision: number;
+  reviewState: "draft";
+  localOnly: true;
+  sessionOnly: false;
+  source: Readonly<{
+    kind: "local-score-project";
+    projectId: string;
+  }>;
+  meter: NotationTimeSignature;
+  parts: readonly Readonly<{
+    partId: string;
+    staves: readonly Readonly<{
+      staffId: string;
+      staffKind: "pitched";
+      clef: "treble";
+      voices: readonly Readonly<{
+        voiceId: string;
+        measures: readonly Readonly<{
+          measureNumber: number;
+          events: readonly LocalScoreProjectEventV2[];
+        }>[];
+      }>[];
+    }>[];
+  }>[];
+}>;
+
 export type RhythmDictationScoreDocumentV1 = Readonly<{
   schemaVersion: "score-document-v1";
   documentKind: "rhythm-dictation";
