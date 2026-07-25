@@ -6,6 +6,7 @@ import {
   type LocalScoreProjectPlaybackEvent,
   type LocalScoreProjectPlaybackNoteEvent,
 } from "../lib/music/localScoreProjectPlayback";
+import { hasValidLocalScoreProjectTies } from "../lib/music/localScoreProject";
 import type {
   LocalNotationProjectScoreDocumentV1,
   LocalNotationProjectScoreDocumentV2,
@@ -355,6 +356,11 @@ const documentV2WithMeasures = (
       restV2("tail-rest", { measure: 2, augmentationDots: 1 }),
     ],
   ]);
+  assert.equal(
+    hasValidLocalScoreProjectTies(document),
+    true,
+    "the domain tie gate must accept a dotted multi-segment chain across a full barline",
+  );
   const plan = createLocalScoreProjectPlaybackPlan({ document, bpm: 120 });
   assert.equal(plan.status, "ready");
   const noteEvents = plan.events.filter(isNoteEvent);
@@ -385,6 +391,30 @@ const documentV2WithMeasures = (
     ],
     "each event in a tied chain must retain its own cursor span",
   );
+}
+
+{
+  const crossMeasureGap = documentV2WithMeasures([
+    [
+      noteV2("gap-start", "C4", "quarter", { tieToNext: true }),
+    ],
+    [
+      noteV2("gap-end", "C4", "quarter", { measure: 2 }),
+    ],
+  ]);
+  assert.equal(
+    hasValidLocalScoreProjectTies(crossMeasureGap),
+    false,
+    "a tie must not jump from an underfilled measure to the next barline",
+  );
+  const plan = createLocalScoreProjectPlaybackPlan({
+    document: crossMeasureGap,
+    bpm: 120,
+  });
+  assert.equal(plan.status, "blocked");
+  if (plan.status !== "blocked") throw new Error("expected blocked plan");
+  assert.match(plan.reason, /时值连续/);
+  assert.match(plan.reason, /小节线/);
 }
 
 {

@@ -629,15 +629,63 @@ describe("S1 本机谱项目面板", () => {
     await click(refreshedEditButtons[1]);
     await change(findSelect(container, "音高"), "G4");
     await click(findButton(container, "更新所选事件并保存"));
+    const tieIntegrityNotice =
+      "延音线必须连接同一声部中相邻、同音高且时值连续的音符；跨小节时必须结束于小节线并从下一小节第一拍开始。未执行修改，已保存谱面保持不变。";
     await waitFor(
-      () => container.textContent?.includes("延音") ?? false,
-      "显示延音关系拒绝原因",
+      () => container.textContent?.includes(tieIntegrityNotice) ?? false,
+      "传播完整的延音关系中文拒绝原因",
     );
+    expect(container.textContent).toContain(tieIntegrityNotice);
     const storedEvents = Array.from(store.values.values())[0]
       ?.document.parts[0]?.staves[0]?.voices[0]?.measures[0]?.events;
     expect(storedEvents?.[0]?.type === "note" && storedEvents[0].tieToNext)
       .toBe(true);
     expect(storedEvents?.[1]?.type === "note" && storedEvents[1].pitch)
       .toBe("C4");
+  });
+
+  it("跨小节延音存在时值间隙时传播中文原因并保持已保存谱面", async () => {
+    const store = new MemoryProjectStore();
+    const container = await renderPanel(store);
+    await click(findButton(container, "创建并保存"));
+    await click(findButton(container, "添加到第 1 小节并保存"));
+    await click(findButton(container, "追加空小节"));
+    await change(findSelect(container, "目标小节"), "2");
+    await click(findButton(container, "添加到第 2 小节并保存"));
+    await waitFor(
+      () => container.textContent?.includes("第 2 小节 · C4 · 四分音符")
+        ?? false,
+      "保存跨小节目标音符",
+    );
+
+    const editButtons = Array.from(container.querySelectorAll("button"))
+      .filter((button) => button.textContent?.trim() === "编辑");
+    if (!editButtons[0]) throw new Error("找不到跨小节延音来源编辑按钮");
+    await click(editButtons[0]);
+    await click(findInput(container, "延音到下一个同音"));
+    const revisionBeforeRejectedTie = Array.from(store.values.values())[0]
+      ?.document.revision;
+    await click(findButton(container, "更新所选事件并保存"));
+
+    const tieContinuityNotice =
+      "延音线必须连接同一声部中相邻、同音高且时值连续的音符；跨小节时必须结束于小节线并从下一小节第一拍开始。未执行修改，已保存谱面保持不变。";
+    await waitFor(
+      () => container.textContent?.includes(tieContinuityNotice) ?? false,
+      "传播跨小节延音时值间隙的完整中文原因",
+    );
+    expect(container.textContent).toContain(tieContinuityNotice);
+
+    const storedProject = Array.from(store.values.values())[0];
+    const storedEvents = storedProject
+      ?.document.parts[0]?.staves[0]?.voices[0]?.measures
+      .flatMap((measure) => measure.events);
+    expect(storedProject?.document.revision).toBe(revisionBeforeRejectedTie);
+    expect(storedEvents).toHaveLength(2);
+    expect(
+      storedEvents?.[0]?.type === "note" && storedEvents[0].tieToNext,
+    ).toBe(false);
+    expect(
+      storedEvents?.[1]?.type === "note" && storedEvents[1].pitch,
+    ).toBe("C4");
   });
 });
