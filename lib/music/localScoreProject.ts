@@ -542,6 +542,48 @@ export const redoLocalScoreProject = ({
   };
 };
 
+export const changeLocalScoreProjectSettings = ({
+  project,
+  expectedRevision,
+  title,
+  tempoBpm,
+  now,
+}: {
+  project: LocalScoreProjectV1;
+  expectedRevision: number;
+  title: string;
+  tempoBpm: number;
+  now: string;
+}): LocalScoreProjectV1 => {
+  assertExpectedRevision(project, expectedRevision);
+  assertMutationTimestamp(project, now);
+  const normalizedTitle = normalizeTitle(title);
+  if (
+    !Number.isSafeInteger(tempoBpm)
+    || tempoBpm < LOCAL_SCORE_PROJECT_MIN_TEMPO_BPM
+    || tempoBpm > LOCAL_SCORE_PROJECT_MAX_TEMPO_BPM
+  ) {
+    throw new LocalScoreProjectDomainError(
+      "invalid-input",
+      `速度必须是 ${LOCAL_SCORE_PROJECT_MIN_TEMPO_BPM}–${LOCAL_SCORE_PROJECT_MAX_TEMPO_BPM} 之间的整数 BPM。`,
+    );
+  }
+  if (
+    normalizedTitle === project.title
+    && tempoBpm === project.tempoBpm
+  ) return project;
+  return {
+    ...project,
+    title: normalizedTitle,
+    tempoBpm,
+    updatedAt: now,
+    document: createDocumentRevision({
+      project,
+      content: getLocalScoreProjectContent(project),
+    }),
+  };
+};
+
 export const renameLocalScoreProject = ({
   project,
   expectedRevision,
@@ -552,21 +594,14 @@ export const renameLocalScoreProject = ({
   expectedRevision: number;
   title: string;
   now: string;
-}): LocalScoreProjectV1 => {
-  assertExpectedRevision(project, expectedRevision);
-  assertMutationTimestamp(project, now);
-  const normalizedTitle = normalizeTitle(title);
-  if (normalizedTitle === project.title) return project;
-  return {
-    ...project,
-    title: normalizedTitle,
-    updatedAt: now,
-    document: createDocumentRevision({
-      project,
-      content: getLocalScoreProjectContent(project),
-    }),
-  };
-};
+}): LocalScoreProjectV1 =>
+  changeLocalScoreProjectSettings({
+    project,
+    expectedRevision,
+    title,
+    tempoBpm: project.tempoBpm,
+    now,
+  });
 
 export const changeLocalScoreProjectTempo = ({
   project,
@@ -578,30 +613,14 @@ export const changeLocalScoreProjectTempo = ({
   expectedRevision: number;
   tempoBpm: number;
   now: string;
-}): LocalScoreProjectV1 => {
-  assertExpectedRevision(project, expectedRevision);
-  assertMutationTimestamp(project, now);
-  if (
-    !Number.isSafeInteger(tempoBpm)
-    || tempoBpm < LOCAL_SCORE_PROJECT_MIN_TEMPO_BPM
-    || tempoBpm > LOCAL_SCORE_PROJECT_MAX_TEMPO_BPM
-  ) {
-    throw new LocalScoreProjectDomainError(
-      "invalid-input",
-      `速度必须是 ${LOCAL_SCORE_PROJECT_MIN_TEMPO_BPM}–${LOCAL_SCORE_PROJECT_MAX_TEMPO_BPM} 之间的整数 BPM。`,
-    );
-  }
-  if (tempoBpm === project.tempoBpm) return project;
-  return {
-    ...project,
+}): LocalScoreProjectV1 =>
+  changeLocalScoreProjectSettings({
+    project,
+    expectedRevision,
+    title: project.title,
     tempoBpm,
-    updatedAt: now,
-    document: createDocumentRevision({
-      project,
-      content: getLocalScoreProjectContent(project),
-    }),
-  };
-};
+    now,
+  });
 
 const normalizeProjectEvent = ({
   eventId,

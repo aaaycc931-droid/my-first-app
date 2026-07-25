@@ -9,7 +9,10 @@ import {
   LocalScoreProjectStaffPreview,
   type LocalScoreProjectStaffSelection,
 } from "../../components/music/LocalScoreProjectStaffPreview";
-import { useLocalScoreProjectTransport } from "../../components/piano/useLocalScoreProjectTransport";
+import {
+  useLocalScoreProjectTransport,
+  type LocalScoreProjectTransportMode,
+} from "../../components/piano/useLocalScoreProjectTransport";
 import {
   LocalScoreProjectDomainError,
   addLocalScoreProjectEvent,
@@ -17,7 +20,6 @@ import {
   changeLocalScoreProjectClef,
   changeLocalScoreProjectKeySignature,
   changeLocalScoreProjectMeter,
-  changeLocalScoreProjectTempo,
   copyLocalScoreProjectEvent,
   createLocalScoreProject,
   deleteEmptyLocalScoreProjectMeasure,
@@ -25,7 +27,6 @@ import {
   moveLocalScoreProjectEvent,
   pasteLocalScoreProjectEvent,
   redoLocalScoreProject,
-  renameLocalScoreProject,
   undoLocalScoreProject,
   updateLocalScoreProjectEvent,
   type LocalScoreProjectEventInput,
@@ -53,6 +54,7 @@ import {
   persistNewLocalScoreProject,
   type LocalScoreProjectStore,
 } from "./runtime/localScoreProjectStorage";
+import { useLocalScoreProjectAutosave } from "./useLocalScoreProjectAutosave";
 
 type EditorEventType = "note" | "rest";
 type ScorePreviewMode = "staff" | "numbered";
@@ -119,16 +121,23 @@ function LocalScoreProjectPlaybackControls({
   project,
   selectedEventId,
   onSelectEvent,
+  onModeChange,
+  disableTransportStart = false,
 }: {
   project: LocalScoreProjectV1;
   selectedEventId?: string | null;
   onSelectEvent: (selection: LocalScoreProjectStaffSelection) => void;
+  onModeChange?: (mode: LocalScoreProjectTransportMode) => void;
+  disableTransportStart?: boolean;
 }) {
   const [viewMode, setViewMode] = useState<ScorePreviewMode>("staff");
   const transport = useLocalScoreProjectTransport({
     document: project.document,
     bpm: project.tempoBpm,
   });
+  useEffect(() => {
+    onModeChange?.(transport.mode);
+  }, [onModeChange, transport.mode]);
 
   return (
     <>
@@ -215,7 +224,9 @@ function LocalScoreProjectPlaybackControls({
         ) : (
           <button
             type="button"
-            disabled={transport.plan.status === "blocked"}
+            disabled={
+              transport.plan.status === "blocked" || disableTransportStart
+            }
             onClick={transport.playScore}
             className="min-h-11 rounded-xl bg-rose-700 px-4 py-2 text-sm font-bold text-white disabled:bg-slate-300"
           >
@@ -233,8 +244,9 @@ function LocalScoreProjectPlaybackControls({
         ) : (
           <button
             type="button"
+            disabled={disableTransportStart}
             onClick={() => void transport.startMetronome()}
-            className="min-h-11 rounded-xl border border-rose-300 bg-white px-4 py-2 text-sm font-bold text-rose-800"
+            className="min-h-11 rounded-xl border border-rose-300 bg-white px-4 py-2 text-sm font-bold text-rose-800 disabled:text-slate-400"
           >
             启动节拍器
           </button>
@@ -301,6 +313,8 @@ export function LocalScoreProjectPanel({
   const [isBusy, setIsBusy] = useState(true);
   const [sourceStatus, setSourceStatus] =
     useState<"available" | "unavailable">("available");
+  const [transportMode, setTransportMode] =
+    useState<LocalScoreProjectTransportMode>("idle");
 
   const refreshProjects = useCallback(async () => {
     setIsBusy(true);
@@ -327,12 +341,31 @@ export function LocalScoreProjectPanel({
     };
   }, [resolvedStore]);
 
-  const publishProject = (project: LocalScoreProjectV1) => {
+  const publishProject = useCallback((
+    project: LocalScoreProjectV1,
+    {
+      resetSettings = false,
+      savedSettings,
+    }: {
+      resetSettings?: boolean;
+      savedSettings?: Readonly<{ title: string; tempoBpm: string }>;
+    } = {},
+  ) => {
     const nextMeasures = getPrimaryMeasures(project);
     const nextEvents = getPrimaryEvents(project);
     setCurrentProject(project);
-    setEditorTitle(project.title);
-    setEditorTempoBpm(String(project.tempoBpm));
+    if (resetSettings) {
+      setEditorTitle(project.title);
+      setEditorTempoBpm(String(project.tempoBpm));
+      setTransportMode("idle");
+    } else if (savedSettings) {
+      setEditorTitle((current) =>
+        current === savedSettings.title ? project.title : current);
+      setEditorTempoBpm((current) =>
+        current === savedSettings.tempoBpm
+          ? String(project.tempoBpm)
+          : current);
+    }
     setTargetMeasureNumber((previous) =>
       nextMeasures.some((measure) => measure.measureNumber === previous)
         ? previous
@@ -348,7 +381,24 @@ export function LocalScoreProjectPanel({
       project,
       ...previous.filter((candidate) => candidate.projectId !== project.projectId),
     ]);
-  };
+  }, []);
+
+  const handleAutosaveProject = useCallback((
+    project: LocalScoreProjectV1,
+    savedSettings: Readonly<{ title: string; tempoBpm: string }>,
+  ) => {
+    publishProject(project, { savedSettings });
+  }, [publishProject]);
+
+  const autosave = useLocalScoreProjectAutosave({
+    store: resolvedStore,
+    project: currentProject,
+    title: editorTitle,
+    tempoBpm: editorTempoBpm,
+    transportMode,
+    now,
+    onProjectSaved: handleAutosaveProject,
+  });
 
   const createProject = async () => {
     setIsBusy(true);
@@ -365,7 +415,7 @@ export function LocalScoreProjectPanel({
         project,
       });
       if (result.status === "saved") {
-        publishProject(result.project);
+        publishProject(result.project, { resetSettings: true });
         setNotice("谱项目已创建并保存在本机。");
       } else {
         setNotice(result.notice);
@@ -389,7 +439,7 @@ export function LocalScoreProjectPanel({
       projectId,
     });
     if (result.status === "loaded" && result.project) {
-      publishProject(result.project);
+      publishProject(result.project, { resetSettings: true });
       setNotice("已重新打开本机保存的谱项目。");
     } else {
       setNotice(result.notice ?? "未找到这份本机谱项目。");
@@ -421,6 +471,15 @@ export function LocalScoreProjectPanel({
     createProposal: (project: LocalScoreProjectV1) => LocalScoreProjectV1,
   ) => {
     if (!currentProject || isBusy) return;
+    if (
+      autosave.isDirty
+      || autosave.status === "saving"
+      || autosave.status === "deferred"
+      || autosave.status === "recovery-available"
+    ) {
+      setNotice("请先等待名称与速度自动保存，或处理恢复候选后再修改谱面。");
+      return;
+    }
     setIsBusy(true);
     setNotice(null);
     try {
@@ -654,7 +713,54 @@ export function LocalScoreProjectPanel({
         <p className="text-sm font-semibold text-teal-700">
           本机已保存 · 修订 {currentProject.document.revision}
         </p>
-        <div className="mt-2 grid gap-2 sm:grid-cols-[1fr_auto]">
+        {autosave.recoveryCandidate ? (
+            <div
+              className="mt-3 rounded-2xl border border-amber-300 bg-amber-50 p-4"
+              role="status"
+            >
+              <p className="text-sm font-bold text-amber-950">
+                发现一份未完成的名称或速度修改
+              </p>
+              <p className="mt-1 text-sm leading-6 text-amber-900">
+                候选基于修订 {autosave.recoveryCandidate.baseRevision}，
+                保存于 {autosave.recoveryCandidate.capturedAt}。它不会自动套用。
+              </p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  disabled={
+                    isBusy
+                    || transportMode !== "idle"
+                    || autosave.isRecoveryActionPending
+                  }
+                  onClick={() => {
+                    void autosave.promoteRecovery().then((promoted) => {
+                      if (!promoted) return;
+                      setEditorTitle(promoted.title);
+                      setEditorTempoBpm(String(promoted.tempoBpm));
+                      setTransportMode("idle");
+                    });
+                  }}
+                  className="min-h-11 rounded-xl bg-amber-800 px-4 py-2 text-sm font-bold text-white disabled:bg-slate-300"
+                >
+                  恢复并保存
+                </button>
+                <button
+                  type="button"
+                  disabled={
+                    isBusy
+                    || transportMode !== "idle"
+                    || autosave.isRecoveryActionPending
+                  }
+                  onClick={() => void autosave.discardRecovery()}
+                  className="min-h-11 rounded-xl border border-amber-400 bg-white px-4 py-2 text-sm font-bold text-amber-950 disabled:text-slate-400"
+                >
+                  丢弃
+                </button>
+              </div>
+            </div>
+          ) : null}
+        <div className="mt-2">
           <label className="text-sm font-bold">
             项目名称
             <input
@@ -664,23 +770,6 @@ export function LocalScoreProjectPanel({
               className="mt-2 min-h-11 w-full rounded-xl border border-slate-300 px-3 py-2 disabled:bg-slate-100"
             />
           </label>
-          <button
-            type="button"
-            disabled={isBusy}
-            onClick={() =>
-              void persistMutation((project) =>
-                renameLocalScoreProject({
-                  project,
-                  expectedRevision: project.document.revision,
-                  title: editorTitle,
-                  now: now(),
-                }),
-              )
-            }
-            className="min-h-11 self-end rounded-xl border border-teal-300 bg-teal-50 px-4 py-2 text-sm font-bold text-teal-900 disabled:text-slate-400"
-          >
-            保存名称
-          </button>
         </div>
         <label className="mt-4 block text-sm font-bold">
           拍号
@@ -762,7 +851,7 @@ export function LocalScoreProjectPanel({
         <p className="mt-2 text-xs leading-5 text-slate-600">
           谱号与调号保存后会创建新修订并停止当前播放；五线谱与固定 C 简谱之间切换不会中断播放。调号不改写已保存的实际音高。
         </p>
-        <div className="mt-4 flex flex-wrap items-end gap-2">
+        <div className="mt-4">
           <label className="text-sm font-bold">
             速度（BPM）
             <input
@@ -776,23 +865,30 @@ export function LocalScoreProjectPanel({
               className="mt-2 block min-h-11 w-28 rounded-xl border border-slate-300 px-3 py-2 disabled:bg-slate-100"
             />
           </label>
-          <button
-            type="button"
-            disabled={isBusy}
-            onClick={() =>
-              void persistMutation((project) =>
-                changeLocalScoreProjectTempo({
-                  project,
-                  expectedRevision: project.document.revision,
-                  tempoBpm: Number(editorTempoBpm),
-                  now: now(),
-                }),
-              )
-            }
-            className="min-h-11 rounded-xl border border-teal-300 bg-teal-50 px-4 py-2 text-sm font-bold text-teal-900 disabled:text-slate-400"
-          >
-            保存速度
-          </button>
+        </div>
+        <div
+          className={`mt-3 rounded-xl border p-3 text-sm leading-6 ${
+            autosave.status === "failed"
+              ? "border-rose-200 bg-rose-50 text-rose-950"
+              : "border-teal-100 bg-teal-50 text-teal-950"
+          }`}
+          role={autosave.status === "failed" ? "alert" : "status"}
+          aria-live="polite"
+        >
+          <p>
+            {autosave.notice
+              ?? "名称与速度会在停止输入 600 毫秒后自动保存。"}
+          </p>
+          {autosave.status === "failed" && autosave.isDirty ? (
+            <button
+              type="button"
+              disabled={isBusy}
+              onClick={autosave.retry}
+              className="mt-2 min-h-11 rounded-xl border border-rose-300 bg-white px-4 py-2 font-bold text-rose-900 disabled:text-slate-400"
+            >
+              重试自动保存
+            </button>
+          ) : null}
         </div>
       </section>
 
@@ -1155,6 +1251,12 @@ export function LocalScoreProjectPanel({
         project={currentProject}
         selectedEventId={selectedEvent?.eventId}
         onSelectEvent={selectEvent}
+        onModeChange={setTransportMode}
+        disableTransportStart={
+          autosave.isDirty
+          || autosave.status === "saving"
+          || Boolean(autosave.recoveryCandidate)
+        }
       />
 
       <div className="flex flex-wrap gap-2">
@@ -1162,10 +1264,12 @@ export function LocalScoreProjectPanel({
           type="button"
           disabled={isBusy}
           onClick={() => {
+            autosave.deactivate();
             setCurrentProject(null);
             setSelectedEvent(null);
             setCopiedEvent(null);
             setTargetMeasureNumber(1);
+            setTransportMode("idle");
             setNotice(null);
             void refreshProjects();
           }}

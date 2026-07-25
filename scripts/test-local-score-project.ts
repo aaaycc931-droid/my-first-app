@@ -10,6 +10,7 @@ import {
   changeLocalScoreProjectClef,
   changeLocalScoreProjectKeySignature,
   changeLocalScoreProjectMeter,
+  changeLocalScoreProjectSettings,
   changeLocalScoreProjectTempo,
   copyLocalScoreProjectEvent,
   createLocalScoreProject,
@@ -559,6 +560,65 @@ for (const tempoBpm of [29, 241, 90.5, Number.NaN]) {
   assert.equal(project.tempoBpm, 90);
   assert.equal(project.document.revision, 1);
 }
+
+const settingsChanged = changeLocalScoreProjectSettings({
+  project: edited,
+  expectedRevision: edited.document.revision,
+  title: "  联合设置  ",
+  tempoBpm: 120,
+  now: "2026-07-24T00:00:02.000Z",
+});
+assert.equal(settingsChanged.title, "联合设置");
+assert.equal(settingsChanged.tempoBpm, 120);
+assert.equal(settingsChanged.document.revision, edited.document.revision + 1);
+assert.equal(settingsChanged.updatedAt, "2026-07-24T00:00:02.000Z");
+assert.deepEqual(
+  getLocalScoreProjectContent(settingsChanged),
+  getLocalScoreProjectContent(edited),
+);
+assert.deepEqual(settingsChanged.undoStack, edited.undoStack);
+assert.deepEqual(settingsChanged.redoStack, edited.redoStack);
+assert.equal(changeLocalScoreProjectSettings({
+  project: settingsChanged,
+  expectedRevision: settingsChanged.document.revision,
+  title: " 联合设置 ",
+  tempoBpm: 120,
+  now: "2026-07-24T00:00:03.000Z",
+}), settingsChanged);
+assert.throws(
+  () => changeLocalScoreProjectSettings({
+    project: settingsChanged,
+    expectedRevision: edited.document.revision,
+    title: "过期设置",
+    tempoBpm: 121,
+    now: "2026-07-24T00:00:03.000Z",
+  }),
+  LocalScoreProjectConflictError,
+);
+assert.throws(
+  () => changeLocalScoreProjectSettings({
+    project: settingsChanged,
+    expectedRevision: settingsChanged.document.revision,
+    title: "联合设置",
+    tempoBpm: 120,
+    now: "2026-07-24T00:00:01.000Z",
+  }),
+  (error) =>
+    error instanceof LocalScoreProjectDomainError
+    && error.code === "clock-regression",
+);
+assert.throws(
+  () => changeLocalScoreProjectSettings({
+    project,
+    expectedRevision: project.document.revision,
+    title: "不会保存",
+    tempoBpm: 90.5,
+    now: "2026-07-24T00:00:01.000Z",
+  }),
+  (error) =>
+    error instanceof LocalScoreProjectDomainError
+    && error.code === "invalid-input",
+);
 
 let historyProject = project;
 for (let index = 0; index < LOCAL_SCORE_PROJECT_MAX_HISTORY + 5; index += 1) {
