@@ -3,14 +3,20 @@ import assert from "node:assert/strict";
 import {
   LOCAL_SCORE_PROJECT_MAX_HISTORY,
   LocalScoreProjectConflictError,
+  LocalScoreProjectDomainError,
+  addLocalScoreProjectEvent,
   applyLocalScoreProjectContent,
+  changeLocalScoreProjectMeter,
   createLocalScoreProject,
+  deleteLocalScoreProjectEvent,
   deserializeLocalScoreProject,
   getLocalScoreProjectContent,
   parseLocalScoreProject,
   redoLocalScoreProject,
+  renameLocalScoreProject,
   serializeLocalScoreProject,
   undoLocalScoreProject,
+  updateLocalScoreProjectEvent,
 } from "../lib/music/localScoreProject";
 import type { LocalNotationProjectScoreDocumentV1 } from "../lib/music/scoreDocument";
 
@@ -26,6 +32,14 @@ assert.equal(project.document.documentKind, "notation-project");
 assert.equal(project.document.documentId, "local.score-project.project-1");
 assert.equal(project.document.revision, 1);
 assert.equal(project.document.sessionOnly, false);
+assert.throws(
+  () => createLocalScoreProject({
+    projectId: "invalid-date",
+    title: "日期错误",
+    now: "2026-07-24",
+  }),
+  /时间/,
+);
 
 const firstContent = getLocalScoreProjectContent(project);
 const contentWithNote = {
@@ -221,5 +235,149 @@ const newEditAfterUndo = applyLocalScoreProjectContent({
   now: "2026-07-24T00:00:05.000Z",
 });
 assert.equal(newEditAfterUndo.redoStack.length, 0);
+
+const location = {
+  partId: "part-1",
+  staffId: "staff-1",
+  voiceId: "voice-1",
+  measureNumber: 1,
+};
+const commandAdded = addLocalScoreProjectEvent({
+  project,
+  expectedRevision: 1,
+  location,
+  eventId: "command-note-1",
+  input: { type: "note", pitch: "D4", duration: "quarter" },
+  now: "2026-07-24T00:00:01.000Z",
+});
+assert.equal(
+  commandAdded.document.parts[0].staves[0].voices[0].measures[0].events[0]?.pitch,
+  "D4",
+);
+assert.equal(commandAdded.document.revision, 2);
+assert.throws(
+  () => addLocalScoreProjectEvent({
+    project: commandAdded,
+    expectedRevision: 2,
+    location,
+    eventId: "command-note-1",
+    input: { type: "note", pitch: "E4", duration: "quarter" },
+    now: "2026-07-24T00:00:02.000Z",
+  }),
+  (error) =>
+    error instanceof LocalScoreProjectDomainError
+    && error.code === "duplicate",
+);
+const commandUpdated = updateLocalScoreProjectEvent({
+  project: commandAdded,
+  expectedRevision: 2,
+  location,
+  eventId: "command-note-1",
+  input: { type: "rest", pitch: null, duration: "quarter" },
+  now: "2026-07-24T00:00:02.000Z",
+});
+assert.equal(
+  commandUpdated.document.parts[0].staves[0].voices[0].measures[0].events[0]?.type,
+  "rest",
+);
+const commandDeleted = deleteLocalScoreProjectEvent({
+  project: commandUpdated,
+  expectedRevision: 3,
+  location,
+  eventId: "command-note-1",
+  now: "2026-07-24T00:00:03.000Z",
+});
+assert.equal(
+  commandDeleted.document.parts[0].staves[0].voices[0].measures[0].events.length,
+  0,
+);
+assert.throws(
+  () => deleteLocalScoreProjectEvent({
+    project: commandDeleted,
+    expectedRevision: 4,
+    location,
+    eventId: "missing",
+    now: "2026-07-24T00:00:04.000Z",
+  }),
+  (error) =>
+    error instanceof LocalScoreProjectDomainError
+    && error.code === "not-found",
+);
+
+const meterChanged = changeLocalScoreProjectMeter({
+  project,
+  expectedRevision: 1,
+  meter: "3/4",
+  now: "2026-07-24T00:00:01.000Z",
+});
+assert.equal(meterChanged.document.meter, "3/4");
+assert.equal(meterChanged.document.revision, 2);
+
+const renamed = renameLocalScoreProject({
+  project,
+  expectedRevision: 1,
+  title: "重命名",
+  now: "2026-07-24T00:00:01.000Z",
+});
+assert.equal(renamed.title, "重命名");
+assert.equal(renamed.document.revision, 2);
+assert.equal(renamed.undoStack.length, 0);
+assert.throws(
+  () => renameLocalScoreProject({
+    project: renamed,
+    expectedRevision: 1,
+    title: "过期写入",
+    now: "2026-07-24T00:00:02.000Z",
+  }),
+  LocalScoreProjectConflictError,
+);
+assert.throws(
+  () => changeLocalScoreProjectMeter({
+    project: renamed,
+    expectedRevision: 2,
+    meter: "2/4",
+    now: createdAt,
+  }),
+  (error) =>
+    error instanceof LocalScoreProjectDomainError
+    && error.code === "clock-regression",
+);
+
+const measureThreeContent = getLocalScoreProjectContent(project);
+const withThirdMeasure = applyLocalScoreProjectContent({
+  project,
+  expectedRevision: 1,
+  content: {
+    ...measureThreeContent,
+    parts: [{
+      ...measureThreeContent.parts[0],
+      staves: [{
+        ...measureThreeContent.parts[0].staves[0],
+        voices: [{
+          ...measureThreeContent.parts[0].staves[0].voices[0],
+          measures: [
+            ...measureThreeContent.parts[0].staves[0].voices[0].measures,
+            { measureNumber: 3, events: [] },
+          ],
+        }],
+      }],
+    }],
+  },
+  now: "2026-07-24T00:00:01.000Z",
+});
+const noteInThirdMeasure = addLocalScoreProjectEvent({
+  project: withThirdMeasure,
+  expectedRevision: 2,
+  location: { ...location, measureNumber: 3 },
+  eventId: "measure-3-note",
+  input: { type: "note", pitch: "G4", duration: "half" },
+  now: "2026-07-24T00:00:02.000Z",
+});
+assert.equal(
+  noteInThirdMeasure.document.parts[0].staves[0].voices[0].measures[1]
+    .events[0]?.measure,
+  3,
+  "canonical project events must support positive measure numbers beyond P44's 1/2 draft limit",
+);
 
 console.log("Local score project domain tests passed.");

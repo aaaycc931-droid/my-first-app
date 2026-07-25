@@ -30,7 +30,11 @@ import {
   type MelodyNumberedNotationDraftV1,
 } from "../practice/localMelodyNumberedNotationDraft";
 
-export type ScoreDocumentEventV1 = Readonly<NotationDraftEvent>;
+export type ScoreDocumentEventV1 = Readonly<
+  Omit<NotationDraftEvent, "measure"> & {
+    measure: number;
+  }
+>;
 
 export type NotationScoreDocumentV1 = Readonly<{
   schemaVersion: "score-document-v1";

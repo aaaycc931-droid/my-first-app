@@ -17,6 +17,8 @@ const requiredSources = [
   "mobile/src/LocalWeakPointReviewQueuePanel.tsx",
   "mobile/src/LocalExplainablePracticeRecommendationPanel.tsx",
   "mobile/src/LocalLearningOverviewPanel.tsx",
+  "mobile/src/LocalScoreProjectPanel.tsx",
+  "mobile/src/runtime/localScoreProjectStorage.ts",
   "mobile/src/stubs/supabaseBrowser.ts",
   "lib/practice/localPracticeReviewQueue.ts",
   "lib/practice/localPracticeCustomizer.ts",
@@ -41,6 +43,8 @@ const requiredSources = [
   "lib/practice/localMelodySightSinging.ts",
   "lib/activity/melodySightSingingActivityAdapter.ts",
   "lib/music/scoreDocument.ts",
+  "lib/music/localScoreProject.ts",
+  "lib/music/localScoreProjectPlayback.ts",
   "lib/activity/localVocalMicrophoneActivityAdapter.ts",
   "lib/practice/localEarTrainingChords.ts",
   "lib/practice/localEarTrainingHarmonyProgressions.ts",
@@ -65,6 +69,7 @@ const requiredSources = [
   "mobile/public/piano/timbres.manifest.json",
   "components/piano/LocalPianoPanel.tsx",
   "components/piano/useLocalPianoAudio.ts",
+  "components/piano/useLocalScoreProjectPlayback.ts",
   "components/piano/useLocalPianoMidi.ts",
   "components/piano/LocalPianoLearningPanel.tsx",
   "components/practice/RealtimePitchMonitorPanel.tsx",
@@ -1003,6 +1008,10 @@ for (const expectedCopy of [
   "中文视唱练耳基础路径",
   "不保存答案、正确性、录音、PCM、音高帧或 ActivitySession",
   "本地参考钢琴",
+  "本机谱项目",
+  "创建并保存",
+  "播放当前已保存修订",
+  "返回项目列表",
   "节拍器与演奏记录",
   "MIDI 与谱面学习",
   "瀑布视图",
@@ -1067,4 +1076,4 @@ if (existsSync(manifestPath) && !existsSync(syncedIndex)) {
   throw new Error("Android 工程存在，但本地 Web 资源尚未同步");
 }
 
-console.log("Android 本地模式校验通过：固定包名、本地资源、既有十类练习、P116a–P117e 既有主线、P118a 版本化中文课程路径与本地进度、P118b 本机详细练习统计、P118c 薄弱点复练分组、P118d 可解释非评分推荐、P118e 本机学习总览、音程比较/非评分模唱反馈、实时音高反馈、本机复练、非评分学习画像、本地参考钢琴、无远程运行时配置与生命周期保护。");
+console.log("Android 本地模式校验通过：固定包名、本地资源、既有十类练习、P116a–P117e 既有主线、P118a 版本化中文课程路径与本地进度、P118b 本机详细练习统计、P118c 薄弱点复练分组、P118d 可解释非评分推荐、P118e 本机学习总览、S1 本机谱项目首个创建/编辑/保存/播放/重开闭环、音程比较/非评分模唱反馈、实时音高反馈、本机复练、非评分学习画像、本地参考钢琴、无远程运行时配置与生命周期保护。");

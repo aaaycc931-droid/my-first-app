@@ -9,7 +9,10 @@ import {
   type LocalScoreProjectV1,
 } from "../lib/music/localScoreProject";
 import {
+  LocalScoreProjectStorageError,
+  createIndexedDbLocalScoreProjectStore,
   deleteLocalScoreProject,
+  listLocalScoreProjects,
   loadLocalScoreProject,
   persistLocalScoreProjectChange,
   persistNewLocalScoreProject,
@@ -41,7 +44,10 @@ class MemoryProjectStore implements LocalScoreProjectStore {
       (expectedRevision === null && current)
       || (
         expectedRevision !== null
-        && current?.document.revision !== expectedRevision
+        && (
+          current?.document.revision !== expectedRevision
+          || project.document.revision !== expectedRevision + 1
+        )
       )
     ) throw new LocalScoreProjectConflictError();
     this.values.set(project.projectId, cloneLocalScoreProject(project));
@@ -66,6 +72,7 @@ const initial = createLocalScoreProject({
 const created = await persistNewLocalScoreProject({ store, project: initial });
 assert.equal(created.saved, true);
 assert.equal(created.notice, null);
+assert.equal(created.status, "saved");
 
 const loaded = await loadLocalScoreProject({
   store,
@@ -75,6 +82,7 @@ assert.deepEqual(loaded, {
   project: initial,
   notice: null,
   sourceStatus: "available",
+  status: "loaded",
 });
 
 const content = getLocalScoreProjectContent(initial);
@@ -90,6 +98,7 @@ const saved = await persistLocalScoreProjectChange({
   proposedProject: proposed,
 });
 assert.equal(saved.saved, true);
+assert.equal(saved.status, "saved");
 assert.equal(saved.project.document.revision, 2);
 assert.deepEqual((await store.get(initial.projectId)), proposed);
 
@@ -106,6 +115,7 @@ const failedSave = await persistLocalScoreProjectChange({
   proposedProject: failedProposal,
 });
 assert.equal(failedSave.saved, false);
+assert.equal(failedSave.status, "unavailable");
 assert.equal(failedSave.project, saved.project);
 assert.equal(failedSave.project.document.revision, 2);
 assert.match(failedSave.notice ?? "", /已保存版本保持不变/);
@@ -123,6 +133,7 @@ const conflict = await persistLocalScoreProjectChange({
   proposedProject: staleWriter,
 });
 assert.equal(conflict.saved, false);
+assert.equal(conflict.status, "conflict");
 assert.equal(conflict.project, initial);
 assert.match(conflict.notice ?? "", /其他页面更新/);
 assert.equal((await store.get(initial.projectId))?.document.meter, "3/4");
@@ -136,6 +147,7 @@ const wrongIdentity = await persistLocalScoreProjectChange({
   },
 });
 assert.equal(wrongIdentity.saved, false);
+assert.equal(wrongIdentity.status, "invalid");
 assert.match(wrongIdentity.notice ?? "", /身份不一致/);
 
 const failedStore: LocalScoreProjectStore = {
@@ -150,6 +162,7 @@ const unavailable = await loadLocalScoreProject({
 });
 assert.equal(unavailable.project, null);
 assert.equal(unavailable.sourceStatus, "unavailable");
+assert.equal(unavailable.status, "unavailable");
 assert.match(unavailable.notice ?? "", /未被覆盖或清除/);
 
 const failedDelete = await deleteLocalScoreProject({
@@ -166,9 +179,102 @@ const deleted = await deleteLocalScoreProject({
 assert.equal(deleted.deleted, true);
 assert.equal(await store.get(initial.projectId), null);
 
+const unchangedProject = createLocalScoreProject({
+  projectId: "unchanged",
+  title: "未变化",
+  now: "2026-07-24T02:00:00.000Z",
+});
+await persistNewLocalScoreProject({ store, project: unchangedProject });
+const unchanged = await persistLocalScoreProjectChange({
+  store,
+  currentProject: unchangedProject,
+  proposedProject: cloneLocalScoreProject(unchangedProject),
+});
+assert.equal(unchanged.status, "unchanged");
+assert.equal(unchanged.saved, true);
+
+const invalidRevision = await persistLocalScoreProjectChange({
+  store,
+  currentProject: unchangedProject,
+  proposedProject: {
+    ...unchangedProject,
+    document: {
+      ...unchangedProject.document,
+      revision: unchangedProject.document.revision + 2,
+    },
+  },
+});
+assert.equal(invalidRevision.status, "invalid");
+assert.match(invalidRevision.notice ?? "", /修订号不连续/);
+
+const mixedStore: LocalScoreProjectStore = {
+  get: async () => null,
+  list: async () => [unchangedProject],
+  listWithIssues: async () => ({
+    projects: [unchangedProject],
+    issues: [{ projectId: "future", status: "unsupported" }],
+  }),
+  put: async () => undefined,
+  delete: async () => undefined,
+};
+const mixedList = await listLocalScoreProjects({ store: mixedStore });
+assert.deepEqual(mixedList.projects, [unchangedProject]);
+assert.deepEqual(mixedList.issues, [{
+  projectId: "future",
+  status: "unsupported",
+}]);
+assert.equal(mixedList.sourceStatus, "available");
+assert.equal(mixedList.status, "partial");
+assert.match(mixedList.notice ?? "", /部分/);
+
+let lateConnectionCloseCount = 0;
+const blockedRequest = {
+  result: {
+    close: () => { lateConnectionCloseCount += 1; },
+  },
+} as unknown as IDBOpenDBRequest;
+const blockedFactory = {
+  open: () => {
+    queueMicrotask(() => {
+      blockedRequest.onblocked?.({} as IDBVersionChangeEvent);
+      queueMicrotask(() => blockedRequest.onsuccess?.({} as Event));
+    });
+    return blockedRequest;
+  },
+} as unknown as IDBFactory;
+const blockedStore = createIndexedDbLocalScoreProjectStore({
+  indexedDbFactory: blockedFactory,
+});
+const blockedLoad = await loadLocalScoreProject({
+  store: blockedStore,
+  projectId: "blocked",
+});
+await Promise.resolve();
+assert.equal(blockedLoad.status, "blocked");
+assert.equal(lateConnectionCloseCount, 1);
+
+const blockedWriteStore: LocalScoreProjectStore = {
+  get: async () => null,
+  list: async () => [],
+  put: async () => {
+    throw new LocalScoreProjectStorageError("blocked", "存储被占用。");
+  },
+  delete: async () => undefined,
+};
+const blockedCreate = await persistNewLocalScoreProject({
+  store: blockedWriteStore,
+  project: createLocalScoreProject({
+    projectId: "blocked-create",
+    title: "阻塞",
+    now: "2026-07-24T03:00:00.000Z",
+  }),
+});
+assert.equal(blockedCreate.status, "blocked");
+assert.equal(blockedCreate.notice, "存储被占用。");
+
 assert.deepEqual(
   store.calls,
-  ["put:1", "put:2", "put:3", "put:2"],
+  ["put:1", "put:2", "put:3", "put:2", "put:1"],
   "每次 proposal 都必须先尝试持久化；冲突不能覆盖已保存修订",
 );
 
