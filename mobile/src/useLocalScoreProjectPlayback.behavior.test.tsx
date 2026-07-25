@@ -1,8 +1,9 @@
-import { StrictMode } from "react";
+import { StrictMode, useState } from "react";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { LocalScoreProjectNumberedPreview } from "../../components/music/LocalScoreProjectNumberedPreview";
 import { LocalScoreProjectStaffPreview } from "../../components/music/LocalScoreProjectStaffPreview";
 import { useLocalScoreProjectPlayback } from "../../components/piano/useLocalScoreProjectPlayback";
 import type { LocalPianoAudioChannelFactory } from "../../components/piano/useLocalPianoAudio";
@@ -218,6 +219,51 @@ const PlaybackHarness = ({
   );
 };
 
+const DualPreviewPlaybackHarness = ({
+  document,
+  bpm,
+  createAudioChannel,
+  voiceProvider,
+}: {
+  document: PlaybackDocument;
+  bpm: number;
+  createAudioChannel: LocalPianoAudioChannelFactory;
+  voiceProvider: PianoVoiceProvider;
+}) => {
+  const [view, setView] = useState<"staff" | "numbered">("staff");
+  const playback = useLocalScoreProjectPlayback({
+    document,
+    bpm,
+    createAudioChannel,
+    voiceProvider,
+  });
+  return (
+    <div>
+      <span data-state={playback.playbackState}>{playback.playbackState}</span>
+      <span data-active-events={playback.activeSourceEventIds.join(",")}>
+        {playback.activeSourceEventIds.join(",")}
+      </span>
+      <button type="button" onClick={() => setView("staff")}>五线谱</button>
+      <button type="button" onClick={() => setView("numbered")}>
+        固定 C 简谱
+      </button>
+      {view === "staff" ? (
+        <LocalScoreProjectStaffPreview
+          document={document}
+          activeEventIds={playback.activeSourceEventIds}
+        />
+      ) : (
+        <LocalScoreProjectNumberedPreview
+          document={document}
+          activeEventIds={playback.activeSourceEventIds}
+        />
+      )}
+      <button type="button" onClick={playback.play}>播放</button>
+      <button type="button" onClick={playback.stop}>停止</button>
+    </div>
+  );
+};
+
 let root: Root | null = null;
 let container: HTMLDivElement | null = null;
 
@@ -235,7 +281,7 @@ const advance = async (milliseconds: number) => {
   await flushMicrotasks();
 };
 
-const click = async (label: "播放" | "停止") => {
+const click = async (label: string) => {
   const button = Array.from(container?.querySelectorAll("button") ?? [])
     .find((candidate) => candidate.textContent === label);
   if (!button) throw new Error(`找不到按钮：${label}`);
@@ -244,6 +290,36 @@ const click = async (label: "播放" | "停止") => {
       bubbles: true,
       cancelable: true,
     }));
+  });
+  await flushMicrotasks();
+};
+
+const renderDualPreviewPlayback = async ({
+  document,
+  bpm = 120,
+  createAudioChannel,
+  voiceProvider,
+}: {
+  document: PlaybackDocument;
+  bpm?: number;
+  createAudioChannel: LocalPianoAudioChannelFactory;
+  voiceProvider: PianoVoiceProvider;
+}) => {
+  if (!container) {
+    container = documentRoot();
+    root = createRoot(container);
+  }
+  await act(async () => {
+    root?.render(
+      <StrictMode>
+        <DualPreviewPlaybackHarness
+          document={document}
+          bpm={bpm}
+          createAudioChannel={createAudioChannel}
+          voiceProvider={voiceProvider}
+        />
+      </StrictMode>,
+    );
   });
   await flushMicrotasks();
 };
@@ -299,6 +375,57 @@ afterEach(async () => {
 });
 
 describe("本地乐谱项目播放 hook", () => {
+  it("播放中双向切换固定 C 简谱不会重建调度或中断后续事件", async () => {
+    const audio = createAudioHarness();
+    await renderDualPreviewPlayback({
+      document: createDocument(),
+      createAudioChannel: audio.createChannel,
+      voiceProvider: audio.voiceProvider,
+    });
+
+    await click("播放");
+    await advance(100);
+    expect(audio.channels).toHaveLength(1);
+    expect(audio.channels[0]?.stopped).toBe(false);
+    expect(audio.voices.map((voice) => voice.midi)).toEqual([60]);
+
+    await click("固定 C 简谱");
+    expect(container?.querySelector(
+      '[data-testid="local-score-project-numbered-preview"]',
+    )).not.toBeNull();
+    expect(container?.querySelector("[data-state]")?.textContent).toBe("播放中");
+    expect(container?.querySelector(
+      '[data-event-id="c4"]',
+    )?.getAttribute("data-active")).toBe("true");
+    expect(audio.channels).toHaveLength(1);
+    expect(audio.channels[0]?.stopped).toBe(false);
+
+    await advance(400);
+    expect(container?.querySelector(
+      '[data-event-id="rest"]',
+    )?.getAttribute("data-active")).toBe("true");
+    await advance(500);
+    expect(audio.voices.map((voice) => voice.midi)).toEqual([60, 62]);
+    expect(container?.querySelector(
+      '[data-event-id="d4"]',
+    )?.getAttribute("data-active")).toBe("true");
+
+    await click("五线谱");
+    expect(container?.querySelector(
+      '[data-testid="local-score-project-staff-preview"]',
+    )).not.toBeNull();
+    expect(container?.querySelector("[data-state]")?.textContent).toBe("播放中");
+    expect(container?.querySelector(
+      '[data-event-id="d4"]',
+    )?.getAttribute("data-active")).toBe("true");
+    expect(audio.channels).toHaveLength(2);
+    expect(audio.channels[1]?.stopped).toBe(false);
+
+    await advance(1_000);
+    expect(container?.querySelector("[data-state]")?.textContent).toBe("空闲");
+    expect(audio.channels.every((channel) => channel.stopped)).toBe(true);
+  });
+
   it("不自动播放，并按休止时值调度音符直到全局停止", async () => {
     const audio = createAudioHarness();
     await renderPlayback({

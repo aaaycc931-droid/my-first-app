@@ -182,6 +182,7 @@ jobs:
           npm run test:mobile-local-score-project-transport-behavior
           npm run test:mobile-local-score-project-behavior
           npm run test:mobile-local-score-project-staff-preview-behavior
+          npm run test:mobile-local-score-project-numbered-preview-behavior
 
       - name: Validate local Android bundle
         run: npm run validate:repository-hygiene && npm run validate:android-version && npm run android:sync && npm run validate:android-local

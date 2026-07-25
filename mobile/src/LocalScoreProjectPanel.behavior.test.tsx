@@ -176,6 +176,50 @@ afterEach(async () => {
 });
 
 describe("S1 本机谱项目面板", () => {
+  it("固定 C 简谱与五线谱切换保留同一事件选择和播放控制实例", async () => {
+    const store = new MemoryProjectStore();
+    const container = await renderPanel(store);
+    await click(findButton(container, "创建并保存"));
+    await click(findButton(container, "添加到第 1 小节并保存"));
+    await waitFor(
+      () => container.querySelector('[data-event-id="event-test-2"]') !== null,
+      "显示新保存事件的五线谱 token",
+    );
+
+    const staffToken = container.querySelector<HTMLElement>(
+      '[data-testid="local-score-project-staff-preview"] '
+        + '[data-event-id="event-test-2"]',
+    );
+    if (!staffToken) throw new Error("找不到可选择的五线谱事件");
+    await click(staffToken);
+    expect(staffToken.getAttribute("data-selected")).toBe("true");
+    expect(container.textContent).toContain("编辑所选事件");
+
+    const playButton = findButton(container, "播放草稿");
+    await click(findButton(container, "固定 C 简谱"));
+    expect(findButton(container, "固定 C 简谱").getAttribute("aria-checked"))
+      .toBe("true");
+    expect(
+      container.querySelector('[data-testid="local-score-project-staff-preview"]'),
+    ).toBeNull();
+    expect(
+      container.querySelector('[data-testid="local-score-project-numbered-preview"]'),
+    ).not.toBeNull();
+    expect(container.textContent).toContain("编辑所选事件");
+    expect(findButton(container, "播放草稿")).toBe(playButton);
+
+    await click(findButton(container, "五线谱"));
+    expect(findButton(container, "五线谱").getAttribute("aria-checked"))
+      .toBe("true");
+    expect(
+      container.querySelector(
+        '[data-testid="local-score-project-staff-preview"] '
+          + '[data-event-id="event-test-2"]',
+      )?.getAttribute("data-selected"),
+    ).toBe("true");
+    expect(findButton(container, "播放草稿")).toBe(playButton);
+  });
+
   it("创建、编辑、撤销重做、返回列表和重新打开形成保存闭环", async () => {
     const store = new MemoryProjectStore();
     const container = await renderPanel(store);
