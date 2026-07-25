@@ -7,6 +7,8 @@ import {
   addLocalScoreProjectEvent,
   appendLocalScoreProjectMeasure,
   applyLocalScoreProjectContent,
+  changeLocalScoreProjectClef,
+  changeLocalScoreProjectKeySignature,
   changeLocalScoreProjectMeter,
   changeLocalScoreProjectTempo,
   copyLocalScoreProjectEvent,
@@ -33,9 +35,11 @@ const project = createLocalScoreProject({
   now: createdAt,
 });
 assert.equal(project.title, "第一份谱");
-assert.equal(project.schemaVersion, "local-score-project-storage-v3");
+assert.equal(project.schemaVersion, "local-score-project-storage-v4");
 assert.equal(project.tempoBpm, 90);
-assert.equal(project.document.schemaVersion, "score-document-v2");
+assert.equal(project.document.schemaVersion, "score-document-v3");
+assert.deepEqual(project.document.keySignature, { fifths: 0 });
+assert.equal(project.document.parts[0].staves[0].clef, "treble");
 assert.equal(project.document.documentKind, "notation-project");
 assert.equal(project.document.documentId, "local.score-project.project-1");
 assert.equal(project.document.revision, 1);
@@ -129,8 +133,161 @@ const noChange = applyLocalScoreProjectContent({
 });
 assert.equal(noChange, project);
 
+const oneSharp = changeLocalScoreProjectKeySignature({
+  project,
+  expectedRevision: 1,
+  keySignature: { fifths: 1 },
+  now: "2026-07-24T00:00:01.000Z",
+});
+assert.equal(oneSharp.document.revision, 2);
+assert.deepEqual(oneSharp.document.keySignature, { fifths: 1 });
+assert.deepEqual(oneSharp.undoStack[0]?.keySignature, { fifths: 0 });
+assert.equal(oneSharp.redoStack.length, 0);
+assert.equal(changeLocalScoreProjectKeySignature({
+  project: oneSharp,
+  expectedRevision: 2,
+  keySignature: { fifths: 1 },
+  now: "2026-07-24T00:00:02.000Z",
+}), oneSharp);
+
+const bassClef = changeLocalScoreProjectClef({
+  project: oneSharp,
+  expectedRevision: 2,
+  location: { partId: "part-1", staffId: "staff-1" },
+  clef: "bass",
+  now: "2026-07-24T00:00:02.000Z",
+});
+assert.equal(bassClef.document.revision, 3);
+assert.equal(bassClef.document.parts[0].staves[0].clef, "bass");
+assert.deepEqual(bassClef.document.keySignature, { fifths: 1 });
+assert.equal(bassClef.undoStack.length, 2);
+assert.equal(changeLocalScoreProjectClef({
+  project: bassClef,
+  expectedRevision: 3,
+  location: { partId: "part-1", staffId: "staff-1" },
+  clef: "bass",
+  now: "2026-07-24T00:00:03.000Z",
+}), bassClef);
+
+const clefUndone = undoLocalScoreProject({
+  project: bassClef,
+  expectedRevision: 3,
+  now: "2026-07-24T00:00:03.000Z",
+});
+assert.equal(clefUndone.document.parts[0].staves[0].clef, "treble");
+assert.deepEqual(clefUndone.document.keySignature, { fifths: 1 });
+const clefRedone = redoLocalScoreProject({
+  project: clefUndone,
+  expectedRevision: 4,
+  now: "2026-07-24T00:00:04.000Z",
+});
+assert.equal(clefRedone.document.parts[0].staves[0].clef, "bass");
+assert.deepEqual(clefRedone.document.keySignature, { fifths: 1 });
+
+assert.throws(
+  () => changeLocalScoreProjectClef({
+    project,
+    expectedRevision: 1,
+    location: { partId: "missing", staffId: "missing" },
+    clef: "bass",
+    now: "2026-07-24T00:00:01.000Z",
+  }),
+  (error) =>
+    error instanceof LocalScoreProjectDomainError
+    && error.code === "not-found",
+);
+assert.throws(
+  () => changeLocalScoreProjectClef({
+    project,
+    expectedRevision: 1,
+    location: { partId: "part-1", staffId: "staff-1" },
+    clef: "alto" as never,
+    now: "2026-07-24T00:00:01.000Z",
+  }),
+  (error) =>
+    error instanceof LocalScoreProjectDomainError
+    && error.code === "invalid-input",
+);
+assert.throws(
+  () => changeLocalScoreProjectKeySignature({
+    project,
+    expectedRevision: 1,
+    keySignature: { fifths: 2 } as never,
+    now: "2026-07-24T00:00:01.000Z",
+  }),
+  (error) =>
+    error instanceof LocalScoreProjectDomainError
+    && error.code === "invalid-input",
+);
+assert.throws(
+  () => changeLocalScoreProjectKeySignature({
+    project,
+    expectedRevision: 1,
+    keySignature: { fifths: 0, mode: "major" } as never,
+    now: "2026-07-24T00:00:01.000Z",
+  }),
+  (error) =>
+    error instanceof LocalScoreProjectDomainError
+    && error.code === "invalid-input",
+);
+assert.throws(
+  () => changeLocalScoreProjectKeySignature({
+    project: oneSharp,
+    expectedRevision: 1,
+    keySignature: { fifths: -1 },
+    now: "2026-07-24T00:00:02.000Z",
+  }),
+  LocalScoreProjectConflictError,
+);
+assert.throws(
+  () => changeLocalScoreProjectKeySignature({
+    project: oneSharp,
+    expectedRevision: 2,
+    keySignature: { fifths: -1 },
+    now: "2026-07-23T23:59:59.000Z",
+  }),
+  (error) =>
+    error instanceof LocalScoreProjectDomainError
+    && error.code === "clock-regression",
+);
+
+const keyedNaturalNote = addLocalScoreProjectEvent({
+  project: oneSharp,
+  expectedRevision: 2,
+  location: {
+    partId: "part-1",
+    staffId: "staff-1",
+    voiceId: "voice-1",
+    measureNumber: 1,
+  },
+  eventId: "natural-f-under-one-sharp",
+  input: { type: "note", pitch: "F4", duration: "quarter" },
+  now: "2026-07-24T00:00:02.000Z",
+});
+assert.equal(
+  keyedNaturalNote.document.parts[0].staves[0].voices[0].measures[0]
+    .events[0]?.pitch,
+  "F4",
+  "调号不得移调或改写 canonical 自然音",
+);
+assert.deepEqual(keyedNaturalNote.document.keySignature, { fifths: 1 });
+const keyedWithSecondMeasure = appendLocalScoreProjectMeasure({
+  project: keyedNaturalNote,
+  expectedRevision: 3,
+  partId: "part-1",
+  staffId: "staff-1",
+  voiceId: "voice-1",
+  now: "2026-07-24T00:00:03.000Z",
+});
+assert.deepEqual(
+  keyedWithSecondMeasure.document.keySignature,
+  { fifths: 1 },
+  "小节领域命令不得丢失调号",
+);
+
 const multiStaffContent = {
   meter: "4/4" as const,
+  keySignature: { fifths: 0 as const },
   parts: [
     {
       partId: "right-hand",
@@ -252,8 +409,9 @@ for (const content of [
 }
 const legacyBefore = JSON.stringify(legacySchema);
 const migratedLegacy = parseLocalScoreProject(legacySchema);
-assert.equal(migratedLegacy?.schemaVersion, "local-score-project-storage-v3");
-assert.equal(migratedLegacy?.document.schemaVersion, "score-document-v2");
+assert.equal(migratedLegacy?.schemaVersion, "local-score-project-storage-v4");
+assert.equal(migratedLegacy?.document.schemaVersion, "score-document-v3");
+assert.deepEqual(migratedLegacy?.document.keySignature, { fifths: 0 });
 assert.equal(migratedLegacy?.tempoBpm, 90);
 assert.equal(migratedLegacy?.projectId, multiStaff.projectId);
 assert.equal(migratedLegacy?.createdAt, multiStaff.createdAt);
@@ -274,7 +432,7 @@ assert.equal(
 );
 assert.match(
   serializeLocalScoreProject(migratedLegacy!),
-  /local-score-project-storage-v3/,
+  /local-score-project-storage-v4/,
 );
 
 const previousSchema = JSON.parse(legacyBefore) as typeof legacySchema;
@@ -282,13 +440,63 @@ previousSchema.schemaVersion = "local-score-project-storage-v2";
 previousSchema.tempoBpm = 120;
 assert.equal(parseLocalScoreProject(previousSchema)?.tempoBpm, 120);
 
+const storageV3 = JSON.parse(serialized) as {
+  schemaVersion: string;
+  document: {
+    schemaVersion: string;
+    keySignature?: unknown;
+    revision: number;
+  };
+  undoStack: { keySignature?: unknown }[];
+  redoStack: { keySignature?: unknown }[];
+  createdAt: string;
+  updatedAt: string;
+};
+storageV3.schemaVersion = "local-score-project-storage-v3";
+storageV3.document.schemaVersion = "score-document-v2";
+delete storageV3.document.keySignature;
+for (const content of [...storageV3.undoStack, ...storageV3.redoStack]) {
+  delete content.keySignature;
+}
+const storageV3Before = JSON.stringify(storageV3);
+const migratedStorageV3 = parseLocalScoreProject(storageV3);
+assert.equal(migratedStorageV3?.schemaVersion, "local-score-project-storage-v4");
+assert.equal(migratedStorageV3?.document.schemaVersion, "score-document-v3");
+assert.deepEqual(migratedStorageV3?.document.keySignature, { fifths: 0 });
+assert.equal(migratedStorageV3?.document.revision, storageV3.document.revision);
+assert.equal(migratedStorageV3?.createdAt, storageV3.createdAt);
+assert.equal(migratedStorageV3?.updatedAt, storageV3.updatedAt);
+assert.ok(migratedStorageV3?.undoStack.every(
+  (content) => content.keySignature.fifths === 0,
+));
+assert.ok(migratedStorageV3?.redoStack.every(
+  (content) => content.keySignature.fifths === 0,
+));
+assert.equal(JSON.stringify(storageV3), storageV3Before);
+
 const missingTempo = JSON.parse(serialized) as { tempoBpm?: number };
 delete missingTempo.tempoBpm;
 assert.equal(parseLocalScoreProject(missingTempo), null);
 
 const futureSchema = JSON.parse(serialized) as { schemaVersion: string };
-futureSchema.schemaVersion = "local-score-project-storage-v4";
+futureSchema.schemaVersion = "local-score-project-storage-v5";
 assert.equal(parseLocalScoreProject(futureSchema), null);
+
+const missingKeySignature = JSON.parse(serialized) as {
+  document: { keySignature?: unknown };
+};
+delete missingKeySignature.document.keySignature;
+assert.equal(parseLocalScoreProject(missingKeySignature), null);
+const invalidKeySignature = JSON.parse(serialized) as {
+  document: { keySignature: unknown };
+};
+invalidKeySignature.document.keySignature = { fifths: 2 };
+assert.equal(parseLocalScoreProject(invalidKeySignature), null);
+const invalidCurrentClef = JSON.parse(serialized) as {
+  document: { parts: { staves: { clef: string }[] }[] };
+};
+invalidCurrentClef.document.parts[0].staves[0].clef = "alto";
+assert.equal(parseLocalScoreProject(invalidCurrentClef), null);
 
 const tempo30 = changeLocalScoreProjectTempo({
   project,

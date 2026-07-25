@@ -14,6 +14,8 @@ import {
   LocalScoreProjectDomainError,
   addLocalScoreProjectEvent,
   appendLocalScoreProjectMeasure,
+  changeLocalScoreProjectClef,
+  changeLocalScoreProjectKeySignature,
   changeLocalScoreProjectMeter,
   changeLocalScoreProjectTempo,
   copyLocalScoreProjectEvent,
@@ -29,6 +31,10 @@ import {
   type LocalScoreProjectEventInput,
   type LocalScoreProjectV1,
 } from "../../lib/music/localScoreProject";
+import type {
+  LocalScoreProjectClefV3,
+  LocalScoreProjectKeySignatureV3,
+} from "../../lib/music/scoreDocument";
 import {
   notationDurations,
   notationPitches,
@@ -78,6 +84,7 @@ const getPrimaryVoice = (project: LocalScoreProjectV1) => {
     partId: part.partId,
     staffId: staff.staffId,
     voiceId: voice.voiceId,
+    staff,
     voice,
   };
 };
@@ -698,6 +705,63 @@ export function LocalScoreProjectPanel({
             ))}
           </select>
         </label>
+        <div className="mt-4 flex flex-wrap gap-3">
+          <label className="text-sm font-bold">
+            谱号
+            <select
+              value={getPrimaryVoice(currentProject).staff.clef}
+              disabled={isBusy}
+              onChange={(event) => {
+                const clef = event.target.value as LocalScoreProjectClefV3;
+                void persistMutation((project) => {
+                  const primary = getPrimaryVoice(project);
+                  return changeLocalScoreProjectClef({
+                    project,
+                    expectedRevision: project.document.revision,
+                    location: {
+                      partId: primary.partId,
+                      staffId: primary.staffId,
+                    },
+                    clef,
+                    now: now(),
+                  });
+                });
+              }}
+              className="mt-2 block min-h-11 rounded-xl border border-slate-300 bg-white px-3 py-2 disabled:bg-slate-100"
+            >
+              <option value="treble">高音谱号</option>
+              <option value="bass">低音谱号</option>
+            </select>
+          </label>
+          <label className="text-sm font-bold">
+            调号
+            <select
+              value={currentProject.document.keySignature.fifths}
+              disabled={isBusy}
+              onChange={(event) => {
+                const keySignature = {
+                  fifths: Number(event.target.value),
+                } as LocalScoreProjectKeySignatureV3;
+                void persistMutation((project) =>
+                  changeLocalScoreProjectKeySignature({
+                    project,
+                    expectedRevision: project.document.revision,
+                    keySignature,
+                    now: now(),
+                  }),
+                );
+              }}
+              className="mt-2 block min-h-11 rounded-xl border border-slate-300 bg-white px-3 py-2 disabled:bg-slate-100"
+            >
+              <option value="-1">一个降号（B♭）</option>
+              <option value="0">无升降号</option>
+              <option value="1">一个升号（F♯）</option>
+            </select>
+          </label>
+        </div>
+        <p className="mt-2 text-xs leading-5 text-slate-600">
+          谱号与调号保存后会创建新修订并停止当前播放；五线谱与固定 C 简谱之间切换不会中断播放。调号不改写已保存的实际音高。
+        </p>
         <div className="mt-4 flex flex-wrap items-end gap-2">
           <label className="text-sm font-bold">
             速度（BPM）

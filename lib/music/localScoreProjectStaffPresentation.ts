@@ -8,10 +8,12 @@ import {
   isLocalScoreProjectContent,
   LOCAL_SCORE_PROJECT_TIE_CONTINUITY_ERROR,
 } from "./localScoreProject";
-import type { LocalNotationProjectScoreDocumentV2 } from "./scoreDocument";
+import type { LocalNotationProjectScoreDocumentV3 } from "./scoreDocument";
 
 export const LOCAL_SCORE_STAFF_HEIGHT = 148;
 export const LOCAL_SCORE_STAFF_LINE_Y = [36, 48, 60, 72, 84] as const;
+export const LOCAL_SCORE_BASS_STAFF_HEIGHT = 196;
+export const LOCAL_SCORE_BASS_STAFF_LINE_Y = [96, 108, 120, 132, 144] as const;
 export const LOCAL_SCORE_STAFF_HEADER_WIDTH = 96;
 export const LOCAL_SCORE_STAFF_MEASURE_WIDTH = 240;
 export const LOCAL_SCORE_STAFF_MEASURE_PADDING = 24;
@@ -42,7 +44,8 @@ export type LocalScoreStaffNoteToken = LocalScoreStaffTokenBase & Readonly<{
   head: "open" | "filled";
   hasStem: true;
   hasEighthFlag: boolean;
-  hasC4LedgerLine: boolean;
+  accidental: "natural" | null;
+  ledgerLineYs: readonly number[];
   tieToNext: boolean;
   tieTargetEventId: string | null;
   lyric: string | null;
@@ -73,11 +76,25 @@ export type LocalScoreStaffPresentation =
     status: "ready";
     documentId: string;
     revision: number;
-    meter: LocalNotationProjectScoreDocumentV2["meter"];
+    meter: LocalNotationProjectScoreDocumentV3["meter"];
     meterNumerator: number;
     meterDenominator: 4;
+    clef: "treble" | "bass";
+    clefLabel: "高音谱号" | "低音谱号";
+    clefGlyph: "𝄞" | "𝄢";
+    clefGlyphY: number;
+    keySignatureFifths: -1 | 0 | 1;
+    keySignatureLabel:
+      | "无升降号"
+      | "一个升号（F♯）"
+      | "一个降号（B♭）";
+    keySignatureGlyph: "♯" | "♭" | null;
+    keySignatureGlyphY: number | null;
+    staffLineYs: readonly [number, number, number, number, number];
+    restY: number;
+    lyricY: number;
     width: number;
-    height: typeof LOCAL_SCORE_STAFF_HEIGHT;
+    height: number;
     partId: string;
     staffId: string;
     voiceId: string;
@@ -98,7 +115,7 @@ const DURATION_LABELS: Readonly<Record<NotationDuration, string>> = {
   eighth: "八分",
 };
 
-const PITCH_Y: Readonly<Record<NotationPitch, number>> = {
+const TREBLE_PITCH_Y: Readonly<Record<NotationPitch, number>> = {
   C4: 96,
   D4: 90,
   E4: 84,
@@ -107,6 +124,39 @@ const PITCH_Y: Readonly<Record<NotationPitch, number>> = {
   A4: 66,
   B4: 60,
   C5: 54,
+};
+
+const BASS_PITCH_Y: Readonly<Record<NotationPitch, number>> = {
+  C4: 84,
+  D4: 78,
+  E4: 72,
+  F4: 66,
+  G4: 60,
+  A4: 54,
+  B4: 48,
+  C5: 42,
+};
+
+const getLedgerLineYs = ({
+  y,
+  staffLineYs,
+}: {
+  y: number;
+  staffLineYs: readonly [number, number, number, number, number];
+}) => {
+  const ledgerLineYs: number[] = [];
+  const top = staffLineYs[0];
+  const bottom = staffLineYs[4];
+  if (y < top) {
+    for (let ledgerY = top - 12; ledgerY >= y; ledgerY -= 12) {
+      ledgerLineYs.push(ledgerY);
+    }
+  } else if (y > bottom) {
+    for (let ledgerY = bottom + 12; ledgerY <= y; ledgerY += 12) {
+      ledgerLineYs.push(ledgerY);
+    }
+  }
+  return ledgerLineYs;
 };
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
@@ -127,9 +177,9 @@ const getIdentity = (document: unknown) => {
 
 const isLocalScoreProjectDocument = (
   document: unknown,
-): document is LocalNotationProjectScoreDocumentV2 =>
+): document is LocalNotationProjectScoreDocumentV3 =>
   isRecord(document)
-  && document.schemaVersion === "score-document-v2"
+  && document.schemaVersion === "score-document-v3"
   && document.documentKind === "notation-project"
   && typeof document.documentId === "string"
   && document.documentId.length > 0
@@ -183,6 +233,28 @@ export const createLocalScoreProjectStaffPresentation = (
   if (!part || !staff || !voice) {
     return blocked("当前项目没有可展示的第一声部。");
   }
+  const clef = staff.clef;
+  const keySignatureFifths = document.keySignature.fifths;
+  const staffLineYs = clef === "bass"
+    ? LOCAL_SCORE_BASS_STAFF_LINE_Y
+    : LOCAL_SCORE_STAFF_LINE_Y;
+  const pitchY = clef === "bass" ? BASS_PITCH_Y : TREBLE_PITCH_Y;
+  const clefLabel = clef === "bass" ? "低音谱号" : "高音谱号";
+  const keySignatureLabel = keySignatureFifths === 1
+    ? "一个升号（F♯）"
+    : keySignatureFifths === -1
+      ? "一个降号（B♭）"
+      : "无升降号";
+  const keySignatureGlyph = keySignatureFifths === 1
+    ? "♯"
+    : keySignatureFifths === -1
+      ? "♭"
+      : null;
+  const keySignatureGlyphY = keySignatureFifths === 1
+    ? (clef === "bass" ? 108 : 36)
+    : keySignatureFifths === -1
+      ? (clef === "bass" ? 132 : 60)
+      : null;
 
   const meterNumerator = Number(document.meter.split("/")[0]);
   const warnings: string[] = [];
@@ -237,7 +309,12 @@ export const createLocalScoreProjectStaffPresentation = (
         const tieTarget = event.tieToNext && orderedEventIndex !== undefined
           ? orderedEvents[orderedEventIndex + 1]
           : undefined;
+        const accidental = (
+          (keySignatureFifths === 1 && event.pitch === "F4")
+          || (keySignatureFifths === -1 && event.pitch === "B4")
+        ) ? "natural" as const : null;
         const detailLabels = [
+          accidental === "natural" ? "还原号" : "",
           `${event.augmentationDots === 1 ? "附点" : ""}${DURATION_LABELS[event.duration]}音符`,
           event.tieToNext ? "与下一音符用延音线相连" : "",
           event.lyric === null ? "" : `歌词“${event.lyric}”`,
@@ -254,11 +331,15 @@ export const createLocalScoreProjectStaffPresentation = (
           durationBeats,
           augmentationDots: event.augmentationDots,
           x,
-          y: PITCH_Y[event.pitch],
+          y: pitchY[event.pitch],
           head: event.duration === "half" ? "open" : "filled",
           hasStem: true,
           hasEighthFlag: event.duration === "eighth",
-          hasC4LedgerLine: event.pitch === "C4",
+          accidental,
+          ledgerLineYs: getLedgerLineYs({
+            y: pitchY[event.pitch],
+            staffLineYs,
+          }),
           tieToNext: event.tieToNext,
           tieTargetEventId: tieTarget?.id ?? null,
           lyric: event.lyric,
@@ -278,7 +359,7 @@ export const createLocalScoreProjectStaffPresentation = (
           durationBeats,
           augmentationDots: event.augmentationDots,
           x,
-          y: 66,
+          y: clef === "bass" ? 126 : 66,
           rest: "quarter",
           accessibleLabel:
             `${positionLabel}，${event.augmentationDots === 1 ? "附点" : ""}四分休止符`,
@@ -314,8 +395,21 @@ export const createLocalScoreProjectStaffPresentation = (
     meter: document.meter,
     meterNumerator,
     meterDenominator: 4,
+    clef,
+    clefLabel,
+    clefGlyph: clef === "bass" ? "𝄢" : "𝄞",
+    clefGlyphY: clef === "bass" ? 151 : 87,
+    keySignatureFifths,
+    keySignatureLabel,
+    keySignatureGlyph,
+    keySignatureGlyphY,
+    staffLineYs,
+    restY: clef === "bass" ? 126 : 66,
+    lyricY: clef === "bass" ? 180 : 124,
     width,
-    height: LOCAL_SCORE_STAFF_HEIGHT,
+    height: clef === "bass"
+      ? LOCAL_SCORE_BASS_STAFF_HEIGHT
+      : LOCAL_SCORE_STAFF_HEIGHT,
     partId: part.partId,
     staffId: staff.staffId,
     voiceId: voice.voiceId,

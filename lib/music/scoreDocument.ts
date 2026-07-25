@@ -162,6 +162,43 @@ export type LocalNotationProjectScoreDocumentV2 = Readonly<{
   }>[];
 }>;
 
+export type LocalScoreProjectClefV3 = "treble" | "bass";
+
+export type LocalScoreProjectKeySignatureV3 = Readonly<{
+  fifths: -1 | 0 | 1;
+}>;
+
+export type LocalNotationProjectScoreDocumentV3 = Readonly<{
+  schemaVersion: "score-document-v3";
+  documentKind: "notation-project";
+  documentId: string;
+  revision: number;
+  reviewState: "draft";
+  localOnly: true;
+  sessionOnly: false;
+  source: Readonly<{
+    kind: "local-score-project";
+    projectId: string;
+  }>;
+  meter: NotationTimeSignature;
+  keySignature: LocalScoreProjectKeySignatureV3;
+  parts: readonly Readonly<{
+    partId: string;
+    staves: readonly Readonly<{
+      staffId: string;
+      staffKind: "pitched";
+      clef: LocalScoreProjectClefV3;
+      voices: readonly Readonly<{
+        voiceId: string;
+        measures: readonly Readonly<{
+          measureNumber: number;
+          events: readonly LocalScoreProjectEventV2[];
+        }>[];
+      }>[];
+    }>[];
+  }>[];
+}>;
+
 export type RhythmDictationScoreDocumentV1 = Readonly<{
   schemaVersion: "score-document-v1";
   documentKind: "rhythm-dictation";

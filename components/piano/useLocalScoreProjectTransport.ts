@@ -2,7 +2,10 @@
 
 import { useCallback, useEffect, useState } from "react";
 
-import type { LocalNotationProjectScoreDocumentV2 } from "../../lib/music/scoreDocument";
+import type {
+  LocalNotationProjectScoreDocumentV2,
+  LocalNotationProjectScoreDocumentV3,
+} from "../../lib/music/scoreDocument";
 import type { PianoVoiceProvider } from "../../lib/piano/pianoAudioProvider";
 import {
   useLocalScoreProjectMetronome,
@@ -31,7 +34,9 @@ export function useLocalScoreProjectTransport({
   voiceProvider,
   createMetronomeScheduler,
 }: {
-  document: LocalNotationProjectScoreDocumentV2;
+  document:
+    | LocalNotationProjectScoreDocumentV2
+    | LocalNotationProjectScoreDocumentV3;
   bpm: number;
   createAudioChannel?: LocalPianoAudioChannelFactory;
   voiceProvider?: PianoVoiceProvider;

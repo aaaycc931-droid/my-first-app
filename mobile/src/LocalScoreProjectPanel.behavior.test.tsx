@@ -220,6 +220,47 @@ describe("S1 本机谱项目面板", () => {
     expect(findButton(container, "播放草稿")).toBe(playButton);
   });
 
+  it("谱号与调号仅在保存成功后发布，并可随撤销恢复", async () => {
+    const store = new MemoryProjectStore();
+    const container = await renderPanel(store);
+    await click(findButton(container, "创建并保存"));
+
+    await change(findSelect(container, "谱号"), "bass");
+    await waitFor(
+      () => store.values.get("test-1")?.document.parts[0]?.staves[0]?.clef
+        === "bass",
+      "保存低音谱号",
+    );
+    expect(container.textContent).toContain("低音谱号");
+
+    await change(findSelect(container, "调号"), "1");
+    await waitFor(
+      () => store.values.get("test-1")?.document.keySignature.fifths === 1,
+      "保存一个升号",
+    );
+    expect(findSelect(container, "调号").value).toBe("1");
+
+    store.failNextPut = new LocalScoreProjectStorageError(
+      "write-failed",
+      "测试写入失败，原调号保持不变。",
+    );
+    await change(findSelect(container, "调号"), "-1");
+    await waitFor(
+      () => container.textContent?.includes("测试写入失败") ?? false,
+      "显示调号保存失败",
+    );
+    expect(findSelect(container, "调号").value).toBe("1");
+    expect(store.values.get("test-1")?.document.keySignature.fifths).toBe(1);
+
+    await click(findButton(container, "撤销"));
+    await waitFor(
+      () => store.values.get("test-1")?.document.keySignature.fifths === 0,
+      "撤销调号修改",
+    );
+    expect(findSelect(container, "谱号").value).toBe("bass");
+    expect(findSelect(container, "调号").value).toBe("0");
+  });
+
   it("创建、编辑、撤销重做、返回列表和重新打开形成保存闭环", async () => {
     const store = new MemoryProjectStore();
     const container = await renderPanel(store);

@@ -9,7 +9,7 @@ import { useLocalScoreProjectPlayback } from "../../components/piano/useLocalSco
 import type { LocalPianoAudioChannelFactory } from "../../components/piano/useLocalPianoAudio";
 import { stopAllBrowserAudio } from "../../lib/audio/browserAudioEngine";
 import type {
-  LocalNotationProjectScoreDocumentV2,
+  LocalNotationProjectScoreDocumentV3,
 } from "../../lib/music/scoreDocument";
 import type {
   PianoVoiceHandle,
@@ -67,8 +67,8 @@ const createAudioHarness = () => {
 
 const createDocument = (
   revision = 1,
-): LocalNotationProjectScoreDocumentV2 => ({
-  schemaVersion: "score-document-v2",
+): LocalNotationProjectScoreDocumentV3 => ({
+  schemaVersion: "score-document-v3",
   documentKind: "notation-project",
   documentId: "local.score-project.hook-test",
   revision,
@@ -80,6 +80,7 @@ const createDocument = (
     projectId: "hook-test",
   },
   meter: "4/4",
+  keySignature: { fifths: 0 },
   parts: [{
     partId: "part-1",
     staves: [{
@@ -122,8 +123,8 @@ const createDocument = (
   }],
 });
 
-const createTiedDocument = (): LocalNotationProjectScoreDocumentV2 => ({
-  schemaVersion: "score-document-v2",
+const createTiedDocument = (): LocalNotationProjectScoreDocumentV3 => ({
+  schemaVersion: "score-document-v3",
   documentKind: "notation-project",
   documentId: "local.score-project.hook-tie-test",
   revision: 1,
@@ -135,6 +136,7 @@ const createTiedDocument = (): LocalNotationProjectScoreDocumentV2 => ({
     projectId: "hook-tie-test",
   },
   meter: "4/4",
+  keySignature: { fifths: 0 },
   parts: [{
     partId: "part-1",
     staves: [{
@@ -184,7 +186,7 @@ const createTiedDocument = (): LocalNotationProjectScoreDocumentV2 => ({
   }],
 });
 
-type PlaybackDocument = LocalNotationProjectScoreDocumentV2;
+type PlaybackDocument = LocalNotationProjectScoreDocumentV3;
 
 const PlaybackHarness = ({
   document,

@@ -60,6 +60,11 @@ export type LocalScoreNumberedPresentation =
     documentId: string;
     revision: number;
     meter: string;
+    keySignatureFifths: -1 | 0 | 1;
+    keySignatureLabel:
+      | "无升降号"
+      | "一个升号（F♯）"
+      | "一个降号（B♭）";
     partId: string;
     staffId: string;
     voiceId: string;
@@ -174,6 +179,8 @@ export const createLocalScoreProjectNumberedPresentation = (
     documentId: staff.documentId,
     revision: staff.revision,
     meter: staff.meter,
+    keySignatureFifths: staff.keySignatureFifths,
+    keySignatureLabel: staff.keySignatureLabel,
     partId: staff.partId,
     staffId: staff.staffId,
     voiceId: staff.voiceId,

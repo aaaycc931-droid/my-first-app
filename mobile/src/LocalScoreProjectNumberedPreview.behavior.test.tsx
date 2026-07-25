@@ -7,7 +7,7 @@ import {
   createLocalScoreProjectNumberedPresentation,
 } from "../../lib/music/localScoreProjectNumberedPresentation";
 import type {
-  LocalNotationProjectScoreDocumentV2,
+  LocalNotationProjectScoreDocumentV3,
   LocalScoreProjectEventV2,
 } from "../../lib/music/scoreDocument";
 
@@ -47,15 +47,21 @@ const rest = (id: string): LocalScoreProjectEventV2 => ({
   augmentationDots: 0,
 });
 
-const createDocument = (
-  events: readonly LocalScoreProjectEventV2[] = [
+const createDocument = ({
+  events = [
     note({ id: "c4-half", pitch: "C4", duration: "half" }),
     rest("rest"),
     note({ id: "c5-eighth", pitch: "C5", duration: "eighth" }),
     note({ id: "d4-eighth", pitch: "D4", duration: "eighth" }),
   ],
-): LocalNotationProjectScoreDocumentV2 => ({
-  schemaVersion: "score-document-v2",
+  clef = "treble",
+  keySignatureFifths = 0,
+}: {
+  events?: readonly LocalScoreProjectEventV2[];
+  clef?: "treble" | "bass";
+  keySignatureFifths?: -1 | 0 | 1;
+} = {}): LocalNotationProjectScoreDocumentV3 => ({
+  schemaVersion: "score-document-v3",
   documentKind: "notation-project",
   documentId: "local.score-project.numbered-preview-test",
   revision: 7,
@@ -67,12 +73,13 @@ const createDocument = (
     projectId: "numbered-preview-test",
   },
   meter: "4/4",
+  keySignature: { fifths: keySignatureFifths },
   parts: [{
     partId: "part-1",
     staves: [{
       staffId: "staff-1",
       staffKind: "pitched",
-      clef: "treble",
+      clef,
       voices: [{
         voiceId: "voice-1",
         measures: [{ measureNumber: 1, events }],
@@ -134,7 +141,8 @@ describe("本地谱项目固定 C 简谱 pure presentation", () => {
   });
 
   it("保留附点、延音和歌词，并复用连续性 fail-closed 门禁", () => {
-    const valid = createLocalScoreProjectNumberedPresentation(createDocument([
+    const valid = createLocalScoreProjectNumberedPresentation(createDocument({
+      events: [
       note({
         id: "tie-source",
         pitch: "C4",
@@ -149,7 +157,8 @@ describe("本地谱项目固定 C 简谱 pure presentation", () => {
         duration: "eighth",
       }),
       note({ id: "g4-half", pitch: "G4", duration: "half" }),
-    ]));
+      ],
+    }));
     expect(valid.status).toBe("ready");
     if (valid.status !== "ready") throw new Error(valid.reason);
     const source = valid.tokens[0];
@@ -162,7 +171,8 @@ describe("本地谱项目固定 C 简谱 pure presentation", () => {
     expect(source.accessibleLabel).toContain("延音线");
     expect(source.accessibleLabel).toContain("歌词“春”");
 
-    const invalid = createLocalScoreProjectNumberedPresentation(createDocument([
+    const invalid = createLocalScoreProjectNumberedPresentation(createDocument({
+      events: [
       note({
         id: "bad-source",
         pitch: "C4",
@@ -171,10 +181,62 @@ describe("本地谱项目固定 C 简谱 pure presentation", () => {
       note({ id: "bad-target", pitch: "D4" }),
       rest("fill-1"),
       rest("fill-2"),
-    ]));
+      ],
+    }));
     expect(invalid.status).toBe("blocked");
     if (invalid.status !== "blocked") throw new Error("expected blocked");
     expect(invalid.reason).toContain("延音线");
+  });
+
+  it("谱号和调号变化只透传中文上下文，不改变固定 C token", () => {
+    const events = [
+      note({ id: "c4", pitch: "C4" }),
+      note({ id: "f4", pitch: "F4" }),
+      note({ id: "b4", pitch: "B4" }),
+      note({ id: "c5", pitch: "C5" }),
+    ] as const;
+    const combinations = ([
+      ["treble", -1],
+      ["treble", 0],
+      ["treble", 1],
+      ["bass", -1],
+      ["bass", 0],
+      ["bass", 1],
+    ] as const).map(([clef, keySignatureFifths]) =>
+      createLocalScoreProjectNumberedPresentation(createDocument({
+        events,
+        clef,
+        keySignatureFifths,
+      })));
+
+    for (const presentation of combinations) {
+      expect(presentation.status).toBe("ready");
+    }
+    const ready = combinations.map((presentation) => {
+      if (presentation.status !== "ready") throw new Error(presentation.reason);
+      return presentation;
+    });
+    const canonicalTokens = ready.map((presentation) =>
+      presentation.tokens.map((token) => ({
+        eventId: token.eventId,
+        degree: token.degree,
+        octave: token.type === "note" ? token.octave : null,
+        onsetBeat: token.onsetBeat,
+        duration: token.duration,
+      })));
+    canonicalTokens.slice(1).forEach((tokens) => {
+      expect(tokens).toEqual(canonicalTokens[0]);
+    });
+    expect(ready.map((presentation) => presentation.keySignatureLabel))
+      .toEqual([
+        "一个降号（B♭）",
+        "无升降号",
+        "一个升号（F♯）",
+        "一个降号（B♭）",
+        "无升降号",
+        "一个升号（F♯）",
+      ]);
+    expect(canonicalTokens[0]?.map(({ degree }) => degree)).toEqual([1, 4, 7, 1]);
   });
 });
 
@@ -242,10 +304,31 @@ describe("本地谱项目固定 C 简谱组件", () => {
     });
   });
 
+  it("显示当前谱面调号并明确固定 C 不随调号变化", async () => {
+    await act(async () => {
+      root?.render(
+        <LocalScoreProjectNumberedPreview
+          document={createDocument({
+            clef: "bass",
+            keySignatureFifths: 1,
+          })}
+        />,
+      );
+    });
+
+    expect(container?.textContent).toContain(
+      "固定 C 为 1，不随当前调号（一个升号（F♯））变化",
+    );
+    expect(container?.querySelector('[role="group"]')?.getAttribute("aria-label"))
+      .toContain("当前谱面调号一个升号（F♯），固定 C 音级不随调号变化");
+  });
+
   it("空声部保留中文可访问空态", async () => {
     await act(async () => {
       root?.render(
-        <LocalScoreProjectNumberedPreview document={createDocument([])} />,
+        <LocalScoreProjectNumberedPreview
+          document={createDocument({ events: [] })}
+        />,
       );
     });
     expect(container?.textContent).toContain(
