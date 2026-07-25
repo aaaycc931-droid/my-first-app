@@ -3,6 +3,9 @@
 import { useCallback, useEffect, useState } from "react";
 
 import {
+  LocalScoreProjectNumberedPreview,
+} from "../../components/music/LocalScoreProjectNumberedPreview";
+import {
   LocalScoreProjectStaffPreview,
   type LocalScoreProjectStaffSelection,
 } from "../../components/music/LocalScoreProjectStaffPreview";
@@ -46,6 +49,7 @@ import {
 } from "./runtime/localScoreProjectStorage";
 
 type EditorEventType = "note" | "rest";
+type ScorePreviewMode = "staff" | "numbered";
 
 const durationLabels: Record<NotationDuration, string> = {
   half: "二分音符",
@@ -113,6 +117,7 @@ function LocalScoreProjectPlaybackControls({
   selectedEventId?: string | null;
   onSelectEvent: (selection: LocalScoreProjectStaffSelection) => void;
 }) {
+  const [viewMode, setViewMode] = useState<ScorePreviewMode>("staff");
   const transport = useLocalScoreProjectTransport({
     document: project.document,
     bpm: project.tempoBpm,
@@ -120,12 +125,68 @@ function LocalScoreProjectPlaybackControls({
 
   return (
     <>
-      <LocalScoreProjectStaffPreview
-        document={project.document}
-        selectedEventId={selectedEventId}
-        activeEventIds={transport.activeSourceEventIds}
-        onSelectEvent={onSelectEvent}
-      />
+      <section className="rounded-3xl border border-indigo-200 bg-indigo-50 p-5 text-indigo-950 shadow-sm">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <p className="text-sm font-semibold text-indigo-700">
+              当前已保存修订
+            </p>
+            <h2 className="mt-1 text-xl font-black">选择谱面视图</h2>
+            <p className="mt-2 text-sm leading-6 text-indigo-800">
+              两种视图读取同一份谱面；切换不会重建或中断正在进行的播放。
+            </p>
+          </div>
+          <div
+            className="flex flex-wrap gap-2"
+            role="radiogroup"
+            aria-label="谱面视图"
+          >
+            <button
+              type="button"
+              role="radio"
+              aria-checked={viewMode === "staff"}
+              onClick={() => setViewMode("staff")}
+              className={`min-h-11 rounded-xl border px-3 py-2 text-sm font-bold ${
+                viewMode === "staff"
+                  ? "border-indigo-600 bg-white text-indigo-950 ring-2 ring-indigo-200"
+                  : "border-indigo-200 bg-indigo-50 text-indigo-700"
+              }`}
+            >
+              五线谱
+            </button>
+            <button
+              type="button"
+              role="radio"
+              aria-checked={viewMode === "numbered"}
+              onClick={() => setViewMode("numbered")}
+              className={`min-h-11 rounded-xl border px-3 py-2 text-sm font-bold ${
+                viewMode === "numbered"
+                  ? "border-indigo-600 bg-white text-indigo-950 ring-2 ring-indigo-200"
+                  : "border-indigo-200 bg-indigo-50 text-indigo-700"
+              }`}
+            >
+              固定 C 简谱
+            </button>
+          </div>
+        </div>
+        <div className="mt-4">
+          {viewMode === "staff" ? (
+            <LocalScoreProjectStaffPreview
+              document={project.document}
+              selectedEventId={selectedEventId}
+              activeEventIds={transport.activeSourceEventIds}
+              onSelectEvent={onSelectEvent}
+            />
+          ) : (
+            <LocalScoreProjectNumberedPreview
+              document={project.document}
+              selectedEventId={selectedEventId}
+              activeEventIds={transport.activeSourceEventIds}
+              onSelectEvent={onSelectEvent}
+            />
+          )}
+        </div>
+      </section>
       <section className="rounded-3xl border border-rose-200 bg-rose-50 p-5 text-rose-950 shadow-sm">
       <p className="text-sm font-semibold text-rose-700">本机采样钢琴预览</p>
       <h2 className="mt-1 text-xl font-black">播放当前已保存修订</h2>
