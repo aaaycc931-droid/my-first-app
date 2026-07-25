@@ -13,13 +13,17 @@ import {
   appendLocalScoreProjectMeasure,
   changeLocalScoreProjectMeter,
   changeLocalScoreProjectTempo,
+  copyLocalScoreProjectEvent,
   createLocalScoreProject,
   deleteEmptyLocalScoreProjectMeasure,
   deleteLocalScoreProjectEvent,
+  moveLocalScoreProjectEvent,
+  pasteLocalScoreProjectEvent,
   redoLocalScoreProject,
   renameLocalScoreProject,
   undoLocalScoreProject,
   updateLocalScoreProjectEvent,
+  type LocalScoreProjectEventInput,
   type LocalScoreProjectV1,
 } from "../../lib/music/localScoreProject";
 import {
@@ -218,6 +222,8 @@ export function LocalScoreProjectPanel({
   const [targetMeasureNumber, setTargetMeasureNumber] = useState(1);
   const [selectedEvent, setSelectedEvent] =
     useState<LocalScoreProjectStaffSelection | null>(null);
+  const [copiedEvent, setCopiedEvent] =
+    useState<LocalScoreProjectEventInput | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [pendingDeleteProjectId, setPendingDeleteProjectId] =
     useState<string | null>(null);
@@ -661,7 +667,7 @@ export function LocalScoreProjectPanel({
             目标小节
             <select
               value={targetMeasureNumber}
-              disabled={isBusy || Boolean(selectedEvent)}
+              disabled={isBusy}
               onChange={(event) => setTargetMeasureNumber(Number(event.target.value))}
               className="mt-2 min-h-11 w-full rounded-xl border border-indigo-300 bg-white px-3 py-2 disabled:bg-slate-100"
             >
@@ -721,6 +727,78 @@ export function LocalScoreProjectPanel({
             ? "更新所选事件并保存"
             : `添加到第 ${targetMeasureNumber} 小节并保存`}
         </button>
+        <div className="mt-3 flex flex-wrap gap-2">
+          {selectedEvent ? (
+            <>
+              <button
+                type="button"
+                disabled={isBusy}
+                onClick={() => {
+                  if (!currentProject) return;
+                  try {
+                    setCopiedEvent(copyLocalScoreProjectEvent({
+                      project: currentProject,
+                      location: selectedEvent.location,
+                      eventId: selectedEvent.eventId,
+                    }));
+                    setNotice("已复制所选事件；谱面尚未修改，可选择目标小节后粘贴。");
+                  } catch (error) {
+                    setNotice(error instanceof Error
+                      ? error.message
+                      : "无法复制所选事件，请重新选择。");
+                  }
+                }}
+                className="min-h-11 rounded-xl border border-indigo-300 bg-white px-3 py-2 text-sm font-bold text-indigo-800 disabled:text-slate-400"
+              >
+                复制所选事件
+              </button>
+              <button
+                type="button"
+                disabled={isBusy}
+                onClick={() =>
+                  void persistMutation((project) =>
+                    moveLocalScoreProjectEvent({
+                      project,
+                      expectedRevision: project.document.revision,
+                      source: selectedEvent.location,
+                      destination: getPrimaryLocation(
+                        project,
+                        targetMeasureNumber,
+                      ),
+                      eventId: selectedEvent.eventId,
+                      now: now(),
+                    }),
+                  )
+                }
+                className="min-h-11 rounded-xl border border-indigo-300 bg-white px-3 py-2 text-sm font-bold text-indigo-800 disabled:text-slate-400"
+              >
+                移动到第 {targetMeasureNumber} 小节并保存
+              </button>
+            </>
+          ) : null}
+          <button
+            type="button"
+            disabled={isBusy || !copiedEvent}
+            onClick={() => {
+              if (!copiedEvent) return;
+              void persistMutation((project) =>
+                pasteLocalScoreProjectEvent({
+                  project,
+                  expectedRevision: project.document.revision,
+                  destination: getPrimaryLocation(project, targetMeasureNumber),
+                  eventId: `event-${createId()}`,
+                  input: copiedEvent,
+                  now: now(),
+                }),
+              );
+            }}
+            className="min-h-11 rounded-xl border border-indigo-300 bg-white px-3 py-2 text-sm font-bold text-indigo-800 disabled:text-slate-400"
+          >
+            {copiedEvent
+              ? `粘贴到第 ${targetMeasureNumber} 小节并保存`
+              : "尚未复制事件"}
+          </button>
+        </div>
       </section>
 
       <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
@@ -880,6 +958,7 @@ export function LocalScoreProjectPanel({
           onClick={() => {
             setCurrentProject(null);
             setSelectedEvent(null);
+            setCopiedEvent(null);
             setTargetMeasureNumber(1);
             setNotice(null);
             void refreshProjects();

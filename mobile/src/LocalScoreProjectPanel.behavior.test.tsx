@@ -452,4 +452,124 @@ describe("S1 本机谱项目面板", () => {
       ),
     ).toEqual([1, 2]);
   });
+
+  it("复制不改谱面，粘贴和跨小节移动仅在保存成功后发布并可重试", async () => {
+    const store = new MemoryProjectStore();
+    const container = await renderPanel(store);
+    await click(findButton(container, "创建并保存"));
+    await click(findButton(container, "追加空小节"));
+    await click(findButton(container, "添加到第 1 小节并保存"));
+    await waitFor(
+      () => container.textContent?.includes("第 1 小节 · C4") ?? false,
+      "保存来源事件",
+    );
+    await click(findButton(container, "编辑"));
+    await change(findSelect(container, "音高"), "G4");
+    const revisionBeforeCopy =
+      Array.from(store.values.values())[0]?.document.revision;
+    await click(findButton(container, "复制所选事件"));
+    expect(container.textContent).toContain("谱面尚未修改");
+    expect(Array.from(store.values.values())[0]?.document.revision)
+      .toBe(revisionBeforeCopy);
+
+    await change(findSelect(container, "目标小节"), "2");
+    store.failNextPut = new LocalScoreProjectStorageError(
+      "capacity",
+      "本次保存会超过应用设定的本机谱项目容量上限，未写入修改；原有项目保持不变。",
+    );
+    await click(findButton(container, "粘贴到第 2 小节并保存"));
+    await waitFor(
+      () => container.textContent?.includes("应用设定的本机谱项目容量上限")
+        ?? false,
+      "粘贴容量失败",
+    );
+    let project = Array.from(store.values.values())[0];
+    expect(project?.document.revision).toBe(revisionBeforeCopy);
+    expect(
+      project?.document.parts[0]?.staves[0]?.voices[0]?.measures[1]?.events,
+    ).toHaveLength(0);
+
+    for (const failure of [
+      {
+        error: new LocalScoreProjectStorageError(
+          "quota",
+          "浏览器或 Android WebView 分配给 IndexedDB 的空间不足，乐谱项目未保存。",
+        ),
+        message: "浏览器或 Android WebView",
+      },
+      {
+        error: new LocalScoreProjectStorageError(
+          "write-failed",
+          "本机存储写入失败，乐谱项目未保存；原有项目保持不变。请恢复存储条件后重试。",
+        ),
+        message: "本机存储写入失败",
+      },
+      {
+        error: new LocalScoreProjectConflictError(),
+        message: "其他页面更新",
+      },
+    ]) {
+      store.failNextPut = failure.error;
+      await click(findButton(container, "粘贴到第 2 小节并保存"));
+      await waitFor(
+        () => container.textContent?.includes(failure.message) ?? false,
+        `粘贴失败：${failure.message}`,
+      );
+      project = Array.from(store.values.values())[0];
+      expect(project?.document.revision).toBe(revisionBeforeCopy);
+      expect(
+        project?.document.parts[0]?.staves[0]?.voices[0]?.measures[1]?.events,
+      ).toHaveLength(0);
+    }
+
+    await click(findButton(container, "粘贴到第 2 小节并保存"));
+    await waitFor(
+      () => container.textContent?.includes("第 2 小节 · C4") ?? false,
+      "恢复后粘贴成功",
+    );
+    project = Array.from(store.values.values())[0];
+    expect(
+      project?.document.parts[0]?.staves[0]?.voices[0]?.measures[1]?.events,
+    ).toHaveLength(1);
+    expect(
+      project?.document.parts[0]?.staves[0]?.voices[0]?.measures[1]?.events[0]
+        ?.pitch,
+    ).toBe("C4");
+
+    store.failNextPut = new LocalScoreProjectStorageError(
+      "transaction-failed",
+      "IndexedDB 事务被中止，乐谱项目未保存；原有项目保持不变。请恢复存储条件后重试。",
+    );
+    await click(findButton(container, "移动到第 2 小节并保存"));
+    await waitFor(
+      () => container.textContent?.includes("事务被中止") ?? false,
+      "移动事务失败",
+    );
+    project = Array.from(store.values.values())[0];
+    expect(
+      project?.document.parts[0]?.staves[0]?.voices[0]?.measures[0]?.events,
+    ).toHaveLength(1);
+
+    await click(findButton(container, "移动到第 2 小节并保存"));
+    await waitFor(
+      () => (
+        Array.from(store.values.values())[0]
+          ?.document.parts[0]?.staves[0]?.voices[0]?.measures[0]?.events
+          .length === 0
+      ),
+      "恢复后移动成功",
+    );
+    project = Array.from(store.values.values())[0];
+    expect(
+      project?.document.parts[0]?.staves[0]?.voices[0]?.measures[1]?.events,
+    ).toHaveLength(2);
+
+    await click(findButton(container, "返回项目列表"));
+    await click(findButton(container, "打开"));
+    await waitFor(
+      () => container.textContent?.includes("第一声部预览") ?? false,
+      "重开项目",
+    );
+    expect(findButton(container, "尚未复制事件").disabled).toBe(true);
+  });
 });

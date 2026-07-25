@@ -9,11 +9,14 @@ import {
   applyLocalScoreProjectContent,
   changeLocalScoreProjectMeter,
   changeLocalScoreProjectTempo,
+  copyLocalScoreProjectEvent,
   createLocalScoreProject,
   deleteEmptyLocalScoreProjectMeasure,
   deleteLocalScoreProjectEvent,
   deserializeLocalScoreProject,
   getLocalScoreProjectContent,
+  moveLocalScoreProjectEvent,
+  pasteLocalScoreProjectEvent,
   parseLocalScoreProject,
   redoLocalScoreProject,
   renameLocalScoreProject,
@@ -622,6 +625,363 @@ assert.equal(
     .events[0]?.measure,
   3,
   "canonical project events must support positive measure numbers beyond P44's 1/2 draft limit",
+);
+
+const moveFixtureContent = getLocalScoreProjectContent(appendedMeasure);
+const moveFixture = applyLocalScoreProjectContent({
+  project: appendedMeasure,
+  expectedRevision: appendedMeasure.document.revision,
+  content: {
+    ...moveFixtureContent,
+    parts: moveFixtureContent.parts.map((part) => ({
+      ...part,
+      staves: part.staves.map((staff) => ({
+        ...staff,
+        voices: staff.voices.map((voice) => ({
+          ...voice,
+          measures: voice.measures.map((measure) => ({
+            ...measure,
+            events: measure.measureNumber === 1
+              ? [
+                {
+                  id: "move-a",
+                  type: "note" as const,
+                  pitch: "C4" as const,
+                  duration: "quarter" as const,
+                  measure: 1,
+                },
+                {
+                  id: "move-b",
+                  type: "rest" as const,
+                  pitch: null,
+                  duration: "quarter" as const,
+                  measure: 1,
+                },
+                {
+                  id: "move-c",
+                  type: "note" as const,
+                  pitch: "G4" as const,
+                  duration: "half" as const,
+                  measure: 1,
+                },
+              ]
+              : [{
+                id: "move-d",
+                type: "note" as const,
+                pitch: "E4" as const,
+                duration: "quarter" as const,
+                measure: 2,
+              }],
+          })),
+        })),
+      })),
+    })),
+  },
+  now: "2026-07-24T00:00:02.000Z",
+});
+const moveFixtureBefore = JSON.stringify(moveFixture);
+const moveMeasureOne = (candidate: typeof moveFixture) =>
+  candidate.document.parts[0].staves[0].voices[0].measures[0].events;
+const moveMeasureTwo = (candidate: typeof moveFixture) =>
+  candidate.document.parts[0].staves[0].voices[0].measures[1].events;
+
+const movedUp = moveLocalScoreProjectEvent({
+  project: moveFixture,
+  expectedRevision: moveFixture.document.revision,
+  source: location,
+  destination: location,
+  eventId: "move-c",
+  targetIndex: 0,
+  now: "2026-07-24T00:00:03.000Z",
+});
+assert.deepEqual(moveMeasureOne(movedUp).map((event) => event.id), [
+  "move-c",
+  "move-a",
+  "move-b",
+]);
+assert.equal(movedUp.document.revision, moveFixture.document.revision + 1);
+assert.equal(movedUp.undoStack.length, moveFixture.undoStack.length + 1);
+assert.equal(JSON.stringify(moveFixture), moveFixtureBefore);
+
+const movedDown = moveLocalScoreProjectEvent({
+  project: movedUp,
+  expectedRevision: movedUp.document.revision,
+  source: location,
+  destination: location,
+  eventId: "move-c",
+  targetIndex: 2,
+  now: "2026-07-24T00:00:04.000Z",
+});
+assert.deepEqual(moveMeasureOne(movedDown).map((event) => event.id), [
+  "move-a",
+  "move-b",
+  "move-c",
+]);
+
+const movedAcrossMeasures = moveLocalScoreProjectEvent({
+  project: movedDown,
+  expectedRevision: movedDown.document.revision,
+  source: location,
+  destination: secondMeasureLocation,
+  eventId: "move-a",
+  targetIndex: 1,
+  now: "2026-07-24T00:00:05.000Z",
+});
+assert.deepEqual(
+  moveMeasureOne(movedAcrossMeasures).map((event) => event.id),
+  ["move-b", "move-c"],
+);
+assert.deepEqual(
+  moveMeasureTwo(movedAcrossMeasures).map((event) => event.id),
+  ["move-d", "move-a"],
+);
+assert.deepEqual(moveMeasureTwo(movedAcrossMeasures)[1], {
+  id: "move-a",
+  type: "note",
+  pitch: "C4",
+  duration: "quarter",
+  measure: 2,
+});
+
+const undoneMove = undoLocalScoreProject({
+  project: movedAcrossMeasures,
+  expectedRevision: movedAcrossMeasures.document.revision,
+  now: "2026-07-24T00:00:06.000Z",
+});
+assert.deepEqual(
+  getLocalScoreProjectContent(undoneMove),
+  getLocalScoreProjectContent(movedDown),
+);
+const redoneMove = redoLocalScoreProject({
+  project: undoneMove,
+  expectedRevision: undoneMove.document.revision,
+  now: "2026-07-24T00:00:07.000Z",
+});
+assert.deepEqual(
+  getLocalScoreProjectContent(redoneMove),
+  getLocalScoreProjectContent(movedAcrossMeasures),
+);
+
+assert.throws(
+  () => moveLocalScoreProjectEvent({
+    project: moveFixture,
+    expectedRevision: moveFixture.document.revision - 1,
+    source: location,
+    destination: secondMeasureLocation,
+    eventId: "move-a",
+    now: "2026-07-24T00:00:03.000Z",
+  }),
+  LocalScoreProjectConflictError,
+);
+assert.equal(JSON.stringify(moveFixture), moveFixtureBefore);
+
+assert.throws(
+  () => moveLocalScoreProjectEvent({
+    project: moveFixture,
+    expectedRevision: moveFixture.document.revision,
+    source: location,
+    destination: secondMeasureLocation,
+    eventId: "missing-event",
+    now: "2026-07-24T00:00:03.000Z",
+  }),
+  (error) =>
+    error instanceof LocalScoreProjectDomainError
+    && error.code === "not-found",
+);
+assert.equal(JSON.stringify(moveFixture), moveFixtureBefore);
+
+for (const targetIndex of [-1, 3, 1.5]) {
+  assert.throws(
+    () => moveLocalScoreProjectEvent({
+      project: moveFixture,
+      expectedRevision: moveFixture.document.revision,
+      source: location,
+      destination: location,
+      eventId: "move-a",
+      targetIndex,
+      now: "2026-07-24T00:00:03.000Z",
+    }),
+    (error) =>
+      error instanceof LocalScoreProjectDomainError
+      && error.code === "invalid-input",
+  );
+  assert.equal(JSON.stringify(moveFixture), moveFixtureBefore);
+}
+
+assert.throws(
+  () => moveLocalScoreProjectEvent({
+    project: moveFixture,
+    expectedRevision: moveFixture.document.revision,
+    source: location,
+    destination: { ...secondMeasureLocation, measureNumber: 99 },
+    eventId: "move-a",
+    targetIndex: 0,
+    now: "2026-07-24T00:00:03.000Z",
+  }),
+  (error) =>
+    error instanceof LocalScoreProjectDomainError
+    && error.code === "not-found",
+);
+assert.equal(JSON.stringify(moveFixture), moveFixtureBefore);
+
+const copiedMoveEvent = copyLocalScoreProjectEvent({
+  project: moveFixture,
+  location,
+  eventId: "move-a",
+});
+assert.deepEqual(copiedMoveEvent, {
+  type: "note",
+  pitch: "C4",
+  duration: "quarter",
+});
+assert.equal(JSON.stringify(moveFixture), moveFixtureBefore);
+
+const pastedHalf = pasteLocalScoreProjectEvent({
+  project: moveFixture,
+  expectedRevision: moveFixture.document.revision,
+  destination: secondMeasureLocation,
+  targetIndex: 0,
+  eventId: "pasted-half",
+  input: { type: "note", pitch: "F4", duration: "half" },
+  now: "2026-07-24T00:00:03.000Z",
+});
+assert.deepEqual(
+  moveMeasureTwo(pastedHalf).map((event) => event.id),
+  ["pasted-half", "move-d"],
+);
+assert.equal(pastedHalf.document.revision, moveFixture.document.revision + 1);
+assert.equal(pastedHalf.undoStack.length, moveFixture.undoStack.length + 1);
+
+const pastedToExactCapacity = pasteLocalScoreProjectEvent({
+  project: pastedHalf,
+  expectedRevision: pastedHalf.document.revision,
+  destination: secondMeasureLocation,
+  eventId: "pasted-quarter",
+  input: { type: "rest", pitch: null, duration: "quarter" },
+  now: "2026-07-24T00:00:04.000Z",
+});
+assert.deepEqual(
+  moveMeasureTwo(pastedToExactCapacity).map((event) => event.id),
+  ["pasted-half", "move-d", "pasted-quarter"],
+);
+
+const pastedHalfBefore = JSON.stringify(pastedHalf);
+assert.throws(
+  () => moveLocalScoreProjectEvent({
+    project: pastedHalf,
+    expectedRevision: pastedHalf.document.revision,
+    source: location,
+    destination: secondMeasureLocation,
+    eventId: "move-c",
+    now: "2026-07-24T00:00:04.000Z",
+  }),
+  (error) =>
+    error instanceof LocalScoreProjectDomainError
+    && error.code === "measure-capacity",
+);
+assert.equal(JSON.stringify(pastedHalf), pastedHalfBefore);
+
+const exactCapacityBefore = JSON.stringify(pastedToExactCapacity);
+assert.throws(
+  () => pasteLocalScoreProjectEvent({
+    project: pastedToExactCapacity,
+    expectedRevision: pastedToExactCapacity.document.revision,
+    destination: secondMeasureLocation,
+    eventId: "over-capacity",
+    input: { type: "note", pitch: "A4", duration: "eighth" },
+    now: "2026-07-24T00:00:05.000Z",
+  }),
+  (error) =>
+    error instanceof LocalScoreProjectDomainError
+    && error.code === "measure-capacity",
+);
+assert.equal(JSON.stringify(pastedToExactCapacity), exactCapacityBefore);
+
+const legacyOverfullContent = getLocalScoreProjectContent(moveFixture);
+const legacyOverfull = applyLocalScoreProjectContent({
+  project: moveFixture,
+  expectedRevision: moveFixture.document.revision,
+  content: {
+    ...legacyOverfullContent,
+    parts: legacyOverfullContent.parts.map((part) => ({
+      ...part,
+      staves: part.staves.map((staff) => ({
+        ...staff,
+        voices: staff.voices.map((voice) => ({
+          ...voice,
+          measures: voice.measures.map((measure) => ({
+            ...measure,
+            events: measure.measureNumber === 1
+              ? [...measure.events, {
+                id: "legacy-overfull",
+                type: "note" as const,
+                pitch: "B4" as const,
+                duration: "eighth" as const,
+                measure: 1,
+              }]
+              : measure.events,
+          })),
+        })),
+      })),
+    })),
+  },
+  now: "2026-07-24T00:00:03.000Z",
+});
+const reorderedLegacyOverfull = moveLocalScoreProjectEvent({
+  project: legacyOverfull,
+  expectedRevision: legacyOverfull.document.revision,
+  source: location,
+  destination: location,
+  eventId: "legacy-overfull",
+  targetIndex: 0,
+  now: "2026-07-24T00:00:04.000Z",
+});
+assert.equal(moveMeasureOne(reorderedLegacyOverfull)[0]?.id, "legacy-overfull");
+assert.throws(
+  () => pasteLocalScoreProjectEvent({
+    project: legacyOverfull,
+    expectedRevision: legacyOverfull.document.revision,
+    destination: location,
+    eventId: "legacy-overfull-paste",
+    input: { type: "note", pitch: "B4", duration: "eighth" },
+    now: "2026-07-24T00:00:04.000Z",
+  }),
+  (error) =>
+    error instanceof LocalScoreProjectDomainError
+    && error.code === "measure-capacity",
+);
+const legacyOverfullBeforeMoveIn = JSON.stringify(legacyOverfull);
+assert.throws(
+  () => moveLocalScoreProjectEvent({
+    project: legacyOverfull,
+    expectedRevision: legacyOverfull.document.revision,
+    source: secondMeasureLocation,
+    destination: location,
+    eventId: "move-d",
+    now: "2026-07-24T00:00:04.000Z",
+  }),
+  (error) =>
+    error instanceof LocalScoreProjectDomainError
+    && error.code === "measure-capacity",
+);
+assert.equal(JSON.stringify(legacyOverfull), legacyOverfullBeforeMoveIn);
+const repairedLegacyOverfull = moveLocalScoreProjectEvent({
+  project: legacyOverfull,
+  expectedRevision: legacyOverfull.document.revision,
+  source: location,
+  destination: secondMeasureLocation,
+  eventId: "legacy-overfull",
+  now: "2026-07-24T00:00:04.000Z",
+});
+assert.equal(
+  moveMeasureOne(repairedLegacyOverfull)
+    .some((event) => event.id === "legacy-overfull"),
+  false,
+);
+assert.equal(
+  moveMeasureTwo(repairedLegacyOverfull)
+    .some((event) => event.id === "legacy-overfull"),
+  true,
 );
 
 console.log("Local score project domain tests passed.");
