@@ -47,14 +47,19 @@ export function useLocalScoreProjectPlayback({
   );
   const planIdentity = plan.status === "ready" ? plan.scheduleId : plan.reason;
   const [activePlanIdentity, setActivePlanIdentity] = useState<string | null>(null);
+  const [scheduledActiveSourceEventIds, setScheduledActiveSourceEventIds] =
+    useState<readonly string[]>([]);
   const [playbackNotice, setPlaybackNotice] = useState<string | null>(null);
   const timersRef = useRef(new Set<number>());
+  const activeSourceEventIdsRef = useRef(new Set<string>());
   const runRef = useRef(0);
 
   const clearSchedule = useCallback(() => {
     runRef.current += 1;
     timersRef.current.forEach((timer) => window.clearTimeout(timer));
     timersRef.current.clear();
+    activeSourceEventIdsRef.current.clear();
+    setScheduledActiveSourceEventIds([]);
     setActivePlanIdentity(null);
   }, []);
 
@@ -122,17 +127,48 @@ export function useLocalScoreProjectPlayback({
 
     const run = runRef.current;
     setActivePlanIdentity(planIdentity);
-    const eventsByDelay = new Map<number, LocalScoreProjectPlaybackEvent[]>();
+    const eventsByDelay = new Map<number, {
+      audioEvents: LocalScoreProjectPlaybackEvent[];
+      endingSourceEventIds: string[];
+      startingSourceEventIds: string[];
+    }>();
+    const groupAt = (delayMs: number) => {
+      const existing = eventsByDelay.get(delayMs);
+      if (existing) return existing;
+      const created = {
+        audioEvents: [],
+        endingSourceEventIds: [],
+        startingSourceEventIds: [],
+      };
+      eventsByDelay.set(delayMs, created);
+      return created;
+    };
     plan.events.forEach((event) => {
-      const group = eventsByDelay.get(event.delayMs);
-      if (group) group.push(event);
-      else eventsByDelay.set(event.delayMs, [event]);
+      groupAt(event.delayMs).audioEvents.push(event);
+    });
+    plan.spans.forEach((span) => {
+      groupAt(span.startMs).startingSourceEventIds.push(span.sourceEventId);
+      groupAt(span.endMs).endingSourceEventIds.push(span.sourceEventId);
     });
 
-    eventsByDelay.forEach((events, delayMs) => {
+    eventsByDelay.forEach((group, delayMs) => {
       const executeGroup = () => {
         if (runRef.current !== run) return;
-        events.forEach(executeEvent);
+        group.endingSourceEventIds.forEach((sourceEventId) => {
+          activeSourceEventIdsRef.current.delete(sourceEventId);
+        });
+        group.startingSourceEventIds.forEach((sourceEventId) => {
+          activeSourceEventIdsRef.current.add(sourceEventId);
+        });
+        if (
+          group.endingSourceEventIds.length > 0
+          || group.startingSourceEventIds.length > 0
+        ) {
+          setScheduledActiveSourceEventIds(
+            Array.from(activeSourceEventIdsRef.current),
+          );
+        }
+        group.audioEvents.forEach(executeEvent);
       };
       if (delayMs <= 0) {
         executeGroup();
@@ -151,17 +187,22 @@ export function useLocalScoreProjectPlayback({
     runRef.current += 1;
     timersRef.current.forEach((timer) => window.clearTimeout(timer));
     timersRef.current.clear();
+    activeSourceEventIdsRef.current.clear();
     stopAllAudio();
   }, [planIdentity, stopAllAudio]);
 
   const isPlaying = activePlanIdentity === planIdentity;
   const playbackState: LocalScoreProjectPlaybackState =
     isPlaying ? "播放中" : "空闲";
+  const activeSourceEventIds = isPlaying
+    ? scheduledActiveSourceEventIds
+    : [];
 
   return {
     plan,
     playbackState,
     isPlaying,
+    activeSourceEventIds,
     notice: playbackNotice ?? audioNotice,
     keyboardState,
     timbre,

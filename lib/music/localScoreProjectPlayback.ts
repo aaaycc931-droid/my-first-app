@@ -24,6 +24,16 @@ export type LocalScoreProjectPlaybackEvent =
     delayMs: number;
   }>;
 
+export type LocalScoreProjectPlaybackSpan = Readonly<{
+  sourceEventId: string;
+  partId: string;
+  staffId: string;
+  voiceId: string;
+  measureNumber: number;
+  startMs: number;
+  endMs: number;
+}>;
+
 export type LocalScoreProjectPlaybackPlan =
   | Readonly<{
     status: "ready";
@@ -34,6 +44,7 @@ export type LocalScoreProjectPlaybackPlan =
     voiceSelection: LocalScoreProjectPlaybackVoiceSelection;
     durationMs: number;
     events: readonly LocalScoreProjectPlaybackEvent[];
+    spans: readonly LocalScoreProjectPlaybackSpan[];
     warnings: readonly string[];
   }>
   | Readonly<{
@@ -178,6 +189,7 @@ export const createLocalScoreProjectPlaybackPlan = ({
     ? allVoices.slice(0, 1)
     : allVoices;
   const noteEvents: LocalScoreProjectPlaybackNoteEvent[] = [];
+  const spans: LocalScoreProjectPlaybackSpan[] = [];
   const warnings: string[] = [];
   let sourceEventCount = 0;
   let totalBeats = 0;
@@ -196,6 +208,17 @@ export const createLocalScoreProjectPlaybackPlan = ({
           );
         }
 
+        const onsetBeat = measureStartBeat + cursorBeat;
+        spans.push({
+          sourceEventId: event.id,
+          partId: locatedVoice.partId,
+          staffId: locatedVoice.staffId,
+          voiceId: locatedVoice.voice.voiceId,
+          measureNumber: measure.measureNumber,
+          startMs: onsetBeat * beatMs,
+          endMs: (onsetBeat + durationBeats) * beatMs,
+        });
+
         if (event.type === "note") {
           const midi = event.pitch === null ? null : noteNameToMidi(event.pitch);
           if (midi === null || midi < 21 || midi > 108) {
@@ -207,7 +230,6 @@ export const createLocalScoreProjectPlaybackPlan = ({
             eventId: event.id,
             measureNumber: measure.measureNumber,
           });
-          const onsetBeat = measureStartBeat + cursorBeat;
           noteEvents.push({
             type: "note-on",
             delayMs: onsetBeat * beatMs,
@@ -263,6 +285,7 @@ export const createLocalScoreProjectPlaybackPlan = ({
     voiceSelection,
     durationMs,
     events,
+    spans,
     warnings,
   };
 };
