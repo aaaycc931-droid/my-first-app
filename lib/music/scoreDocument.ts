@@ -68,6 +68,36 @@ export type NotationScoreDocumentV1 = Readonly<{
   ];
 }>;
 
+export type LocalNotationProjectScoreDocumentV1 = Readonly<{
+  schemaVersion: "score-document-v1";
+  documentKind: "notation-project";
+  documentId: string;
+  revision: number;
+  reviewState: "draft";
+  localOnly: true;
+  sessionOnly: false;
+  source: Readonly<{
+    kind: "local-score-project";
+    projectId: string;
+  }>;
+  meter: NotationTimeSignature;
+  parts: readonly Readonly<{
+    partId: string;
+    staves: readonly Readonly<{
+      staffId: string;
+      staffKind: "pitched";
+      clef: "treble";
+      voices: readonly Readonly<{
+        voiceId: string;
+        measures: readonly Readonly<{
+          measureNumber: number;
+          events: readonly ScoreDocumentEventV1[];
+        }>[];
+      }>[];
+    }>[];
+  }>[];
+}>;
+
 export type RhythmDictationScoreDocumentV1 = Readonly<{
   schemaVersion: "score-document-v1";
   documentKind: "rhythm-dictation";
@@ -185,6 +215,7 @@ export type MelodyDictationNumberedAnswerScoreDocumentV1 = Readonly<{
 
 export type ScoreDocumentV1 =
   | NotationScoreDocumentV1
+  | LocalNotationProjectScoreDocumentV1
   | RhythmDictationScoreDocumentV1
   | MelodyDictationAnswerScoreDocumentV1
   | MelodyDictationNumberedAnswerScoreDocumentV1;
