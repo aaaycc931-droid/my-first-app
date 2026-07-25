@@ -4,11 +4,10 @@ import { useMemo, type KeyboardEvent } from "react";
 
 import {
   createLocalScoreProjectStaffPresentation,
-  LOCAL_SCORE_STAFF_LINE_Y,
   type LocalScoreStaffEventLocation,
   type LocalScoreStaffToken,
 } from "../../lib/music/localScoreProjectStaffPresentation";
-import type { LocalNotationProjectScoreDocumentV2 } from "../../lib/music/scoreDocument";
+import type { LocalNotationProjectScoreDocumentV3 } from "../../lib/music/scoreDocument";
 
 export type LocalScoreProjectStaffSelection = Readonly<{
   eventId: string;
@@ -16,7 +15,7 @@ export type LocalScoreProjectStaffSelection = Readonly<{
 }>;
 
 export type LocalScoreProjectStaffPreviewProps = Readonly<{
-  document: LocalNotationProjectScoreDocumentV2;
+  document: LocalNotationProjectScoreDocumentV3;
   selectedEventId?: string | null;
   activeEventIds?: readonly string[];
   onSelectEvent?: (selection: LocalScoreProjectStaffSelection) => void;
@@ -67,7 +66,8 @@ export function LocalScoreProjectStaffPreview({
     ? "当前没有音符或休止符"
     : presentation.tokens.map((token) => token.accessibleLabel).join("；");
   const previewLabel =
-    `第一声部五线谱预览，拍号 ${presentation.meter}，`
+    `第一声部五线谱预览，${presentation.clefLabel}，`
+    + `调号${presentation.keySignatureLabel}，拍号 ${presentation.meter}，`
     + `共 ${presentation.measures.length} 小节。${eventSummary}。`;
   const tokenById = new Map(
     presentation.tokens.map((token) => [token.eventId, token]),
@@ -87,7 +87,7 @@ export function LocalScoreProjectStaffPreview({
           </p>
         </div>
         <p className="rounded-full bg-indigo-50 px-3 py-1 text-xs font-semibold text-indigo-900">
-          高音谱号 · {presentation.meter}
+          {presentation.clefLabel} · 调号{presentation.keySignatureLabel} · {presentation.meter}
         </p>
       </div>
 
@@ -110,7 +110,7 @@ export function LocalScoreProjectStaffPreview({
             rx="12"
             fill="#ffffff"
           />
-          {LOCAL_SCORE_STAFF_LINE_Y.map((y) => (
+          {presentation.staffLineYs.map((y) => (
             <line
               key={y}
               data-testid="local-score-staff-line"
@@ -124,15 +124,29 @@ export function LocalScoreProjectStaffPreview({
           ))}
           <text
             x="24"
-            y="87"
+            y={presentation.clefGlyphY}
             fill="#312e81"
             fontFamily="serif"
             fontSize="54"
             aria-hidden="true"
-            data-testid="local-score-treble-clef"
+            data-testid={`local-score-${presentation.clef}-clef`}
           >
-            𝄞
+            {presentation.clefGlyph}
           </text>
+          {presentation.keySignatureGlyph !== null
+            && presentation.keySignatureGlyphY !== null ? (
+              <text
+                x="64"
+                y={presentation.keySignatureGlyphY + 7}
+                fill="#312e81"
+                fontFamily="serif"
+                fontSize="25"
+                aria-hidden="true"
+                data-testid="local-score-key-signature"
+              >
+                {presentation.keySignatureGlyph}
+              </text>
+            ) : null}
           <g
             fill="#0f172a"
             fontFamily="serif"
@@ -142,8 +156,12 @@ export function LocalScoreProjectStaffPreview({
             aria-hidden="true"
             data-testid="local-score-meter"
           >
-            <text x="78" y="57">{presentation.meterNumerator}</text>
-            <text x="78" y="78">{presentation.meterDenominator}</text>
+            <text x="82" y={presentation.staffLineYs[0] + 21}>
+              {presentation.meterNumerator}
+            </text>
+            <text x="82" y={presentation.staffLineYs[0] + 42}>
+              {presentation.meterDenominator}
+            </text>
           </g>
 
           {presentation.measures.map((measure) => (
@@ -163,9 +181,9 @@ export function LocalScoreProjectStaffPreview({
               <line
                 data-testid={`local-score-barline-${measure.measureNumber}`}
                 x1={measure.barlineX}
-                y1={LOCAL_SCORE_STAFF_LINE_Y[0]}
+                y1={presentation.staffLineYs[0]}
                 x2={measure.barlineX}
-                y2={LOCAL_SCORE_STAFF_LINE_Y.at(-1)}
+                y2={presentation.staffLineYs[4]}
                 stroke="#334155"
                 strokeWidth="2"
                 aria-hidden="true"
@@ -233,9 +251,10 @@ export function LocalScoreProjectStaffPreview({
               >
                 <rect
                   x={token.x - 20}
-                  y="26"
+                  y={presentation.staffLineYs[0] - 10}
                   width="40"
-                  height="78"
+                  height={presentation.staffLineYs[4]
+                    - presentation.staffLineYs[0] + 30}
                   rx="9"
                   fill={active ? "#fef3c7" : "transparent"}
                   stroke={selected ? "#4338ca" : "transparent"}
@@ -245,9 +264,9 @@ export function LocalScoreProjectStaffPreview({
                 {active ? (
                   <line
                     x1={token.x - 16}
-                    y1="28"
+                    y1={presentation.staffLineYs[0] - 8}
                     x2={token.x - 16}
-                    y2="102"
+                    y2={presentation.staffLineYs[4] + 18}
                     stroke="#d97706"
                     strokeWidth="3"
                     data-testid={`local-score-playback-cursor-${token.eventId}`}
@@ -257,17 +276,32 @@ export function LocalScoreProjectStaffPreview({
 
                 {token.type === "note" ? (
                   <>
-                    {token.hasC4LedgerLine ? (
+                    {token.ledgerLineYs.map((ledgerY) => (
                       <line
+                        key={ledgerY}
                         x1={token.x - 14}
-                        y1={token.y}
+                        y1={ledgerY}
                         x2={token.x + 14}
-                        y2={token.y}
+                        y2={ledgerY}
                         stroke="#475569"
                         strokeWidth="1.4"
-                        data-testid={`local-score-c4-ledger-${token.eventId}`}
+                        data-testid={`local-score-ledger-${token.eventId}-${ledgerY}`}
                         aria-hidden="true"
                       />
+                    ))}
+                    {token.accidental === "natural" ? (
+                      <text
+                        x={token.x - 15}
+                        y={token.y + 7}
+                        fill="#312e81"
+                        fontFamily="serif"
+                        fontSize="22"
+                        textAnchor="middle"
+                        data-testid={`local-score-natural-${token.eventId}`}
+                        aria-hidden="true"
+                      >
+                        ♮
+                      </text>
                     ) : null}
                     <ellipse
                       cx={token.x}
@@ -315,7 +349,7 @@ export function LocalScoreProjectStaffPreview({
                     {token.lyric !== null ? (
                       <text
                         x={token.x}
-                        y="124"
+                        y={presentation.lyricY}
                         fill="#334155"
                         fontFamily="sans-serif"
                         fontSize="12"

@@ -9,6 +9,7 @@ import {
 import type {
   LocalNotationProjectScoreDocumentV1,
   LocalNotationProjectScoreDocumentV2,
+  LocalNotationProjectScoreDocumentV3,
   LocalScoreProjectEventV2,
   ScoreDocumentEventV1,
 } from "./scoreDocument";
@@ -68,7 +69,8 @@ export type LocalScoreProjectPlaybackPlan =
 
 type PlaybackDocument =
   | LocalNotationProjectScoreDocumentV1
-  | LocalNotationProjectScoreDocumentV2;
+  | LocalNotationProjectScoreDocumentV2
+  | LocalNotationProjectScoreDocumentV3;
 
 type PlaybackEvent = ScoreDocumentEventV1 | LocalScoreProjectEventV2;
 
@@ -146,6 +148,7 @@ const isLegacyPlaybackContent = (document: Record<string, unknown>): boolean => 
   return !parts.some((part) => part === null)
     && isLocalScoreProjectContent({
       meter: document.meter,
+      keySignature: { fifths: 0 },
       parts,
     });
 };
@@ -157,6 +160,7 @@ const isPlaybackDocument = (
   && (
     document.schemaVersion === "score-document-v1"
     || document.schemaVersion === "score-document-v2"
+    || document.schemaVersion === "score-document-v3"
   )
   && document.documentKind === "notation-project"
   && typeof document.documentId === "string"
@@ -175,7 +179,14 @@ const isPlaybackDocument = (
       document.schemaVersion === "score-document-v1"
       && isLegacyPlaybackContent(document)
     )
-    || isLocalScoreProjectContent(document)
+    || (
+      document.schemaVersion === "score-document-v2"
+      && isLegacyPlaybackContent(document)
+    )
+    || (
+      document.schemaVersion === "score-document-v3"
+      && isLocalScoreProjectContent(document)
+    )
   );
 
 const meterBeats = (meter: PlaybackDocument["meter"]): number =>
@@ -263,7 +274,7 @@ export const createLocalScoreProjectPlaybackPlan = ({
     return blocked("乐谱项目文档无效，无法安全播放。");
   }
   if (
-    document.schemaVersion === "score-document-v2"
+    document.schemaVersion !== "score-document-v1"
     && !hasValidLocalScoreProjectTies(document)
   ) {
     return blocked(LOCAL_SCORE_PROJECT_TIE_CONTINUITY_ERROR);

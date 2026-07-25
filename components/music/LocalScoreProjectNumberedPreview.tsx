@@ -6,13 +6,13 @@ import {
   createLocalScoreProjectNumberedPresentation,
   type LocalScoreNumberedToken,
 } from "../../lib/music/localScoreProjectNumberedPresentation";
-import type { LocalNotationProjectScoreDocumentV2 } from "../../lib/music/scoreDocument";
+import type { LocalNotationProjectScoreDocumentV3 } from "../../lib/music/scoreDocument";
 import type {
   LocalScoreProjectStaffSelection,
 } from "./LocalScoreProjectStaffPreview";
 
 export type LocalScoreProjectNumberedPreviewProps = Readonly<{
-  document: LocalNotationProjectScoreDocumentV2;
+  document: LocalNotationProjectScoreDocumentV3;
   selectedEventId?: string | null;
   activeEventIds?: readonly string[];
   onSelectEvent?: (selection: LocalScoreProjectStaffSelection) => void;
@@ -75,18 +75,18 @@ export function LocalScoreProjectNumberedPreview({
         <div>
           <h3 className="font-bold text-slate-950">第一声部固定 C 简谱</h3>
           <p className="mt-1 text-sm leading-6 text-slate-600">
-            固定 C 为 1，不根据调号转调；蓝框表示选择，琥珀色表示当前播放事件。
+            固定 C 为 1，不随当前调号（{presentation.keySignatureLabel}）变化；蓝框表示选择，琥珀色表示当前播放事件。
           </p>
         </div>
         <p className="rounded-full bg-sky-50 px-3 py-1 text-xs font-semibold text-sky-900">
-          1 = C · {presentation.meter}
+          1 = C · 调号{presentation.keySignatureLabel} · {presentation.meter}
         </p>
       </div>
 
       <div
         className="mt-4 overflow-x-auto rounded-xl border border-sky-100 bg-sky-50/40 p-3"
         role="group"
-        aria-label={`第一声部固定 C 简谱预览，拍号 ${presentation.meter}，共 ${presentation.measures.length} 小节。${summary}。`}
+        aria-label={`第一声部固定 C 简谱预览，当前谱面调号${presentation.keySignatureLabel}，固定 C 音级不随调号变化，拍号 ${presentation.meter}，共 ${presentation.measures.length} 小节。${summary}。`}
       >
         <div className="flex min-w-max items-stretch">
           {presentation.measures.map((measure) => (

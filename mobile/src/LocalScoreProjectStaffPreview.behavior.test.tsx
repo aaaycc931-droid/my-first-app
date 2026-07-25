@@ -13,7 +13,7 @@ import {
   LOCAL_SCORE_STAFF_MEASURE_WIDTH,
 } from "../../lib/music/localScoreProjectStaffPresentation";
 import type {
-  LocalNotationProjectScoreDocumentV2,
+  LocalNotationProjectScoreDocumentV3,
   LocalScoreProjectEventV2,
 } from "../../lib/music/scoreDocument";
 
@@ -63,17 +63,21 @@ const rest = ({
 
 const createDocument = ({
   meter = "4/4",
+  clef = "treble",
+  keySignatureFifths = 0,
   firstVoiceMeasures,
   secondVoiceEvents = [],
 }: {
-  meter?: LocalNotationProjectScoreDocumentV2["meter"];
+  meter?: LocalNotationProjectScoreDocumentV3["meter"];
+  clef?: "treble" | "bass";
+  keySignatureFifths?: -1 | 0 | 1;
   firstVoiceMeasures?: readonly Readonly<{
     measureNumber: number;
     events: readonly LocalScoreProjectEventV2[];
   }>[];
   secondVoiceEvents?: readonly LocalScoreProjectEventV2[];
-} = {}): LocalNotationProjectScoreDocumentV2 => ({
-  schemaVersion: "score-document-v2",
+} = {}): LocalNotationProjectScoreDocumentV3 => ({
+  schemaVersion: "score-document-v3",
   documentKind: "notation-project",
   documentId: "local.score-project.staff-preview-test",
   revision: 6,
@@ -85,12 +89,13 @@ const createDocument = ({
     projectId: "staff-preview-test",
   },
   meter,
+  keySignature: { fifths: keySignatureFifths },
   parts: [{
     partId: "part-1",
     staves: [{
       staffId: "staff-1",
       staffKind: "pitched",
-      clef: "treble",
+      clef,
       voices: [{
         voiceId: "voice-1",
         measures: firstVoiceMeasures ?? [{
@@ -211,7 +216,7 @@ describe("本地谱项目五线谱 pure presentation", () => {
     expect(c4?.type).toBe("note");
     if (c4?.type !== "note") throw new Error("expected C4 note");
     expect(c4.head).toBe("open");
-    expect(c4.hasC4LedgerLine).toBe(true);
+    expect(c4.ledgerLineYs).toEqual([96]);
     expect(c4.hasEighthFlag).toBe(false);
     expect(restToken?.type).toBe("rest");
     expect(c5?.type).toBe("note");
@@ -408,6 +413,73 @@ describe("本地谱项目五线谱 pure presentation", () => {
       { id: "chain-end", onset: 3.5, duration: 0.5, tieTarget: null },
     ]);
   });
+
+  it("按高低音谱号定位音符与通用加线，并为调号覆盖的自然音加还原号", () => {
+    const trebleSharp = createLocalScoreProjectStaffPresentation(
+      createDocument({
+        keySignatureFifths: 1,
+        firstVoiceMeasures: [{
+          measureNumber: 1,
+          events: [
+            note({ id: "f4", pitch: "F4", duration: "quarter", measure: 1 }),
+          ],
+        }],
+      }),
+    );
+    const bassFlat = createLocalScoreProjectStaffPresentation(
+      createDocument({
+        clef: "bass",
+        keySignatureFifths: -1,
+        firstVoiceMeasures: [{
+          measureNumber: 1,
+          events: [
+            note({ id: "c4", pitch: "C4", duration: "quarter", measure: 1 }),
+            note({ id: "b4", pitch: "B4", duration: "quarter", measure: 1 }),
+            note({ id: "c5", pitch: "C5", duration: "quarter", measure: 1 }),
+          ],
+        }],
+      }),
+    );
+
+    expect(trebleSharp.status).toBe("ready");
+    expect(bassFlat.status).toBe("ready");
+    if (trebleSharp.status !== "ready" || bassFlat.status !== "ready") {
+      throw new Error("expected ready presentations");
+    }
+    expect(trebleSharp.clefLabel).toBe("高音谱号");
+    expect(trebleSharp.keySignatureLabel).toBe("一个升号（F♯）");
+    expect(trebleSharp.tokens[0]).toMatchObject({
+      eventId: "f4",
+      y: 78,
+      accidental: "natural",
+      ledgerLineYs: [],
+    });
+    expect(trebleSharp.tokens[0]?.accessibleLabel).toContain("还原号");
+
+    expect(bassFlat.clefLabel).toBe("低音谱号");
+    expect(bassFlat.keySignatureLabel).toBe("一个降号（B♭）");
+    expect(bassFlat.staffLineYs).toEqual([96, 108, 120, 132, 144]);
+    expect(bassFlat.tokens.map((token) => ({
+      id: token.eventId,
+      y: token.y,
+      accidental: token.type === "note" ? token.accidental : null,
+      ledgers: token.type === "note" ? token.ledgerLineYs : [],
+    }))).toEqual([
+      { id: "c4", y: 84, accidental: null, ledgers: [84] },
+      {
+        id: "b4",
+        y: 48,
+        accidental: "natural",
+        ledgers: [84, 72, 60, 48],
+      },
+      {
+        id: "c5",
+        y: 42,
+        accidental: null,
+        ledgers: [84, 72, 60, 48],
+      },
+    ]);
+  });
 });
 
 describe("本地谱项目五线谱 SVG 预览", () => {
@@ -443,7 +515,7 @@ describe("本地谱项目五线谱 SVG 预览", () => {
 
     const svg = container?.querySelector("svg");
     expect(svg?.getAttribute("aria-label")).toContain(
-      "第一声部五线谱预览，拍号 4/4，共 2 小节",
+      "第一声部五线谱预览，高音谱号，调号无升降号，拍号 4/4，共 2 小节",
     );
     expect(svg?.getAttribute("aria-label")).toContain(
       "第 1 小节第 2 个事件，四分休止符",
@@ -456,7 +528,7 @@ describe("本地谱项目五线谱 SVG 预览", () => {
       .not.toBeNull();
     expect(container?.querySelector('[data-testid="local-score-barline-2"]'))
       .not.toBeNull();
-    expect(container?.querySelector('[data-testid="local-score-c4-ledger-c4-half"]'))
+    expect(container?.querySelector('[data-testid="local-score-ledger-c4-half-96"]'))
       .not.toBeNull();
     expect(container?.querySelector('[data-testid="local-score-notehead-c4-half"]')?.getAttribute("fill"))
       .toBe("#ffffff");
@@ -516,6 +588,41 @@ describe("本地谱项目五线谱 SVG 预览", () => {
         measureNumber: 2,
       },
     });
+  });
+
+  it("渲染低音谱号、降号、还原号和中文可访问上下文", async () => {
+    await act(async () => {
+      root?.render(
+        <LocalScoreProjectStaffPreview
+          document={createDocument({
+            clef: "bass",
+            keySignatureFifths: -1,
+            firstVoiceMeasures: [{
+              measureNumber: 1,
+              events: [
+                note({
+                  id: "bass-b4",
+                  pitch: "B4",
+                  duration: "quarter",
+                  measure: 1,
+                }),
+              ],
+            }],
+          })}
+        />,
+      );
+    });
+
+    expect(container?.querySelector('[data-testid="local-score-bass-clef"]')
+      ?.textContent).toBe("𝄢");
+    expect(container?.querySelector('[data-testid="local-score-key-signature"]')
+      ?.textContent).toBe("♭");
+    expect(container?.querySelector('[data-testid="local-score-natural-bass-b4"]'))
+      .not.toBeNull();
+    expect(container?.querySelector("svg")?.getAttribute("aria-label"))
+      .toContain("低音谱号，调号一个降号（B♭）");
+    expect(container?.querySelector('[data-event-id="bass-b4"]')
+      ?.getAttribute("aria-label")).toContain("还原号");
   });
 
   it("空声部保留可访问空态且不伪造事件", async () => {

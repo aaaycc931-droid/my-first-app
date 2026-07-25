@@ -10,6 +10,7 @@ import { hasValidLocalScoreProjectTies } from "../lib/music/localScoreProject";
 import type {
   LocalNotationProjectScoreDocumentV1,
   LocalNotationProjectScoreDocumentV2,
+  LocalNotationProjectScoreDocumentV3,
   LocalScoreProjectEventV2,
   ScoreDocumentEventV1,
 } from "../lib/music/scoreDocument";
@@ -153,6 +154,33 @@ const documentV2WithMeasures = (
     }],
   }],
 });
+
+const documentV3WithMeasures = (
+  measures: readonly (readonly LocalScoreProjectEventV2[])[],
+): LocalNotationProjectScoreDocumentV3 => ({
+  ...documentV2WithMeasures(measures),
+  schemaVersion: "score-document-v3",
+  documentId: "local.score-project.playback-v3-test",
+  source: {
+    kind: "local-score-project",
+    projectId: "playback-v3-test",
+  },
+  keySignature: { fifths: 1 },
+});
+
+{
+  const document = documentV3WithMeasures([[
+    noteV2("v3-f4", "F4", "quarter"),
+  ]]);
+  const plan = createLocalScoreProjectPlaybackPlan({ document, bpm: 120 });
+  assert.equal(plan.status, "ready");
+  assert.equal(
+    plan.events.filter(isNoteEvent)
+      .find((event) => event.type === "note-on")?.midi,
+    65,
+    "调号不得暗中改写 canonical F4 的播放音高",
+  );
+}
 
 {
   const document = documentWithVoices([[
