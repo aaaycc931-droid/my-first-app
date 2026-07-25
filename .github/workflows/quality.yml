@@ -173,6 +173,7 @@ jobs:
           npm run test:notation-reference-melody-playback
           npm run test:repository-hygiene
           npm run test:local-score-project
+          npm run test:local-score-project-recovery-candidate
           npm run test:local-score-project-storage
           npm run test:local-score-project-capacity
           npm run test:local-score-project-indexeddb-recovery

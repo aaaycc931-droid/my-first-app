@@ -8,10 +8,21 @@ import {
   parseLocalScoreProject,
   type LocalScoreProjectV1,
 } from "../../../lib/music/localScoreProject";
+import {
+  LOCAL_SCORE_PROJECT_RECOVERY_SCHEMA_VERSION,
+  cloneLocalScoreProjectRecoveryCandidate,
+  getLocalScoreProjectRecoveryBaseFingerprint,
+  parseLocalScoreProjectRecoveryCandidate,
+  type LocalScoreProjectRecoveryCandidateV1,
+} from "../../../lib/music/localScoreProjectRecovery";
 
 const DATABASE_NAME = "solfeggio-local-score-projects";
-const DATABASE_VERSION = 1;
+const DATABASE_VERSION = 2;
 const STORE_NAME = "projects";
+const RECOVERY_CANDIDATE_STORE_NAME = "recovery-candidates";
+const RECOVERY_CANDIDATE_PROJECT_INDEX = "projectId";
+export const LOCAL_SCORE_PROJECT_RECOVERY_CANDIDATE_MAX_BYTES =
+  5 * 1024 * 1024;
 
 export type LocalScoreProjectStorageLimits = Readonly<{
   maxProjects: number;
@@ -68,6 +79,21 @@ export type LocalScoreProjectStore = {
     expectedRevision: number | null,
   ) => Promise<void>;
   delete: (projectId: string, expectedRevision: number) => Promise<void>;
+  stageRecoveryCandidate?: (
+    candidate: LocalScoreProjectRecoveryCandidateV1,
+    expectedSequence?: number | null,
+  ) => Promise<void>;
+  listRecoveryCandidates?: (
+    projectId?: string,
+  ) => Promise<readonly LocalScoreProjectRecoveryCandidateV1[]>;
+  promoteRecoveryCandidate?: (
+    candidateId: string,
+    expectedSequence: number,
+  ) => Promise<LocalScoreProjectV1>;
+  discardRecoveryCandidate?: (
+    candidateId: string,
+    expectedSequence: number,
+  ) => Promise<void>;
 };
 
 export type LocalScoreProjectStorageResult = Readonly<{
@@ -148,6 +174,12 @@ const assertValidLimits = (limits: LocalScoreProjectStorageLimits) => {
   }
 };
 
+const assertValidRecoveryCandidateMaxBytes = (maxBytes: number) => {
+  if (!Number.isSafeInteger(maxBytes) || maxBytes < 1) {
+    throw new Error("本机恢复候选容量限制配置无效。");
+  }
+};
+
 const assertWithinApplicationLimits = ({
   records,
   project,
@@ -204,6 +236,21 @@ const openDatabase = (indexedDbFactory: IDBFactory) =>
         request.result.createObjectStore(STORE_NAME, {
           keyPath: "projectId",
         });
+      }
+      if (
+        !request.result.objectStoreNames.contains(
+          RECOVERY_CANDIDATE_STORE_NAME,
+        )
+      ) {
+        const candidateStore = request.result.createObjectStore(
+          RECOVERY_CANDIDATE_STORE_NAME,
+          { keyPath: "candidateId" },
+        );
+        candidateStore.createIndex(
+          RECOVERY_CANDIDATE_PROJECT_INDEX,
+          "projectId",
+          { unique: false },
+        );
       }
     };
     request.onsuccess = () => {
@@ -263,6 +310,27 @@ const parseStoredProject = (value: unknown) => {
   return project;
 };
 
+const parseStoredRecoveryCandidate = (value: unknown) => {
+  const candidate = parseLocalScoreProjectRecoveryCandidate(value);
+  if (!candidate) {
+    const record = value && typeof value === "object"
+      ? value as Record<string, unknown>
+      : null;
+    const isUnsupported = typeof record?.schemaVersion === "string"
+      && record.schemaVersion !== LOCAL_SCORE_PROJECT_RECOVERY_SCHEMA_VERSION;
+    throw new LocalScoreProjectStorageError(
+      "invalid",
+      isUnsupported
+        ? "本机恢复候选版本不受支持，原记录未被覆盖。"
+        : "本机恢复候选记录损坏，原记录未被覆盖。",
+    );
+  }
+  return candidate;
+};
+
+const getRecoveryCandidateConflict = (message: string) =>
+  new LocalScoreProjectStorageError("conflict", message);
+
 const transactionCompletion = (
   transaction: IDBTransaction,
   getFailure: () => Error | null,
@@ -305,11 +373,14 @@ export const createIndexedDbLocalScoreProjectStore =
   ({
     indexedDbFactory,
     limits = LOCAL_SCORE_PROJECT_STORAGE_LIMITS,
+    recoveryCandidateMaxBytes =
+      LOCAL_SCORE_PROJECT_RECOVERY_CANDIDATE_MAX_BYTES,
     writeRequest = (store, project) => store.put(project),
     deleteRequest = (store, projectId) => store.delete(projectId),
   }: {
     indexedDbFactory?: IDBFactory;
     limits?: LocalScoreProjectStorageLimits;
+    recoveryCandidateMaxBytes?: number;
     writeRequest?: (
       store: IDBObjectStore,
       project: LocalScoreProjectV1,
@@ -320,6 +391,7 @@ export const createIndexedDbLocalScoreProjectStore =
     ) => IDBRequest<IDBValidKey> | IDBRequest<undefined>;
   } = {}): LocalScoreProjectStore => {
     assertValidLimits(limits);
+    assertValidRecoveryCandidateMaxBytes(recoveryCandidateMaxBytes);
     const requireFactory = () => {
       const factory = indexedDbFactory
         ?? (typeof indexedDB === "undefined" ? null : indexedDB);
@@ -374,6 +446,407 @@ export const createIndexedDbLocalScoreProjectStore =
     },
 
     listWithIssues,
+
+    async stageRecoveryCandidate(candidate, expectedSequence) {
+      const validCandidate = parseLocalScoreProjectRecoveryCandidate(candidate);
+      if (!validCandidate) {
+        throw new LocalScoreProjectStorageError(
+          "invalid",
+          "恢复候选结构无效，未执行暂存。",
+        );
+      }
+      if (
+        expectedSequence !== undefined
+        && expectedSequence !== null
+        && (
+          !Number.isSafeInteger(expectedSequence)
+          || expectedSequence < 1
+          || expectedSequence >= Number.MAX_SAFE_INTEGER
+          || validCandidate.candidateSequence !== expectedSequence + 1
+        )
+      ) {
+        throw getRecoveryCandidateConflict(
+          "恢复候选序号必须严格连续，未覆盖当前候选。",
+        );
+      }
+      if (
+        expectedSequence === null
+        && validCandidate.candidateSequence !== 1
+      ) {
+        throw getRecoveryCandidateConflict(
+          "首个恢复候选序号必须为 1，未执行暂存。",
+        );
+      }
+
+      const database = await openDatabase(requireFactory());
+      let failure: Error | null = null;
+      try {
+        const transaction = database.transaction(
+          [STORE_NAME, RECOVERY_CANDIDATE_STORE_NAME],
+          "readwrite",
+        );
+        const completion = transactionCompletion(transaction, () => failure);
+        const projectStore = transaction.objectStore(STORE_NAME);
+        const candidateStore = transaction.objectStore(
+          RECOVERY_CANDIDATE_STORE_NAME,
+        );
+        const projectRequest = projectStore.get(validCandidate.projectId);
+        projectRequest.onerror = () => {
+          failure = new LocalScoreProjectStorageError(
+            "transaction-failed",
+            "IndexedDB 事务无法读取恢复候选对应的项目，未执行暂存。",
+          );
+        };
+        projectRequest.onsuccess = () => {
+          try {
+            if (projectRequest.result === undefined) {
+              throw getRecoveryCandidateConflict(
+                "恢复候选对应的项目不存在，未执行暂存。",
+              );
+            }
+            const project = parseStoredProject(projectRequest.result);
+            if (
+              project.document.documentId !== validCandidate.documentId
+              || project.document.revision !== validCandidate.baseRevision
+              || getLocalScoreProjectRecoveryBaseFingerprint(project)
+                !== validCandidate.baseFingerprint
+              || validCandidate.proposedProject.createdAt !== project.createdAt
+            ) {
+              throw getRecoveryCandidateConflict(
+                "乐谱项目基线身份或内容已变化，恢复候选未暂存；请重新读取后再试。",
+              );
+            }
+            const candidatesRequest = candidateStore.getAll();
+            candidatesRequest.onerror = () => {
+              failure = new LocalScoreProjectStorageError(
+                "transaction-failed",
+                "IndexedDB 事务无法读取现有恢复候选，未执行暂存。",
+              );
+            };
+            candidatesRequest.onsuccess = () => {
+              try {
+                const candidates = (candidatesRequest.result as unknown[])
+                  .map(parseStoredRecoveryCandidate);
+                const sameProjectCandidates = candidates.filter(
+                  (candidate) =>
+                    candidate.projectId === validCandidate.projectId,
+                );
+                if (
+                  sameProjectCandidates.some(
+                    (candidate) =>
+                      candidate.candidateId !== validCandidate.candidateId,
+                  )
+                ) {
+                  throw getRecoveryCandidateConflict(
+                    "每个乐谱项目最多保留一个恢复候选；当前项目已有不同候选，未执行暂存。",
+                  );
+                }
+                const existing = candidates.find(
+                  (candidate) =>
+                    candidate.candidateId === validCandidate.candidateId,
+                ) ?? null;
+                if (
+                  (expectedSequence === null && existing !== null)
+                  || (
+                    expectedSequence !== null
+                    && expectedSequence !== undefined
+                    && (
+                      existing === null
+                      || existing.candidateSequence !== expectedSequence
+                    )
+                  )
+                  || (
+                    expectedSequence === undefined
+                    && validCandidate.candidateSequence
+                      !== (existing?.candidateSequence ?? 0) + 1
+                  )
+                ) {
+                  throw getRecoveryCandidateConflict(
+                    "恢复候选序号必须严格连续，未覆盖当前候选。",
+                  );
+                }
+                if (
+                  existing
+                  && (
+                    existing.projectId !== validCandidate.projectId
+                    || existing.documentId !== validCandidate.documentId
+                  )
+                ) {
+                  throw getRecoveryCandidateConflict(
+                    "恢复候选身份不一致，未执行暂存。",
+                  );
+                }
+                const currentBytes = candidates.reduce(
+                  (total, candidate) =>
+                    total + getLocalScoreProjectStorageBytes(candidate),
+                  0,
+                );
+                const existingBytes = existing
+                  ? getLocalScoreProjectStorageBytes(existing)
+                  : 0;
+                const nextBytes = currentBytes - existingBytes
+                  + getLocalScoreProjectStorageBytes(validCandidate);
+                if (
+                  nextBytes > recoveryCandidateMaxBytes
+                ) {
+                  const recoveryLimitMiB =
+                    recoveryCandidateMaxBytes / (1024 * 1024);
+                  throw new LocalScoreProjectStorageError(
+                    "capacity",
+                    `本次暂存会超过恢复候选总容量上限（${Number.isInteger(recoveryLimitMiB) ? recoveryLimitMiB : recoveryLimitMiB.toFixed(2)} MiB），未写入候选；已保存谱面保持不变。`,
+                  );
+                }
+                const putRequest = candidateStore.put(
+                  cloneLocalScoreProjectRecoveryCandidate(validCandidate),
+                );
+                putRequest.onerror = () => {
+                  failure = putRequest.error?.name === "QuotaExceededError"
+                    ? new LocalScoreProjectStorageError(
+                      "quota",
+                      "本机空间不足，恢复候选未暂存；已保存谱面保持不变。",
+                    )
+                    : new LocalScoreProjectStorageError(
+                      "write-failed",
+                      "本机恢复候选写入失败；已保存谱面保持不变。",
+                    );
+                };
+              } catch (error) {
+                failure = error instanceof Error
+                  ? error
+                  : new Error("本机恢复候选暂存失败。");
+                transaction.abort();
+              }
+            };
+          } catch (error) {
+            failure = error instanceof Error
+              ? error
+              : new Error("本机恢复候选暂存失败。");
+            transaction.abort();
+          }
+        };
+        await completion;
+      } finally {
+        database.close();
+      }
+    },
+
+    async listRecoveryCandidates(projectId) {
+      const database = await openDatabase(requireFactory());
+      try {
+        const transaction = database.transaction(
+          RECOVERY_CANDIDATE_STORE_NAME,
+          "readonly",
+        );
+        const store = transaction.objectStore(RECOVERY_CANDIDATE_STORE_NAME);
+        const request = projectId === undefined
+          ? store.getAll()
+          : store.index(RECOVERY_CANDIDATE_PROJECT_INDEX).getAll(projectId);
+        const values = await requestResult(request) as unknown[];
+        return values
+          .map(parseStoredRecoveryCandidate)
+          .sort((left, right) =>
+            right.capturedAt.localeCompare(left.capturedAt)
+            || right.candidateSequence - left.candidateSequence)
+          .map(cloneLocalScoreProjectRecoveryCandidate);
+      } finally {
+        database.close();
+      }
+    },
+
+    async promoteRecoveryCandidate(candidateId, expectedSequence) {
+      if (
+        typeof candidateId !== "string"
+        || candidateId.length === 0
+        || !Number.isSafeInteger(expectedSequence)
+        || expectedSequence < 1
+      ) {
+        throw new LocalScoreProjectStorageError(
+          "invalid",
+          "恢复候选身份或序号无效，未执行恢复。",
+        );
+      }
+      const database = await openDatabase(requireFactory());
+      let failure: Error | null = null;
+      let promoted: LocalScoreProjectV1 | null = null;
+      try {
+        const transaction = database.transaction(
+          [STORE_NAME, RECOVERY_CANDIDATE_STORE_NAME],
+          "readwrite",
+        );
+        const completion = transactionCompletion(transaction, () => failure);
+        const projectStore = transaction.objectStore(STORE_NAME);
+        const candidateStore = transaction.objectStore(
+          RECOVERY_CANDIDATE_STORE_NAME,
+        );
+        const candidateRequest = candidateStore.get(candidateId);
+        candidateRequest.onerror = () => {
+          failure = new LocalScoreProjectStorageError(
+            "transaction-failed",
+            "IndexedDB 事务无法读取恢复候选，未执行恢复。",
+          );
+        };
+        candidateRequest.onsuccess = () => {
+          try {
+            if (candidateRequest.result === undefined) {
+              throw getRecoveryCandidateConflict(
+                "恢复候选不存在或已被处理，未执行恢复。",
+              );
+            }
+            const candidate = parseStoredRecoveryCandidate(
+              candidateRequest.result,
+            );
+            if (candidate.candidateSequence !== expectedSequence) {
+              throw getRecoveryCandidateConflict(
+                "恢复候选已被其他写入更新，未执行较旧的恢复。",
+              );
+            }
+            const projectsRequest = projectStore.getAll();
+            projectsRequest.onerror = () => {
+              failure = new LocalScoreProjectStorageError(
+                "transaction-failed",
+                "IndexedDB 事务无法读取已保存项目，未执行恢复。",
+              );
+            };
+            projectsRequest.onsuccess = () => {
+              try {
+                const records = projectsRequest.result as unknown[];
+                const existingRecord = records.find((value) => {
+                  const record = value && typeof value === "object"
+                    ? value as Record<string, unknown>
+                    : null;
+                  return record?.projectId === candidate.projectId;
+                });
+                if (existingRecord === undefined) {
+                  throw getRecoveryCandidateConflict(
+                    "恢复候选对应的项目不存在，未执行恢复。",
+                  );
+                }
+                const existing = parseStoredProject(existingRecord);
+                if (
+                  existing.document.documentId !== candidate.documentId
+                  || existing.document.revision !== candidate.baseRevision
+                  || getLocalScoreProjectRecoveryBaseFingerprint(existing)
+                    !== candidate.baseFingerprint
+                  || candidate.proposedProject.createdAt !== existing.createdAt
+                ) {
+                  throw getRecoveryCandidateConflict(
+                    "乐谱项目基线身份或内容已变化，恢复候选未提升；请重新读取后核对。",
+                  );
+                }
+                assertWithinApplicationLimits({
+                  records,
+                  project: candidate.proposedProject,
+                  limits,
+                });
+                const putRequest = writeRequest(
+                  projectStore,
+                  cloneLocalScoreProject(candidate.proposedProject),
+                );
+                putRequest.onerror = () => {
+                  failure = getLocalScoreProjectWriteError(putRequest.error);
+                };
+                const discardRequest = candidateStore.delete(candidateId);
+                discardRequest.onerror = () => {
+                  failure = new LocalScoreProjectStorageError(
+                    "write-failed",
+                    "恢复候选提升时无法原子删除候选，已保存谱面保持不变。",
+                  );
+                };
+                promoted = cloneLocalScoreProject(candidate.proposedProject);
+              } catch (error) {
+                failure = error instanceof LocalScoreProjectStorageError
+                  || error instanceof LocalScoreProjectConflictError
+                  ? error
+                  : getLocalScoreProjectWriteError(
+                    error instanceof DOMException ? error : null,
+                  );
+                transaction.abort();
+              }
+            };
+          } catch (error) {
+            failure = error instanceof Error
+              ? error
+              : new Error("本机恢复候选提升失败。");
+            transaction.abort();
+          }
+        };
+        await completion;
+        if (!promoted) {
+          throw new LocalScoreProjectStorageError(
+            "transaction-failed",
+            "恢复候选提升事务未返回项目。",
+          );
+        }
+        return promoted;
+      } finally {
+        database.close();
+      }
+    },
+
+    async discardRecoveryCandidate(candidateId, expectedSequence) {
+      if (
+        typeof candidateId !== "string"
+        || candidateId.length === 0
+        || !Number.isSafeInteger(expectedSequence)
+        || expectedSequence < 1
+      ) {
+        throw new LocalScoreProjectStorageError(
+          "invalid",
+          "恢复候选身份或序号无效，未执行丢弃。",
+        );
+      }
+      const database = await openDatabase(requireFactory());
+      let failure: Error | null = null;
+      try {
+        const transaction = database.transaction(
+          RECOVERY_CANDIDATE_STORE_NAME,
+          "readwrite",
+        );
+        const completion = transactionCompletion(
+          transaction,
+          () => failure,
+          "delete",
+        );
+        const store = transaction.objectStore(RECOVERY_CANDIDATE_STORE_NAME);
+        const getRequest = store.get(candidateId);
+        getRequest.onerror = () => {
+          failure = new LocalScoreProjectStorageError(
+            "transaction-failed",
+            "IndexedDB 事务无法读取恢复候选，未执行丢弃。",
+          );
+        };
+        getRequest.onsuccess = () => {
+          try {
+            if (getRequest.result === undefined) {
+              throw getRecoveryCandidateConflict(
+                "恢复候选不存在或已被处理，未执行丢弃。",
+              );
+            }
+            const existing = parseStoredRecoveryCandidate(getRequest.result);
+            if (existing.candidateSequence !== expectedSequence) {
+              throw getRecoveryCandidateConflict(
+                "恢复候选已被其他写入更新，未丢弃较新的候选。",
+              );
+            }
+            const deleteCandidateRequest = store.delete(candidateId);
+            deleteCandidateRequest.onerror = () => {
+              failure = new LocalScoreProjectStorageError(
+                "write-failed",
+                "本机恢复候选删除失败，原候选保持不变。",
+              );
+            };
+          } catch (error) {
+            failure = error instanceof Error
+              ? error
+              : new Error("本机恢复候选丢弃失败。");
+            transaction.abort();
+          }
+        };
+        await completion;
+      } finally {
+        database.close();
+      }
+    },
 
     async put(project, expectedRevision) {
       const validProject = parseLocalScoreProject(project);
@@ -454,13 +927,19 @@ export const createIndexedDbLocalScoreProjectStore =
       const database = await openDatabase(requireFactory());
       let failure: Error | null = null;
       try {
-        const transaction = database.transaction(STORE_NAME, "readwrite");
+        const transaction = database.transaction(
+          [STORE_NAME, RECOVERY_CANDIDATE_STORE_NAME],
+          "readwrite",
+        );
         const completion = transactionCompletion(
           transaction,
           () => failure,
           "delete",
         );
         const store = transaction.objectStore(STORE_NAME);
+        const candidateStore = transaction.objectStore(
+          RECOVERY_CANDIDATE_STORE_NAME,
+        );
         const getRequest = store.get(projectId);
         getRequest.onerror = () => {
           failure = new LocalScoreProjectStorageError(
@@ -490,6 +969,28 @@ export const createIndexedDbLocalScoreProjectStore =
                   "write-failed",
                   "本机存储删除写入失败，未删除乐谱项目；原项目保持不变。请恢复存储条件后重试。",
                 );
+            };
+            const candidateKeysRequest = candidateStore
+              .index(RECOVERY_CANDIDATE_PROJECT_INDEX)
+              .getAllKeys(projectId);
+            candidateKeysRequest.onerror = () => {
+              failure = new LocalScoreProjectStorageError(
+                "transaction-failed",
+                "IndexedDB 事务无法读取项目的恢复候选，未删除乐谱项目；原项目保持不变。",
+              );
+            };
+            candidateKeysRequest.onsuccess = () => {
+              for (const candidateKey of candidateKeysRequest.result) {
+                const deleteCandidateRequest = candidateStore.delete(
+                  candidateKey,
+                );
+                deleteCandidateRequest.onerror = () => {
+                  failure = new LocalScoreProjectStorageError(
+                    "write-failed",
+                    "删除项目时无法连带删除恢复候选，事务已取消；原项目保持不变。",
+                  );
+                };
+              }
             };
           } catch (error) {
             failure = error instanceof Error
