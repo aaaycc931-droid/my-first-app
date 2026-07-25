@@ -1,6 +1,11 @@
 import { noteNameToMidi } from "../audio/noteFrequency";
 import type { NotationDuration } from "../practice/localNotationFragmentDraft";
-import { isLocalScoreProjectContent } from "./localScoreProject";
+import {
+  getLocalScoreProjectEventDurationBeats,
+  hasValidLocalScoreProjectTies,
+  isLocalScoreProjectContent,
+  LOCAL_SCORE_PROJECT_TIE_CONTINUITY_ERROR,
+} from "./localScoreProject";
 import type {
   LocalNotationProjectScoreDocumentV1,
   LocalNotationProjectScoreDocumentV2,
@@ -211,8 +216,9 @@ const pointerIdFor = ({
 ].map(encodeURIComponent).join(":");
 
 const durationBeatsFor = (event: PlaybackEvent): number =>
-  DURATION_BEATS[event.duration]
-  * ("augmentationDots" in event && event.augmentationDots === 1 ? 1.5 : 1);
+  "augmentationDots" in event
+    ? getLocalScoreProjectEventDurationBeats(event)
+    : DURATION_BEATS[event.duration];
 
 const tiesToNext = (event: PlaybackEvent): boolean =>
   event.type === "note"
@@ -255,6 +261,12 @@ export const createLocalScoreProjectPlaybackPlan = ({
   if (!Number.isFinite(bpm)) return blocked("BPM 必须是有限数值。");
   if (!isPlaybackDocument(document)) {
     return blocked("乐谱项目文档无效，无法安全播放。");
+  }
+  if (
+    document.schemaVersion === "score-document-v2"
+    && !hasValidLocalScoreProjectTies(document)
+  ) {
+    return blocked(LOCAL_SCORE_PROJECT_TIE_CONTINUITY_ERROR);
   }
 
   const safeBpm = Math.max(
@@ -333,10 +345,9 @@ export const createLocalScoreProjectPlaybackPlan = ({
           !next
           || next.event.type !== "note"
           || next.event.pitch !== first.event.pitch
-          || next.onsetBeat !== last.endBeat
         ) {
           return blocked(
-            `事件 ${last.event.id} 的延音线未连接同一声部中相邻、同音高且时值连续的音符。`,
+            `事件 ${last.event.id} 的延音线与已验证的领域规则不一致。`,
           );
         }
         index += 1;

@@ -2,7 +2,12 @@ import type {
   NotationDuration,
   NotationPitch,
 } from "../practice/localNotationFragmentDraft";
-import { isLocalScoreProjectContent } from "./localScoreProject";
+import {
+  getLocalScoreProjectEventDurationBeats,
+  hasValidLocalScoreProjectTies,
+  isLocalScoreProjectContent,
+  LOCAL_SCORE_PROJECT_TIE_CONTINUITY_ERROR,
+} from "./localScoreProject";
 import type { LocalNotationProjectScoreDocumentV2 } from "./scoreDocument";
 
 export const LOCAL_SCORE_STAFF_HEIGHT = 148;
@@ -87,12 +92,6 @@ export type LocalScoreStaffPresentation =
     reason: string;
   }>;
 
-const DURATION_BEATS: Readonly<Record<NotationDuration, number>> = {
-  half: 2,
-  quarter: 1,
-  eighth: 0.5,
-};
-
 const DURATION_LABELS: Readonly<Record<NotationDuration, string>> = {
   half: "二分",
   quarter: "四分",
@@ -174,6 +173,9 @@ export const createLocalScoreProjectStaffPresentation = (
   if (!isLocalScoreProjectDocument(document)) {
     return blocked("乐谱项目文档无效，无法安全生成五线谱预览。");
   }
+  if (!hasValidLocalScoreProjectTies(document)) {
+    return blocked(`${LOCAL_SCORE_PROJECT_TIE_CONTINUITY_ERROR}无法安全生成五线谱预览。`);
+  }
 
   const part = document.parts[0];
   const staff = part?.staves[0];
@@ -211,8 +213,7 @@ export const createLocalScoreProjectStaffPresentation = (
     ) {
       const event = measure.events[eventIndex];
       if (!event) continue;
-      const durationBeats =
-        DURATION_BEATS[event.duration] * (event.augmentationDots === 1 ? 1.5 : 1);
+      const durationBeats = getLocalScoreProjectEventDurationBeats(event);
       if (cursorBeat + durationBeats > meterNumerator) {
         return blocked(
           `第一声部第 ${measure.measureNumber} 小节超过 ${document.meter} 拍号容量。`,

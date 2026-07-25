@@ -322,6 +322,92 @@ describe("本地谱项目五线谱 pure presentation", () => {
     expect(tieSource.tieTargetEventId).toBe("tie-target");
     expect(tieSource.accessibleLabel).toContain("与下一音符用延音线相连");
   });
+
+  it("拒绝跨越未填满小节间隙的延音线，避免预览与播放规则分裂", () => {
+    const presentation = createLocalScoreProjectStaffPresentation(
+      createDocument({
+        firstVoiceMeasures: [{
+          measureNumber: 1,
+          events: [
+            note({
+              id: "gap-source",
+              pitch: "E4",
+              duration: "quarter",
+              measure: 1,
+              tieToNext: true,
+            }),
+          ],
+        }, {
+          measureNumber: 2,
+          events: [
+            note({
+              id: "gap-target",
+              pitch: "E4",
+              duration: "quarter",
+              measure: 2,
+            }),
+          ],
+        }],
+      }),
+    );
+
+    expect(presentation.status).toBe("blocked");
+    if (presentation.status !== "blocked") throw new Error("expected blocked");
+    expect(presentation.reason).toContain("延音线");
+    expect(presentation.reason).toContain("时值连续");
+  });
+
+  it("接受小节线处时值连续的附点多段延音链并保留各事件 token", () => {
+    const presentation = createLocalScoreProjectStaffPresentation(
+      createDocument({
+        meter: "2/4",
+        firstVoiceMeasures: [{
+          measureNumber: 1,
+          events: [
+            note({
+              id: "chain-start",
+              pitch: "D4",
+              duration: "half",
+              measure: 1,
+              tieToNext: true,
+            }),
+          ],
+        }, {
+          measureNumber: 2,
+          events: [
+            note({
+              id: "chain-middle",
+              pitch: "D4",
+              duration: "quarter",
+              measure: 2,
+              augmentationDots: 1,
+              tieToNext: true,
+            }),
+            note({
+              id: "chain-end",
+              pitch: "D4",
+              duration: "eighth",
+              measure: 2,
+            }),
+          ],
+        }],
+      }),
+    );
+
+    expect(presentation.status).toBe("ready");
+    if (presentation.status !== "ready") throw new Error(presentation.reason);
+    expect(presentation.warnings).toEqual([]);
+    expect(presentation.tokens.map((token) => ({
+      id: token.eventId,
+      onset: token.onsetBeat,
+      duration: token.durationBeats,
+      tieTarget: token.type === "note" ? token.tieTargetEventId : null,
+    }))).toEqual([
+      { id: "chain-start", onset: 0, duration: 2, tieTarget: "chain-middle" },
+      { id: "chain-middle", onset: 2, duration: 1.5, tieTarget: "chain-end" },
+      { id: "chain-end", onset: 3.5, duration: 0.5, tieTarget: null },
+    ]);
+  });
 });
 
 describe("本地谱项目五线谱 SVG 预览", () => {
@@ -516,5 +602,57 @@ describe("本地谱项目五线谱 SVG 预览", () => {
     expect(container?.querySelector(
       '[data-event-id="tie-target"]',
     )?.getAttribute("aria-current")).toBe("true");
+  });
+
+  it("为合法的附点多段延音链分别绘制可识别弧线", async () => {
+    const document = createDocument({
+      meter: "2/4",
+      firstVoiceMeasures: [{
+        measureNumber: 1,
+        events: [
+          note({
+            id: "chain-start",
+            pitch: "D4",
+            duration: "half",
+            measure: 1,
+            tieToNext: true,
+          }),
+        ],
+      }, {
+        measureNumber: 2,
+        events: [
+          note({
+            id: "chain-middle",
+            pitch: "D4",
+            duration: "quarter",
+            measure: 2,
+            augmentationDots: 1,
+            tieToNext: true,
+          }),
+          note({
+            id: "chain-end",
+            pitch: "D4",
+            duration: "eighth",
+            measure: 2,
+          }),
+        ],
+      }],
+    });
+
+    await act(async () => {
+      root?.render(<LocalScoreProjectStaffPreview document={document} />);
+    });
+
+    expect(container?.querySelector(
+      '[data-testid="local-score-tie-chain-start-chain-middle"]',
+    )).not.toBeNull();
+    expect(container?.querySelector(
+      '[data-testid="local-score-tie-chain-middle-chain-end"]',
+    )).not.toBeNull();
+    expect(container?.querySelector(
+      '[data-testid="local-score-augmentation-dot-chain-middle"]',
+    )).not.toBeNull();
+    expect(container?.querySelectorAll('[data-testid^="local-score-tie-"]'))
+      .toHaveLength(2);
   });
 });

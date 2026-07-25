@@ -1234,27 +1234,122 @@ const crossMeasurePair = addLocalScoreProjectEvent({
   input: { type: "note", pitch: "E4", duration: "quarter" },
   now: "2026-07-24T05:00:03.000Z",
 });
-const crossMeasureTied = updateLocalScoreProjectEvent({
-  project: crossMeasurePair,
+assert.throws(
+  () => updateLocalScoreProjectEvent({
+    project: crossMeasurePair,
+    expectedRevision: 4,
+    location,
+    eventId: "cross-source",
+    input: {
+      type: "note",
+      pitch: "E4",
+      duration: "quarter",
+      tieToNext: true,
+    },
+    now: "2026-07-24T05:00:04.000Z",
+  }),
+  (error) =>
+    error instanceof LocalScoreProjectDomainError
+    && error.code === "tie-integrity"
+    && error.message.includes("跨小节时必须结束于小节线"),
+);
+assert.equal(crossMeasurePair.document.revision, 4);
+assert.equal(
+  crossMeasurePair.document.parts[0].staves[0].voices[0].measures[0]
+    .events[0]?.type === "note"
+    && crossMeasurePair.document.parts[0].staves[0].voices[0].measures[0]
+      .events[0].tieToNext,
+  false,
+);
+const invalidStoredGapTie = structuredClone(crossMeasurePair);
+const invalidStoredSource =
+  invalidStoredGapTie.document.parts[0].staves[0].voices[0].measures[0]
+    .events[0];
+assert.equal(Reflect.set(invalidStoredSource ?? {}, "tieToNext", true), true);
+const invalidStoredGapTieSnapshot = JSON.stringify(invalidStoredGapTie);
+assert.equal(parseLocalScoreProject(invalidStoredGapTie), null);
+assert.equal(
+  JSON.stringify(invalidStoredGapTie),
+  invalidStoredGapTieSnapshot,
+  "解析拒绝不得修改或修复原始持久化记录",
+);
+
+const legalCrossMeasureBase = changeLocalScoreProjectMeter({
+  project: crossMeasureEmpty,
+  expectedRevision: 2,
+  meter: "2/4",
+  now: "2026-07-24T05:10:01.000Z",
+});
+const legalCrossMeasurePrefix = addLocalScoreProjectEvent({
+  project: legalCrossMeasureBase,
+  expectedRevision: 3,
+  location,
+  eventId: "legal-prefix",
+  input: { type: "note", pitch: "C4", duration: "quarter" },
+  now: "2026-07-24T05:10:02.000Z",
+});
+const legalCrossMeasureSource = addLocalScoreProjectEvent({
+  project: legalCrossMeasurePrefix,
   expectedRevision: 4,
   location,
-  eventId: "cross-source",
+  eventId: "legal-cross-source",
+  input: { type: "note", pitch: "E4", duration: "quarter" },
+  now: "2026-07-24T05:10:03.000Z",
+});
+const legalCrossMeasureTarget = addLocalScoreProjectEvent({
+  project: legalCrossMeasureSource,
+  expectedRevision: 5,
+  location: secondMeasureLocation,
+  eventId: "legal-cross-target",
+  input: { type: "note", pitch: "E4", duration: "quarter" },
+  now: "2026-07-24T05:10:04.000Z",
+});
+const legalCrossMeasureTail = addLocalScoreProjectEvent({
+  project: legalCrossMeasureTarget,
+  expectedRevision: 6,
+  location: secondMeasureLocation,
+  eventId: "legal-cross-tail",
+  input: { type: "note", pitch: "E4", duration: "quarter" },
+  now: "2026-07-24T05:10:05.000Z",
+});
+const legalTargetTied = updateLocalScoreProjectEvent({
+  project: legalCrossMeasureTail,
+  expectedRevision: 7,
+  location: secondMeasureLocation,
+  eventId: "legal-cross-target",
   input: {
     type: "note",
     pitch: "E4",
     duration: "quarter",
     tieToNext: true,
   },
-  now: "2026-07-24T05:00:04.000Z",
+  now: "2026-07-24T05:10:06.000Z",
 });
-const crossMeasureSourceEvent =
-  crossMeasureTied.document.parts[0].staves[0].voices[0].measures[0].events[0];
-assert.equal(crossMeasureSourceEvent?.type, "note");
-assert.equal(
-  crossMeasureSourceEvent?.type === "note"
-    ? crossMeasureSourceEvent.tieToNext
-    : false,
-  true,
+const legalCrossMeasureTied = updateLocalScoreProjectEvent({
+  project: legalTargetTied,
+  expectedRevision: 8,
+  location,
+  eventId: "legal-cross-source",
+  input: {
+    type: "note",
+    pitch: "E4",
+    duration: "quarter",
+    tieToNext: true,
+  },
+  now: "2026-07-24T05:10:07.000Z",
+});
+assert.equal(legalCrossMeasureTied.document.revision, 9);
+assert.throws(
+  () => changeLocalScoreProjectMeter({
+    project: legalCrossMeasureTied,
+    expectedRevision: 9,
+    meter: "3/4",
+    now: "2026-07-24T05:10:08.000Z",
+  }),
+  (error) =>
+    error instanceof LocalScoreProjectDomainError
+    && error.code === "tie-integrity",
 );
+assert.equal(legalCrossMeasureTied.document.meter, "2/4");
 
 console.log("Local score project domain tests passed.");
