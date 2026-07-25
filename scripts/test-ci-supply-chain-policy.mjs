@@ -1,18 +1,35 @@
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
+import { readdir, readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 
 const repositoryRoot = fileURLToPath(new URL("../", import.meta.url));
-const qualityWorkflowPath = new URL("../.github/workflows/quality.yml", import.meta.url);
+const workflowsDirectory = new URL("../.github/workflows/", import.meta.url);
 const gradleWrapperPath = new URL(
   "../android/gradle/wrapper/gradle-wrapper.properties",
   import.meta.url,
 );
 
-const [qualityWorkflow, gradleWrapper] = await Promise.all([
-  readFile(qualityWorkflowPath, "utf8"),
+const [workflowEntries, gradleWrapper] = await Promise.all([
+  readdir(workflowsDirectory, { withFileTypes: true }),
   readFile(gradleWrapperPath, "utf8"),
 ]);
+const workflowNames = workflowEntries
+  .filter(
+    (entry) =>
+      entry.isFile()
+      && (entry.name.endsWith(".yml") || entry.name.endsWith(".yaml")),
+  )
+  .map((entry) => entry.name)
+  .sort();
+
+assert.ok(workflowNames.length > 0, "repository must contain workflow YAML files");
+
+const workflows = await Promise.all(
+  workflowNames.map(async (name) => ({
+    name,
+    contents: await readFile(new URL(name, workflowsDirectory), "utf8"),
+  })),
+);
 
 const approvedActions = new Map([
   ["actions/checkout", ["34e114876b0b11c390a56381ad16ebd13914f8d5", "v4.3.1"]],
@@ -25,31 +42,51 @@ const approvedActions = new Map([
   ["actions/upload-artifact", ["ea165f8d65b6e75b540449e92b4886f43607fa02", "v4.6.2"]],
 ]);
 
-const actionUses = [...qualityWorkflow.matchAll(/^\s*uses:\s*([^\s#]+)(?:\s+#\s*(\S+))?\s*$/gm)];
-assert.ok(actionUses.length > 0, "quality workflow must declare actions");
+const actionUses = workflows.flatMap(({ name, contents }) =>
+  [...contents.matchAll(/^\s*uses:\s*([^\s#]+)(?:\s+#\s*(\S+))?\s*$/gm)].map(
+    ([, reference, versionComment]) => ({
+      workflowName: name,
+      reference,
+      versionComment,
+    }),
+  ),
+);
+assert.ok(actionUses.length > 0, "repository workflows must declare actions");
 
-for (const [, actionReference, versionComment] of actionUses) {
+for (const { workflowName, reference: actionReference, versionComment } of actionUses) {
   const separatorIndex = actionReference.lastIndexOf("@");
-  assert.notEqual(separatorIndex, -1, `action is missing a ref: ${actionReference}`);
+  assert.notEqual(
+    separatorIndex,
+    -1,
+    `${workflowName}: action is missing a ref: ${actionReference}`,
+  );
 
   const actionName = actionReference.slice(0, separatorIndex);
   const actionSha = actionReference.slice(separatorIndex + 1);
   const approved = approvedActions.get(actionName);
 
-  assert.ok(approved, `unapproved action in quality workflow: ${actionName}`);
-  assert.match(actionSha, /^[0-9a-f]{40}$/, `${actionName} must use a full commit SHA`);
-  assert.equal(actionSha, approved[0], `${actionName} SHA differs from the approved pin`);
+  assert.ok(approved, `${workflowName}: unapproved action: ${actionName}`);
+  assert.match(
+    actionSha,
+    /^[0-9a-f]{40}$/,
+    `${workflowName}: ${actionName} must use a full commit SHA`,
+  );
+  assert.equal(
+    actionSha,
+    approved[0],
+    `${workflowName}: ${actionName} SHA differs from the approved pin`,
+  );
   assert.equal(
     versionComment,
     approved[1],
-    `${actionName} must retain the reviewed tag as an inline comment`,
+    `${workflowName}: ${actionName} must retain the reviewed tag as an inline comment`,
   );
 }
 
 for (const actionName of approvedActions.keys()) {
   assert.ok(
-    actionUses.some(([, reference]) => reference.startsWith(`${actionName}@`)),
-    `quality workflow must use approved action ${actionName}`,
+    actionUses.some(({ reference }) => reference.startsWith(`${actionName}@`)),
+    `repository workflows must use approved action ${actionName}`,
   );
 }
 
