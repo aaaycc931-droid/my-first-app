@@ -57,8 +57,8 @@ const created = createLocalScoreProject({
   title: "单音演奏法",
   now: "2026-07-26T02:00:00.000Z",
 });
-assert.equal(created.schemaVersion, "local-score-project-storage-v10");
-assert.equal(created.document.schemaVersion, "score-document-v9");
+assert.equal(created.schemaVersion, "local-score-project-storage-v11");
+assert.equal(created.document.schemaVersion, "score-document-v10");
 
 const withNote = addLocalScoreProjectEvent({
   project: created,
@@ -456,6 +456,7 @@ for (let version = 1; version <= 9; version += 1) {
     }
   }
   forEachEvent(fixture, (event) => {
+    delete event.dynamicMark;
     delete event.articulations;
     if (version <= 8) delete event.chordSymbol;
     if (version <= 7) delete event.fingering;
@@ -469,8 +470,8 @@ for (let version = 1; version <= 9; version += 1) {
   const migrated = parseLocalScoreProject(fixture);
   assert.ok(migrated, `storage v${version} must migrate`);
   assert.equal(JSON.stringify(fixture), before, `storage v${version} input`);
-  assert.equal(migrated.schemaVersion, "local-score-project-storage-v10");
-  assert.equal(migrated.document.schemaVersion, "score-document-v9");
+  assert.equal(migrated.schemaVersion, "local-score-project-storage-v11");
+  assert.equal(migrated.document.schemaVersion, "score-document-v10");
   for (const content of [
     migrated.document,
     ...migrated.undoStack,
@@ -480,6 +481,11 @@ for (let version = 1; version <= 9; version += 1) {
       for (const voice of staffValue.voices) {
         for (const measure of voice.measures) {
           for (const event of measure.events) {
+            assert.equal(
+              event.dynamicMark,
+              null,
+              `storage v${version} history dynamic mark`,
+            );
             if (event.type === "note") {
               assert.deepEqual(
                 event.articulations,

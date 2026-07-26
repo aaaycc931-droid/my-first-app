@@ -92,3 +92,10 @@
 - 每个 PR 边界清晰、可验证、可回滚。
 - 小改动先运行 focused tests；合并前运行完整 `check`、Android sync／validator，并以 GitHub `android-local` 为 APK 权威门禁。
 - 状态更新只记录已验证事实，并附 PR、提交、运行与工件标识；不得粘贴被截断的工具输出。
+
+## S2 本机谱项目接续（当前分支候选）
+
+- `score-document-v10` 与 `local-score-project-storage-v11` 的 canonical 力度记号切片已在独立分支实现候选：事件起点 `dynamicMark` 支持 `pp`、`p`、`mp`、`mf`、`f`、`ff` 或 `null`，note/rest 均可承载。
+- 旧 storage v1–v10、document v1–v9 及 undo／redo 历史只读迁移为 `dynamicMark: null`；当前版本严格拒绝缺失或非法字段。
+- 五线谱与固定 C 简谱读取同一字段；当前仅显示，不改变 velocity、gate、duration、timbre、timeline、span、warning 或真实播放效果。
+- 专项测试、受影响的存储／恢复／容量／播放／移动端预览与 transport 回归、lint、typecheck 和 Quality 注册已在本地通过；PR 远端 Actions、浏览器手测、Android 真机、真实力度播放和教师审核仍未执行。

@@ -55,6 +55,7 @@ import type {
   LocalScoreProjectClefV3,
   LocalScoreProjectArticulationV1,
   LocalScoreProjectFingeringV1,
+  LocalScoreProjectDynamicMarkV1,
   LocalScoreProjectKeySignatureV3,
   LocalScoreProjectPartInstrumentV1,
 } from "../../lib/music/scoreDocument";
@@ -101,6 +102,16 @@ const articulationOptions = [
   id: LocalScoreProjectArticulationV1;
   label: string;
 }>[];
+
+const dynamicMarkOptions = [
+  { value: "", label: "无力度记号" },
+  { value: "pp", label: "很弱（pp）" },
+  { value: "p", label: "弱（p）" },
+  { value: "mp", label: "中弱（mp）" },
+  { value: "mf", label: "中强（mf）" },
+  { value: "f", label: "强（f）" },
+  { value: "ff", label: "很强（ff）" },
+] as const;
 
 const templateCategoryOptions: readonly Readonly<{
   category: LocalScoreProjectTemplateCategory;
@@ -487,6 +498,8 @@ export function LocalScoreProjectPanel({
   const [articulations, setArticulations] =
     useState<readonly LocalScoreProjectArticulationV1[]>([]);
   const [chordSymbol, setChordSymbol] = useState("");
+  const [dynamicMark, setDynamicMark] =
+    useState<LocalScoreProjectDynamicMarkV1 | null>(null);
   const [targetMeasureNumber, setTargetMeasureNumber] = useState(1);
   const [selectedEvent, setSelectedEvent] =
     useState<LocalScoreProjectStaffSelection | null>(null);
@@ -755,6 +768,7 @@ export function LocalScoreProjectPanel({
               duration: "quarter",
               augmentationDots,
               chordSymbol,
+              dynamicMark,
             }
             : {
               type: "note",
@@ -766,6 +780,7 @@ export function LocalScoreProjectPanel({
               fingering,
               articulations,
               chordSymbol,
+              dynamicMark,
             },
           now: now(),
         })
@@ -781,6 +796,7 @@ export function LocalScoreProjectPanel({
             duration: "quarter",
             augmentationDots,
             chordSymbol,
+            dynamicMark,
           }
           : {
             type: "note",
@@ -792,6 +808,7 @@ export function LocalScoreProjectPanel({
             fingering,
             articulations,
             chordSymbol,
+            dynamicMark,
           },
           now: now(),
         }),
@@ -811,6 +828,7 @@ export function LocalScoreProjectPanel({
     setTargetMeasureNumber(selection.location.measureNumber);
     setEventType(located.event.type);
     setChordSymbol(located.event.chordSymbol ?? "");
+    setDynamicMark(located.event.dynamicMark);
     if (located.event.type === "note" && located.event.pitch) {
       setPitch(located.event.pitch);
       setDuration(located.event.duration);
@@ -1999,6 +2017,29 @@ export function LocalScoreProjectPanel({
         <p className="mt-2 text-xs leading-5 text-indigo-800">
           和弦名称锚定音符或休止符的起点；五线谱与固定 C 简谱读取同一名称。当前只显示名称，不自动生成和弦图、配器或演奏。
         </p>
+        <label className="mt-3 block text-sm font-bold">
+          事件起点力度记号
+          <select
+            aria-label="力度记号"
+            value={dynamicMark ?? ""}
+            disabled={isBusy}
+            onChange={(event) => setDynamicMark(
+              event.target.value === ""
+                ? null
+                : event.target.value as LocalScoreProjectDynamicMarkV1,
+            )}
+            className="mt-2 min-h-11 w-full rounded-xl border border-indigo-300 bg-white px-3 py-2 disabled:bg-slate-100"
+          >
+            {dynamicMarkOptions.map((option) => (
+              <option key={option.value || "none"} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </label>
+        <p className="mt-2 text-xs leading-5 text-indigo-800">
+          力度记号锚定音符或休止符的起点；两种预览读取同一记号。当前只显示 pp–ff，不改变真实播放力度、音长或音色。
+        </p>
         <button
           type="button"
           disabled={isBusy || transportMode !== "idle"}
@@ -2212,6 +2253,9 @@ export function LocalScoreProjectPanel({
                             id === articulation)?.label)
                         .join("、")}`
                       : ""}
+                    {event.dynamicMark === null
+                      ? ""
+                      : ` · 力度 ${event.dynamicMark}`}
                     {event.chordSymbol !== null
                       ? ` · 和弦：${event.chordSymbol}`
                       : ""}

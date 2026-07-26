@@ -16,7 +16,9 @@ import type {
   LocalNotationProjectScoreDocumentV7,
   LocalNotationProjectScoreDocumentV8,
   LocalNotationProjectScoreDocumentV9,
+  LocalNotationProjectScoreDocumentV10,
   LocalScoreProjectArticulationV1,
+  LocalScoreProjectDynamicMarkV1,
   LocalScoreProjectFingeringV1,
 } from "./scoreDocument";
 
@@ -66,6 +68,7 @@ type LocalScoreStaffTokenBase = Readonly<{
   x: number;
   y: number;
   chordSymbol: string | null;
+  dynamicMark: LocalScoreProjectDynamicMarkV1 | null;
   accessibleLabel: string;
 }>;
 
@@ -129,6 +132,7 @@ export type LocalScoreStaffPresentation =
     restY: number;
     lyricY: number;
     chordSymbolY: number;
+    dynamicMarkY: number;
     width: number;
     height: number;
     partId: string;
@@ -156,6 +160,16 @@ Readonly<Record<LocalScoreProjectArticulationV1, string>> = {
   accent: "重音",
   staccato: "断奏",
   tenuto: "保持",
+};
+
+const DYNAMIC_MARK_LABELS:
+Readonly<Record<LocalScoreProjectDynamicMarkV1, string>> = {
+  pp: "很弱",
+  p: "弱",
+  mp: "中弱",
+  mf: "中强",
+  f: "强",
+  ff: "很强",
 };
 
 const TREBLE_PITCH_Y: Readonly<Record<NotationPitch, number>> = {
@@ -235,7 +249,7 @@ const isPresentationContent = (
     keySignature: document.keySignature,
     parts: document.parts.map((part, index) => {
       if (!isRecord(part)) return part;
-      const staves = document.schemaVersion === "score-document-v9"
+      const staves = document.schemaVersion === "score-document-v10"
         ? part.staves
         : Array.isArray(part.staves)
           ? part.staves.map((staff) =>
@@ -254,6 +268,8 @@ const isPresentationContent = (
                               if (!isRecord(event)) return event;
                               const withChordSymbol =
                                 document.schemaVersion === "score-document-v8"
+                                  || document.schemaVersion
+                                    === "score-document-v9"
                                   ? event
                                   : document.schemaVersion
                                     === "score-document-v7"
@@ -265,9 +281,19 @@ const isPresentationContent = (
                                         chordSymbol: null,
                                       }
                                       : { ...event, chordSymbol: null };
-                              return event.type === "note"
-                                ? { ...withChordSymbol, articulations: [] }
-                                : withChordSymbol;
+                              const withArticulations =
+                                document.schemaVersion === "score-document-v9"
+                                  ? withChordSymbol
+                                  : event.type === "note"
+                                    ? {
+                                      ...withChordSymbol,
+                                      articulations: [],
+                                    }
+                                    : withChordSymbol;
+                              return {
+                                ...withArticulations,
+                                dynamicMark: null,
+                              };
                             }),
                           }
                           : measure),
@@ -298,7 +324,8 @@ const isLocalScoreProjectDocument = (
   | LocalNotationProjectScoreDocumentV6
   | LocalNotationProjectScoreDocumentV7
   | LocalNotationProjectScoreDocumentV8
-  | LocalNotationProjectScoreDocumentV9 =>
+  | LocalNotationProjectScoreDocumentV9
+  | LocalNotationProjectScoreDocumentV10 =>
   isRecord(document)
   && (
     document.schemaVersion === "score-document-v3"
@@ -308,6 +335,7 @@ const isLocalScoreProjectDocument = (
     || document.schemaVersion === "score-document-v7"
     || document.schemaVersion === "score-document-v8"
     || document.schemaVersion === "score-document-v9"
+    || document.schemaVersion === "score-document-v10"
   )
   && document.documentKind === "notation-project"
   && typeof document.documentId === "string"
@@ -456,6 +484,9 @@ export const createLocalScoreProjectStaffPresentation = (
       const chordSymbol = "chordSymbol" in event
         ? event.chordSymbol as string | null
         : null;
+      const dynamicMark = "dynamicMark" in event
+        ? event.dynamicMark as LocalScoreProjectDynamicMarkV1 | null
+        : null;
       if (event.type === "note" && event.pitch !== null) {
         const fingering = "fingering" in event
           ? event.fingering as LocalScoreProjectFingeringV1 | null
@@ -473,6 +504,9 @@ export const createLocalScoreProjectStaffPresentation = (
         ) ? "natural" as const : null;
         const detailLabels = [
           chordSymbol === null ? "" : `和弦名称“${chordSymbol}”`,
+          dynamicMark === null
+            ? ""
+            : `力度记号 ${DYNAMIC_MARK_LABELS[dynamicMark]}（${dynamicMark}）`,
           accidental === "natural" ? "还原号" : "",
           `${event.augmentationDots === 1 ? "附点" : ""}${DURATION_LABELS[event.duration]}音符`,
           event.tieToNext ? "与下一音符用延音线相连" : "",
@@ -498,6 +532,7 @@ export const createLocalScoreProjectStaffPresentation = (
           x,
           y: pitchY[event.pitch],
           chordSymbol,
+          dynamicMark,
           head: event.duration === "half" ? "open" : "filled",
           hasStem: true,
           hasEighthFlag: event.duration === "eighth",
@@ -531,11 +566,14 @@ export const createLocalScoreProjectStaffPresentation = (
           x,
           y: clef === "bass" ? 126 : 66,
           chordSymbol,
+          dynamicMark,
           rest: "quarter",
           accessibleLabel:
             `${positionLabel}，${chordSymbol === null
               ? ""
-              : `和弦名称“${chordSymbol}”，`}${event.augmentationDots === 1
+              : `和弦名称“${chordSymbol}”，`}${dynamicMark === null
+              ? ""
+              : `力度记号 ${DYNAMIC_MARK_LABELS[dynamicMark]}（${dynamicMark}），`}${event.augmentationDots === 1
               ? "附点"
               : ""}四分休止符`,
         });
@@ -580,8 +618,11 @@ export const createLocalScoreProjectStaffPresentation = (
     hasArticulations ? maxArticulationY + 18 : Number.NEGATIVE_INFINITY,
   );
   const chordSymbolY = lyricY + 18;
+  const dynamicMarkY = chordSymbolY + 18;
   const hasChordSymbol = measures.some((measure) =>
     measure.tokens.some((token) => token.chordSymbol !== null));
+  const hasDynamicMark = measures.some((measure) =>
+    measure.tokens.some((token) => token.dynamicMark !== null));
   const hasLyric = measures.some((measure) =>
     measure.tokens.some((token) =>
       token.type === "note" && token.lyric !== null));
@@ -596,6 +637,7 @@ export const createLocalScoreProjectStaffPresentation = (
       || document.schemaVersion === "score-document-v7"
       || document.schemaVersion === "score-document-v8"
       || document.schemaVersion === "score-document-v9"
+      || document.schemaVersion === "score-document-v10"
       ? document.scoreCredits
       : {
         title: null,
@@ -618,12 +660,14 @@ export const createLocalScoreProjectStaffPresentation = (
     restY: clef === "bass" ? 126 : 66,
     lyricY,
     chordSymbolY,
+    dynamicMarkY,
     width,
     height: Math.max(
       baseHeight + (hasChordSymbol ? 18 : 0),
       hasArticulations ? maxArticulationY + 8 : baseHeight,
       hasLyric ? lyricY + 12 : baseHeight,
       hasChordSymbol ? chordSymbolY + 12 : baseHeight,
+      hasDynamicMark ? dynamicMarkY + 12 : baseHeight,
     ),
     partId: part.partId,
     staffId: staff.staffId,
