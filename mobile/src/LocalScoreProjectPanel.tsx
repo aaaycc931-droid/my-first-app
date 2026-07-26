@@ -25,7 +25,6 @@ import {
   changeLocalScoreProjectMeter,
   changeLocalScoreProjectPartInstrument,
   copyLocalScoreProjectEvent,
-  createLocalScoreProject,
   deleteEmptyLocalScoreProjectMeasure,
   deleteEmptyLocalScoreProjectPart,
   deleteEmptyLocalScoreProjectStaff,
@@ -41,6 +40,12 @@ import {
   type LocalScoreProjectV1,
   type LocalScoreProjectVoiceLocation,
 } from "../../lib/music/localScoreProject";
+import {
+  LOCAL_SCORE_PROJECT_TEMPLATES,
+  createLocalScoreProjectFromTemplate,
+  getLocalScoreProjectTemplate,
+  type LocalScoreProjectTemplateCategory,
+} from "../../lib/music/localScoreProjectTemplate";
 import type {
   LocalScoreProjectClefV3,
   LocalScoreProjectKeySignatureV3,
@@ -68,6 +73,19 @@ import { useLocalScoreProjectAutosave } from "./useLocalScoreProjectAutosave";
 
 type EditorEventType = "note" | "rest";
 type ScorePreviewMode = "staff" | "numbered";
+
+const DEFAULT_LOCAL_SCORE_PROJECT_TEMPLATE_ID =
+  "blank-treble-staff-v1";
+
+const templateCategoryOptions: readonly Readonly<{
+  category: LocalScoreProjectTemplateCategory;
+  label: string;
+}>[] = [
+  { category: "blank", label: "基础空白谱" },
+  { category: "keyboard", label: "键盘编制" },
+  { category: "chamber", label: "室内乐编制" },
+  { category: "vocal", label: "声乐编制" },
+];
 
 const partInstrumentOptions = [
   { value: "unassigned", label: "未指定", instrument: { kind: "unassigned" } },
@@ -387,6 +405,9 @@ export function LocalScoreProjectPanel({
   const selectedVoiceLocationRef =
     useRef<LocalScoreProjectVoiceLocation | null>(null);
   const [newTitle, setNewTitle] = useState("我的第一份谱");
+  const [selectedTemplateId, setSelectedTemplateId] = useState(
+    DEFAULT_LOCAL_SCORE_PROJECT_TEMPLATE_ID,
+  );
   const [editorTitle, setEditorTitle] = useState("");
   const [editorTempoBpm, setEditorTempoBpm] = useState("90");
   const [partNameDraft, setPartNameDraft] = useState("");
@@ -529,10 +550,19 @@ export function LocalScoreProjectPanel({
     setNotice(null);
     try {
       const projectId = createId();
-      const project = createLocalScoreProject({
+      const template = getLocalScoreProjectTemplate(selectedTemplateId);
+      if (!template) {
+        setNotice("所选编制模板当前不可用，未创建项目。");
+        return;
+      }
+      let structureSequence = 0;
+      const project = createLocalScoreProjectFromTemplate({
         projectId,
         title: newTitle,
+        templateId: template.id,
         now: now(),
+        createStructureId: () =>
+          `template-${++structureSequence}`,
       });
       const result = await persistNewLocalScoreProject({
         store: resolvedStore,
@@ -540,7 +570,9 @@ export function LocalScoreProjectPanel({
       });
       if (result.status === "saved") {
         publishProject(result.project, { resetSettings: true });
-        setNotice("谱项目已创建并保存在本机。");
+        setNotice(
+          `已按“${template.displayName}”创建并保存在本机；后续编辑只属于这份项目，不会改写模板或其他项目。`,
+        );
       } else {
         setNotice(result.notice);
       }
@@ -749,6 +781,15 @@ export function LocalScoreProjectPanel({
   };
 
   if (!currentProject) {
+    const selectedTemplate =
+      getLocalScoreProjectTemplate(selectedTemplateId);
+    const templatePartCount = selectedTemplate?.parts.length ?? 0;
+    const templateStaffCount = selectedTemplate?.parts.reduce(
+      (total, part) => total + part.staves.length,
+      0,
+    ) ?? 0;
+    const projectCountLimitReached =
+      projects.length >= LOCAL_SCORE_PROJECT_STORAGE_LIMITS.maxProjects;
     return (
       <div className="grid gap-4">
         <section className="rounded-3xl border border-teal-200 bg-teal-50 p-5 text-teal-950 shadow-sm">
@@ -761,22 +802,92 @@ export function LocalScoreProjectPanel({
             应用保护上限：最多 {LOCAL_SCORE_PROJECT_STORAGE_LIMITS.maxProjects} 个项目、合计 5 MiB。达到上限后只拒绝新增或超限写入，不会自动删除、覆盖或压缩已有项目；清理空间或恢复存储后可直接重试。
           </p>
           <label className="mt-4 block text-sm font-bold">
+            编制模板
+            <select
+              value={selectedTemplateId}
+              disabled={isBusy || sourceStatus === "unavailable"}
+              onChange={(event) => {
+                setSelectedTemplateId(event.target.value);
+                setNotice(null);
+              }}
+              className="mt-2 min-h-11 w-full rounded-xl border border-teal-300 bg-white px-3 py-2 disabled:bg-slate-100"
+            >
+              {templateCategoryOptions.map(({ category, label }) => (
+                <optgroup key={category} label={label}>
+                  {LOCAL_SCORE_PROJECT_TEMPLATES
+                    .filter((template) => template.category === category)
+                    .map((template) => (
+                      <option key={template.id} value={template.id}>
+                        {template.displayName}
+                      </option>
+                    ))}
+                </optgroup>
+              ))}
+            </select>
+          </label>
+          {selectedTemplate ? (
+            <div
+              className="mt-3 rounded-2xl border border-teal-200 bg-white p-4"
+              data-testid="local-score-project-template-preview"
+            >
+              <p className="font-bold">{selectedTemplate.displayName}</p>
+              <p className="mt-1 text-sm leading-6 text-teal-900">
+                {selectedTemplate.summary}
+              </p>
+              <p className="mt-2 text-xs font-semibold text-teal-800">
+                {templatePartCount} 个声部组 · {templateStaffCount} 个谱表 ·
+                {" "}{selectedTemplate.meter} · {selectedTemplate.tempoBpm} BPM
+              </p>
+              <ul className="mt-2 grid gap-1 text-xs leading-5 text-teal-800">
+                {selectedTemplate.parts.map((part, index) => (
+                  <li key={`${part.name}-${index}`}>
+                    {part.name} · {getPartInstrumentLabel(part.instrument)} ·
+                    {" "}{part.staves.map((staff) =>
+                      staff.clef === "treble" ? "高音谱号" : "低音谱号")
+                      .join("／")}
+                  </li>
+                ))}
+              </ul>
+              <p className="mt-2 text-xs leading-5 text-teal-800">
+                每个声部从第 1 个空小节开始。模板只创建可编辑的空白编制，不包含曲谱内容、真实多乐器音色或完整总谱排版；所有声部仍使用钢琴采样预览。
+              </p>
+            </div>
+          ) : (
+            <p className="mt-3 rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-900">
+              所选编制模板当前不可用，请重新选择。
+            </p>
+          )}
+          <label className="mt-4 block text-sm font-bold">
             项目名称
             <input
               value={newTitle}
-              disabled={isBusy || sourceStatus === "unavailable"}
+              disabled={
+                isBusy
+                || sourceStatus === "unavailable"
+                || projectCountLimitReached
+              }
               onChange={(event) => setNewTitle(event.target.value)}
               className="mt-2 min-h-11 w-full rounded-xl border border-teal-300 bg-white px-3 py-2 disabled:bg-slate-100"
             />
           </label>
           <button
             type="button"
-            disabled={isBusy || sourceStatus === "unavailable"}
+            disabled={
+              isBusy
+              || sourceStatus === "unavailable"
+              || projectCountLimitReached
+              || !selectedTemplate
+            }
             onClick={() => void createProject()}
             className="mt-3 min-h-11 rounded-xl bg-teal-700 px-4 py-2 text-sm font-bold text-white disabled:bg-slate-300"
           >
             {isBusy ? "正在读取本机项目…" : "创建并保存"}
           </button>
+          {projectCountLimitReached ? (
+            <p className="mt-2 text-sm leading-6 text-rose-800" role="status">
+              已达到本机项目数量上限，请先删除一份不再需要的项目后再创建。
+            </p>
+          ) : null}
         </section>
 
         <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
