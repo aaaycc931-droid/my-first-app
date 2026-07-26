@@ -235,6 +235,52 @@ export type LocalNotationProjectScoreDocumentV4 = Readonly<{
   }>[];
 }>;
 
+export type LocalScoreProjectPartInstrumentV1 =
+  | Readonly<{
+    kind: "unassigned";
+  }>
+  | Readonly<{
+    kind: "gm1-program";
+    program: number;
+  }>;
+
+/**
+ * 本机乐谱项目独立演进到 v5；声部组乐器归属属于 canonical 项目内容，
+ * 但不绑定任何本地音色 provider 或资源包。
+ */
+export type LocalNotationProjectScoreDocumentV5 = Readonly<{
+  schemaVersion: "score-document-v5";
+  documentKind: "notation-project";
+  documentId: string;
+  revision: number;
+  reviewState: "draft";
+  localOnly: true;
+  sessionOnly: false;
+  source: Readonly<{
+    kind: "local-score-project";
+    projectId: string;
+  }>;
+  meter: NotationTimeSignature;
+  keySignature: LocalScoreProjectKeySignatureV3;
+  parts: readonly Readonly<{
+    partId: string;
+    name: string;
+    instrument: LocalScoreProjectPartInstrumentV1;
+    staves: readonly Readonly<{
+      staffId: string;
+      staffKind: "pitched";
+      clef: LocalScoreProjectClefV3;
+      voices: readonly Readonly<{
+        voiceId: string;
+        measures: readonly Readonly<{
+          measureNumber: number;
+          events: readonly LocalScoreProjectEventV2[];
+        }>[];
+      }>[];
+    }>[];
+  }>[];
+}>;
+
 export type RhythmDictationScoreDocumentV1 = Readonly<{
   schemaVersion: "score-document-v1";
   documentKind: "rhythm-dictation";

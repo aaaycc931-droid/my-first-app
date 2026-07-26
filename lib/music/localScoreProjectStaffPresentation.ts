@@ -11,6 +11,7 @@ import {
 import type {
   LocalNotationProjectScoreDocumentV3,
   LocalNotationProjectScoreDocumentV4,
+  LocalNotationProjectScoreDocumentV5,
 } from "./scoreDocument";
 
 export const LOCAL_SCORE_STAFF_HEIGHT = 148;
@@ -202,6 +203,9 @@ const isPresentationContent = (
           name: typeof part.name === "string"
             ? part.name
             : `声部组 ${index + 1}`,
+          instrument: isRecord(part.instrument)
+            ? part.instrument
+            : { kind: "unassigned" },
         }
         : part),
   });
@@ -210,11 +214,13 @@ const isLocalScoreProjectDocument = (
   document: unknown,
 ): document is
   | LocalNotationProjectScoreDocumentV3
-  | LocalNotationProjectScoreDocumentV4 =>
+  | LocalNotationProjectScoreDocumentV4
+  | LocalNotationProjectScoreDocumentV5 =>
   isRecord(document)
   && (
     document.schemaVersion === "score-document-v3"
     || document.schemaVersion === "score-document-v4"
+    || document.schemaVersion === "score-document-v5"
   )
   && document.documentKind === "notation-project"
   && typeof document.documentId === "string"
