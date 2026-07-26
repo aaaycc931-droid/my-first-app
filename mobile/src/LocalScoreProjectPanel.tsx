@@ -33,6 +33,7 @@ import {
   moveLocalScoreProjectEvent,
   pasteLocalScoreProjectEvent,
   redoLocalScoreProject,
+  renameLocalScoreProjectPart,
   undoLocalScoreProject,
   updateLocalScoreProjectEvent,
   type LocalScoreProjectEventInput,
@@ -356,6 +357,7 @@ export function LocalScoreProjectPanel({
   const [newTitle, setNewTitle] = useState("我的第一份谱");
   const [editorTitle, setEditorTitle] = useState("");
   const [editorTempoBpm, setEditorTempoBpm] = useState("90");
+  const [partNameDraft, setPartNameDraft] = useState("");
   const [eventType, setEventType] = useState<EditorEventType>("note");
   const [pitch, setPitch] = useState<NotationPitch>("C4");
   const [duration, setDuration] = useState<NotationDuration>("quarter");
@@ -420,6 +422,10 @@ export function LocalScoreProjectPanel({
     setCurrentProject(project);
     selectedVoiceLocationRef.current = nextLocation;
     setSelectedVoiceLocation(nextLocation);
+    setPartNameDraft(
+      project.document.parts.find((part) =>
+        part.partId === nextLocation.partId)?.name ?? "",
+    );
     if (
       previousLocation
       && (
@@ -687,6 +693,10 @@ export function LocalScoreProjectPanel({
     };
     selectedVoiceLocationRef.current = normalized;
     setSelectedVoiceLocation(normalized);
+    setPartNameDraft(
+      currentProject.document.parts.find((part) =>
+        part.partId === normalized.partId)?.name ?? "",
+    );
     setSelectedEvent(null);
     setCopiedEvent(null);
     setTargetMeasureNumber(
@@ -901,7 +911,7 @@ export function LocalScoreProjectPanel({
                 >
                   {currentProject.document.parts.map((part, index) => (
                     <option key={part.partId} value={part.partId}>
-                      声部组 {index + 1}
+                      {part.name}（第 {index + 1} 组）
                     </option>
                   ))}
                 </select>
@@ -952,6 +962,42 @@ export function LocalScoreProjectPanel({
                   ))}
                 </select>
               </label>
+            </div>
+            <div className="mt-3 rounded-xl border border-teal-200 bg-white p-3">
+              <label className="text-sm font-bold">
+                当前声部组名称
+                <input
+                  value={partNameDraft}
+                  disabled={structureMutationDisabled}
+                  onChange={(event) => setPartNameDraft(event.target.value)}
+                  className="mt-2 min-h-11 w-full rounded-xl border border-teal-200 bg-white px-3 py-2 disabled:bg-slate-100"
+                />
+              </label>
+              <div className="mt-2 flex flex-wrap items-center gap-3">
+                <button
+                  type="button"
+                  disabled={structureMutationDisabled}
+                  onClick={() => {
+                    if (structureMutationDisabled) return;
+                    const requestedName = partNameDraft.trim();
+                    setPartNameDraft(requestedName);
+                    void persistMutation((project) =>
+                      renameLocalScoreProjectPart({
+                        project,
+                        expectedRevision: project.document.revision,
+                        partId: selectedPart.partId,
+                        name: requestedName,
+                        now: now(),
+                      }));
+                  }}
+                  className="min-h-11 rounded-xl border border-teal-300 bg-white px-3 py-2 text-sm font-bold disabled:border-slate-200 disabled:text-slate-400"
+                >
+                  保存声部组名称
+                </button>
+                <p className="text-xs leading-5 text-teal-800">
+                  当前已保存：{selectedPart.name}
+                </p>
+              </div>
             </div>
             <div className="mt-3 flex flex-wrap gap-2">
               <button

@@ -6,7 +6,10 @@ import {
   createLocalScoreProjectNumberedPresentation,
   type LocalScoreNumberedToken,
 } from "../../lib/music/localScoreProjectNumberedPresentation";
-import type { LocalNotationProjectScoreDocumentV3 } from "../../lib/music/scoreDocument";
+import type {
+  LocalNotationProjectScoreDocumentV3,
+  LocalNotationProjectScoreDocumentV4,
+} from "../../lib/music/scoreDocument";
 import {
   getLocalScoreProjectVoiceIdentityLabel,
   type LocalScoreProjectVoiceTarget,
@@ -16,7 +19,9 @@ import type {
 } from "./LocalScoreProjectStaffPreview";
 
 export type LocalScoreProjectNumberedPreviewProps = Readonly<{
-  document: LocalNotationProjectScoreDocumentV3;
+  document:
+    | LocalNotationProjectScoreDocumentV3
+    | LocalNotationProjectScoreDocumentV4;
   selectedEventId?: string | null;
   activeEventIds?: readonly string[];
   target?: LocalScoreProjectVoiceTarget;

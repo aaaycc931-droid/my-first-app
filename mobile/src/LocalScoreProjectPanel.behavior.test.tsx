@@ -5,12 +5,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   LocalScoreProjectConflictError,
   addLocalScoreProjectEvent,
+  addLocalScoreProjectPart,
   addLocalScoreProjectStaff,
   addLocalScoreProjectVoice,
   applyLocalScoreProjectContent,
   changeLocalScoreProjectSettings,
   cloneLocalScoreProject,
   createLocalScoreProject,
+  renameLocalScoreProjectPart,
   type LocalScoreProjectV1,
 } from "../../lib/music/localScoreProject";
 import {
@@ -364,6 +366,7 @@ describe("S1 本机谱项目面板", () => {
           firstPart,
           {
             partId: "part-2",
+            name: "声部组 2",
             staves: [{
               staffId: "staff-2",
               staffKind: "pitched",
@@ -877,6 +880,173 @@ describe("S1 本机谱项目面板", () => {
     expect(container.textContent).toContain("尚未复制事件");
     expect(findButton(container, "删除空声部组").disabled).toBe(true);
     expect(Array.from(store.values.values())[0]?.document.parts).toHaveLength(1);
+  });
+
+  it("声部组名称显式保存、重名消歧与失败恢复保持 canonical", async () => {
+    const store = new MemoryProjectStore();
+    const base = createLocalScoreProject({
+      projectId: "part-name-project",
+      title: "声部组命名",
+      now: "2026-07-24T04:50:00.000Z",
+    });
+    const namedFirstPart = renameLocalScoreProjectPart({
+      project: base,
+      expectedRevision: base.document.revision,
+      partId: "part-1",
+      name: "钢琴",
+      now: "2026-07-24T04:50:01.000Z",
+    });
+    const withSecondPart = addLocalScoreProjectPart({
+      project: namedFirstPart,
+      expectedRevision: namedFirstPart.document.revision,
+      partId: "part-2",
+      staffId: "staff-2",
+      voiceId: "voice-2",
+      clef: "treble",
+      now: "2026-07-24T04:50:02.000Z",
+    });
+    const fixture = addLocalScoreProjectEvent({
+      project: withSecondPart,
+      expectedRevision: withSecondPart.document.revision,
+      location: {
+        partId: "part-1",
+        staffId: "staff-1",
+        voiceId: "voice-1",
+        measureNumber: 1,
+      },
+      eventId: "part-name-playback-event",
+      input: {
+        type: "note",
+        pitch: "C4",
+        duration: "quarter",
+        augmentationDots: 0,
+        tieToNext: false,
+        lyric: null,
+      },
+      now: "2026-07-24T04:50:03.000Z",
+    });
+    await store.put(fixture, null);
+    const container = await renderPanel(store);
+    await click(findButton(container, "打开"));
+    const partSelect = findSelectExact(container, "声部组");
+    expect(
+      Array.from(partSelect.options).map((option) => option.textContent),
+    ).toEqual(["钢琴（第 1 组）", "声部组 1（第 2 组）"]);
+
+    await click(findButton(container, "播放草稿"));
+    await waitFor(
+      () => Array.from(container.querySelectorAll("button"))
+        .some((button) => button.textContent?.trim() === "停止播放"),
+      "完整文档开始播放",
+    );
+    const activePlaybackControl = findButton(container, "停止播放");
+    await change(partSelect, "part-2");
+    expect(findButton(container, "停止播放")).toBe(activePlaybackControl);
+    expect(findInput(container, "当前声部组名称").value).toBe("声部组 1");
+    expect(findInput(container, "当前声部组名称").disabled).toBe(true);
+    expect(findButton(container, "保存声部组名称").disabled).toBe(true);
+    await click(activePlaybackControl);
+    await waitFor(
+      () => !findButton(container, "保存声部组名称").disabled,
+      "停止播放后允许重命名",
+    );
+
+    await change(findInput(container, "当前声部组名称"), "  钢琴  ");
+    await click(findButton(container, "保存声部组名称"));
+    await waitFor(
+      () => Array.from(findSelectExact(container, "声部组").options)
+        .every((option) => option.textContent?.startsWith("钢琴")),
+      "重名保存后使用稳定序号消歧",
+    );
+    expect(
+      Array.from(findSelectExact(container, "声部组").options)
+        .map((option) => option.textContent),
+    ).toEqual(["钢琴（第 1 组）", "钢琴（第 2 组）"]);
+    expect(findInput(container, "当前声部组名称").value).toBe("钢琴");
+    expect(container.textContent).toContain("当前已保存：钢琴");
+
+    const revisionBeforeUnchanged =
+      Array.from(store.values.values())[0]?.document.revision;
+    await change(findInput(container, "当前声部组名称"), "  钢琴 ");
+    await click(findButton(container, "保存声部组名称"));
+    await waitFor(
+      () => container.textContent?.includes("当前内容没有变化。") ?? false,
+      "trim 后未变化不创建修订",
+    );
+    expect(findInput(container, "当前声部组名称").value).toBe("钢琴");
+    expect(Array.from(store.values.values())[0]?.document.revision)
+      .toBe(revisionBeforeUnchanged);
+
+    await change(findInput(container, "当前声部组名称"), "   ");
+    await click(findButton(container, "保存声部组名称"));
+    await waitFor(
+      () => container.textContent?.includes("声部组名称不能为空") ?? false,
+      "非法空名称失败关闭",
+    );
+    expect(findInput(container, "当前声部组名称").value).toBe("");
+    expect(container.textContent).toContain("当前已保存：钢琴");
+    expect(findSelectExact(container, "声部组").selectedOptions[0]?.textContent)
+      .toBe("钢琴（第 2 组）");
+    expect(Array.from(store.values.values())[0]?.document.revision)
+      .toBe(revisionBeforeUnchanged);
+
+    store.failNextPut = new LocalScoreProjectStorageError(
+      "write-failed",
+      "名称写入失败，已保留最后保存的名称。",
+    );
+    await change(findInput(container, "当前声部组名称"), "  弦乐  ");
+    await click(findButton(container, "保存声部组名称"));
+    await waitFor(
+      () => container.textContent?.includes("名称写入失败") ?? false,
+      "显示名称写入失败",
+    );
+    expect(findInput(container, "当前声部组名称").value).toBe("弦乐");
+    expect(container.textContent).toContain("当前已保存：钢琴");
+    expect(findSelectExact(container, "声部组").selectedOptions[0]?.textContent)
+      .toBe("钢琴（第 2 组）");
+    expect(
+      Array.from(store.values.values())[0]?.document.parts[1]?.name,
+    ).toBe("钢琴");
+
+    await click(findButton(container, "保存声部组名称"));
+    await waitFor(
+      () => findSelectExact(container, "声部组")
+        .selectedOptions[0]?.textContent === "弦乐（第 2 组）",
+      "失败后可按原草稿重试",
+    );
+    expect(
+      Array.from(store.values.values())[0]?.document.parts[1]?.name,
+    ).toBe("弦乐");
+
+    await click(findButton(container, "撤销"));
+    await waitFor(
+      () => findSelectExact(container, "声部组")
+        .selectedOptions[0]?.textContent === "钢琴（第 2 组）",
+      "撤销恢复旧名称",
+    );
+    expect(findInput(container, "当前声部组名称").value).toBe("钢琴");
+    await click(findButton(container, "重做"));
+    await waitFor(
+      () => findSelectExact(container, "声部组")
+        .selectedOptions[0]?.textContent === "弦乐（第 2 组）",
+      "重做恢复新名称",
+    );
+
+    await change(findInput(container, "项目名称"), "声部组命名新项目名");
+    expect(findInput(container, "当前声部组名称").disabled).toBe(true);
+    expect(findButton(container, "保存声部组名称").disabled).toBe(true);
+    await waitForAutosave();
+    await waitFor(
+      () => !findButton(container, "保存声部组名称").disabled,
+      "项目设置自动保存后恢复重命名",
+    );
+
+    await click(findButton(container, "返回项目列表"));
+    await click(findButton(container, "打开"));
+    await change(findSelectExact(container, "声部组"), "part-2");
+    expect(findInput(container, "当前声部组名称").value).toBe("弦乐");
+    expect(findSelectExact(container, "声部组").selectedOptions[0]?.textContent)
+      .toBe("弦乐（第 2 组）");
   });
 
   it("固定 C 简谱与五线谱切换保留同一事件选择和播放控制实例", async () => {

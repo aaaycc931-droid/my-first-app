@@ -199,6 +199,42 @@ export type LocalNotationProjectScoreDocumentV3 = Readonly<{
   }>[];
 }>;
 
+/**
+ * 本机乐谱项目独立演进到 v4；声部组名称成为 canonical 项目内容，
+ * 因而随 revision、undo／redo 与持久化一同演进。
+ */
+export type LocalNotationProjectScoreDocumentV4 = Readonly<{
+  schemaVersion: "score-document-v4";
+  documentKind: "notation-project";
+  documentId: string;
+  revision: number;
+  reviewState: "draft";
+  localOnly: true;
+  sessionOnly: false;
+  source: Readonly<{
+    kind: "local-score-project";
+    projectId: string;
+  }>;
+  meter: NotationTimeSignature;
+  keySignature: LocalScoreProjectKeySignatureV3;
+  parts: readonly Readonly<{
+    partId: string;
+    name: string;
+    staves: readonly Readonly<{
+      staffId: string;
+      staffKind: "pitched";
+      clef: LocalScoreProjectClefV3;
+      voices: readonly Readonly<{
+        voiceId: string;
+        measures: readonly Readonly<{
+          measureNumber: number;
+          events: readonly LocalScoreProjectEventV2[];
+        }>[];
+      }>[];
+    }>[];
+  }>[];
+}>;
+
 export type RhythmDictationScoreDocumentV1 = Readonly<{
   schemaVersion: "score-document-v1";
   documentKind: "rhythm-dictation";
