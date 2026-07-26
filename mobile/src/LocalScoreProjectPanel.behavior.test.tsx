@@ -367,6 +367,7 @@ describe("S1 本机谱项目面板", () => {
           {
             partId: "part-2",
             name: "声部组 2",
+            instrument: { kind: "unassigned" },
             staves: [{
               staffId: "staff-2",
               staffKind: "pitched",
@@ -1049,6 +1050,171 @@ describe("S1 本机谱项目面板", () => {
       .toBe("弦乐（第 2 组）");
   });
 
+  it("谱面乐器归属保持 save-first、播放互斥与重开闭环", async () => {
+    const store = new MemoryProjectStore();
+    const base = createLocalScoreProject({
+      projectId: "part-instrument-project",
+      title: "乐器归属",
+      now: "2026-07-24T04:55:00.000Z",
+    });
+    const withSecondPart = addLocalScoreProjectPart({
+      project: base,
+      expectedRevision: base.document.revision,
+      partId: "part-2",
+      staffId: "staff-2",
+      voiceId: "voice-2",
+      clef: "treble",
+      now: "2026-07-24T04:55:01.000Z",
+    });
+    const fixture = addLocalScoreProjectEvent({
+      project: withSecondPart,
+      expectedRevision: withSecondPart.document.revision,
+      location: {
+        partId: "part-1",
+        staffId: "staff-1",
+        voiceId: "voice-1",
+        measureNumber: 1,
+      },
+      eventId: "part-instrument-playback-event",
+      input: {
+        type: "note",
+        pitch: "C4",
+        duration: "quarter",
+        augmentationDots: 0,
+        tieToNext: false,
+        lyric: null,
+      },
+      now: "2026-07-24T04:55:02.000Z",
+    });
+    await store.put(fixture, null);
+    const container = await renderPanel(store);
+    await click(findButton(container, "打开"));
+
+    const instrumentSelect = findSelectExact(container, "谱面乐器归属");
+    expect(
+      Array.from(instrumentSelect.options).map((option) => option.textContent),
+    ).toEqual([
+      "未指定",
+      "大钢琴（GM1 0）",
+      "小提琴（GM1 40）",
+      "中提琴（GM1 41）",
+      "大提琴（GM1 42）",
+      "弦乐合奏（GM1 48）",
+      "长笛（GM1 73）",
+    ]);
+    expect(instrumentSelect.value).toBe("unassigned");
+    expect(container.textContent).toContain("当前已保存：未指定");
+    expect(container.textContent).toContain(
+      "当前只记录谱面乐器归属；所有声部仍使用钢琴采样预览。",
+    );
+
+    await click(findButton(container, "播放草稿"));
+    await waitFor(
+      () => Array.from(container.querySelectorAll("button"))
+        .some((button) => button.textContent?.trim() === "停止播放"),
+      "乐器归属 fixture 开始完整文档播放",
+    );
+    const activePlaybackControl = findButton(container, "停止播放");
+    await change(findSelectExact(container, "声部组"), "part-2");
+    expect(findButton(container, "停止播放")).toBe(activePlaybackControl);
+    expect(findSelectExact(container, "谱面乐器归属").value)
+      .toBe("unassigned");
+    expect(findSelectExact(container, "谱面乐器归属").disabled).toBe(true);
+    expect(findButton(container, "保存乐器归属").disabled).toBe(true);
+    await click(activePlaybackControl);
+    await waitFor(
+      () => !findButton(container, "保存乐器归属").disabled,
+      "停止播放后允许保存乐器归属",
+    );
+
+    await change(
+      findSelectExact(container, "谱面乐器归属"),
+      "gm1-40",
+    );
+    store.failNextPut = new LocalScoreProjectStorageError(
+      "write-failed",
+      "乐器归属写入失败，已保留最后保存的归属。",
+    );
+    await click(findButton(container, "保存乐器归属"));
+    await waitFor(
+      () => container.textContent?.includes("乐器归属写入失败") ?? false,
+      "显示乐器归属保存失败",
+    );
+    expect(findSelectExact(container, "谱面乐器归属").value).toBe("gm1-40");
+    expect(container.textContent).toContain("当前已保存：未指定");
+    expect(
+      Array.from(store.values.values())[0]?.document.parts[1]?.instrument,
+    ).toEqual({ kind: "unassigned" });
+
+    await click(findButton(container, "保存乐器归属"));
+    await waitFor(
+      () => container.textContent?.includes("当前已保存：小提琴（GM1 40）")
+        ?? false,
+      "按原 draft 重试保存乐器归属",
+    );
+    const storedAfterSave = Array.from(store.values.values())[0];
+    expect(storedAfterSave?.document.parts[1]?.instrument)
+      .toEqual({ kind: "gm1-program", program: 40 });
+    expect(storedAfterSave?.document.parts[0]?.instrument)
+      .toEqual({ kind: "unassigned" });
+    expect(
+      storedAfterSave?.document.parts[0]?.staves[0]?.voices[0]
+        ?.measures[0]?.events[0]?.id,
+    ).toBe("part-instrument-playback-event");
+
+    const revisionBeforeUnchanged = storedAfterSave?.document.revision;
+    await click(findButton(container, "保存乐器归属"));
+    await waitFor(
+      () => container.textContent?.includes("当前内容没有变化。") ?? false,
+      "未变化归属不创建 revision",
+    );
+    expect(Array.from(store.values.values())[0]?.document.revision)
+      .toBe(revisionBeforeUnchanged);
+
+    await click(findButton(container, "撤销"));
+    await waitFor(
+      () => container.textContent?.includes("当前已保存：未指定") ?? false,
+      "撤销恢复未指定归属",
+    );
+    expect(findSelectExact(container, "谱面乐器归属").value)
+      .toBe("unassigned");
+    await click(findButton(container, "重做"));
+    await waitFor(
+      () => container.textContent?.includes("当前已保存：小提琴（GM1 40）")
+        ?? false,
+      "重做恢复小提琴归属",
+    );
+    expect(findSelectExact(container, "谱面乐器归属").value).toBe("gm1-40");
+
+    await change(findInput(container, "项目名称"), "乐器归属新项目名");
+    expect(findSelectExact(container, "谱面乐器归属").disabled).toBe(true);
+    expect(findButton(container, "保存乐器归属").disabled).toBe(true);
+    await waitForAutosave();
+    await waitFor(
+      () => !findButton(container, "保存乐器归属").disabled,
+      "项目设置自动保存后恢复乐器归属保存",
+    );
+
+    await click(findButton(container, "返回项目列表"));
+    await click(findButton(container, "打开"));
+    await change(findSelectExact(container, "声部组"), "part-2");
+    expect(findSelectExact(container, "谱面乐器归属").value).toBe("gm1-40");
+    expect(container.textContent).toContain("当前已保存：小提琴（GM1 40）");
+
+    await change(findSelectExact(container, "声部组"), "part-1");
+    await click(findButton(container, "新增声部组"));
+    await waitFor(
+      () => findSelectExact(container, "声部组").options.length === 3,
+      "新增默认未指定乐器归属的声部组",
+    );
+    const addedPartOption = findSelectExact(container, "声部组").options[2];
+    if (!addedPartOption) throw new Error("找不到新增声部组");
+    await change(findSelectExact(container, "声部组"), addedPartOption.value);
+    expect(findSelectExact(container, "谱面乐器归属").value)
+      .toBe("unassigned");
+    expect(container.textContent).toContain("当前已保存：未指定");
+  });
+
   it("固定 C 简谱与五线谱切换保留同一事件选择和播放控制实例", async () => {
     const store = new MemoryProjectStore();
     const container = await renderPanel(store);
@@ -1631,6 +1797,8 @@ describe("S1 本机谱项目面板", () => {
     );
     expect(findInput(container, "项目名称").value).toBe(baseProject.title);
     expect(findInput(container, "速度（BPM）").value).toBe("90");
+    expect(findSelectExact(container, "谱面乐器归属").disabled).toBe(true);
+    expect(findButton(container, "保存乐器归属").disabled).toBe(true);
     expect(Array.from(store.values.values())[0]?.document.revision).toBe(1);
 
     store.failNextPromote = new LocalScoreProjectStorageError(

@@ -10,10 +10,12 @@ import type {
   LocalNotationProjectScoreDocumentV1,
   LocalNotationProjectScoreDocumentV3,
   LocalNotationProjectScoreDocumentV4,
+  LocalNotationProjectScoreDocumentV5,
   LocalScoreProjectClefV3,
   LocalScoreProjectAugmentationDots,
   LocalScoreProjectEventV2,
   LocalScoreProjectKeySignatureV3,
+  LocalScoreProjectPartInstrumentV1,
 } from "./scoreDocument";
 
 export const LOCAL_SCORE_PROJECT_LEGACY_SCHEMA_VERSION =
@@ -21,11 +23,13 @@ export const LOCAL_SCORE_PROJECT_LEGACY_SCHEMA_VERSION =
 export const LOCAL_SCORE_PROJECT_V2_SCHEMA_VERSION =
   "local-score-project-storage-v2" as const;
 export const LOCAL_SCORE_PROJECT_PREVIOUS_SCHEMA_VERSION =
+  "local-score-project-storage-v5" as const;
+export const LOCAL_SCORE_PROJECT_V4_SCHEMA_VERSION =
   "local-score-project-storage-v4" as const;
 export const LOCAL_SCORE_PROJECT_V3_SCHEMA_VERSION =
   "local-score-project-storage-v3" as const;
 export const LOCAL_SCORE_PROJECT_SCHEMA_VERSION =
-  "local-score-project-storage-v5" as const;
+  "local-score-project-storage-v6" as const;
 export const LOCAL_SCORE_PROJECT_MAX_HISTORY = 50;
 export const LOCAL_SCORE_PROJECT_MAX_TITLE_LENGTH = 80;
 export const LOCAL_SCORE_PROJECT_DEFAULT_TEMPO_BPM = 90;
@@ -40,7 +44,7 @@ export const LOCAL_SCORE_PROJECT_TIE_CONTINUITY_ERROR =
 
 export type LocalScoreProjectContentV1 = Readonly<
   Pick<
-    LocalNotationProjectScoreDocumentV4,
+    LocalNotationProjectScoreDocumentV5,
     "meter" | "keySignature" | "parts"
   >
 >;
@@ -49,23 +53,24 @@ type LocalScoreProjectTieContent = Readonly<
   Pick<LocalNotationProjectScoreDocumentV3, "meter" | "parts">
 >;
 
-export type LocalScoreProjectV5 = Readonly<{
+export type LocalScoreProjectV6 = Readonly<{
   schemaVersion: typeof LOCAL_SCORE_PROJECT_SCHEMA_VERSION;
   projectId: string;
   title: string;
   tempoBpm: number;
   createdAt: string;
   updatedAt: string;
-  document: LocalNotationProjectScoreDocumentV4;
+  document: LocalNotationProjectScoreDocumentV5;
   undoStack: readonly LocalScoreProjectContentV1[];
   redoStack: readonly LocalScoreProjectContentV1[];
 }>;
 
-/** 兼容既有调用方名称；运行时值始终为 storage-v5。 */
-export type LocalScoreProjectV1 = LocalScoreProjectV5;
-export type LocalScoreProjectV2 = LocalScoreProjectV5;
-export type LocalScoreProjectV3 = LocalScoreProjectV5;
-export type LocalScoreProjectV4 = LocalScoreProjectV5;
+/** 兼容既有调用方名称；运行时值始终为 storage-v6。 */
+export type LocalScoreProjectV1 = LocalScoreProjectV6;
+export type LocalScoreProjectV2 = LocalScoreProjectV6;
+export type LocalScoreProjectV3 = LocalScoreProjectV6;
+export type LocalScoreProjectV4 = LocalScoreProjectV6;
+export type LocalScoreProjectV5 = LocalScoreProjectV6;
 
 export class LocalScoreProjectConflictError extends Error {
   constructor() {
@@ -142,6 +147,27 @@ const isLocalScoreProjectKeySignature = (
     || value.fifths === 0
     || value.fifths === 1
   );
+
+export const isLocalScoreProjectPartInstrument = (
+  value: unknown,
+): value is LocalScoreProjectPartInstrumentV1 => {
+  if (!isRecord(value)) return false;
+  if (value.kind === "unassigned") {
+    return Object.keys(value).length === 1;
+  }
+  return value.kind === "gm1-program"
+    && Object.keys(value).length === 2
+    && Number.isSafeInteger(value.program)
+    && (value.program as number) >= 0
+    && (value.program as number) <= 127;
+};
+
+const clonePartInstrument = (
+  instrument: LocalScoreProjectPartInstrumentV1,
+): LocalScoreProjectPartInstrumentV1 =>
+  instrument.kind === "unassigned"
+    ? { kind: "unassigned" }
+    : { kind: "gm1-program", program: instrument.program };
 
 const isValidIsoDate = (value: unknown): value is string => {
   if (typeof value !== "string") return false;
@@ -222,6 +248,7 @@ export const cloneLocalScoreProjectContent = (
   parts: content.parts.map((part) => ({
     partId: part.partId,
     name: part.name,
+    instrument: clonePartInstrument(part.instrument),
     staves: part.staves.map((staff) => ({
       staffId: staff.staffId,
       staffKind: staff.staffKind,
@@ -342,6 +369,7 @@ export const isLocalScoreProjectContent = (
       !isRecord(part)
       || !isValidId(part.partId)
       || !isValidPartName(part.name)
+      || !isLocalScoreProjectPartInstrument(part.instrument)
     ) return false;
     if (!Array.isArray(part.staves) || part.staves.length === 0) return false;
     partIds.push(part.partId);
@@ -410,8 +438,8 @@ const createEmptyProjectDocument = ({
   projectId,
 }: {
   projectId: string;
-}): LocalNotationProjectScoreDocumentV4 => ({
-  schemaVersion: "score-document-v4",
+}): LocalNotationProjectScoreDocumentV5 => ({
+  schemaVersion: "score-document-v5",
   documentKind: "notation-project",
   documentId: `local.score-project.${projectId}`,
   revision: 1,
@@ -427,6 +455,7 @@ const createEmptyProjectDocument = ({
   parts: [{
     partId: "part-1",
     name: "声部组 1",
+    instrument: { kind: "unassigned" },
     staves: [{
       staffId: "staff-1",
       staffKind: "pitched",
@@ -472,7 +501,7 @@ const createDocumentRevision = ({
 }: {
   project: LocalScoreProjectV1;
   content: LocalScoreProjectContentV1;
-}): LocalNotationProjectScoreDocumentV4 => ({
+}): LocalNotationProjectScoreDocumentV5 => ({
   ...project.document,
   revision: project.document.revision + 1,
   ...cloneLocalScoreProjectContent(content),
@@ -946,6 +975,7 @@ export const addLocalScoreProjectPart = ({
         {
           partId,
           name: getDefaultPartName(content.parts),
+          instrument: { kind: "unassigned" },
           staves: [{
             staffId,
             staffKind: "pitched",
@@ -958,6 +988,49 @@ export const addLocalScoreProjectPart = ({
         },
       ],
     },
+    now,
+  });
+};
+
+export const changeLocalScoreProjectPartInstrument = ({
+  project,
+  expectedRevision,
+  partId,
+  instrument,
+  now,
+}: {
+  project: LocalScoreProjectV1;
+  expectedRevision: number;
+  partId: string;
+  instrument: LocalScoreProjectPartInstrumentV1;
+  now: string;
+}) => {
+  assertExpectedRevision(project, expectedRevision);
+  assertValidStructureId(partId, "声部组");
+  if (!isLocalScoreProjectPartInstrument(instrument)) {
+    throw new LocalScoreProjectDomainError(
+      "invalid-input",
+      "谱面乐器归属无效，未执行修改。",
+    );
+  }
+  const normalizedInstrument = clonePartInstrument(instrument);
+  const content = getLocalScoreProjectContent(project);
+  let matched = 0;
+  const parts = content.parts.map((part) => {
+    if (part.partId !== partId) return part;
+    matched += 1;
+    return { ...part, instrument: normalizedInstrument };
+  });
+  if (matched !== 1) {
+    throw new LocalScoreProjectDomainError(
+      "not-found",
+      "未找到唯一的目标声部组，未修改乐器归属。",
+    );
+  }
+  return applyLocalScoreProjectContent({
+    project,
+    expectedRevision,
+    content: { ...content, parts },
     now,
   });
 };
@@ -1899,10 +1972,10 @@ export const changeLocalScoreProjectKeySignature = ({
 const isLocalNotationProjectDocument = (
   value: unknown,
   projectId: string,
-): value is LocalNotationProjectScoreDocumentV4 => {
+): value is LocalNotationProjectScoreDocumentV5 => {
   if (!isRecord(value)) return false;
   return (
-    value.schemaVersion === "score-document-v4"
+    value.schemaVersion === "score-document-v5"
     && value.documentKind === "notation-project"
     && value.documentId === `local.score-project.${projectId}`
     && Number.isSafeInteger(value.revision)
@@ -1935,6 +2008,7 @@ const migrateLegacyLocalScoreProjectContent = (
         return {
           partId: partValue.partId,
           name: getMigratedPartName(partIndex),
+          instrument: { kind: "unassigned" },
           staves: partValue.staves.map((staffValue) => {
             if (
               !isRecord(staffValue)
@@ -2036,7 +2110,11 @@ const migratePreviousLocalScoreProjectContent = (
     keySignature: { fifths: 0 },
     parts: value.parts.map((part, index) =>
       isRecord(part)
-        ? { ...part, name: getMigratedPartName(index) }
+        ? {
+          ...part,
+          name: getMigratedPartName(index),
+          instrument: { kind: "unassigned" },
+        }
         : part),
   };
   if (
@@ -2057,7 +2135,30 @@ const migrateStorageV4LocalScoreProjectContent = (
     keySignature: value.keySignature,
     parts: value.parts.map((part, index) =>
       isRecord(part)
-        ? { ...part, name: getMigratedPartName(index) }
+        ? {
+          ...part,
+          name: getMigratedPartName(index),
+          instrument: { kind: "unassigned" },
+        }
+        : part),
+  };
+  if (
+    !isLocalScoreProjectContent(migrated)
+    || !hasValidLocalScoreProjectTies(migrated)
+  ) return null;
+  return cloneLocalScoreProjectContent(migrated);
+};
+
+const migrateStorageV5LocalScoreProjectContent = (
+  value: unknown,
+): LocalScoreProjectContentV1 | null => {
+  if (!isRecord(value) || !Array.isArray(value.parts)) return null;
+  const migrated: unknown = {
+    meter: value.meter,
+    keySignature: value.keySignature,
+    parts: value.parts.map((part) =>
+      isRecord(part)
+        ? { ...part, instrument: { kind: "unassigned" } }
         : part),
   };
   if (
@@ -2073,7 +2174,8 @@ const isLegacyDocumentEnvelope = (
   schemaVersion:
     | "score-document-v1"
     | "score-document-v2"
-    | "score-document-v3",
+    | "score-document-v3"
+    | "score-document-v4",
 ) =>
   value.schemaVersion === schemaVersion
   && value.documentKind === "notation-project"
@@ -2090,7 +2192,7 @@ const isLegacyDocumentEnvelope = (
 const migrateLegacyLocalNotationProjectDocument = (
   value: unknown,
   projectId: string,
-): LocalNotationProjectScoreDocumentV4 | null => {
+): LocalNotationProjectScoreDocumentV5 | null => {
   if (
     !isRecord(value)
     || !isLegacyDocumentEnvelope(value, projectId, "score-document-v1")
@@ -2098,7 +2200,7 @@ const migrateLegacyLocalNotationProjectDocument = (
   const content = migrateLegacyLocalScoreProjectContent(value);
   if (!content) return null;
   return {
-    schemaVersion: "score-document-v4",
+    schemaVersion: "score-document-v5",
     documentKind: "notation-project",
     documentId: value.documentId as string,
     revision: value.revision as number,
@@ -2113,7 +2215,7 @@ const migrateLegacyLocalNotationProjectDocument = (
 const migratePreviousLocalNotationProjectDocument = (
   value: unknown,
   projectId: string,
-): LocalNotationProjectScoreDocumentV4 | null => {
+): LocalNotationProjectScoreDocumentV5 | null => {
   if (
     !isRecord(value)
     || !isLegacyDocumentEnvelope(value, projectId, "score-document-v2")
@@ -2121,7 +2223,7 @@ const migratePreviousLocalNotationProjectDocument = (
   const content = migratePreviousLocalScoreProjectContent(value);
   if (!content) return null;
   return {
-    schemaVersion: "score-document-v4",
+    schemaVersion: "score-document-v5",
     documentKind: "notation-project",
     documentId: value.documentId as string,
     revision: value.revision as number,
@@ -2136,7 +2238,7 @@ const migratePreviousLocalNotationProjectDocument = (
 const migrateStorageV4LocalNotationProjectDocument = (
   value: unknown,
   projectId: string,
-): LocalNotationProjectScoreDocumentV4 | null => {
+): LocalNotationProjectScoreDocumentV5 | null => {
   if (
     !isRecord(value)
     || !isLegacyDocumentEnvelope(value, projectId, "score-document-v3")
@@ -2144,7 +2246,30 @@ const migrateStorageV4LocalNotationProjectDocument = (
   const content = migrateStorageV4LocalScoreProjectContent(value);
   if (!content) return null;
   return {
-    schemaVersion: "score-document-v4",
+    schemaVersion: "score-document-v5",
+    documentKind: "notation-project",
+    documentId: value.documentId as string,
+    revision: value.revision as number,
+    reviewState: "draft",
+    localOnly: true,
+    sessionOnly: false,
+    source: { kind: "local-score-project", projectId },
+    ...content,
+  };
+};
+
+const migrateStorageV5LocalNotationProjectDocument = (
+  value: unknown,
+  projectId: string,
+): LocalNotationProjectScoreDocumentV5 | null => {
+  if (
+    !isRecord(value)
+    || !isLegacyDocumentEnvelope(value, projectId, "score-document-v4")
+  ) return null;
+  const content = migrateStorageV5LocalScoreProjectContent(value);
+  if (!content) return null;
+  return {
+    schemaVersion: "score-document-v5",
     documentKind: "notation-project",
     documentId: value.documentId as string,
     revision: value.revision as number,
@@ -2164,6 +2289,7 @@ export const parseLocalScoreProject = (
     || (
       value.schemaVersion !== LOCAL_SCORE_PROJECT_SCHEMA_VERSION
       && value.schemaVersion !== LOCAL_SCORE_PROJECT_PREVIOUS_SCHEMA_VERSION
+      && value.schemaVersion !== LOCAL_SCORE_PROJECT_V4_SCHEMA_VERSION
       && value.schemaVersion !== LOCAL_SCORE_PROJECT_V3_SCHEMA_VERSION
       && value.schemaVersion !== LOCAL_SCORE_PROJECT_V2_SCHEMA_VERSION
       && value.schemaVersion !== LOCAL_SCORE_PROJECT_LEGACY_SCHEMA_VERSION
@@ -2205,20 +2331,26 @@ export const parseLocalScoreProject = (
       tempoBpm,
     } as LocalScoreProjectV1);
   }
-  const isStorageV4 =
+  const isStorageV5 =
     value.schemaVersion === LOCAL_SCORE_PROJECT_PREVIOUS_SCHEMA_VERSION;
+  const isStorageV4 =
+    value.schemaVersion === LOCAL_SCORE_PROJECT_V4_SCHEMA_VERSION;
   const isStorageV3 =
     value.schemaVersion === LOCAL_SCORE_PROJECT_V3_SCHEMA_VERSION;
-  const migrateDocument = isStorageV4
-    ? migrateStorageV4LocalNotationProjectDocument
-    : isStorageV3
-      ? migratePreviousLocalNotationProjectDocument
-      : migrateLegacyLocalNotationProjectDocument;
-  const migrateContent = isStorageV4
-    ? migrateStorageV4LocalScoreProjectContent
-    : isStorageV3
-      ? migratePreviousLocalScoreProjectContent
-      : migrateLegacyLocalScoreProjectContent;
+  const migrateDocument = isStorageV5
+    ? migrateStorageV5LocalNotationProjectDocument
+    : isStorageV4
+      ? migrateStorageV4LocalNotationProjectDocument
+      : isStorageV3
+        ? migratePreviousLocalNotationProjectDocument
+        : migrateLegacyLocalNotationProjectDocument;
+  const migrateContent = isStorageV5
+    ? migrateStorageV5LocalScoreProjectContent
+    : isStorageV4
+      ? migrateStorageV4LocalScoreProjectContent
+      : isStorageV3
+        ? migratePreviousLocalScoreProjectContent
+        : migrateLegacyLocalScoreProjectContent;
   const document = migrateDocument(value.document, value.projectId);
   const undoStack = value.undoStack.map(migrateContent);
   const redoStack = value.redoStack.map(migrateContent);

@@ -11,6 +11,7 @@ import {
   appendLocalScoreProjectMeasure,
   applyLocalScoreProjectContent,
   changeLocalScoreProjectClef,
+  changeLocalScoreProjectPartInstrument,
   changeLocalScoreProjectKeySignature,
   changeLocalScoreProjectMeter,
   changeLocalScoreProjectSettings,
@@ -43,12 +44,13 @@ const project = createLocalScoreProject({
   now: createdAt,
 });
 assert.equal(project.title, "第一份谱");
-assert.equal(project.schemaVersion, "local-score-project-storage-v5");
+assert.equal(project.schemaVersion, "local-score-project-storage-v6");
 assert.equal(project.tempoBpm, 90);
-assert.equal(project.document.schemaVersion, "score-document-v4");
+assert.equal(project.document.schemaVersion, "score-document-v5");
 assert.deepEqual(project.document.keySignature, { fifths: 0 });
 assert.equal(project.document.parts[0].staves[0].clef, "treble");
 assert.equal(project.document.parts[0].name, "声部组 1");
+assert.deepEqual(project.document.parts[0].instrument, { kind: "unassigned" });
 assert.equal(project.document.documentKind, "notation-project");
 assert.equal(project.document.documentId, "local.score-project.project-1");
 assert.equal(project.document.revision, 1);
@@ -301,6 +303,7 @@ const multiStaffContent = {
     {
       partId: "right-hand",
       name: "右手",
+      instrument: { kind: "gm1-program" as const, program: 0 },
       staves: [{
         staffId: "staff-right",
         staffKind: "pitched" as const,
@@ -342,6 +345,7 @@ const multiStaffContent = {
     {
       partId: "second-part",
       name: "第二声部组",
+      instrument: { kind: "unassigned" as const },
       staves: [{
         staffId: "staff-second",
         staffKind: "pitched" as const,
@@ -420,12 +424,14 @@ for (const content of [
 }
 const legacyBefore = JSON.stringify(legacySchema);
 const migratedLegacy = parseLocalScoreProject(legacySchema);
-assert.equal(migratedLegacy?.schemaVersion, "local-score-project-storage-v5");
-assert.equal(migratedLegacy?.document.schemaVersion, "score-document-v4");
+assert.equal(migratedLegacy?.schemaVersion, "local-score-project-storage-v6");
+assert.equal(migratedLegacy?.document.schemaVersion, "score-document-v5");
 assert.deepEqual(
   migratedLegacy?.document.parts.map((part) => part.name),
   ["声部组 1", "声部组 2"],
 );
+assert.ok(migratedLegacy?.document.parts.every((part) =>
+  part.instrument.kind === "unassigned"));
 assert.deepEqual(migratedLegacy?.document.keySignature, { fifths: 0 });
 assert.equal(migratedLegacy?.tempoBpm, 90);
 assert.equal(migratedLegacy?.projectId, multiStaff.projectId);
@@ -447,7 +453,7 @@ assert.equal(
 );
 assert.match(
   serializeLocalScoreProject(migratedLegacy!),
-  /local-score-project-storage-v5/,
+  /local-score-project-storage-v6/,
 );
 
 const previousSchema = JSON.parse(legacyBefore) as typeof legacySchema;
@@ -475,8 +481,8 @@ for (const content of [...storageV3.undoStack, ...storageV3.redoStack]) {
 }
 const storageV3Before = JSON.stringify(storageV3);
 const migratedStorageV3 = parseLocalScoreProject(storageV3);
-assert.equal(migratedStorageV3?.schemaVersion, "local-score-project-storage-v5");
-assert.equal(migratedStorageV3?.document.schemaVersion, "score-document-v4");
+assert.equal(migratedStorageV3?.schemaVersion, "local-score-project-storage-v6");
+assert.equal(migratedStorageV3?.document.schemaVersion, "score-document-v5");
 assert.deepEqual(migratedStorageV3?.document.keySignature, { fifths: 0 });
 assert.equal(migratedStorageV3?.document.revision, storageV3.document.revision);
 assert.equal(migratedStorageV3?.createdAt, storageV3.createdAt);
@@ -509,8 +515,8 @@ for (const content of [
 }
 const storageV4Before = JSON.stringify(storageV4);
 const migratedStorageV4 = parseLocalScoreProject(storageV4);
-assert.equal(migratedStorageV4?.schemaVersion, "local-score-project-storage-v5");
-assert.equal(migratedStorageV4?.document.schemaVersion, "score-document-v4");
+assert.equal(migratedStorageV4?.schemaVersion, "local-score-project-storage-v6");
+assert.equal(migratedStorageV4?.document.schemaVersion, "score-document-v5");
 assert.deepEqual(
   migratedStorageV4?.document.parts.map((part) => part.name),
   ["声部组 1", "声部组 2"],
@@ -521,12 +527,47 @@ assert.ok(migratedStorageV4?.redoStack.every((content) =>
   content.parts.every((part) => part.name.length > 0)));
 assert.equal(JSON.stringify(storageV4), storageV4Before);
 
+const storageV5 = JSON.parse(serialized) as {
+  schemaVersion: string;
+  document: {
+    schemaVersion: string;
+    parts: { instrument?: unknown }[];
+  };
+  undoStack: { parts: { instrument?: unknown }[] }[];
+  redoStack: { parts: { instrument?: unknown }[] }[];
+};
+storageV5.schemaVersion = "local-score-project-storage-v5";
+storageV5.document.schemaVersion = "score-document-v4";
+for (const content of [
+  storageV5.document,
+  ...storageV5.undoStack,
+  ...storageV5.redoStack,
+]) {
+  for (const part of content.parts) delete part.instrument;
+}
+const storageV5Before = JSON.stringify(storageV5);
+const migratedStorageV5 = parseLocalScoreProject(storageV5);
+assert.equal(migratedStorageV5?.schemaVersion, "local-score-project-storage-v6");
+assert.equal(migratedStorageV5?.document.schemaVersion, "score-document-v5");
+assert.deepEqual(
+  migratedStorageV5?.document.parts.map((part) => part.name),
+  ["右手", "第二声部组"],
+  "storage-v5 已有名称必须无损保留",
+);
+assert.ok(migratedStorageV5?.document.parts.every((part) =>
+  part.instrument.kind === "unassigned"));
+assert.ok(migratedStorageV5?.undoStack.every((content) =>
+  content.parts.every((part) => part.instrument.kind === "unassigned")));
+assert.ok(migratedStorageV5?.redoStack.every((content) =>
+  content.parts.every((part) => part.instrument.kind === "unassigned")));
+assert.equal(JSON.stringify(storageV5), storageV5Before);
+
 const missingTempo = JSON.parse(serialized) as { tempoBpm?: number };
 delete missingTempo.tempoBpm;
 assert.equal(parseLocalScoreProject(missingTempo), null);
 
 const futureSchema = JSON.parse(serialized) as { schemaVersion: string };
-futureSchema.schemaVersion = "local-score-project-storage-v6";
+futureSchema.schemaVersion = "local-score-project-storage-v7";
 assert.equal(parseLocalScoreProject(futureSchema), null);
 
 const missingKeySignature = JSON.parse(serialized) as {
@@ -556,6 +597,29 @@ const invalidHistoryPartName = JSON.parse(serialized) as {
 };
 invalidHistoryPartName.undoStack[0]!.parts[0]!.name = "";
 assert.equal(parseLocalScoreProject(invalidHistoryPartName), null);
+for (const invalidInstrument of [
+  null,
+  { kind: "unassigned", program: 0 },
+  { kind: "gm1-program", program: -1 },
+  { kind: "gm1-program", program: 128 },
+  { kind: "gm1-program", program: 40.5 },
+  { kind: "gm1-program", program: 40, providerId: "forbidden" },
+  { kind: "unknown" },
+]) {
+  const invalidCurrentInstrument = JSON.parse(serialized) as {
+    document: { parts: { instrument: unknown }[] };
+  };
+  invalidCurrentInstrument.document.parts[0].instrument = invalidInstrument;
+  assert.equal(parseLocalScoreProject(invalidCurrentInstrument), null);
+}
+const invalidHistoryInstrument = JSON.parse(serialized) as {
+  undoStack: { parts: { instrument: unknown }[] }[];
+};
+invalidHistoryInstrument.undoStack[0]!.parts[0]!.instrument = {
+  kind: "gm1-program",
+  program: 128,
+};
+assert.equal(parseLocalScoreProject(invalidHistoryInstrument), null);
 
 const tempo30 = changeLocalScoreProjectTempo({
   project,
@@ -1335,6 +1399,7 @@ assert.equal(addedPart.document.parts.length, 2);
 assert.deepEqual(addedPart.document.parts[1], {
   partId: "part-2",
   name: "声部组 2",
+  instrument: { kind: "unassigned" },
   staves: [{
     staffId: "part-2-staff-1",
     staffKind: "pitched",
@@ -1356,6 +1421,146 @@ assert.deepEqual(
 assert.equal(sparseMeasureProject.document.parts.length, 1);
 assert.equal(addedPart.undoStack.length, sparseMeasureProject.undoStack.length + 1);
 assert.equal(addedPart.redoStack.length, 0);
+const instrumentInput = { kind: "gm1-program" as const, program: 0 };
+const assignedInstrument = changeLocalScoreProjectPartInstrument({
+  project: addedPart,
+  expectedRevision: 4,
+  partId: "part-2",
+  instrument: instrumentInput,
+  now: "2026-07-24T00:00:04.000Z",
+});
+(instrumentInput as { program: number }).program = 73;
+assert.equal(assignedInstrument.document.revision, 5);
+assert.deepEqual(
+  assignedInstrument.document.parts[1].instrument,
+  { kind: "gm1-program", program: 0 },
+  "领域命令必须深拷贝输入归属",
+);
+assert.equal(assignedInstrument.document.parts[1].name, "声部组 2");
+assert.deepEqual(
+  assignedInstrument.document.parts[1].staves,
+  addedPart.document.parts[1].staves,
+  "改变归属不得改写谱表、声部或事件",
+);
+assert.deepEqual(
+  assignedInstrument.undoStack.at(-1)?.parts[1]?.instrument,
+  { kind: "unassigned" },
+);
+assert.equal(changeLocalScoreProjectPartInstrument({
+  project: assignedInstrument,
+  expectedRevision: 5,
+  partId: "part-2",
+  instrument: { kind: "gm1-program", program: 0 },
+  now: "2026-07-24T00:00:05.000Z",
+}), assignedInstrument, "相同归属不得创建无效 revision");
+const maxProgramInstrument = changeLocalScoreProjectPartInstrument({
+  project: assignedInstrument,
+  expectedRevision: 5,
+  partId: "part-2",
+  instrument: { kind: "gm1-program", program: 127 },
+  now: "2026-07-24T00:00:05.000Z",
+});
+assert.deepEqual(
+  maxProgramInstrument.document.parts[1].instrument,
+  { kind: "gm1-program", program: 127 },
+);
+const duplicateInstrument = changeLocalScoreProjectPartInstrument({
+  project: maxProgramInstrument,
+  expectedRevision: 6,
+  partId: "part-1",
+  instrument: { kind: "gm1-program", program: 127 },
+  now: "2026-07-24T00:00:06.000Z",
+});
+assert.deepEqual(
+  duplicateInstrument.document.parts.map((part) => part.instrument),
+  [
+    { kind: "gm1-program", program: 127 },
+    { kind: "gm1-program", program: 127 },
+  ],
+  "多个声部组允许使用相同归属",
+);
+const undoneInstrument = undoLocalScoreProject({
+  project: maxProgramInstrument,
+  expectedRevision: 6,
+  now: "2026-07-24T00:00:06.000Z",
+});
+assert.deepEqual(
+  undoneInstrument.document.parts[1].instrument,
+  { kind: "gm1-program", program: 0 },
+);
+const redoneInstrument = redoLocalScoreProject({
+  project: undoneInstrument,
+  expectedRevision: 7,
+  now: "2026-07-24T00:00:07.000Z",
+});
+assert.deepEqual(
+  redoneInstrument.document.parts[1].instrument,
+  { kind: "gm1-program", program: 127 },
+);
+const instrumentAfterUndo = changeLocalScoreProjectPartInstrument({
+  project: undoneInstrument,
+  expectedRevision: 7,
+  partId: "part-2",
+  instrument: { kind: "unassigned" },
+  now: "2026-07-24T00:00:07.000Z",
+});
+assert.equal(instrumentAfterUndo.redoStack.length, 0);
+for (const instrument of [
+  { kind: "gm1-program", program: -1 },
+  { kind: "gm1-program", program: 128 },
+  { kind: "gm1-program", program: 1.5 },
+  { kind: "gm1-program", program: Number.NaN },
+  { kind: "unassigned", program: 0 },
+  { kind: "gm1-program", program: 0, providerId: "forbidden" },
+  { kind: "piano" },
+] as const) {
+  assert.throws(
+    () => changeLocalScoreProjectPartInstrument({
+      project: addedPart,
+      expectedRevision: 4,
+      partId: "part-2",
+      instrument: instrument as never,
+      now: "2026-07-24T00:00:04.000Z",
+    }),
+    (error) =>
+      error instanceof LocalScoreProjectDomainError
+      && error.code === "invalid-input",
+  );
+}
+assert.throws(
+  () => changeLocalScoreProjectPartInstrument({
+    project: addedPart,
+    expectedRevision: 4,
+    partId: "missing-part",
+    instrument: { kind: "unassigned" },
+    now: "2026-07-24T00:00:04.000Z",
+  }),
+  (error) =>
+    error instanceof LocalScoreProjectDomainError
+    && error.code === "not-found",
+);
+assert.throws(
+  () => changeLocalScoreProjectPartInstrument({
+    project: addedPart,
+    expectedRevision: 3,
+    partId: "part-2",
+    instrument: { kind: "unassigned" },
+    now: "2026-07-24T00:00:04.000Z",
+  }),
+  LocalScoreProjectConflictError,
+);
+assert.throws(
+  () => changeLocalScoreProjectPartInstrument({
+    project: addedPart,
+    expectedRevision: 4,
+    partId: "part-2",
+    instrument: { kind: "gm1-program", program: 40 },
+    now: "2026-07-24T00:00:02.000Z",
+  }),
+  (error) =>
+    error instanceof LocalScoreProjectDomainError
+    && error.code === "clock-regression",
+);
 const renamedPart = renameLocalScoreProjectPart({
   project: addedPart,
   expectedRevision: 4,

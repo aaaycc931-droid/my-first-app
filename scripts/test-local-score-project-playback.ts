@@ -11,6 +11,7 @@ import type {
   LocalNotationProjectScoreDocumentV1,
   LocalNotationProjectScoreDocumentV2,
   LocalNotationProjectScoreDocumentV3,
+  LocalNotationProjectScoreDocumentV5,
   LocalScoreProjectEventV2,
   ScoreDocumentEventV1,
 } from "../lib/music/scoreDocument";
@@ -418,6 +419,79 @@ const documentV3WithMeasures = (
       ["tie-end", 2_750, 3_250],
     ],
     "each event in a tied chain must retain its own cursor span",
+  );
+}
+
+{
+  const baseV3 = documentV3WithMeasures([[
+    noteV2("instrument-neutral-c4", "C4", "quarter"),
+    restV2("instrument-neutral-rest"),
+  ]]);
+  const pianoMarked: LocalNotationProjectScoreDocumentV5 = {
+    ...baseV3,
+    schemaVersion: "score-document-v5",
+    documentId: "local.score-project.instrument-neutral",
+    source: {
+      kind: "local-score-project",
+      projectId: "instrument-neutral",
+    },
+    parts: baseV3.parts.map((part) => ({
+      ...part,
+      name: "旋律",
+      instrument: { kind: "gm1-program", program: 0 },
+    })),
+  };
+  const violinMarked: LocalNotationProjectScoreDocumentV5 = {
+    ...pianoMarked,
+    revision: pianoMarked.revision + 1,
+    parts: pianoMarked.parts.map((part) => ({
+      ...part,
+      instrument: { kind: "gm1-program", program: 40 },
+    })),
+  };
+  const pianoPlan = createLocalScoreProjectPlaybackPlan({
+    document: pianoMarked,
+    bpm: 120,
+  });
+  const violinPlan = createLocalScoreProjectPlaybackPlan({
+    document: violinMarked,
+    bpm: 120,
+  });
+  assert.equal(pianoPlan.status, "ready");
+  assert.equal(violinPlan.status, "ready");
+  if (pianoPlan.status !== "ready" || violinPlan.status !== "ready") {
+    throw new Error("expected ready instrument-neutral plans");
+  }
+  assert.deepEqual(
+    {
+      durationMs: violinPlan.durationMs,
+      events: violinPlan.events.map((event) =>
+        event.type === "all-notes-off"
+          ? event
+          : {
+            type: event.type,
+            delayMs: event.delayMs,
+            midi: event.midi,
+            sourceEventId: event.sourceEventId,
+          }),
+      spans: violinPlan.spans,
+      warnings: violinPlan.warnings,
+    },
+    {
+      durationMs: pianoPlan.durationMs,
+      events: pianoPlan.events.map((event) =>
+        event.type === "all-notes-off"
+          ? event
+          : {
+            type: event.type,
+            delayMs: event.delayMs,
+            midi: event.midi,
+            sourceEventId: event.sourceEventId,
+          }),
+      spans: pianoPlan.spans,
+      warnings: pianoPlan.warnings,
+    },
+    "谱面乐器归属不得改变当前钢琴预览的音符、时序或 provider 输入",
   );
 }
 

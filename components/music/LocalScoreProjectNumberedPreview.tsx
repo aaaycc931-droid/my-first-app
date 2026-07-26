@@ -9,6 +9,7 @@ import {
 import type {
   LocalNotationProjectScoreDocumentV3,
   LocalNotationProjectScoreDocumentV4,
+  LocalNotationProjectScoreDocumentV5,
 } from "../../lib/music/scoreDocument";
 import {
   getLocalScoreProjectVoiceIdentityLabel,
@@ -21,7 +22,8 @@ import type {
 export type LocalScoreProjectNumberedPreviewProps = Readonly<{
   document:
     | LocalNotationProjectScoreDocumentV3
-    | LocalNotationProjectScoreDocumentV4;
+    | LocalNotationProjectScoreDocumentV4
+    | LocalNotationProjectScoreDocumentV5;
   selectedEventId?: string | null;
   activeEventIds?: readonly string[];
   target?: LocalScoreProjectVoiceTarget;

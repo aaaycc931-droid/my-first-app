@@ -23,6 +23,7 @@ import {
   changeLocalScoreProjectClef,
   changeLocalScoreProjectKeySignature,
   changeLocalScoreProjectMeter,
+  changeLocalScoreProjectPartInstrument,
   copyLocalScoreProjectEvent,
   createLocalScoreProject,
   deleteEmptyLocalScoreProjectMeasure,
@@ -43,6 +44,7 @@ import {
 import type {
   LocalScoreProjectClefV3,
   LocalScoreProjectKeySignatureV3,
+  LocalScoreProjectPartInstrumentV1,
 } from "../../lib/music/scoreDocument";
 import {
   notationDurations,
@@ -66,6 +68,36 @@ import { useLocalScoreProjectAutosave } from "./useLocalScoreProjectAutosave";
 
 type EditorEventType = "note" | "rest";
 type ScorePreviewMode = "staff" | "numbered";
+
+const partInstrumentOptions = [
+  { value: "unassigned", label: "未指定", instrument: { kind: "unassigned" } },
+  { value: "gm1-0", label: "大钢琴（GM1 0）", instrument: { kind: "gm1-program", program: 0 } },
+  { value: "gm1-40", label: "小提琴（GM1 40）", instrument: { kind: "gm1-program", program: 40 } },
+  { value: "gm1-41", label: "中提琴（GM1 41）", instrument: { kind: "gm1-program", program: 41 } },
+  { value: "gm1-42", label: "大提琴（GM1 42）", instrument: { kind: "gm1-program", program: 42 } },
+  { value: "gm1-48", label: "弦乐合奏（GM1 48）", instrument: { kind: "gm1-program", program: 48 } },
+  { value: "gm1-73", label: "长笛（GM1 73）", instrument: { kind: "gm1-program", program: 73 } },
+] as const satisfies readonly Readonly<{
+  value: string;
+  label: string;
+  instrument: LocalScoreProjectPartInstrumentV1;
+}>[];
+
+const getPartInstrumentValue = (
+  instrument: LocalScoreProjectPartInstrumentV1,
+) => instrument.kind === "unassigned"
+  ? "unassigned"
+  : `gm1-${instrument.program}`;
+
+const getPartInstrumentLabel = (
+  instrument: LocalScoreProjectPartInstrumentV1,
+) => partInstrumentOptions.find(
+  (option) => option.value === getPartInstrumentValue(instrument),
+)?.label ?? (
+  instrument.kind === "gm1-program"
+    ? `GM1 程序 ${instrument.program}`
+    : "未指定"
+);
 
 const durationLabels: Record<NotationDuration, string> = {
   half: "二分音符",
@@ -358,6 +390,8 @@ export function LocalScoreProjectPanel({
   const [editorTitle, setEditorTitle] = useState("");
   const [editorTempoBpm, setEditorTempoBpm] = useState("90");
   const [partNameDraft, setPartNameDraft] = useState("");
+  const [partInstrumentDraft, setPartInstrumentDraft] =
+    useState("unassigned");
   const [eventType, setEventType] = useState<EditorEventType>("note");
   const [pitch, setPitch] = useState<NotationPitch>("C4");
   const [duration, setDuration] = useState<NotationDuration>("quarter");
@@ -426,6 +460,11 @@ export function LocalScoreProjectPanel({
       project.document.parts.find((part) =>
         part.partId === nextLocation.partId)?.name ?? "",
     );
+    setPartInstrumentDraft(getPartInstrumentValue(
+      project.document.parts.find((part) =>
+        part.partId === nextLocation.partId)?.instrument
+        ?? { kind: "unassigned" },
+    ));
     if (
       previousLocation
       && (
@@ -697,6 +736,11 @@ export function LocalScoreProjectPanel({
       currentProject.document.parts.find((part) =>
         part.partId === normalized.partId)?.name ?? "",
     );
+    setPartInstrumentDraft(getPartInstrumentValue(
+      currentProject.document.parts.find((part) =>
+        part.partId === normalized.partId)?.instrument
+        ?? { kind: "unassigned" },
+    ));
     setSelectedEvent(null);
     setCopiedEvent(null);
     setTargetMeasureNumber(
@@ -998,6 +1042,69 @@ export function LocalScoreProjectPanel({
                   当前已保存：{selectedPart.name}
                 </p>
               </div>
+            </div>
+            <div className="mt-3 rounded-xl border border-teal-200 bg-white p-3">
+              <label className="text-sm font-bold">
+                谱面乐器归属
+                <select
+                  value={partInstrumentDraft}
+                  disabled={structureMutationDisabled}
+                  onChange={(event) =>
+                    setPartInstrumentDraft(event.target.value)}
+                  className="mt-2 min-h-11 w-full rounded-xl border border-teal-200 bg-white px-3 py-2 disabled:bg-slate-100"
+                >
+                  {!partInstrumentOptions.some(
+                    (option) =>
+                      option.value
+                      === getPartInstrumentValue(selectedPart.instrument),
+                  ) ? (
+                    <option
+                      value={getPartInstrumentValue(selectedPart.instrument)}
+                      disabled
+                    >
+                      {getPartInstrumentLabel(selectedPart.instrument)}（当前项目）
+                    </option>
+                  ) : null}
+                  {partInstrumentOptions.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <div className="mt-2 flex flex-wrap items-center gap-3">
+                <button
+                  type="button"
+                  disabled={structureMutationDisabled}
+                  onClick={() => {
+                    if (structureMutationDisabled) return;
+                    const selectedOption = partInstrumentOptions.find(
+                      (option) => option.value === partInstrumentDraft,
+                    );
+                    if (!selectedOption) {
+                      setNotice("请选择当前开放的谱面乐器归属。");
+                      return;
+                    }
+                    void persistMutation((project) =>
+                      changeLocalScoreProjectPartInstrument({
+                        project,
+                        expectedRevision: project.document.revision,
+                        partId: selectedPart.partId,
+                        instrument: selectedOption.instrument,
+                        now: now(),
+                      }));
+                  }}
+                  className="min-h-11 rounded-xl border border-teal-300 bg-white px-3 py-2 text-sm font-bold disabled:border-slate-200 disabled:text-slate-400"
+                >
+                  保存乐器归属
+                </button>
+                <p className="text-xs leading-5 text-teal-800">
+                  当前已保存：{getPartInstrumentLabel(selectedPart.instrument)}
+                </p>
+              </div>
+              <p className="mt-2 text-xs leading-5 text-teal-800">
+                当前只记录谱面乐器归属；所有声部仍使用钢琴采样预览。
+              </p>
             </div>
             <div className="mt-3 flex flex-wrap gap-2">
               <button
