@@ -15,6 +15,7 @@ import type {
   LocalNotationProjectScoreDocumentV5,
   LocalNotationProjectScoreDocumentV6,
   LocalNotationProjectScoreDocumentV7,
+  LocalNotationProjectScoreDocumentV8,
 } from "../../lib/music/scoreDocument";
 
 export type LocalScoreProjectStaffSelection = Readonly<{
@@ -28,7 +29,8 @@ export type LocalScoreProjectStaffPreviewProps = Readonly<{
     | LocalNotationProjectScoreDocumentV4
     | LocalNotationProjectScoreDocumentV5
     | LocalNotationProjectScoreDocumentV6
-    | LocalNotationProjectScoreDocumentV7;
+    | LocalNotationProjectScoreDocumentV7
+    | LocalNotationProjectScoreDocumentV8;
   selectedEventId?: string | null;
   activeEventIds?: readonly string[];
   target?: LocalScoreProjectVoiceTarget;
@@ -340,6 +342,21 @@ export function LocalScoreProjectStaffPreview({
                     data-testid={`local-score-playback-cursor-${token.eventId}`}
                     aria-hidden="true"
                   />
+                ) : null}
+                {token.chordSymbol !== null ? (
+                  <text
+                    x={token.x}
+                    y={presentation.chordSymbolY}
+                    fill="#0f766e"
+                    fontFamily="sans-serif"
+                    fontSize="11"
+                    fontWeight="700"
+                    textAnchor="middle"
+                    data-testid={`local-score-chord-symbol-${token.eventId}`}
+                    aria-hidden="true"
+                  >
+                    {token.chordSymbol}
+                  </text>
                 ) : null}
 
                 {token.type === "note" ? (

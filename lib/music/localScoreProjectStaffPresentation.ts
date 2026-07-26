@@ -14,6 +14,7 @@ import type {
   LocalNotationProjectScoreDocumentV5,
   LocalNotationProjectScoreDocumentV6,
   LocalNotationProjectScoreDocumentV7,
+  LocalNotationProjectScoreDocumentV8,
   LocalScoreProjectFingeringV1,
 } from "./scoreDocument";
 
@@ -62,6 +63,7 @@ type LocalScoreStaffTokenBase = Readonly<{
   augmentationDots: 0 | 1;
   x: number;
   y: number;
+  chordSymbol: string | null;
   accessibleLabel: string;
 }>;
 
@@ -122,6 +124,7 @@ export type LocalScoreStaffPresentation =
     staffLineYs: readonly [number, number, number, number, number];
     restY: number;
     lyricY: number;
+    chordSymbolY: number;
     width: number;
     height: number;
     partId: string;
@@ -221,7 +224,7 @@ const isPresentationContent = (
     keySignature: document.keySignature,
     parts: document.parts.map((part, index) => {
       if (!isRecord(part)) return part;
-      const staves = document.schemaVersion === "score-document-v7"
+      const staves = document.schemaVersion === "score-document-v8"
         ? part.staves
         : Array.isArray(part.staves)
           ? part.staves.map((staff) =>
@@ -236,10 +239,16 @@ const isPresentationContent = (
                         isRecord(measure) && Array.isArray(measure.events)
                           ? {
                             ...measure,
-                            events: measure.events.map((event) =>
-                              isRecord(event) && event.type === "note"
-                                ? { ...event, fingering: null }
-                                : event),
+                            events: measure.events.map((event) => {
+                              if (!isRecord(event)) return event;
+                              const previousEvent = document.schemaVersion
+                                === "score-document-v7"
+                                ? event
+                                : event.type === "note"
+                                  ? { ...event, fingering: null }
+                                  : event;
+                              return { ...previousEvent, chordSymbol: null };
+                            }),
                           }
                           : measure),
                     }
@@ -267,7 +276,8 @@ const isLocalScoreProjectDocument = (
   | LocalNotationProjectScoreDocumentV4
   | LocalNotationProjectScoreDocumentV5
   | LocalNotationProjectScoreDocumentV6
-  | LocalNotationProjectScoreDocumentV7 =>
+  | LocalNotationProjectScoreDocumentV7
+  | LocalNotationProjectScoreDocumentV8 =>
   isRecord(document)
   && (
     document.schemaVersion === "score-document-v3"
@@ -275,6 +285,7 @@ const isLocalScoreProjectDocument = (
     || document.schemaVersion === "score-document-v5"
     || document.schemaVersion === "score-document-v6"
     || document.schemaVersion === "score-document-v7"
+    || document.schemaVersion === "score-document-v8"
   )
   && document.documentKind === "notation-project"
   && typeof document.documentId === "string"
@@ -420,6 +431,9 @@ export const createLocalScoreProjectStaffPresentation = (
       });
       const positionLabel =
         `第 ${measure.measureNumber} 小节第 ${eventIndex + 1} 个事件`;
+      const chordSymbol = "chordSymbol" in event
+        ? event.chordSymbol as string | null
+        : null;
       if (event.type === "note" && event.pitch !== null) {
         const fingering = "fingering" in event
           ? event.fingering as LocalScoreProjectFingeringV1 | null
@@ -433,6 +447,7 @@ export const createLocalScoreProjectStaffPresentation = (
           || (keySignatureFifths === -1 && event.pitch === "B4")
         ) ? "natural" as const : null;
         const detailLabels = [
+          chordSymbol === null ? "" : `和弦名称“${chordSymbol}”`,
           accidental === "natural" ? "还原号" : "",
           `${event.augmentationDots === 1 ? "附点" : ""}${DURATION_LABELS[event.duration]}音符`,
           event.tieToNext ? "与下一音符用延音线相连" : "",
@@ -452,6 +467,7 @@ export const createLocalScoreProjectStaffPresentation = (
           augmentationDots: event.augmentationDots,
           x,
           y: pitchY[event.pitch],
+          chordSymbol,
           head: event.duration === "half" ? "open" : "filled",
           hasStem: true,
           hasEighthFlag: event.duration === "eighth",
@@ -481,9 +497,14 @@ export const createLocalScoreProjectStaffPresentation = (
           augmentationDots: event.augmentationDots,
           x,
           y: clef === "bass" ? 126 : 66,
+          chordSymbol,
           rest: "quarter",
           accessibleLabel:
-            `${positionLabel}，${event.augmentationDots === 1 ? "附点" : ""}四分休止符`,
+            `${positionLabel}，${chordSymbol === null
+              ? ""
+              : `和弦名称“${chordSymbol}”，`}${event.augmentationDots === 1
+              ? "附点"
+              : ""}四分休止符`,
         });
       }
       cursorBeat += durationBeats;
@@ -509,12 +530,17 @@ export const createLocalScoreProjectStaffPresentation = (
     LOCAL_SCORE_STAFF_HEADER_WIDTH
     + measures.length * LOCAL_SCORE_STAFF_MEASURE_WIDTH
     + LOCAL_SCORE_STAFF_MEASURE_PADDING;
+  const lyricY = clef === "bass" ? 180 : 124;
+  const chordSymbolY = lyricY + 18;
+  const hasChordSymbol = measures.some((measure) =>
+    measure.tokens.some((token) => token.chordSymbol !== null));
   return {
     status: "ready",
     documentId: document.documentId,
     revision: document.revision,
     scoreCredits: document.schemaVersion === "score-document-v6"
       || document.schemaVersion === "score-document-v7"
+      || document.schemaVersion === "score-document-v8"
       ? document.scoreCredits
       : {
         title: null,
@@ -535,11 +561,12 @@ export const createLocalScoreProjectStaffPresentation = (
     keySignatureGlyphY,
     staffLineYs,
     restY: clef === "bass" ? 126 : 66,
-    lyricY: clef === "bass" ? 180 : 124,
+    lyricY,
+    chordSymbolY,
     width,
-    height: clef === "bass"
+    height: (clef === "bass"
       ? LOCAL_SCORE_BASS_STAFF_HEIGHT
-      : LOCAL_SCORE_STAFF_HEIGHT,
+      : LOCAL_SCORE_STAFF_HEIGHT) + (hasChordSymbol ? 18 : 0),
     partId: part.partId,
     staffId: staff.staffId,
     voiceId: voice.voiceId,

@@ -21,6 +21,7 @@ import {
   addLocalScoreProjectVoice,
   appendLocalScoreProjectMeasure,
   changeLocalScoreProjectClef,
+  changeLocalScoreProjectEventChordSymbol,
   changeLocalScoreProjectKeySignature,
   changeLocalScoreProjectMeter,
   changeLocalScoreProjectPartInstrument,
@@ -472,6 +473,7 @@ export function LocalScoreProjectPanel({
   const [lyric, setLyric] = useState("");
   const [fingering, setFingering] =
     useState<LocalScoreProjectFingeringV1 | null>(null);
+  const [chordSymbol, setChordSymbol] = useState("");
   const [targetMeasureNumber, setTargetMeasureNumber] = useState(1);
   const [selectedEvent, setSelectedEvent] =
     useState<LocalScoreProjectStaffSelection | null>(null);
@@ -739,6 +741,7 @@ export function LocalScoreProjectPanel({
               pitch: null,
               duration: "quarter",
               augmentationDots,
+              chordSymbol,
             }
             : {
               type: "note",
@@ -748,6 +751,7 @@ export function LocalScoreProjectPanel({
               tieToNext,
               lyric,
               fingering,
+              chordSymbol,
             },
           now: now(),
         })
@@ -762,6 +766,7 @@ export function LocalScoreProjectPanel({
             pitch: null,
             duration: "quarter",
             augmentationDots,
+            chordSymbol,
           }
           : {
             type: "note",
@@ -771,6 +776,7 @@ export function LocalScoreProjectPanel({
             tieToNext,
             lyric,
             fingering,
+            chordSymbol,
           },
           now: now(),
         }),
@@ -789,6 +795,7 @@ export function LocalScoreProjectPanel({
     setSelectedEvent(selection);
     setTargetMeasureNumber(selection.location.measureNumber);
     setEventType(located.event.type);
+    setChordSymbol(located.event.chordSymbol ?? "");
     if (located.event.type === "note" && located.event.pitch) {
       setPitch(located.event.pitch);
       setDuration(located.event.duration);
@@ -802,6 +809,24 @@ export function LocalScoreProjectPanel({
       setFingering(null);
     }
     setAugmentationDots(located.event.augmentationDots);
+  };
+
+  const clearSelectedEventChordSymbol = () => {
+    setChordSymbol("");
+    if (!selectedEvent) {
+      setNotice("和弦名称草稿已清空；新增事件尚未写入谱面。");
+      return;
+    }
+    void persistMutation((project) =>
+      changeLocalScoreProjectEventChordSymbol({
+        project,
+        expectedRevision: project.document.revision,
+        location: selectedEvent.location,
+        eventId: selectedEvent.eventId,
+        chordSymbol: null,
+        now: now(),
+      }),
+    );
   };
 
   const events = currentProject ? getVoiceEvents(currentProject, selectedVoiceLocation) : [];
@@ -1862,6 +1887,32 @@ export function LocalScoreProjectPanel({
         <p className="mt-2 text-xs leading-5 text-indigo-800">
           延音线只允许连接同一声部中紧邻的同音音符；可跨连续小节。歌词和 1–5 指法只附着在音符上。
         </p>
+        <div className="mt-3 grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
+          <label className="text-sm font-bold">
+            事件起点和弦名称
+            <input
+              value={chordSymbol}
+              maxLength={80}
+              disabled={isBusy}
+              onChange={(event) => setChordSymbol(event.target.value)}
+              placeholder="可选，例如 C、Am7、G/B"
+              className="mt-2 min-h-11 w-full rounded-xl border border-indigo-300 bg-white px-3 py-2 disabled:bg-slate-100"
+            />
+          </label>
+          <button
+            type="button"
+            disabled={isBusy || transportMode !== "idle"}
+            onClick={clearSelectedEventChordSymbol}
+            className="min-h-11 rounded-xl border border-indigo-300 bg-white px-3 py-2 text-sm font-bold text-indigo-800 disabled:text-slate-400"
+          >
+            {selectedEvent
+              ? "清除和弦名称并保存"
+              : "清空和弦名称草稿"}
+          </button>
+        </div>
+        <p className="mt-2 text-xs leading-5 text-indigo-800">
+          和弦名称锚定音符或休止符的起点；五线谱与固定 C 简谱读取同一名称。当前只显示名称，不自动生成和弦图、配器或演奏。
+        </p>
         <button
           type="button"
           disabled={isBusy || transportMode !== "idle"}
@@ -1895,8 +1946,8 @@ export function LocalScoreProjectPanel({
                       eventId: selectedEvent.eventId,
                     }));
                     setNotice(sourceEvent?.type === "note" && sourceEvent.tieToNext
-                      ? "已复制附点、歌词和指法，但单事件复制不包含跨事件延音关系；粘贴副本不会带延音线。谱面尚未修改。"
-                      : "已复制所选事件；谱面尚未修改，可选择目标小节后粘贴。");
+                      ? "已复制附点、歌词、指法和和弦名称，但单事件复制不包含跨事件延音关系；粘贴副本不会带延音线。谱面尚未修改。"
+                      : "已复制所选事件及其和弦名称；谱面尚未修改，可选择目标小节后粘贴。");
                   } catch (error) {
                     setNotice(error instanceof Error
                       ? error.message
@@ -2067,6 +2118,9 @@ export function LocalScoreProjectPanel({
                     {event.type === "note" && event.lyric ? ` · 歌词：${event.lyric}` : ""}
                     {event.type === "note" && event.fingering !== null
                       ? ` · 指法：${event.fingering}`
+                      : ""}
+                    {event.chordSymbol !== null
+                      ? ` · 和弦：${event.chordSymbol}`
                       : ""}
                   </p>
                 </div>

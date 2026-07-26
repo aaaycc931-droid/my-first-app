@@ -18,6 +18,7 @@ export type LocalScoreNumberedTokenBase = Readonly<{
   duration: NotationDuration;
   durationBeats: number;
   augmentationDots: 0 | 1;
+  chordSymbol: string | null;
   accessibleLabel: string;
 }>;
 
@@ -114,11 +115,14 @@ const createAccessibleLabel = (
 ) => {
   const position =
     `第 ${token.location.measureNumber} 小节，固定 C 简谱`;
+  const chord = token.chordSymbol === null
+    ? ""
+    : `，和弦名称“${token.chordSymbol}”`;
   const duration = token.augmentationDots === 1
     ? `附点${DURATION_LABELS[token.duration]}`
     : DURATION_LABELS[token.duration];
   if (token.type === "rest") {
-    return `${position}，0，${duration}休止符`;
+    return `${position}，0，${duration}休止符${chord}`;
   }
   const octave = token.octave === "upper" ? "高音" : "";
   const tie = token.tieToNext ? "，与下一音符用延音线相连" : "";
@@ -126,7 +130,7 @@ const createAccessibleLabel = (
   const fingering = token.fingering === null
     ? ""
     : `，指法 ${token.fingering}`;
-  return `${position}，${octave}${token.degree}（${token.pitch}），${duration}音符${tie}${lyric}${fingering}`;
+  return `${position}，${octave}${token.degree}（${token.pitch}），${duration}音符${chord}${tie}${lyric}${fingering}`;
 };
 
 export const createLocalScoreProjectNumberedPresentation = (
@@ -147,6 +151,7 @@ export const createLocalScoreProjectNumberedPresentation = (
         duration: token.duration,
         durationBeats: token.durationBeats,
         augmentationDots: token.augmentationDots,
+        chordSymbol: token.chordSymbol,
       };
       const withoutLabel: LocalScoreNumberedTokenWithoutLabel =
         token.type === "rest"
