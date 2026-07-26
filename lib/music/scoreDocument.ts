@@ -142,6 +142,22 @@ export type LocalScoreProjectEventV3 =
   | LocalScoreProjectNoteEventV3
   | LocalScoreProjectRestEventV3;
 
+export type LocalScoreProjectNoteEventV4 = Readonly<
+  LocalScoreProjectNoteEventV3 & {
+    chordSymbol: string | null;
+  }
+>;
+
+export type LocalScoreProjectRestEventV4 = Readonly<
+  LocalScoreProjectRestEventV3 & {
+    chordSymbol: string | null;
+  }
+>;
+
+export type LocalScoreProjectEventV4 =
+  | LocalScoreProjectNoteEventV4
+  | LocalScoreProjectRestEventV4;
+
 /**
  * 本机乐谱项目独立演进到 v2；通用 ScoreDocumentEventV1 及其他练习文档
  * 保持不变，避免把本切片的编辑语义扩散到既有练习数据。
@@ -364,6 +380,44 @@ export type LocalNotationProjectScoreDocumentV7 = Readonly<{
         measures: readonly Readonly<{
           measureNumber: number;
           events: readonly LocalScoreProjectEventV3[];
+        }>[];
+      }>[];
+    }>[];
+  }>[];
+}>;
+
+/**
+ * 本机乐谱项目独立演进到 v8；和弦标记成为事件起点级 canonical 内容。
+ * 音符与休止符都可以锚定和弦标记，null 表示该事件起点没有显式标记。
+ */
+export type LocalNotationProjectScoreDocumentV8 = Readonly<{
+  schemaVersion: "score-document-v8";
+  documentKind: "notation-project";
+  documentId: string;
+  revision: number;
+  reviewState: "draft";
+  localOnly: true;
+  sessionOnly: false;
+  source: Readonly<{
+    kind: "local-score-project";
+    projectId: string;
+  }>;
+  scoreCredits: LocalScoreProjectScoreCreditsV1;
+  meter: NotationTimeSignature;
+  keySignature: LocalScoreProjectKeySignatureV3;
+  parts: readonly Readonly<{
+    partId: string;
+    name: string;
+    instrument: LocalScoreProjectPartInstrumentV1;
+    staves: readonly Readonly<{
+      staffId: string;
+      staffKind: "pitched";
+      clef: LocalScoreProjectClefV3;
+      voices: readonly Readonly<{
+        voiceId: string;
+        measures: readonly Readonly<{
+          measureNumber: number;
+          events: readonly LocalScoreProjectEventV4[];
         }>[];
       }>[];
     }>[];

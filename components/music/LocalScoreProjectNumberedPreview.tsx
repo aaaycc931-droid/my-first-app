@@ -12,6 +12,7 @@ import type {
   LocalNotationProjectScoreDocumentV5,
   LocalNotationProjectScoreDocumentV6,
   LocalNotationProjectScoreDocumentV7,
+  LocalNotationProjectScoreDocumentV8,
 } from "../../lib/music/scoreDocument";
 import {
   getLocalScoreProjectVoiceIdentityLabel,
@@ -27,7 +28,8 @@ export type LocalScoreProjectNumberedPreviewProps = Readonly<{
     | LocalNotationProjectScoreDocumentV4
     | LocalNotationProjectScoreDocumentV5
     | LocalNotationProjectScoreDocumentV6
-    | LocalNotationProjectScoreDocumentV7;
+    | LocalNotationProjectScoreDocumentV7
+    | LocalNotationProjectScoreDocumentV8;
   selectedEventId?: string | null;
   activeEventIds?: readonly string[];
   target?: LocalScoreProjectVoiceTarget;
@@ -218,6 +220,15 @@ export function LocalScoreProjectNumberedPreview({
                           data-testid={`local-score-numbered-playback-cursor-${token.eventId}`}
                           aria-hidden="true"
                         />
+                      ) : null}
+                      {token.chordSymbol !== null ? (
+                        <span
+                          className="mb-1 block text-xs font-bold text-teal-700"
+                          data-testid={`local-score-numbered-chord-symbol-${token.eventId}`}
+                          aria-hidden="true"
+                        >
+                          {token.chordSymbol}
+                        </span>
                       ) : null}
                       <span className="relative inline-flex min-h-10 items-end justify-center pt-3 font-serif text-3xl font-bold leading-none text-sky-950">
                         {token.type === "note" && token.octave === "upper" ? (

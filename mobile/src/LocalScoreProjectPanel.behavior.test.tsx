@@ -2412,6 +2412,77 @@ describe("S1 本机谱项目面板", () => {
       .toBe("C4");
   });
 
+  it("和弦名称原子保存失败时保留 canonical 与草稿，重试成功且播放中禁止保存", async () => {
+    const store = new MemoryProjectStore();
+    const container = await renderPanel(store);
+    await click(findButton(container, "创建并保存"));
+    await change(findSelect(container, "时值"), "half");
+    await click(findButton(container, "添加到第 1 小节并保存"));
+    await waitFor(
+      () => container.textContent?.includes("第 1 小节 · C4 · 二分音符")
+        ?? false,
+      "保存和弦名称测试音符",
+    );
+
+    await click(findButton(container, "编辑"));
+    const chordInput = findInput(container, "事件起点和弦名称");
+    await change(chordInput, "Cmaj7");
+    store.failNextPut = new LocalScoreProjectStorageError(
+      "write-failed",
+      "本机存储写入失败，和弦名称未保存；原有项目保持不变。",
+    );
+    await click(findButton(container, "更新所选事件并保存"));
+    await waitFor(
+      () => container.textContent?.includes("和弦名称未保存") ?? false,
+      "和弦名称保存失败",
+    );
+
+    let storedEvent = Array.from(store.values.values())[0]
+      ?.document.parts[0]?.staves[0]?.voices[0]?.measures[0]?.events[0];
+    expect(storedEvent?.chordSymbol).toBe(null);
+    expect(chordInput.value).toBe("Cmaj7");
+    expect(container.textContent).not.toContain("和弦：Cmaj7");
+    expect(container.querySelector(
+      '[data-testid^="local-score-chord-symbol-"]',
+    )).toBeNull();
+
+    await click(findButton(container, "更新所选事件并保存"));
+    await waitFor(
+      () => container.textContent?.includes("和弦：Cmaj7") ?? false,
+      "重试保存和弦名称",
+    );
+    storedEvent = Array.from(store.values.values())[0]
+      ?.document.parts[0]?.staves[0]?.voices[0]?.measures[0]?.events[0];
+    expect(storedEvent?.chordSymbol).toBe("Cmaj7");
+    expect(container.querySelector(
+      '[data-testid^="local-score-chord-symbol-"]',
+    )?.textContent).toBe("Cmaj7");
+
+    await click(findButton(container, "播放草稿"));
+    await waitFor(
+      () => Array.from(container.querySelectorAll("button"))
+        .some((button) => button.textContent?.trim() === "停止播放"),
+      "和弦名称测试谱面开始播放",
+    );
+    const activePlaybackControl = findButton(container, "停止播放");
+    await change(chordInput, "G7");
+    expect(findButton(container, "更新所选事件并保存").disabled).toBe(true);
+    expect(findButton(container, "清除和弦名称并保存").disabled).toBe(true);
+    expect(findButton(container, "停止播放")).toBe(activePlaybackControl);
+    expect(
+      Array.from(store.values.values())[0]
+        ?.document.parts[0]?.staves[0]?.voices[0]?.measures[0]?.events[0]
+        ?.chordSymbol,
+    ).toBe("Cmaj7");
+
+    await click(activePlaybackControl);
+    await waitFor(
+      () => !findButton(container, "更新所选事件并保存").disabled,
+      "停止播放后恢复和弦名称保存",
+    );
+    expect(chordInput.value).toBe("G7");
+  });
+
   it("显式保存谱面标题、多位署名与版权，并支持失败重试、双视图、撤销重做和重开", async () => {
     const store = new MemoryProjectStore();
     const container = await renderPanel(store);
