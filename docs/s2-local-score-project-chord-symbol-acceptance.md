@@ -55,7 +55,8 @@
   这不代表页面排版、和弦图或完整格式交换已经完成。
 - 和弦标记修改不得重建、中断或改变正在进行的播放状态。
 - chord-symbol-only 修改不得改变音高、时值、小节、声部结构、播放事件、时间线、
-  span、warning 或音色。revision 与 schedule identity 可按既有规则变化。
+  span、warning 或音色。revision、schedule identity 与 pointer identity 可按既有
+  revision-scoped 规则变化。
 - 当前播放仍只消费既有音符事件；和弦标记不得被描述为已经提供和弦伴奏或真实和弦
   播放。
 

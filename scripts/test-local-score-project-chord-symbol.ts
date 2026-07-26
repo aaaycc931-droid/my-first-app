@@ -310,6 +310,21 @@ assert.deepEqual(
   playbackSemantics(playbackWithSymbol),
   playbackSemantics(playbackWithoutSymbol),
 );
+assert.notEqual(
+  playbackWithSymbol.scheduleId,
+  playbackWithoutSymbol.scheduleId,
+  "canonical revision changes retain the existing revision-scoped schedule identity",
+);
+const pointerIds = (plan: typeof playbackWithSymbol) => {
+  if (plan.status !== "ready") throw new Error("expected ready playback");
+  return plan.events.flatMap((event) =>
+    event.type === "all-notes-off" ? [] : [event.pointerId]);
+};
+assert.notDeepEqual(
+  pointerIds(playbackWithSymbol),
+  pointerIds(playbackWithoutSymbol),
+  "canonical revision changes retain the existing revision-scoped pointer identity",
+);
 
 type JsonRecord = Record<string, unknown>;
 type JsonContent = JsonRecord & {

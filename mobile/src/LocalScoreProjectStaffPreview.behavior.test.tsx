@@ -7,6 +7,10 @@ import {
   type LocalScoreProjectStaffSelection,
 } from "../../components/music/LocalScoreProjectStaffPreview";
 import {
+  addLocalScoreProjectEvent,
+  createLocalScoreProject,
+} from "../../lib/music/localScoreProject";
+import {
   createLocalScoreProjectStaffPresentation,
   LOCAL_SCORE_STAFF_HEADER_WIDTH,
   LOCAL_SCORE_STAFF_MEASURE_PADDING,
@@ -643,6 +647,45 @@ describe("本地谱项目五线谱 SVG 预览", () => {
     expect(header?.textContent).toContain("作词：丙");
     expect(header?.textContent).toContain("编曲：丁");
     expect(header?.textContent).toContain("© 2026 示例版权说明");
+  });
+
+  it("渲染 canonical 和弦名称并把同一文本写入事件无障碍名称", async () => {
+    const base = createLocalScoreProject({
+      projectId: "staff-chord-symbol",
+      title: "和弦名称五线谱",
+      now: "2026-07-26T02:00:00.000Z",
+    });
+    const document = addLocalScoreProjectEvent({
+      project: base,
+      expectedRevision: base.document.revision,
+      location: {
+        partId: "part-1",
+        staffId: "staff-1",
+        voiceId: "voice-1",
+        measureNumber: 1,
+      },
+      eventId: "staff-chord-note",
+      input: {
+        type: "note",
+        pitch: "C4",
+        duration: "quarter",
+        chordSymbol: "Cmaj7",
+      },
+      now: "2026-07-26T02:00:01.000Z",
+    }).document;
+
+    await act(async () => {
+      root?.render(<LocalScoreProjectStaffPreview document={document} />);
+    });
+
+    expect(container?.querySelector(
+      '[data-testid="local-score-chord-symbol-staff-chord-note"]',
+    )?.textContent).toBe("Cmaj7");
+    expect(container?.querySelector(
+      '[data-event-id="staff-chord-note"]',
+    )?.getAttribute("aria-label")).toContain("和弦名称“Cmaj7”");
+    expect(container?.querySelector("svg")?.getAttribute("aria-label"))
+      .toContain("和弦名称“Cmaj7”");
   });
 
   it("呈现时值、休止、拍号、小节线以及独立选择和播放高亮", async () => {

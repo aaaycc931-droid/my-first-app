@@ -327,9 +327,7 @@ const pointerIdFor = ({
 }) => [
   "score-project",
   document.documentId,
-  ...(document.schemaVersion === "score-document-v8"
-    ? []
-    : [`r${document.revision}`]),
+  `r${document.revision}`,
   locatedVoice.partId,
   locatedVoice.staffId,
   locatedVoice.voice.voiceId,
