@@ -88,6 +88,34 @@ const createDocument = ({
   }],
 });
 
+const createMultiHierarchyDocument = () => {
+  const document = createDocument();
+  return {
+    ...document,
+    parts: [
+      ...document.parts,
+      {
+        partId: "part-2",
+        staves: [{
+          staffId: "staff-2",
+          staffKind: "pitched" as const,
+          clef: "bass" as const,
+          voices: [{
+            voiceId: "voice-2",
+            measures: [{
+              measureNumber: 1,
+              events: [
+                note({ id: "targeted-c5", pitch: "C5" }),
+                rest("targeted-rest"),
+              ],
+            }],
+          }],
+        }],
+      },
+    ],
+  } satisfies LocalNotationProjectScoreDocumentV3;
+};
+
 describe("本地谱项目固定 C 简谱 pure presentation", () => {
   it("以同一事件身份确定性呈现音级、休止和时值", () => {
     const left = createLocalScoreProjectNumberedPresentation(createDocument());
@@ -238,6 +266,57 @@ describe("本地谱项目固定 C 简谱 pure presentation", () => {
       ]);
     expect(canonicalTokens[0]?.map(({ degree }) => degree)).toEqual([1, 4, 7, 1]);
   });
+
+  it("按精确目标派生简谱 token，目标不存在时 fail closed", () => {
+    const document = createMultiHierarchyDocument();
+    const presentation = createLocalScoreProjectNumberedPresentation(
+      document,
+      {
+        partId: "part-2",
+        staffId: "staff-2",
+        voiceId: "voice-2",
+      },
+    );
+    expect(presentation.status).toBe("ready");
+    if (presentation.status !== "ready") throw new Error(presentation.reason);
+    expect(presentation.tokens.map((token) => ({
+      id: token.eventId,
+      degree: token.degree,
+      location: token.location,
+    }))).toEqual([
+      {
+        id: "targeted-c5",
+        degree: 1,
+        location: {
+          partId: "part-2",
+          staffId: "staff-2",
+          voiceId: "voice-2",
+          measureNumber: 1,
+        },
+      },
+      {
+        id: "targeted-rest",
+        degree: 0,
+        location: {
+          partId: "part-2",
+          staffId: "staff-2",
+          voiceId: "voice-2",
+          measureNumber: 1,
+        },
+      },
+    ]);
+
+    const missing = createLocalScoreProjectNumberedPresentation(document, {
+      partId: "part-1",
+      staffId: "staff-2",
+      voiceId: "voice-2",
+    });
+    expect(missing.status).toBe("blocked");
+    if (missing.status !== "blocked") throw new Error("expected blocked");
+    expect(missing.reason).toContain(
+      "声部组 part-1／谱表 staff-2／声部 voice-2",
+    );
+  });
 });
 
 describe("本地谱项目固定 C 简谱组件", () => {
@@ -332,8 +411,72 @@ describe("本地谱项目固定 C 简谱组件", () => {
       );
     });
     expect(container?.textContent).toContain(
-      "当前第一声部没有音符或休止符",
+      "当前声部（声部组 part-1／谱表 staff-1／声部 voice-1）没有音符或休止符",
     );
+    expect(container?.querySelectorAll("[data-event-id]")).toHaveLength(0);
+  });
+
+  it("指定声部标题和 aria 包含身份并回传精确 location", async () => {
+    const onSelectEvent = vi.fn();
+    await act(async () => {
+      root?.render(
+        <LocalScoreProjectNumberedPreview
+          document={createMultiHierarchyDocument()}
+          target={{
+            partId: "part-2",
+            staffId: "staff-2",
+            voiceId: "voice-2",
+          }}
+          onSelectEvent={onSelectEvent}
+        />,
+      );
+    });
+
+    expect(container?.querySelector("section")?.getAttribute("aria-label"))
+      .toContain("当前声部固定 C 简谱（声部组 part-2／谱表 staff-2／声部 voice-2）");
+    expect(container?.textContent).toContain(
+      "当前声部固定 C 简谱（声部组 part-2／谱表 staff-2／声部 voice-2）",
+    );
+    expect(container?.querySelector('[data-event-id="c4-half"]')).toBeNull();
+    const target = container?.querySelector<HTMLElement>(
+      '[data-event-id="targeted-c5"]',
+    );
+    await act(async () => {
+      target?.dispatchEvent(new KeyboardEvent("keydown", {
+        key: "Enter",
+        bubbles: true,
+        cancelable: true,
+      }));
+    });
+    expect(onSelectEvent).toHaveBeenLastCalledWith({
+      eventId: "targeted-c5",
+      location: {
+        partId: "part-2",
+        staffId: "staff-2",
+        voiceId: "voice-2",
+        measureNumber: 1,
+      },
+    });
+  });
+
+  it("指定声部不存在时停止生成简谱并标明目标身份", async () => {
+    await act(async () => {
+      root?.render(
+        <LocalScoreProjectNumberedPreview
+          document={createMultiHierarchyDocument()}
+          target={{
+            partId: "part-1",
+            staffId: "staff-2",
+            voiceId: "voice-2",
+          }}
+        />,
+      );
+    });
+
+    expect(container?.querySelector("section")?.getAttribute("aria-label"))
+      .toContain("声部组 part-1／谱表 staff-2／声部 voice-2");
+    expect(container?.querySelector('[role="alert"]')?.textContent)
+      .toContain("未找到指定的当前声部");
     expect(container?.querySelectorAll("[data-event-id]")).toHaveLength(0);
   });
 });

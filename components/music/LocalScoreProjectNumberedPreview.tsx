@@ -7,6 +7,10 @@ import {
   type LocalScoreNumberedToken,
 } from "../../lib/music/localScoreProjectNumberedPresentation";
 import type { LocalNotationProjectScoreDocumentV3 } from "../../lib/music/scoreDocument";
+import {
+  getLocalScoreProjectVoiceIdentityLabel,
+  type LocalScoreProjectVoiceTarget,
+} from "../../lib/music/localScoreProjectStaffPresentation";
 import type {
   LocalScoreProjectStaffSelection,
 } from "./LocalScoreProjectStaffPreview";
@@ -15,6 +19,7 @@ export type LocalScoreProjectNumberedPreviewProps = Readonly<{
   document: LocalNotationProjectScoreDocumentV3;
   selectedEventId?: string | null;
   activeEventIds?: readonly string[];
+  target?: LocalScoreProjectVoiceTarget;
   onSelectEvent?: (selection: LocalScoreProjectStaffSelection) => void;
 }>;
 
@@ -38,11 +43,12 @@ export function LocalScoreProjectNumberedPreview({
   document,
   selectedEventId = null,
   activeEventIds = [],
+  target,
   onSelectEvent,
 }: LocalScoreProjectNumberedPreviewProps) {
   const presentation = useMemo(
-    () => createLocalScoreProjectNumberedPresentation(document),
-    [document],
+    () => createLocalScoreProjectNumberedPresentation(document, target),
+    [document, target],
   );
   const activeIds = useMemo(() => new Set(activeEventIds), [activeEventIds]);
 
@@ -50,7 +56,9 @@ export function LocalScoreProjectNumberedPreview({
     return (
       <section
         className="rounded-2xl border border-rose-200 bg-rose-50 p-4"
-        aria-label="第一声部固定 C 简谱预览"
+        aria-label={target
+          ? `当前声部固定 C 简谱预览（${getLocalScoreProjectVoiceIdentityLabel(target)}）`
+          : "当前声部固定 C 简谱预览（默认第一声部组／谱表／声部）"}
       >
         <p className="text-sm text-rose-900" role="alert">
           {presentation.reason}
@@ -62,18 +70,25 @@ export function LocalScoreProjectNumberedPreview({
   const summary = presentation.tokens.length === 0
     ? "当前没有音符或休止符"
     : presentation.tokens.map((token) => token.accessibleLabel).join("；");
+  const voiceIdentity = getLocalScoreProjectVoiceIdentityLabel({
+    partId: presentation.partId,
+    staffId: presentation.staffId,
+    voiceId: presentation.voiceId,
+  });
 
   return (
     <section
       className="rounded-2xl border border-sky-200 bg-white p-4"
-      aria-label="第一声部固定 C 简谱"
+      aria-label={`当前声部固定 C 简谱（${voiceIdentity}）`}
       data-testid="local-score-project-numbered-preview"
       data-document-id={presentation.documentId}
       data-document-revision={presentation.revision}
     >
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
-          <h3 className="font-bold text-slate-950">第一声部固定 C 简谱</h3>
+          <h3 className="font-bold text-slate-950">
+            当前声部固定 C 简谱（{voiceIdentity}）
+          </h3>
           <p className="mt-1 text-sm leading-6 text-slate-600">
             固定 C 为 1，不随当前调号（{presentation.keySignatureLabel}）变化；蓝框表示选择，琥珀色表示当前播放事件。
           </p>
@@ -86,7 +101,7 @@ export function LocalScoreProjectNumberedPreview({
       <div
         className="mt-4 overflow-x-auto rounded-xl border border-sky-100 bg-sky-50/40 p-3"
         role="group"
-        aria-label={`第一声部固定 C 简谱预览，当前谱面调号${presentation.keySignatureLabel}，固定 C 音级不随调号变化，拍号 ${presentation.meter}，共 ${presentation.measures.length} 小节。${summary}。`}
+        aria-label={`当前声部固定 C 简谱预览（${voiceIdentity}），当前谱面调号${presentation.keySignatureLabel}，固定 C 音级不随调号变化，拍号 ${presentation.meter}，共 ${presentation.measures.length} 小节。${summary}。`}
       >
         <div className="flex min-w-max items-stretch">
           {presentation.measures.map((measure) => (
@@ -216,7 +231,7 @@ export function LocalScoreProjectNumberedPreview({
 
       {presentation.tokens.length === 0 ? (
         <p className="mt-3 text-sm text-slate-600">
-          当前第一声部没有音符或休止符。
+          当前声部（{voiceIdentity}）没有音符或休止符。
         </p>
       ) : null}
       {presentation.warnings.length > 0 ? (

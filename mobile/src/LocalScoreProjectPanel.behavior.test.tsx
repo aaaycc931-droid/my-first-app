@@ -4,6 +4,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   LocalScoreProjectConflictError,
+  addLocalScoreProjectEvent,
+  addLocalScoreProjectStaff,
+  addLocalScoreProjectVoice,
+  applyLocalScoreProjectContent,
   changeLocalScoreProjectSettings,
   cloneLocalScoreProject,
   createLocalScoreProject,
@@ -229,6 +233,18 @@ const findSelect = (
   return select;
 };
 
+const findSelectExact = (
+  container: ParentNode,
+  label: string,
+): HTMLSelectElement => {
+  const wrapper = Array.from(container.querySelectorAll("label")).find(
+    (candidate) => candidate.childNodes[0]?.textContent?.trim() === label,
+  );
+  const select = wrapper?.querySelector("select");
+  if (!select) throw new Error(`找不到选择器：${label}`);
+  return select;
+};
+
 const findInput = (
   container: ParentNode,
   label: string,
@@ -286,8 +302,11 @@ const renderPanel = async (store: MemoryProjectStore) => {
     );
   });
   await waitFor(
-    () => container.textContent?.includes("还没有已保存的谱项目。") ?? false,
-    "读取空项目列表",
+    () => store.values.size === 0
+      ? container.textContent?.includes("还没有已保存的谱项目。") ?? false
+      : Array.from(container.querySelectorAll("button"))
+        .some((button) => button.textContent?.trim() === "打开"),
+    "读取项目列表",
   );
   return container;
 };
@@ -302,6 +321,440 @@ afterEach(async () => {
 });
 
 describe("S1 本机谱项目面板", () => {
+  it("切换到第二 part 后精确更新并移动事件且不改写第一 part", async () => {
+    const store = new MemoryProjectStore();
+    const base = createLocalScoreProject({
+      projectId: "two-part-handler-project",
+      title: "双 Part 定向编辑",
+      now: "2026-07-24T03:50:00.000Z",
+    });
+    const withFirstPartEvent = addLocalScoreProjectEvent({
+      project: base,
+      expectedRevision: base.document.revision,
+      location: {
+        partId: "part-1",
+        staffId: "staff-1",
+        voiceId: "voice-1",
+        measureNumber: 1,
+      },
+      eventId: "part-1-protected-event",
+      input: {
+        type: "note",
+        pitch: "G4",
+        duration: "quarter",
+        augmentationDots: 0,
+        tieToNext: false,
+        lyric: "甲",
+      },
+      now: "2026-07-24T03:50:01.000Z",
+    });
+    const firstPart = withFirstPartEvent.document.parts[0];
+    const firstEvent =
+      firstPart?.staves[0]?.voices[0]?.measures[0]?.events[0];
+    if (!firstPart || !firstEvent || firstEvent.type !== "note") {
+      throw new Error("无法构造双 Part fixture");
+    }
+    const fixture = applyLocalScoreProjectContent({
+      project: withFirstPartEvent,
+      expectedRevision: withFirstPartEvent.document.revision,
+      content: {
+        meter: withFirstPartEvent.document.meter,
+        keySignature: withFirstPartEvent.document.keySignature,
+        parts: [
+          firstPart,
+          {
+            partId: "part-2",
+            staves: [{
+              staffId: "staff-2",
+              staffKind: "pitched",
+              clef: "treble",
+              voices: [{
+                voiceId: "voice-2",
+                measures: [
+                  {
+                    measureNumber: 1,
+                    events: [{
+                      ...firstEvent,
+                      id: "part-2-edit-event",
+                      pitch: "D4",
+                      lyric: "乙",
+                    }],
+                  },
+                  { measureNumber: 2, events: [] },
+                ],
+              }],
+            }],
+          },
+        ],
+      },
+      now: "2026-07-24T03:50:02.000Z",
+    });
+    await store.put(fixture, null);
+    const container = await renderPanel(store);
+    await click(findButton(container, "打开"));
+    await waitFor(
+      () => container.textContent?.includes("歌词：甲") ?? false,
+      "显示第一 Part 事件",
+    );
+
+    await click(findButton(container, "编辑"));
+    expect(container.textContent).toContain("编辑所选事件");
+    await click(findButton(container, "播放草稿"));
+    await waitFor(
+      () => Array.from(container.querySelectorAll("button"))
+        .some((button) => button.textContent?.trim() === "停止播放"),
+      "完整双 Part 文档开始播放",
+    );
+    const activePlaybackControl = findButton(container, "停止播放");
+    await change(findSelectExact(container, "声部组"), "part-2");
+    expect(findSelectExact(container, "声部组").value).toBe("part-2");
+    expect(container.textContent).toContain("输入音符或休止");
+    expect(container.textContent).not.toContain("编辑所选事件");
+    expect(findButton(container, "停止播放")).toBe(activePlaybackControl);
+    await click(activePlaybackControl);
+
+    await waitFor(
+      () => container.textContent?.includes("歌词：乙") ?? false,
+      "显示第二 Part 事件",
+    );
+    await click(findButton(container, "编辑"));
+    await change(findSelect(container, "音高"), "F4");
+    await change(findInput(container, "歌词"), "乙改");
+    await click(findButton(container, "更新所选事件并保存"));
+    await waitFor(
+      () => container.textContent?.includes("第 1 小节 · F4 · 四分音符")
+        ?? false,
+      "精确更新第二 Part 事件",
+    );
+
+    await change(findSelect(container, "目标小节"), "2");
+    await click(findButton(container, "移动到第 2 小节并保存"));
+    await waitFor(
+      () => container.textContent?.includes("第 2 小节 · F4 · 四分音符")
+        ?? false,
+      "精确移动第二 Part 事件",
+    );
+    const storedAfterPart2Edits = Array.from(store.values.values())[0];
+    const part2Measures =
+      storedAfterPart2Edits?.document.parts[1]?.staves[0]?.voices[0]?.measures;
+    expect(part2Measures?.[0]?.events).toHaveLength(0);
+    expect(part2Measures?.[1]?.events[0]?.id).toBe("part-2-edit-event");
+    expect(
+      part2Measures?.[1]?.events[0]?.type === "note"
+        && part2Measures[1].events[0].pitch,
+    ).toBe("F4");
+    expect(
+      part2Measures?.[1]?.events[0]?.type === "note"
+        && part2Measures[1].events[0].lyric,
+    ).toBe("乙改");
+
+    await change(findSelectExact(container, "声部组"), "part-1");
+    expect(container.textContent).toContain("第 1 小节 · G4 · 四分音符");
+    expect(container.textContent).toContain("歌词：甲");
+    const protectedMeasures =
+      Array.from(store.values.values())[0]
+        ?.document.parts[0]?.staves[0]?.voices[0]?.measures;
+    expect(protectedMeasures).toHaveLength(1);
+    expect(protectedMeasures?.[0]?.events).toHaveLength(1);
+    expect(protectedMeasures?.[0]?.events[0]?.id)
+      .toBe("part-1-protected-event");
+    expect(
+      protectedMeasures?.[0]?.events[0]?.type === "note"
+        && protectedMeasures[0].events[0].pitch,
+    ).toBe("G4");
+    expect(
+      protectedMeasures?.[0]?.events[0]?.type === "note"
+        && protectedMeasures[0].events[0].lyric,
+    ).toBe("甲");
+  });
+
+  it("切换声部后定向新增事件并完整保留另一个声部", async () => {
+    const store = new MemoryProjectStore();
+    const base = createLocalScoreProject({
+      projectId: "multi-voice-project",
+      title: "多声部测试",
+      now: "2026-07-24T04:00:00.000Z",
+    });
+    const withSecondVoice = addLocalScoreProjectVoice({
+      project: base,
+      expectedRevision: base.document.revision,
+      location: { partId: "part-1", staffId: "staff-1" },
+      voiceId: "voice-2",
+      now: "2026-07-24T04:00:01.000Z",
+    });
+    const fixture = addLocalScoreProjectEvent({
+      project: withSecondVoice,
+      expectedRevision: withSecondVoice.document.revision,
+      location: {
+        partId: "part-1",
+        staffId: "staff-1",
+        voiceId: "voice-1",
+        measureNumber: 1,
+      },
+      eventId: "voice-1-existing-event",
+      input: {
+        type: "note",
+        pitch: "G4",
+        duration: "quarter",
+        augmentationDots: 0,
+        tieToNext: false,
+        lyric: "原",
+      },
+      now: "2026-07-24T04:00:02.000Z",
+    });
+    await store.put(fixture, null);
+    const container = await renderPanel(store);
+    await click(findButton(container, "打开"));
+    await waitFor(
+      () => container.textContent?.includes("第 1 小节 · G4 · 四分音符")
+        ?? false,
+      "显示第一声部既有事件",
+    );
+
+    await click(findButton(container, "编辑"));
+    expect(container.textContent).toContain("编辑所选事件");
+    await click(findButton(container, "复制所选事件"));
+    expect(container.textContent).not.toContain("尚未复制事件");
+    await click(findButton(container, "播放草稿"));
+    await waitFor(
+      () => Array.from(container.querySelectorAll("button"))
+        .some((button) => button.textContent?.trim() === "停止播放"),
+      "完整文档开始播放",
+    );
+    const activePlaybackControl = findButton(container, "停止播放");
+    expect(findButton(container, "新增声部").disabled).toBe(true);
+    expect(findButton(container, "新增谱表").disabled).toBe(true);
+    const voiceSelect = findSelectExact(container, "声部");
+    await change(voiceSelect, "voice-2");
+    expect(findSelectExact(container, "声部").value).toBe("voice-2");
+    expect(findButton(container, "停止播放")).toBe(activePlaybackControl);
+    expect(container.textContent).toContain("输入音符或休止");
+    expect(container.textContent).toContain("尚未复制事件");
+    expect(container.textContent).toContain("当前小节为空");
+    await click(activePlaybackControl);
+    await waitFor(
+      () => !findButton(container, "新增声部").disabled,
+      "停止播放后允许结构修改",
+    );
+    await change(findSelect(container, "音高"), "C4");
+    await click(findButton(container, "添加到第 1 小节并保存"));
+    await waitFor(
+      () => Array.from(store.values.values())[0]
+        ?.document.parts[0]?.staves[0]?.voices[1]?.measures[0]
+        ?.events.length === 1,
+      "只向第二声部新增事件",
+    );
+
+    const stored = Array.from(store.values.values())[0];
+    const firstVoiceEvents =
+      stored?.document.parts[0]?.staves[0]?.voices[0]?.measures[0]?.events;
+    const secondVoiceEvents =
+      stored?.document.parts[0]?.staves[0]?.voices[1]?.measures[0]?.events;
+    expect(firstVoiceEvents).toHaveLength(1);
+    expect(firstVoiceEvents?.[0]?.id).toBe("voice-1-existing-event");
+    expect(firstVoiceEvents?.[0]?.type === "note" && firstVoiceEvents[0].pitch)
+      .toBe("G4");
+    expect(secondVoiceEvents).toHaveLength(1);
+    expect(secondVoiceEvents?.[0]?.type === "note" && secondVoiceEvents[0].pitch)
+      .toBe("C4");
+
+    await change(findSelectExact(container, "声部"), "voice-1");
+    expect(findSelectExact(container, "声部").value).toBe("voice-1");
+    expect(container.textContent).toContain("歌词：原");
+    await change(findInput(container, "项目名称"), "多声部未保存名称");
+    expect(findButton(container, "新增声部").disabled).toBe(true);
+    expect(findButton(container, "新增谱表").disabled).toBe(true);
+  });
+
+  it("旧自动保存完成后仍保留最新选择的第二声部", async () => {
+    const store = new MemoryProjectStore();
+    const base = createLocalScoreProject({
+      projectId: "autosave-voice-selection-project",
+      title: "异步选择测试",
+      now: "2026-07-24T04:10:00.000Z",
+    });
+    const fixture = addLocalScoreProjectVoice({
+      project: base,
+      expectedRevision: base.document.revision,
+      location: { partId: "part-1", staffId: "staff-1" },
+      voiceId: "voice-2",
+      now: "2026-07-24T04:10:01.000Z",
+    });
+    await store.put(fixture, null);
+    let releasePromotion: () => void = () => {
+      throw new Error("自动保存没有进入延迟提升阶段");
+    };
+    store.beforePromote = () => new Promise<void>((resolve) => {
+      releasePromotion = resolve;
+    });
+    const container = await renderPanel(store);
+    await click(findButton(container, "打开"));
+    await change(findInput(container, "项目名称"), "异步保存新名称");
+    await waitForAutosave();
+    await waitFor(() => store.promoteCalls === 1, "自动保存进入延迟提升阶段");
+
+    await change(findSelectExact(container, "声部"), "voice-2");
+    expect(findSelectExact(container, "声部").value).toBe("voice-2");
+    store.beforePromote = null;
+    await act(async () => releasePromotion());
+    await flushReact();
+
+    expect(findSelectExact(container, "声部").value).toBe("voice-2");
+    expect(container.textContent).toContain("当前小节为空");
+  });
+
+  it("删除当前空声部或谱表后优先留在同层 sibling", async () => {
+    const store = new MemoryProjectStore();
+    const base = createLocalScoreProject({
+      projectId: "structure-fallback-project",
+      title: "结构回退测试",
+      now: "2026-07-24T04:20:00.000Z",
+    });
+    const withVoice = addLocalScoreProjectVoice({
+      project: base,
+      expectedRevision: base.document.revision,
+      location: { partId: "part-1", staffId: "staff-1" },
+      voiceId: "voice-2",
+      now: "2026-07-24T04:20:01.000Z",
+    });
+    const fixture = addLocalScoreProjectStaff({
+      project: withVoice,
+      expectedRevision: withVoice.document.revision,
+      partId: "part-1",
+      staffId: "staff-2",
+      voiceId: "voice-3",
+      clef: "bass",
+      now: "2026-07-24T04:20:02.000Z",
+    });
+    await store.put(fixture, null);
+    const container = await renderPanel(store);
+    await click(findButton(container, "打开"));
+
+    await change(findSelectExact(container, "声部"), "voice-2");
+    await click(findButton(container, "删除空声部"));
+    await waitFor(
+      () => findSelectExact(container, "声部").value === "voice-1",
+      "删除声部后留在同谱表 sibling",
+    );
+    expect(findSelectExact(container, "谱表").value).toBe("staff-1");
+
+    await change(findSelectExact(container, "谱表"), "staff-2");
+    expect(findSelectExact(container, "声部").value).toBe("voice-3");
+    await click(findButton(container, "删除空谱表"));
+    await waitFor(
+      () => findSelectExact(container, "谱表").value === "staff-1",
+      "删除谱表后留在同 part sibling",
+    );
+    expect(findSelectExact(container, "声部").value).toBe("voice-1");
+    const stored = Array.from(store.values.values())[0];
+    expect(stored?.document.parts[0]?.staves.map((staff) => staff.staffId))
+      .toEqual(["staff-1"]);
+    expect(stored?.document.parts[0]?.staves[0]?.voices.map(
+      (voice) => voice.voiceId,
+    )).toEqual(["voice-1"]);
+  });
+
+  it("结构新增失败不产生 ghost，成功后可撤销重做、重开并删除回退", async () => {
+    const store = new MemoryProjectStore();
+    const project = createLocalScoreProject({
+      projectId: "structure-roundtrip-project",
+      title: "结构闭环测试",
+      now: "2026-07-24T04:30:00.000Z",
+    });
+    await store.put(project, null);
+    const container = await renderPanel(store);
+    await click(findButton(container, "打开"));
+
+    store.failNextPut = new LocalScoreProjectStorageError(
+      "write-failed",
+      "结构测试写入失败，未发布新增声部。",
+    );
+    await click(findButton(container, "新增声部"));
+    await waitFor(
+      () => container.textContent?.includes("结构测试写入失败") ?? false,
+      "显示结构写入失败",
+    );
+    expect(findSelectExact(container, "声部").options).toHaveLength(1);
+    expect(
+      Array.from(store.values.values())[0]
+        ?.document.parts[0]?.staves[0]?.voices,
+    ).toHaveLength(1);
+
+    await click(findButton(container, "新增声部"));
+    await waitFor(
+      () => findSelectExact(container, "声部").options.length === 2,
+      "成功新增声部",
+    );
+    expect(
+      Array.from(findSelectExact(container, "声部").options)
+        .map((option) => option.value),
+    ).toContain("voice-test-2");
+    await change(findSelectExact(container, "声部"), "voice-test-2");
+    expect(findSelectExact(container, "声部").value).toBe("voice-test-2");
+
+    await click(findButton(container, "新增谱表"));
+    await waitFor(
+      () => findSelectExact(container, "谱表").options.length === 2,
+      "成功新增谱表",
+    );
+    expect(
+      Array.from(findSelectExact(container, "谱表").options)
+        .map((option) => option.value),
+    ).toContain("staff-test-3");
+    await change(findSelectExact(container, "谱表"), "staff-test-3");
+    expect(findSelectExact(container, "声部").value).toBe("voice-test-4");
+
+    await click(findButton(container, "撤销"));
+    await waitFor(
+      () => findSelectExact(container, "谱表").options.length === 1,
+      "撤销新增谱表",
+    );
+    expect(findSelectExact(container, "谱表").value).toBe("staff-1");
+    expect(findSelectExact(container, "声部").value).toBe("voice-1");
+
+    await click(findButton(container, "重做"));
+    await waitFor(
+      () => findSelectExact(container, "谱表").options.length === 2,
+      "重做新增谱表",
+    );
+    expect(
+      Array.from(findSelectExact(container, "谱表").options)
+        .map((option) => option.value),
+    ).toContain("staff-test-3");
+
+    await click(findButton(container, "返回项目列表"));
+    await click(findButton(container, "打开"));
+    await waitFor(
+      () => findSelectExact(container, "谱表").options.length === 2,
+      "重开后保留新增谱表",
+    );
+    expect(
+      Array.from(findSelectExact(container, "声部").options)
+        .map((option) => option.value),
+    ).toContain("voice-test-2");
+
+    await change(findSelectExact(container, "谱表"), "staff-test-3");
+    await click(findButton(container, "删除空谱表"));
+    await waitFor(
+      () => findSelectExact(container, "谱表").options.length === 1,
+      "删除重开后的空谱表",
+    );
+    expect(findSelectExact(container, "谱表").value).toBe("staff-1");
+    expect(findSelectExact(container, "声部").value).toBe("voice-1");
+
+    await change(findSelectExact(container, "声部"), "voice-test-2");
+    await click(findButton(container, "删除空声部"));
+    await waitFor(
+      () => findSelectExact(container, "声部").options.length === 1,
+      "删除重开后的空声部",
+    );
+    expect(findSelectExact(container, "谱表").value).toBe("staff-1");
+    expect(findSelectExact(container, "声部").value).toBe("voice-1");
+    const stored = Array.from(store.values.values())[0];
+    expect(stored?.document.parts[0]?.staves).toHaveLength(1);
+    expect(stored?.document.parts[0]?.staves[0]?.voices).toHaveLength(1);
+  });
+
   it("固定 C 简谱与五线谱切换保留同一事件选择和播放控制实例", async () => {
     const store = new MemoryProjectStore();
     const container = await renderPanel(store);
@@ -393,7 +846,7 @@ describe("S1 本机谱项目面板", () => {
 
     await click(findButton(container, "创建并保存"));
     await waitFor(
-      () => container.textContent?.includes("第一声部预览") ?? false,
+      () => container.textContent?.includes("当前声部预览") ?? false,
       "进入已保存项目",
     );
     expect(store.values.size).toBe(1);
@@ -455,7 +908,7 @@ describe("S1 本机谱项目面板", () => {
     const container = await renderPanel(store);
     await click(findButton(container, "创建并保存"));
     await waitFor(
-      () => container.textContent?.includes("第一声部预览") ?? false,
+      () => container.textContent?.includes("当前声部预览") ?? false,
       "进入已保存项目",
     );
 
@@ -483,7 +936,7 @@ describe("S1 本机谱项目面板", () => {
     expect(container.textContent).toContain("最多 50 个项目、合计 5 MiB");
     await click(findButton(container, "创建并保存"));
     await waitFor(
-      () => container.textContent?.includes("第一声部预览") ?? false,
+      () => container.textContent?.includes("当前声部预览") ?? false,
       "进入已保存项目",
     );
 
@@ -751,7 +1204,7 @@ describe("S1 本机谱项目面板", () => {
     await flushReact();
 
     expect(container.textContent).toContain("本机已保存项目");
-    expect(container.textContent).not.toContain("第一声部预览");
+    expect(container.textContent).not.toContain("当前声部预览");
   });
 
   it("播放期间只暂存一次同一候选，停止后再提升为正式修订", async () => {
@@ -1005,7 +1458,7 @@ describe("S1 本机谱项目面板", () => {
     await flushReact();
 
     expect(container.textContent).toContain("本机已保存项目");
-    expect(container.textContent).not.toContain("第一声部预览");
+    expect(container.textContent).not.toContain("当前声部预览");
   });
 
   it("显式恢复 pending 时重开同项目不会启动第二个事务", async () => {
@@ -1075,7 +1528,7 @@ describe("S1 本机谱项目面板", () => {
     const container = await renderPanel(store);
     await click(findButton(container, "创建并保存"));
     await waitFor(
-      () => container.textContent?.includes("第一声部预览") ?? false,
+      () => container.textContent?.includes("当前声部预览") ?? false,
       "进入已保存项目",
     );
     await click(findButton(container, "返回项目列表"));
@@ -1120,7 +1573,7 @@ describe("S1 本机谱项目面板", () => {
     const container = await renderPanel(store);
     await click(findButton(container, "创建并保存"));
     await waitFor(
-      () => container.textContent?.includes("第一声部预览") ?? false,
+      () => container.textContent?.includes("当前声部预览") ?? false,
       "进入已保存项目",
     );
 
@@ -1290,7 +1743,7 @@ describe("S1 本机谱项目面板", () => {
     await click(findButton(container, "返回项目列表"));
     await click(findButton(container, "打开"));
     await waitFor(
-      () => container.textContent?.includes("第一声部预览") ?? false,
+      () => container.textContent?.includes("当前声部预览") ?? false,
       "重开项目",
     );
     expect(findButton(container, "尚未复制事件").disabled).toBe(true);

@@ -808,6 +808,282 @@ const updateMeasuresAtVoice = ({
   return { ...content, parts };
 };
 
+const assertValidStructureId = (
+  value: string,
+  structureName: "谱表" | "声部",
+) => {
+  if (!isValidId(value)) {
+    throw new LocalScoreProjectDomainError(
+      "invalid-input",
+      `${structureName}标识无效，未执行修改。`,
+    );
+  }
+};
+
+const getEmptyMeasureTemplate = (
+  voices: LocalScoreProjectContentV1["parts"][number]["staves"][number]["voices"],
+) => {
+  const measureNumbers = Array.from(new Set([
+    1,
+    ...voices.flatMap((voice) =>
+      voice.measures.map((measure) => measure.measureNumber)),
+  ]))
+    .sort((left, right) => left - right);
+  return measureNumbers.map((measureNumber) => ({
+    measureNumber,
+    events: [],
+  }));
+};
+
+export const addLocalScoreProjectStaff = ({
+  project,
+  expectedRevision,
+  partId,
+  staffId,
+  voiceId,
+  clef,
+  now,
+}: {
+  project: LocalScoreProjectV1;
+  expectedRevision: number;
+  partId: string;
+  staffId: string;
+  voiceId: string;
+  clef: LocalScoreProjectClefV3;
+  now: string;
+}) => {
+  assertExpectedRevision(project, expectedRevision);
+  assertValidStructureId(staffId, "谱表");
+  assertValidStructureId(voiceId, "声部");
+  if (!isLocalScoreProjectClef(clef)) {
+    throw new LocalScoreProjectDomainError(
+      "invalid-input",
+      "谱号超出当前乐谱项目范围，未新增谱表。",
+    );
+  }
+  const content = getLocalScoreProjectContent(project);
+  if (content.parts.some((part) =>
+    part.staves.some((staff) => staff.staffId === staffId))) {
+    throw new LocalScoreProjectDomainError(
+      "duplicate",
+      "谱表标识已存在，未新增谱表。",
+    );
+  }
+  if (content.parts.some((part) => part.staves.some((staff) =>
+    staff.voices.some((voice) => voice.voiceId === voiceId)))) {
+    throw new LocalScoreProjectDomainError(
+      "duplicate",
+      "声部标识已存在，未新增谱表。",
+    );
+  }
+  let matched = 0;
+  const parts = content.parts.map((part) => {
+    if (part.partId !== partId) return part;
+    matched += 1;
+    const voices = part.staves.flatMap((staff) => staff.voices);
+    return {
+      ...part,
+      staves: [
+        ...part.staves,
+        {
+          staffId,
+          staffKind: "pitched" as const,
+          clef,
+          voices: [{
+            voiceId,
+            measures: getEmptyMeasureTemplate(voices),
+          }],
+        },
+      ],
+    };
+  });
+  if (matched !== 1) {
+    throw new LocalScoreProjectDomainError(
+      "not-found",
+      "未找到唯一的目标声部组，未新增谱表。",
+    );
+  }
+  return applyLocalScoreProjectContent({
+    project,
+    expectedRevision,
+    content: { ...content, parts },
+    now,
+  });
+};
+
+export const addLocalScoreProjectVoice = ({
+  project,
+  expectedRevision,
+  location,
+  voiceId,
+  now,
+}: {
+  project: LocalScoreProjectV1;
+  expectedRevision: number;
+  location: LocalScoreProjectStaffLocation;
+  voiceId: string;
+  now: string;
+}) => {
+  assertExpectedRevision(project, expectedRevision);
+  assertValidStructureId(voiceId, "声部");
+  const content = getLocalScoreProjectContent(project);
+  if (content.parts.some((part) => part.staves.some((staff) =>
+    staff.voices.some((voice) => voice.voiceId === voiceId)))) {
+    throw new LocalScoreProjectDomainError(
+      "duplicate",
+      "声部标识已存在，未新增声部。",
+    );
+  }
+  let matched = 0;
+  const parts = content.parts.map((part) => ({
+    ...part,
+    staves: part.staves.map((staff) => {
+      if (
+        part.partId !== location.partId
+        || staff.staffId !== location.staffId
+      ) return staff;
+      matched += 1;
+      return {
+        ...staff,
+        voices: [
+          ...staff.voices,
+          {
+            voiceId,
+            measures: getEmptyMeasureTemplate(staff.voices),
+          },
+        ],
+      };
+    }),
+  }));
+  if (matched !== 1) {
+    throw new LocalScoreProjectDomainError(
+      "not-found",
+      "未找到唯一的目标谱表，未新增声部。",
+    );
+  }
+  return applyLocalScoreProjectContent({
+    project,
+    expectedRevision,
+    content: { ...content, parts },
+    now,
+  });
+};
+
+export const deleteEmptyLocalScoreProjectVoice = ({
+  project,
+  expectedRevision,
+  location,
+  now,
+}: {
+  project: LocalScoreProjectV1;
+  expectedRevision: number;
+  location: LocalScoreProjectVoiceLocation;
+  now: string;
+}) => {
+  assertExpectedRevision(project, expectedRevision);
+  const content = getLocalScoreProjectContent(project);
+  let matched = 0;
+  const parts = content.parts.map((part) => ({
+    ...part,
+    staves: part.staves.map((staff) => {
+      if (
+        part.partId !== location.partId
+        || staff.staffId !== location.staffId
+      ) return staff;
+      const voice = staff.voices.find(
+        (candidate) => candidate.voiceId === location.voiceId,
+      );
+      if (!voice) return staff;
+      matched += 1;
+      if (staff.voices.length <= 1) {
+        throw new LocalScoreProjectDomainError(
+          "would-empty",
+          "谱表至少需要保留一个声部，未执行删除。",
+        );
+      }
+      if (voice.measures.some((measure) => measure.events.length > 0)) {
+        throw new LocalScoreProjectDomainError(
+          "not-empty",
+          "目标声部仍有音符或休止符，未执行删除。",
+        );
+      }
+      return {
+        ...staff,
+        voices: staff.voices.filter(
+          (candidate) => candidate.voiceId !== location.voiceId,
+        ),
+      };
+    }),
+  }));
+  if (matched !== 1) {
+    throw new LocalScoreProjectDomainError(
+      "not-found",
+      "未找到唯一的目标声部，未执行删除。",
+    );
+  }
+  return applyLocalScoreProjectContent({
+    project,
+    expectedRevision,
+    content: { ...content, parts },
+    now,
+  });
+};
+
+export const deleteEmptyLocalScoreProjectStaff = ({
+  project,
+  expectedRevision,
+  location,
+  now,
+}: {
+  project: LocalScoreProjectV1;
+  expectedRevision: number;
+  location: LocalScoreProjectStaffLocation;
+  now: string;
+}) => {
+  assertExpectedRevision(project, expectedRevision);
+  const content = getLocalScoreProjectContent(project);
+  let matched = 0;
+  const parts = content.parts.map((part) => {
+    if (part.partId !== location.partId) return part;
+    const staff = part.staves.find(
+      (candidate) => candidate.staffId === location.staffId,
+    );
+    if (!staff) return part;
+    matched += 1;
+    if (part.staves.length <= 1) {
+      throw new LocalScoreProjectDomainError(
+        "would-empty",
+        "声部组至少需要保留一个谱表，未执行删除。",
+      );
+    }
+    if (staff.voices.some((voice) =>
+      voice.measures.some((measure) => measure.events.length > 0))) {
+      throw new LocalScoreProjectDomainError(
+        "not-empty",
+        "目标谱表仍有音符或休止符，未执行删除。",
+      );
+    }
+    return {
+      ...part,
+      staves: part.staves.filter(
+        (candidate) => candidate.staffId !== location.staffId,
+      ),
+    };
+  });
+  if (matched !== 1) {
+    throw new LocalScoreProjectDomainError(
+      "not-found",
+      "未找到唯一的目标谱表，未执行删除。",
+    );
+  }
+  return applyLocalScoreProjectContent({
+    project,
+    expectedRevision,
+    content: { ...content, parts },
+    now,
+  });
+};
+
 export const appendLocalScoreProjectMeasure = ({
   project,
   expectedRevision,

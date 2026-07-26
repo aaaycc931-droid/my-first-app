@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import {
   LocalScoreProjectNumberedPreview,
@@ -16,6 +16,8 @@ import {
 import {
   LocalScoreProjectDomainError,
   addLocalScoreProjectEvent,
+  addLocalScoreProjectStaff,
+  addLocalScoreProjectVoice,
   appendLocalScoreProjectMeasure,
   changeLocalScoreProjectClef,
   changeLocalScoreProjectKeySignature,
@@ -23,6 +25,8 @@ import {
   copyLocalScoreProjectEvent,
   createLocalScoreProject,
   deleteEmptyLocalScoreProjectMeasure,
+  deleteEmptyLocalScoreProjectStaff,
+  deleteEmptyLocalScoreProjectVoice,
   deleteLocalScoreProjectEvent,
   moveLocalScoreProjectEvent,
   pasteLocalScoreProjectEvent,
@@ -31,6 +35,7 @@ import {
   updateLocalScoreProjectEvent,
   type LocalScoreProjectEventInput,
   type LocalScoreProjectV1,
+  type LocalScoreProjectVoiceLocation,
 } from "../../lib/music/localScoreProject";
 import type {
   LocalScoreProjectClefV3,
@@ -91,27 +96,72 @@ const getPrimaryVoice = (project: LocalScoreProjectV1) => {
   };
 };
 
-const getPrimaryMeasures = (project: LocalScoreProjectV1) =>
-  [...getPrimaryVoice(project).voice.measures]
+const getVoice = (
+  project: LocalScoreProjectV1,
+  location: LocalScoreProjectVoiceLocation | null,
+) => {
+  if (!location) return getPrimaryVoice(project);
+  const part = project.document.parts.find(
+    (candidate) => candidate.partId === location.partId,
+  );
+  if (!part) return getPrimaryVoice(project);
+  const staff = part.staves.find(
+    (candidate) => candidate.staffId === location.staffId,
+  ) ?? part.staves[0];
+  if (!staff) return getPrimaryVoice(project);
+  const voice = staff.voices.find(
+    (candidate) => candidate.voiceId === location.voiceId,
+  ) ?? staff.voices[0];
+  if (!voice) return getPrimaryVoice(project);
+  return {
+    partId: part.partId,
+    staffId: staff.staffId,
+    voiceId: voice.voiceId,
+    staff,
+    voice,
+  };
+};
+
+const getVoiceLocation = (
+  project: LocalScoreProjectV1,
+  location: LocalScoreProjectVoiceLocation | null,
+) => {
+  const voice = getVoice(project, location);
+  return {
+    partId: voice.partId,
+    staffId: voice.staffId,
+    voiceId: voice.voiceId,
+  };
+};
+
+const getVoiceMeasures = (
+  project: LocalScoreProjectV1,
+  location: LocalScoreProjectVoiceLocation | null,
+) =>
+  [...getVoice(project, location).voice.measures]
     .sort((left, right) => left.measureNumber - right.measureNumber);
 
-const getPrimaryLocation = (
+const getEventLocation = (
   project: LocalScoreProjectV1,
+  location: LocalScoreProjectVoiceLocation | null,
   measureNumber: number,
 ) => {
-  const { partId, staffId, voiceId } = getPrimaryVoice(project);
+  const { partId, staffId, voiceId } = getVoice(project, location);
   return { partId, staffId, voiceId, measureNumber };
 };
 
-const getPrimaryEvents = (project: LocalScoreProjectV1) => {
-  const primary = getPrimaryVoice(project);
-  return getPrimaryMeasures(project).flatMap((measure) =>
+const getVoiceEvents = (
+  project: LocalScoreProjectV1,
+  location: LocalScoreProjectVoiceLocation | null,
+) => {
+  const selected = getVoice(project, location);
+  return getVoiceMeasures(project, location).flatMap((measure) =>
     measure.events.map((event) => ({
       event,
       location: {
-        partId: primary.partId,
-        staffId: primary.staffId,
-        voiceId: primary.voiceId,
+        partId: selected.partId,
+        staffId: selected.staffId,
+        voiceId: selected.voiceId,
         measureNumber: measure.measureNumber,
       },
     })));
@@ -123,12 +173,14 @@ function LocalScoreProjectPlaybackControls({
   onSelectEvent,
   onModeChange,
   disableTransportStart = false,
+  targetLocation,
 }: {
   project: LocalScoreProjectV1;
   selectedEventId?: string | null;
   onSelectEvent: (selection: LocalScoreProjectStaffSelection) => void;
   onModeChange?: (mode: LocalScoreProjectTransportMode) => void;
   disableTransportStart?: boolean;
+  targetLocation: LocalScoreProjectVoiceLocation;
 }) {
   const [viewMode, setViewMode] = useState<ScorePreviewMode>("staff");
   const transport = useLocalScoreProjectTransport({
@@ -189,6 +241,7 @@ function LocalScoreProjectPlaybackControls({
           {viewMode === "staff" ? (
             <LocalScoreProjectStaffPreview
               document={project.document}
+              target={targetLocation}
               selectedEventId={selectedEventId}
               activeEventIds={transport.activeSourceEventIds}
               onSelectEvent={onSelectEvent}
@@ -196,6 +249,7 @@ function LocalScoreProjectPlaybackControls({
           ) : (
             <LocalScoreProjectNumberedPreview
               document={project.document}
+              target={targetLocation}
               selectedEventId={selectedEventId}
               activeEventIds={transport.activeSourceEventIds}
               onSelectEvent={onSelectEvent}
@@ -293,6 +347,10 @@ export function LocalScoreProjectPanel({
   const [projects, setProjects] = useState<readonly LocalScoreProjectV1[]>([]);
   const [currentProject, setCurrentProject] =
     useState<LocalScoreProjectV1 | null>(null);
+  const [selectedVoiceLocation, setSelectedVoiceLocation] =
+    useState<LocalScoreProjectVoiceLocation | null>(null);
+  const selectedVoiceLocationRef =
+    useRef<LocalScoreProjectVoiceLocation | null>(null);
   const [newTitle, setNewTitle] = useState("我的第一份谱");
   const [editorTitle, setEditorTitle] = useState("");
   const [editorTempoBpm, setEditorTempoBpm] = useState("90");
@@ -351,9 +409,14 @@ export function LocalScoreProjectPanel({
       savedSettings?: Readonly<{ title: string; tempoBpm: string }>;
     } = {},
   ) => {
-    const nextMeasures = getPrimaryMeasures(project);
-    const nextEvents = getPrimaryEvents(project);
+    const nextLocation = resetSettings
+      ? getVoiceLocation(project, null)
+      : getVoiceLocation(project, selectedVoiceLocationRef.current);
+    const nextMeasures = getVoiceMeasures(project, nextLocation);
+    const nextEvents = getVoiceEvents(project, nextLocation);
     setCurrentProject(project);
+    selectedVoiceLocationRef.current = nextLocation;
+    setSelectedVoiceLocation(nextLocation);
     if (resetSettings) {
       setEditorTitle(project.title);
       setEditorTempoBpm(String(project.tempoBpm));
@@ -374,6 +437,9 @@ export function LocalScoreProjectPanel({
       previous
       && nextEvents.some(({ event, location }) =>
         event.id === previous.eventId
+        && location.partId === previous.location.partId
+        && location.staffId === previous.location.staffId
+        && location.voiceId === previous.location.voiceId
         && location.measureNumber === previous.location.measureNumber)
         ? previous
         : null);
@@ -536,7 +602,7 @@ export function LocalScoreProjectPanel({
         : addLocalScoreProjectEvent({
           project,
           expectedRevision: project.document.revision,
-          location: getPrimaryLocation(project, targetMeasureNumber),
+          location: getEventLocation(project, selectedVoiceLocation, targetMeasureNumber),
           eventId: `event-${createId()}`,
           input: eventType === "rest"
           ? {
@@ -560,8 +626,11 @@ export function LocalScoreProjectPanel({
 
   const selectEvent = (selection: LocalScoreProjectStaffSelection) => {
     if (!currentProject) return;
-    const located = getPrimaryEvents(currentProject).find(({ event, location }) =>
+    const located = getVoiceEvents(currentProject, selectedVoiceLocation).find(({ event, location }) =>
       event.id === selection.eventId
+      && location.partId === selection.location.partId
+      && location.staffId === selection.location.staffId
+      && location.voiceId === selection.location.voiceId
       && location.measureNumber === selection.location.measureNumber);
     if (!located) return;
     setSelectedEvent(selection);
@@ -580,8 +649,37 @@ export function LocalScoreProjectPanel({
     setAugmentationDots(located.event.augmentationDots);
   };
 
-  const events = currentProject ? getPrimaryEvents(currentProject) : [];
-  const measures = currentProject ? getPrimaryMeasures(currentProject) : [];
+  const events = currentProject ? getVoiceEvents(currentProject, selectedVoiceLocation) : [];
+  const measures = currentProject ? getVoiceMeasures(currentProject, selectedVoiceLocation) : [];
+  const selectedVoice = currentProject
+    ? getVoice(currentProject, selectedVoiceLocation)
+    : null;
+  const selectedPart = currentProject?.document.parts.find(
+    (part) => part.partId === selectedVoice?.partId,
+  ) ?? null;
+  const structureMutationDisabled = isBusy
+    || transportMode !== "idle"
+    || autosave.isDirty
+    || autosave.status === "saving"
+    || autosave.status === "deferred"
+    || autosave.status === "recovery-available";
+
+  const chooseVoice = (location: LocalScoreProjectVoiceLocation) => {
+    if (!currentProject) return;
+    const next = getVoice(currentProject, location);
+    const normalized = {
+      partId: next.partId,
+      staffId: next.staffId,
+      voiceId: next.voiceId,
+    };
+    selectedVoiceLocationRef.current = normalized;
+    setSelectedVoiceLocation(normalized);
+    setSelectedEvent(null);
+    setCopiedEvent(null);
+    setTargetMeasureNumber(
+      getVoiceMeasures(currentProject, normalized)[0]?.measureNumber ?? 1,
+    );
+  };
 
   if (!currentProject) {
     return (
@@ -760,6 +858,178 @@ export function LocalScoreProjectPanel({
               </div>
             </div>
           ) : null}
+        {selectedVoice && selectedPart ? (
+          <div className="mt-4 rounded-2xl border border-teal-100 bg-teal-50 p-4">
+            <h2 className="text-base font-black">编辑目标</h2>
+            <p className="mt-1 text-xs leading-5 text-teal-800">
+              切换编辑目标不会停止播放；播放始终使用完整文档。
+            </p>
+            <div className="mt-3 grid gap-3 sm:grid-cols-3">
+              <label className="text-sm font-bold">
+                声部组
+                <select
+                  value={selectedVoice.partId}
+                  disabled={isBusy}
+                  onChange={(event) => {
+                    const part = currentProject.document.parts.find(
+                      (candidate) => candidate.partId === event.target.value,
+                    );
+                    const staff = part?.staves[0];
+                    const voice = staff?.voices[0];
+                    if (part && staff && voice) {
+                      chooseVoice({
+                        partId: part.partId,
+                        staffId: staff.staffId,
+                        voiceId: voice.voiceId,
+                      });
+                    }
+                  }}
+                  className="mt-2 min-h-11 w-full rounded-xl border border-teal-200 bg-white px-3 py-2"
+                >
+                  {currentProject.document.parts.map((part, index) => (
+                    <option key={part.partId} value={part.partId}>
+                      声部组 {index + 1}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="text-sm font-bold">
+                谱表
+                <select
+                  value={selectedVoice.staffId}
+                  disabled={isBusy}
+                  onChange={(event) => {
+                    const staff = selectedPart.staves.find(
+                      (candidate) => candidate.staffId === event.target.value,
+                    );
+                    const voice = staff?.voices[0];
+                    if (staff && voice) {
+                      chooseVoice({
+                        partId: selectedPart.partId,
+                        staffId: staff.staffId,
+                        voiceId: voice.voiceId,
+                      });
+                    }
+                  }}
+                  className="mt-2 min-h-11 w-full rounded-xl border border-teal-200 bg-white px-3 py-2"
+                >
+                  {selectedPart.staves.map((staff, index) => (
+                    <option key={staff.staffId} value={staff.staffId}>
+                      谱表 {index + 1}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="text-sm font-bold">
+                声部
+                <select
+                  value={selectedVoice.voiceId}
+                  disabled={isBusy}
+                  onChange={(event) => chooseVoice({
+                    partId: selectedVoice.partId,
+                    staffId: selectedVoice.staffId,
+                    voiceId: event.target.value,
+                  })}
+                  className="mt-2 min-h-11 w-full rounded-xl border border-teal-200 bg-white px-3 py-2"
+                >
+                  {selectedVoice.staff.voices.map((voice, index) => (
+                    <option key={voice.voiceId} value={voice.voiceId}>
+                      声部 {index + 1}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <button
+                type="button"
+                disabled={structureMutationDisabled}
+                onClick={() => {
+                  if (structureMutationDisabled) return;
+                  void persistMutation((project) =>
+                    addLocalScoreProjectVoice({
+                    project,
+                    expectedRevision: project.document.revision,
+                    location: {
+                      partId: selectedVoice.partId,
+                      staffId: selectedVoice.staffId,
+                    },
+                    voiceId: `voice-${createId()}`,
+                    now: now(),
+                    }));
+                }}
+                className="min-h-11 rounded-xl border border-teal-300 bg-white px-3 py-2 text-sm font-bold"
+              >
+                新增声部
+              </button>
+              <button
+                type="button"
+                disabled={
+                  isBusy
+                  || structureMutationDisabled
+                  || selectedVoice.staff.voices.length <= 1
+                }
+                onClick={() => {
+                  if (structureMutationDisabled) return;
+                  void persistMutation((project) =>
+                    deleteEmptyLocalScoreProjectVoice({
+                    project,
+                    expectedRevision: project.document.revision,
+                    location: getVoiceLocation(project, selectedVoiceLocation),
+                    now: now(),
+                    }));
+                }}
+                className="min-h-11 rounded-xl border border-rose-300 bg-white px-3 py-2 text-sm font-bold text-rose-700 disabled:text-slate-400"
+              >
+                删除空声部
+              </button>
+              <button
+                type="button"
+                disabled={structureMutationDisabled}
+                onClick={() => {
+                  if (structureMutationDisabled) return;
+                  void persistMutation((project) =>
+                    addLocalScoreProjectStaff({
+                    project,
+                    expectedRevision: project.document.revision,
+                    partId: selectedVoice.partId,
+                    staffId: `staff-${createId()}`,
+                    voiceId: `voice-${createId()}`,
+                    clef: selectedVoice.staff.clef,
+                    now: now(),
+                    }));
+                }}
+                className="min-h-11 rounded-xl border border-teal-300 bg-white px-3 py-2 text-sm font-bold"
+              >
+                新增谱表
+              </button>
+              <button
+                type="button"
+                disabled={
+                  isBusy
+                  || structureMutationDisabled
+                  || selectedPart.staves.length <= 1
+                }
+                onClick={() => {
+                  if (structureMutationDisabled) return;
+                  void persistMutation((project) =>
+                    deleteEmptyLocalScoreProjectStaff({
+                    project,
+                    expectedRevision: project.document.revision,
+                    location: {
+                      partId: selectedVoice.partId,
+                      staffId: selectedVoice.staffId,
+                    },
+                    now: now(),
+                    }));
+                }}
+                className="min-h-11 rounded-xl border border-rose-300 bg-white px-3 py-2 text-sm font-bold text-rose-700 disabled:text-slate-400"
+              >
+                删除空谱表
+              </button>
+            </div>
+          </div>
+        ) : null}
         <div className="mt-2">
           <label className="text-sm font-bold">
             项目名称
@@ -798,18 +1068,18 @@ export function LocalScoreProjectPanel({
           <label className="text-sm font-bold">
             谱号
             <select
-              value={getPrimaryVoice(currentProject).staff.clef}
+              value={getVoice(currentProject, selectedVoiceLocation).staff.clef}
               disabled={isBusy}
               onChange={(event) => {
                 const clef = event.target.value as LocalScoreProjectClefV3;
                 void persistMutation((project) => {
-                  const primary = getPrimaryVoice(project);
+                  const selected = getVoice(project, selectedVoiceLocation);
                   return changeLocalScoreProjectClef({
                     project,
                     expectedRevision: project.document.revision,
                     location: {
-                      partId: primary.partId,
-                      staffId: primary.staffId,
+                      partId: selected.partId,
+                      staffId: selected.staffId,
                     },
                     clef,
                     now: now(),
@@ -1030,7 +1300,7 @@ export function LocalScoreProjectPanel({
                 onClick={() => {
                   if (!currentProject) return;
                   try {
-                    const sourceEvent = getPrimaryEvents(currentProject)
+                    const sourceEvent = getVoiceEvents(currentProject, selectedVoiceLocation)
                       .find(({ event }) => event.id === selectedEvent.eventId)
                       ?.event;
                     setCopiedEvent(copyLocalScoreProjectEvent({
@@ -1060,8 +1330,9 @@ export function LocalScoreProjectPanel({
                       project,
                       expectedRevision: project.document.revision,
                       source: selectedEvent.location,
-                      destination: getPrimaryLocation(
+                      destination: getEventLocation(
                         project,
+                        selectedVoiceLocation,
                         targetMeasureNumber,
                       ),
                       eventId: selectedEvent.eventId,
@@ -1084,7 +1355,7 @@ export function LocalScoreProjectPanel({
                 pasteLocalScoreProjectEvent({
                   project,
                   expectedRevision: project.document.revision,
-                  destination: getPrimaryLocation(project, targetMeasureNumber),
+                  destination: getEventLocation(project, selectedVoiceLocation, targetMeasureNumber),
                   eventId: `event-${createId()}`,
                   input: copiedEvent,
                   now: now(),
@@ -1103,7 +1374,7 @@ export function LocalScoreProjectPanel({
       <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h2 className="text-xl font-black">第一声部预览</h2>
+            <h2 className="text-xl font-black">当前声部预览</h2>
             <p className="text-sm text-slate-500">
               {currentProject.document.meter} · {measures.length} 小节 · {events.length} 个事件
             </p>
@@ -1114,13 +1385,13 @@ export function LocalScoreProjectPanel({
               disabled={isBusy}
               onClick={() =>
                 void persistMutation((project) => {
-                  const primary = getPrimaryVoice(project);
+                  const selected = getVoice(project, selectedVoiceLocation);
                   return appendLocalScoreProjectMeasure({
                     project,
                     expectedRevision: project.document.revision,
-                    partId: primary.partId,
-                    staffId: primary.staffId,
-                    voiceId: primary.voiceId,
+                    partId: selected.partId,
+                    staffId: selected.staffId,
+                    voiceId: selected.voiceId,
                     now: now(),
                   });
                 })
@@ -1137,13 +1408,13 @@ export function LocalScoreProjectPanel({
                 : "只有末尾小节为空时才能删除。"}
               onClick={() =>
                 void persistMutation((project) => {
-                  const primary = getPrimaryVoice(project);
+                  const selected = getVoice(project, selectedVoiceLocation);
                   return deleteEmptyLocalScoreProjectMeasure({
                     project,
                     expectedRevision: project.document.revision,
-                    partId: primary.partId,
-                    staffId: primary.staffId,
-                    voiceId: primary.voiceId,
+                    partId: selected.partId,
+                    staffId: selected.staffId,
+                    voiceId: selected.voiceId,
                     now: now(),
                   });
                 })
@@ -1249,6 +1520,7 @@ export function LocalScoreProjectPanel({
 
       <LocalScoreProjectPlaybackControls
         project={currentProject}
+        targetLocation={getVoiceLocation(currentProject, selectedVoiceLocation)}
         selectedEventId={selectedEvent?.eventId}
         onSelectEvent={selectEvent}
         onModeChange={setTransportMode}
@@ -1266,6 +1538,8 @@ export function LocalScoreProjectPanel({
           onClick={() => {
             autosave.deactivate();
             setCurrentProject(null);
+            selectedVoiceLocationRef.current = null;
+            setSelectedVoiceLocation(null);
             setSelectedEvent(null);
             setCopiedEvent(null);
             setTargetMeasureNumber(1);

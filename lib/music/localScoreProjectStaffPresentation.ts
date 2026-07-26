@@ -25,6 +25,16 @@ export type LocalScoreStaffEventLocation = Readonly<{
   measureNumber: number;
 }>;
 
+export type LocalScoreProjectVoiceTarget = Readonly<{
+  partId: string;
+  staffId: string;
+  voiceId: string;
+}>;
+
+export const getLocalScoreProjectVoiceIdentityLabel = (
+  target: LocalScoreProjectVoiceTarget,
+) => `声部组 ${target.partId}／谱表 ${target.staffId}／声部 ${target.voiceId}`;
+
 type LocalScoreStaffTokenBase = Readonly<{
   eventId: string;
   location: LocalScoreStaffEventLocation;
@@ -212,6 +222,7 @@ const tokenX = ({
 
 export const createLocalScoreProjectStaffPresentation = (
   document: unknown,
+  target?: LocalScoreProjectVoiceTarget,
 ): LocalScoreStaffPresentation => {
   const identity = getIdentity(document);
   const blocked = (reason: string): LocalScoreStaffPresentation => ({
@@ -227,12 +238,25 @@ export const createLocalScoreProjectStaffPresentation = (
     return blocked(`${LOCAL_SCORE_PROJECT_TIE_CONTINUITY_ERROR}无法安全生成五线谱预览。`);
   }
 
-  const part = document.parts[0];
-  const staff = part?.staves[0];
-  const voice = staff?.voices[0];
+  const part = target
+    ? document.parts.find((candidate) => candidate.partId === target.partId)
+    : document.parts[0];
+  const staff = target
+    ? part?.staves.find((candidate) => candidate.staffId === target.staffId)
+    : part?.staves[0];
+  const voice = target
+    ? staff?.voices.find((candidate) => candidate.voiceId === target.voiceId)
+    : staff?.voices[0];
   if (!part || !staff || !voice) {
-    return blocked("当前项目没有可展示的第一声部。");
+    return blocked(target
+      ? `未找到指定的当前声部（${getLocalScoreProjectVoiceIdentityLabel(target)}），无法安全生成五线谱预览。`
+      : "当前项目没有可展示的当前声部（默认第一声部组／谱表／声部）。");
   }
+  const voiceIdentity = getLocalScoreProjectVoiceIdentityLabel({
+    partId: part.partId,
+    staffId: staff.staffId,
+    voiceId: voice.voiceId,
+  });
   const clef = staff.clef;
   const keySignatureFifths = document.keySignature.fifths;
   const staffLineYs = clef === "bass"
@@ -288,7 +312,7 @@ export const createLocalScoreProjectStaffPresentation = (
       const durationBeats = getLocalScoreProjectEventDurationBeats(event);
       if (cursorBeat + durationBeats > meterNumerator) {
         return blocked(
-          `第一声部第 ${measure.measureNumber} 小节超过 ${document.meter} 拍号容量。`,
+          `当前声部（${voiceIdentity}）第 ${measure.measureNumber} 小节超过 ${document.meter} 拍号容量。`,
         );
       }
       const location = {
@@ -370,7 +394,7 @@ export const createLocalScoreProjectStaffPresentation = (
 
     if (cursorBeat < meterNumerator) {
       warnings.push(
-        `第一声部第 ${measure.measureNumber} 小节未填满 ${document.meter}。`,
+        `当前声部（${voiceIdentity}）第 ${measure.measureNumber} 小节未填满 ${document.meter}。`,
       );
     }
     measures.push({

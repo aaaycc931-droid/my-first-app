@@ -123,6 +123,47 @@ const createDocument = ({
   }],
 });
 
+const createMultiHierarchyDocument = () => {
+  const document = createDocument({
+    secondVoiceEvents: [
+      note({
+        id: "second-voice-event",
+        pitch: "G4",
+        duration: "quarter",
+        measure: 1,
+      }),
+    ],
+  });
+  return {
+    ...document,
+    parts: [
+      ...document.parts,
+      {
+        partId: "part-2",
+        staves: [{
+          staffId: "staff-2",
+          staffKind: "pitched" as const,
+          clef: "bass" as const,
+          voices: [{
+            voiceId: "voice-3",
+            measures: [{
+              measureNumber: 1,
+              events: [
+                note({
+                  id: "targeted-bass-event",
+                  pitch: "C4",
+                  duration: "quarter",
+                  measure: 1,
+                }),
+              ],
+            }],
+          }],
+        }],
+      },
+    ],
+  } satisfies LocalNotationProjectScoreDocumentV3;
+};
+
 describe("本地谱项目五线谱 pure presentation", () => {
   it("按第一声部、小节和拍位生成确定性图形 token", () => {
     const document = createDocument({
@@ -223,7 +264,61 @@ describe("本地谱项目五线谱 pure presentation", () => {
     if (c5?.type !== "note") throw new Error("expected C5 note");
     expect(c5.head).toBe("filled");
     expect(c5.hasEighthFlag).toBe(true);
-    expect(left.warnings).toEqual(["第一声部第 2 小节未填满 4/4。"]);
+    expect(left.warnings).toEqual([
+      "当前声部（声部组 part-1／谱表 staff-1／声部 voice-1）第 2 小节未填满 4/4。",
+    ]);
+  });
+
+  it("按精确 part、staff、voice 目标呈现并保留完整事件 location", () => {
+    const document = createMultiHierarchyDocument();
+    const secondVoice = createLocalScoreProjectStaffPresentation(document, {
+      partId: "part-1",
+      staffId: "staff-1",
+      voiceId: "voice-2",
+    });
+    expect(secondVoice.status).toBe("ready");
+    if (secondVoice.status !== "ready") throw new Error(secondVoice.reason);
+    expect(secondVoice.tokens.map((token) => token.eventId))
+      .toEqual(["second-voice-event"]);
+    expect(secondVoice.tokens[0]?.location).toEqual({
+      partId: "part-1",
+      staffId: "staff-1",
+      voiceId: "voice-2",
+      measureNumber: 1,
+    });
+
+    const otherStaff = createLocalScoreProjectStaffPresentation(document, {
+      partId: "part-2",
+      staffId: "staff-2",
+      voiceId: "voice-3",
+    });
+    expect(otherStaff.status).toBe("ready");
+    if (otherStaff.status !== "ready") throw new Error(otherStaff.reason);
+    expect(otherStaff.clef).toBe("bass");
+    expect(otherStaff.tokens.map((token) => token.eventId))
+      .toEqual(["targeted-bass-event"]);
+    expect(otherStaff.tokens[0]?.location).toEqual({
+      partId: "part-2",
+      staffId: "staff-2",
+      voiceId: "voice-3",
+      measureNumber: 1,
+    });
+
+    const missingExactTuple = createLocalScoreProjectStaffPresentation(
+      document,
+      {
+        partId: "part-1",
+        staffId: "staff-2",
+        voiceId: "voice-3",
+      },
+    );
+    expect(missingExactTuple.status).toBe("blocked");
+    if (missingExactTuple.status !== "blocked") {
+      throw new Error("expected blocked");
+    }
+    expect(missingExactTuple.reason).toContain(
+      "声部组 part-1／谱表 staff-2／声部 voice-3",
+    );
   });
 
   it.each([
@@ -515,7 +610,7 @@ describe("本地谱项目五线谱 SVG 预览", () => {
 
     const svg = container?.querySelector("svg");
     expect(svg?.getAttribute("aria-label")).toContain(
-      "第一声部五线谱预览，高音谱号，调号无升降号，拍号 4/4，共 2 小节",
+      "当前声部五线谱预览（声部组 part-1／谱表 staff-1／声部 voice-1），高音谱号，调号无升降号，拍号 4/4，共 2 小节",
     );
     expect(svg?.getAttribute("aria-label")).toContain(
       "第 1 小节第 2 个事件，四分休止符",
@@ -638,7 +733,73 @@ describe("本地谱项目五线谱 SVG 预览", () => {
     expect(container?.querySelector("svg")?.getAttribute("aria-label"))
       .toContain("当前没有音符或休止符");
     expect(container?.querySelectorAll("[data-event-id]")).toHaveLength(0);
-    expect(container?.textContent).toContain("当前第一声部没有音符或休止符");
+    expect(container?.textContent).toContain(
+      "当前声部（声部组 part-1／谱表 staff-1／声部 voice-1）没有音符或休止符",
+    );
+  });
+
+  it("为指定声部显示可辨身份并回传精确 location", async () => {
+    const onSelectEvent =
+      vi.fn<(selection: LocalScoreProjectStaffSelection) => void>();
+    await act(async () => {
+      root?.render(
+        <LocalScoreProjectStaffPreview
+          document={createMultiHierarchyDocument()}
+          target={{
+            partId: "part-2",
+            staffId: "staff-2",
+            voiceId: "voice-3",
+          }}
+          onSelectEvent={onSelectEvent}
+        />,
+      );
+    });
+
+    expect(container?.querySelector("section")?.getAttribute("aria-label"))
+      .toContain("当前声部图形五线谱（声部组 part-2／谱表 staff-2／声部 voice-3）");
+    expect(container?.textContent).toContain(
+      "当前声部图形预览（声部组 part-2／谱表 staff-2／声部 voice-3）",
+    );
+    expect(container?.querySelector('[data-event-id="c4-half"]')).toBeNull();
+    const target = container?.querySelector<SVGGElement>(
+      '[data-event-id="targeted-bass-event"]',
+    );
+    await act(async () => {
+      target?.dispatchEvent(new MouseEvent("click", {
+        bubbles: true,
+        cancelable: true,
+      }));
+    });
+    expect(onSelectEvent).toHaveBeenLastCalledWith({
+      eventId: "targeted-bass-event",
+      location: {
+        partId: "part-2",
+        staffId: "staff-2",
+        voiceId: "voice-3",
+        measureNumber: 1,
+      },
+    });
+  });
+
+  it("指定声部不存在时显示带目标身份的 fail-closed 错误", async () => {
+    await act(async () => {
+      root?.render(
+        <LocalScoreProjectStaffPreview
+          document={createMultiHierarchyDocument()}
+          target={{
+            partId: "part-1",
+            staffId: "staff-2",
+            voiceId: "voice-3",
+          }}
+        />,
+      );
+    });
+
+    expect(container?.querySelector("section")?.getAttribute("aria-label"))
+      .toContain("声部组 part-1／谱表 staff-2／声部 voice-3");
+    expect(container?.querySelector('[role="alert"]')?.textContent)
+      .toContain("未找到指定的当前声部");
+    expect(container?.querySelectorAll("[data-event-id]")).toHaveLength(0);
   });
 
   it("以附点、跨小节延音线和歌词呈现 v2 事件，同时保留选择与播放状态", async () => {

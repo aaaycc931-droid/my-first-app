@@ -4,6 +4,8 @@ import { useMemo, type KeyboardEvent } from "react";
 
 import {
   createLocalScoreProjectStaffPresentation,
+  getLocalScoreProjectVoiceIdentityLabel,
+  type LocalScoreProjectVoiceTarget,
   type LocalScoreStaffEventLocation,
   type LocalScoreStaffToken,
 } from "../../lib/music/localScoreProjectStaffPresentation";
@@ -18,6 +20,7 @@ export type LocalScoreProjectStaffPreviewProps = Readonly<{
   document: LocalNotationProjectScoreDocumentV3;
   selectedEventId?: string | null;
   activeEventIds?: readonly string[];
+  target?: LocalScoreProjectVoiceTarget;
   onSelectEvent?: (selection: LocalScoreProjectStaffSelection) => void;
 }>;
 
@@ -41,11 +44,12 @@ export function LocalScoreProjectStaffPreview({
   document,
   selectedEventId = null,
   activeEventIds = [],
+  target,
   onSelectEvent,
 }: LocalScoreProjectStaffPreviewProps) {
   const presentation = useMemo(
-    () => createLocalScoreProjectStaffPresentation(document),
-    [document],
+    () => createLocalScoreProjectStaffPresentation(document, target),
+    [document, target],
   );
   const activeIds = useMemo(() => new Set(activeEventIds), [activeEventIds]);
 
@@ -53,7 +57,9 @@ export function LocalScoreProjectStaffPreview({
     return (
       <section
         className="rounded-2xl border border-rose-200 bg-rose-50 p-4"
-        aria-label="第一声部五线谱预览"
+        aria-label={target
+          ? `当前声部五线谱预览（${getLocalScoreProjectVoiceIdentityLabel(target)}）`
+          : "当前声部五线谱预览（默认第一声部组／谱表／声部）"}
       >
         <p className="text-sm text-rose-900" role="alert">
           {presentation.reason}
@@ -65,8 +71,13 @@ export function LocalScoreProjectStaffPreview({
   const eventSummary = presentation.tokens.length === 0
     ? "当前没有音符或休止符"
     : presentation.tokens.map((token) => token.accessibleLabel).join("；");
+  const voiceIdentity = getLocalScoreProjectVoiceIdentityLabel({
+    partId: presentation.partId,
+    staffId: presentation.staffId,
+    voiceId: presentation.voiceId,
+  });
   const previewLabel =
-    `第一声部五线谱预览，${presentation.clefLabel}，`
+    `当前声部五线谱预览（${voiceIdentity}），${presentation.clefLabel}，`
     + `调号${presentation.keySignatureLabel}，拍号 ${presentation.meter}，`
     + `共 ${presentation.measures.length} 小节。${eventSummary}。`;
   const tokenById = new Map(
@@ -76,12 +87,14 @@ export function LocalScoreProjectStaffPreview({
   return (
     <section
       className="rounded-2xl border border-indigo-200 bg-white p-4"
-      aria-label="第一声部图形五线谱"
+      aria-label={`当前声部图形五线谱（${voiceIdentity}）`}
       data-testid="local-score-project-staff-preview"
     >
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
-          <h3 className="font-bold text-slate-950">第一声部图形预览</h3>
+          <h3 className="font-bold text-slate-950">
+            当前声部图形预览（{voiceIdentity}）
+          </h3>
           <p className="mt-1 text-sm leading-6 text-slate-600">
             图形来自当前已保存修订；蓝框表示选择，琥珀色表示当前播放事件。
           </p>
@@ -393,7 +406,7 @@ export function LocalScoreProjectStaffPreview({
 
       {presentation.tokens.length === 0 ? (
         <p className="mt-3 text-sm text-slate-600">
-          当前第一声部没有音符或休止符。
+          当前声部（{voiceIdentity}）没有音符或休止符。
         </p>
       ) : null}
       {presentation.warnings.length > 0 ? (
