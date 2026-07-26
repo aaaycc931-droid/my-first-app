@@ -40,6 +40,7 @@ class MemoryProjectStore implements LocalScoreProjectStore {
   deleteCalls = 0;
   promoteCalls = 0;
   stageCalls = 0;
+  putCalls = 0;
 
   async get(projectId: string) {
     const project = this.values.get(projectId);
@@ -53,6 +54,7 @@ class MemoryProjectStore implements LocalScoreProjectStore {
   }
 
   async put(project: LocalScoreProjectV1, expectedRevision: number | null) {
+    this.putCalls += 1;
     if (this.failNextPut) {
       const error = this.failNextPut;
       this.failNextPut = null;
@@ -323,6 +325,115 @@ afterEach(async () => {
 });
 
 describe("S1 本机谱项目面板", () => {
+  it("从原创编制模板预览并原子创建可独立编辑和重开的项目", async () => {
+    const store = new MemoryProjectStore();
+    const container = await renderPanel(store);
+    const templateSelect = findSelectExact(container, "编制模板");
+    expect(templateSelect.options.length).toBeGreaterThanOrEqual(18);
+    expect(new Set(
+      Array.from(templateSelect.options).map((option) => option.value),
+    ).size).toBe(templateSelect.options.length);
+    expect(container.querySelectorAll("optgroup")).toHaveLength(4);
+    expect(templateSelect.value).toBe("blank-treble-staff-v1");
+    expect(container.textContent).toContain("空白高音五线谱");
+    expect(container.textContent).toContain("1 个声部组 · 1 个谱表");
+    expect(container.textContent).toContain(
+      "模板只创建可编辑的空白编制，不包含曲谱内容、真实多乐器音色或完整总谱排版；所有声部仍使用钢琴采样预览。",
+    );
+    expect(store.values.size).toBe(0);
+    expect(store.putCalls).toBe(0);
+
+    await change(templateSelect, "string-quartet-v1");
+    expect(container.textContent).toContain("弦乐四重奏");
+    expect(container.textContent).toContain("4 个声部组 · 4 个谱表");
+    expect(container.textContent).toContain(
+      "两把小提琴、中提琴与大提琴的四声部组编制。",
+    );
+    expect(container.textContent).toContain(
+      "第一小提琴 · 小提琴（GM1 40） · 高音谱号",
+    );
+    expect(container.textContent).toContain(
+      "大提琴 · 大提琴（GM1 42） · 低音谱号",
+    );
+    expect(store.values.size).toBe(0);
+    expect(store.putCalls).toBe(0);
+
+    await change(findInput(container, "项目名称"), "我的弦乐四重奏");
+    store.failNextPut = new LocalScoreProjectStorageError(
+      "quota",
+      "模板项目会超过本机容量上限，未创建项目。",
+    );
+    await click(findButton(container, "创建并保存"));
+    await waitFor(
+      () => container.textContent?.includes("模板项目会超过本机容量上限")
+        ?? false,
+      "模板项目容量失败",
+    );
+    expect(findSelectExact(container, "编制模板").value)
+      .toBe("string-quartet-v1");
+    expect(findInput(container, "项目名称").value).toBe("我的弦乐四重奏");
+    expect(store.values.size).toBe(0);
+    expect(store.putCalls).toBe(1);
+    expect(findButton(container, "创建并保存")).toBeTruthy();
+
+    await click(findButton(container, "创建并保存"));
+    await waitFor(
+      () => container.textContent?.includes(
+        "已按“弦乐四重奏”创建并保存在本机",
+      ) ?? false,
+      "模板项目原子保存后进入编辑器",
+    );
+    expect(store.putCalls).toBe(2);
+    expect(store.values.size).toBe(1);
+    const stored = Array.from(store.values.values())[0];
+    expect(stored?.title).toBe("我的弦乐四重奏");
+    expect(stored?.document.revision).toBe(1);
+    expect(stored?.undoStack).toHaveLength(0);
+    expect(stored?.redoStack).toHaveLength(0);
+    expect(stored?.document.parts).toHaveLength(4);
+    expect(stored?.document.parts.map((part) => part.name)).toEqual([
+      "第一小提琴",
+      "第二小提琴",
+      "中提琴",
+      "大提琴",
+    ]);
+    expect(
+      stored?.document.parts.flatMap((part) =>
+        part.staves.flatMap((staff) =>
+          staff.voices.flatMap((voice) => voice.measures))),
+    ).toEqual([
+      { measureNumber: 1, events: [] },
+      { measureNumber: 1, events: [] },
+      { measureNumber: 1, events: [] },
+      { measureNumber: 1, events: [] },
+    ]);
+    expect(findSelectExact(container, "声部组").selectedOptions[0]?.textContent)
+      .toBe("第一小提琴（第 1 组）");
+
+    await change(findSelect(container, "音高"), "D4");
+    await click(findButton(container, "添加到第 1 小节并保存"));
+    await waitFor(
+      () => container.textContent?.includes("第 1 小节 · D4 · 四分音符")
+        ?? false,
+      "模板项目创建后可立即编辑",
+    );
+    expect(
+      Array.from(store.values.values())[0]
+        ?.document.parts[0]?.staves[0]?.voices[0]?.measures[0]?.events,
+    ).toHaveLength(1);
+    expect(
+      Array.from(store.values.values())[0]
+        ?.document.parts[1]?.staves[0]?.voices[0]?.measures[0]?.events,
+    ).toHaveLength(0);
+
+    await click(findButton(container, "返回项目列表"));
+    await click(findButton(container, "打开"));
+    expect(findSelectExact(container, "声部组").options).toHaveLength(4);
+    expect(findSelectExact(container, "声部组").selectedOptions[0]?.textContent)
+      .toBe("第一小提琴（第 1 组）");
+    expect(container.textContent).toContain("第 1 小节 · D4 · 四分音符");
+  });
+
   it("切换到第二 part 后精确更新并移动事件且不改写第一 part", async () => {
     const store = new MemoryProjectStore();
     const base = createLocalScoreProject({
