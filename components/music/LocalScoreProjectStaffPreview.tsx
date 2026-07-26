@@ -16,6 +16,7 @@ import type {
   LocalNotationProjectScoreDocumentV6,
   LocalNotationProjectScoreDocumentV7,
   LocalNotationProjectScoreDocumentV8,
+  LocalNotationProjectScoreDocumentV9,
 } from "../../lib/music/scoreDocument";
 
 export type LocalScoreProjectStaffSelection = Readonly<{
@@ -30,7 +31,8 @@ export type LocalScoreProjectStaffPreviewProps = Readonly<{
     | LocalNotationProjectScoreDocumentV5
     | LocalNotationProjectScoreDocumentV6
     | LocalNotationProjectScoreDocumentV7
-    | LocalNotationProjectScoreDocumentV8;
+    | LocalNotationProjectScoreDocumentV8
+    | LocalNotationProjectScoreDocumentV9;
   selectedEventId?: string | null;
   activeEventIds?: readonly string[];
   target?: LocalScoreProjectVoiceTarget;
@@ -445,6 +447,58 @@ export function LocalScoreProjectStaffPreview({
                       >
                         {token.fingering}
                       </text>
+                    ) : null}
+                    {token.articulations.length > 0 ? (
+                      <g
+                        data-testid={`local-score-articulations-${token.eventId}`}
+                        aria-hidden="true"
+                      >
+                        {token.articulations.map((articulation, index) => {
+                          const y = token.articulationAnchorY + index * 9;
+                          if (articulation === "staccato") {
+                            return (
+                              <circle
+                                key={articulation}
+                                cx={token.x}
+                                cy={y}
+                                r="2.4"
+                                fill="#be123c"
+                                data-articulation-y={y}
+                                data-testid={`local-score-articulation-staccato-${token.eventId}`}
+                              />
+                            );
+                          }
+                          if (articulation === "tenuto") {
+                            return (
+                              <line
+                                key={articulation}
+                                x1={token.x - 6}
+                                y1={y}
+                                x2={token.x + 6}
+                                y2={y}
+                                stroke="#be123c"
+                                strokeWidth="2"
+                                strokeLinecap="round"
+                                data-articulation-y={y}
+                                data-testid={`local-score-articulation-tenuto-${token.eventId}`}
+                              />
+                            );
+                          }
+                          return (
+                            <path
+                              key={articulation}
+                              d={`M ${token.x - 7} ${y - 4} L ${token.x + 7} ${y} L ${token.x - 7} ${y + 4}`}
+                              fill="none"
+                              stroke="#be123c"
+                              strokeWidth="2"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              data-articulation-y={y}
+                              data-testid={`local-score-articulation-accent-${token.eventId}`}
+                            />
+                          );
+                        })}
+                      </g>
                     ) : null}
                     {token.lyric !== null ? (
                       <text

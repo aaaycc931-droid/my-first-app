@@ -177,6 +177,7 @@ jobs:
           npm run test:local-score-project-score-credits
           npm run test:local-score-project-note-fingering
           npm run test:local-score-project-chord-symbol
+          npm run test:local-score-project-note-articulations
           npm run test:local-score-project-recovery-candidate
           npm run test:local-score-project-storage
           npm run test:local-score-project-capacity

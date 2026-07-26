@@ -4,6 +4,7 @@ import { useMemo, type KeyboardEvent } from "react";
 
 import {
   createLocalScoreProjectNumberedPresentation,
+  LOCAL_SCORE_PROJECT_ARTICULATION_LABELS,
   type LocalScoreNumberedToken,
 } from "../../lib/music/localScoreProjectNumberedPresentation";
 import type {
@@ -13,6 +14,7 @@ import type {
   LocalNotationProjectScoreDocumentV6,
   LocalNotationProjectScoreDocumentV7,
   LocalNotationProjectScoreDocumentV8,
+  LocalNotationProjectScoreDocumentV9,
 } from "../../lib/music/scoreDocument";
 import {
   getLocalScoreProjectVoiceIdentityLabel,
@@ -29,7 +31,8 @@ export type LocalScoreProjectNumberedPreviewProps = Readonly<{
     | LocalNotationProjectScoreDocumentV5
     | LocalNotationProjectScoreDocumentV6
     | LocalNotationProjectScoreDocumentV7
-    | LocalNotationProjectScoreDocumentV8;
+    | LocalNotationProjectScoreDocumentV8
+    | LocalNotationProjectScoreDocumentV9;
   selectedEventId?: string | null;
   activeEventIds?: readonly string[];
   target?: LocalScoreProjectVoiceTarget;
@@ -286,6 +289,25 @@ export function LocalScoreProjectNumberedPreview({
                           指法 {token.fingering}
                         </span>
                       ) : null}
+                      {token.type === "note"
+                        && token.articulations.length > 0 ? (
+                          <span
+                            className="mt-1 flex flex-wrap justify-center gap-x-1 text-[11px] font-bold text-rose-700"
+                            data-testid={`local-score-numbered-articulations-${token.eventId}`}
+                            aria-hidden="true"
+                          >
+                            {token.articulations.map((articulation) => (
+                              <span
+                                key={articulation}
+                                data-testid={`local-score-numbered-articulation-${articulation}-${token.eventId}`}
+                              >
+                                {LOCAL_SCORE_PROJECT_ARTICULATION_LABELS[
+                                  articulation
+                                ]}
+                              </span>
+                            ))}
+                          </span>
+                        ) : null}
                       {token.type === "note" && token.lyric !== null ? (
                         <span
                           className="mt-1 block text-xs text-slate-600"

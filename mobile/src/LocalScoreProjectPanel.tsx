@@ -21,6 +21,7 @@ import {
   addLocalScoreProjectVoice,
   appendLocalScoreProjectMeasure,
   changeLocalScoreProjectClef,
+  changeLocalScoreProjectEventArticulations,
   changeLocalScoreProjectEventChordSymbol,
   changeLocalScoreProjectKeySignature,
   changeLocalScoreProjectMeter,
@@ -52,6 +53,7 @@ import {
 } from "../../lib/music/localScoreProjectTemplate";
 import type {
   LocalScoreProjectClefV3,
+  LocalScoreProjectArticulationV1,
   LocalScoreProjectFingeringV1,
   LocalScoreProjectKeySignatureV3,
   LocalScoreProjectPartInstrumentV1,
@@ -90,6 +92,15 @@ type ScoreCreditsDraft = Readonly<{
 
 const DEFAULT_LOCAL_SCORE_PROJECT_TEMPLATE_ID =
   "blank-treble-staff-v1";
+
+const articulationOptions = [
+  { id: "accent", label: "重音" },
+  { id: "staccato", label: "断奏" },
+  { id: "tenuto", label: "保持" },
+] as const satisfies readonly Readonly<{
+  id: LocalScoreProjectArticulationV1;
+  label: string;
+}>[];
 
 const templateCategoryOptions: readonly Readonly<{
   category: LocalScoreProjectTemplateCategory;
@@ -473,6 +484,8 @@ export function LocalScoreProjectPanel({
   const [lyric, setLyric] = useState("");
   const [fingering, setFingering] =
     useState<LocalScoreProjectFingeringV1 | null>(null);
+  const [articulations, setArticulations] =
+    useState<readonly LocalScoreProjectArticulationV1[]>([]);
   const [chordSymbol, setChordSymbol] = useState("");
   const [targetMeasureNumber, setTargetMeasureNumber] = useState(1);
   const [selectedEvent, setSelectedEvent] =
@@ -751,6 +764,7 @@ export function LocalScoreProjectPanel({
               tieToNext,
               lyric,
               fingering,
+              articulations,
               chordSymbol,
             },
           now: now(),
@@ -776,6 +790,7 @@ export function LocalScoreProjectPanel({
             tieToNext,
             lyric,
             fingering,
+            articulations,
             chordSymbol,
           },
           now: now(),
@@ -802,11 +817,13 @@ export function LocalScoreProjectPanel({
       setTieToNext(located.event.tieToNext);
       setLyric(located.event.lyric ?? "");
       setFingering(located.event.fingering);
+      setArticulations(located.event.articulations);
     } else {
       setDuration("quarter");
       setTieToNext(false);
       setLyric("");
       setFingering(null);
+      setArticulations([]);
     }
     setAugmentationDots(located.event.augmentationDots);
   };
@@ -824,6 +841,34 @@ export function LocalScoreProjectPanel({
         location: selectedEvent.location,
         eventId: selectedEvent.eventId,
         chordSymbol: null,
+        now: now(),
+      }),
+    );
+  };
+
+  const toggleArticulation = (
+    articulation: LocalScoreProjectArticulationV1,
+    selected: boolean,
+  ) => {
+    setArticulations((current) => articulationOptions
+      .filter(({ id }) =>
+        id === articulation ? selected : current.includes(id))
+      .map(({ id }) => id));
+  };
+
+  const clearSelectedEventArticulations = () => {
+    setArticulations([]);
+    if (!selectedEvent) {
+      setNotice("演奏法草稿已清空；新增事件尚未写入谱面。");
+      return;
+    }
+    void persistMutation((project) =>
+      changeLocalScoreProjectEventArticulations({
+        project,
+        expectedRevision: project.document.revision,
+        location: selectedEvent.location,
+        eventId: selectedEvent.eventId,
+        articulations: [],
         now: now(),
       }),
     );
@@ -1797,6 +1842,7 @@ export function LocalScoreProjectPanel({
                   setTieToNext(false);
                   setLyric("");
                   setFingering(null);
+                  setArticulations([]);
                 }
               }}
               className="mt-2 min-h-11 w-full rounded-xl border border-indigo-300 bg-white px-3 py-2"
@@ -1887,6 +1933,46 @@ export function LocalScoreProjectPanel({
         <p className="mt-2 text-xs leading-5 text-indigo-800">
           延音线只允许连接同一声部中紧邻的同音音符；可跨连续小节。歌词和 1–5 指法只附着在音符上。
         </p>
+        <div className="mt-3 rounded-xl border border-indigo-300 bg-white p-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="text-sm font-bold">单音演奏法</p>
+            <button
+              type="button"
+              disabled={
+                isBusy
+                || eventType === "rest"
+                || articulations.length === 0
+                || transportMode !== "idle"
+              }
+              onClick={clearSelectedEventArticulations}
+              className="min-h-11 rounded-xl border border-indigo-300 px-3 py-2 text-sm font-bold text-indigo-800 disabled:text-slate-400"
+            >
+              {selectedEvent
+                ? "清除演奏法并保存"
+                : "清空演奏法草稿"}
+            </button>
+          </div>
+          <div className="mt-2 grid gap-2 sm:grid-cols-3">
+            {articulationOptions.map(({ id, label }) => (
+              <label
+                key={id}
+                className="flex min-h-11 items-center gap-2 rounded-xl border border-indigo-200 px-3 py-2 text-sm font-bold"
+              >
+                <input
+                  type="checkbox"
+                  checked={articulations.includes(id)}
+                  disabled={isBusy || eventType === "rest"}
+                  onChange={(event) =>
+                    toggleArticulation(id, event.target.checked)}
+                />
+                {label}
+              </label>
+            ))}
+          </div>
+        </div>
+        <p className="mt-2 text-xs leading-5 text-indigo-800">
+          重音、断奏与保持可组合并只附着在音符上；两种预览读取同一演奏法。当前演奏法只显示，不改变播放力度、音长或音色。
+        </p>
         <div className="mt-3 grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
           <label className="text-sm font-bold">
             事件起点和弦名称
@@ -1946,8 +2032,8 @@ export function LocalScoreProjectPanel({
                       eventId: selectedEvent.eventId,
                     }));
                     setNotice(sourceEvent?.type === "note" && sourceEvent.tieToNext
-                      ? "已复制附点、歌词、指法和和弦名称，但单事件复制不包含跨事件延音关系；粘贴副本不会带延音线。谱面尚未修改。"
-                      : "已复制所选事件及其和弦名称；谱面尚未修改，可选择目标小节后粘贴。");
+                      ? "已复制附点、歌词、指法和和弦名称以及演奏法，但单事件复制不包含跨事件延音关系；粘贴副本不会带延音线。谱面尚未修改。"
+                      : "已复制所选事件及其和弦名称，并保留适用的演奏法；谱面尚未修改，可选择目标小节后粘贴。");
                   } catch (error) {
                     setNotice(error instanceof Error
                       ? error.message
@@ -2118,6 +2204,13 @@ export function LocalScoreProjectPanel({
                     {event.type === "note" && event.lyric ? ` · 歌词：${event.lyric}` : ""}
                     {event.type === "note" && event.fingering !== null
                       ? ` · 指法：${event.fingering}`
+                      : ""}
+                    {event.type === "note" && event.articulations.length > 0
+                      ? ` · 演奏法：${event.articulations
+                        .map((articulation) =>
+                          articulationOptions.find(({ id }) =>
+                            id === articulation)?.label)
+                        .join("、")}`
                       : ""}
                     {event.chordSymbol !== null
                       ? ` · 和弦：${event.chordSymbol}`

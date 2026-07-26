@@ -688,6 +688,104 @@ describe("本地谱项目五线谱 SVG 预览", () => {
       .toContain("和弦名称“Cmaj7”");
   });
 
+  it("以稳定 SVG 图形渲染组合演奏法并共享 canonical 无障碍顺序", async () => {
+    const base = createLocalScoreProject({
+      projectId: "staff-articulations",
+      title: "组合演奏法五线谱",
+      now: "2026-07-26T03:00:00.000Z",
+    });
+    const document = addLocalScoreProjectEvent({
+      project: base,
+      expectedRevision: base.document.revision,
+      location: {
+        partId: "part-1",
+        staffId: "staff-1",
+        voiceId: "voice-1",
+        measureNumber: 1,
+      },
+      eventId: "staff-articulation-note",
+      input: {
+        type: "note",
+        pitch: "C5",
+        duration: "quarter",
+        lyric: "高",
+        fingering: 3,
+        articulations: ["tenuto", "accent", "staccato"],
+        chordSymbol: "C",
+      },
+      now: "2026-07-26T03:00:01.000Z",
+    }).document;
+
+    await act(async () => {
+      root?.render(<LocalScoreProjectStaffPreview document={document} />);
+    });
+
+    expect(container?.querySelector(
+      '[data-testid="local-score-articulations-staff-articulation-note"]',
+    )).not.toBeNull();
+    expect(container?.querySelector(
+      '[data-testid="local-score-articulation-accent-staff-articulation-note"]',
+    )?.tagName).toBe("path");
+    expect(container?.querySelector(
+      '[data-testid="local-score-articulation-staccato-staff-articulation-note"]',
+    )?.tagName).toBe("circle");
+    expect(container?.querySelector(
+      '[data-testid="local-score-articulation-tenuto-staff-articulation-note"]',
+    )?.tagName).toBe("line");
+    const presentation =
+      createLocalScoreProjectStaffPresentation(document);
+    if (presentation.status !== "ready") {
+      throw new Error(presentation.reason);
+    }
+    const presentationToken = presentation.tokens.find(
+      (token) => token.eventId === "staff-articulation-note",
+    );
+    if (!presentationToken || presentationToken.type !== "note") {
+      throw new Error("找不到组合演奏法五线谱 token");
+    }
+    expect(presentationToken.pitch).toBe("C5");
+    expect(presentationToken.articulationAnchorY).toBe(96);
+    const articulationElements = [
+      container?.querySelector(
+        '[data-testid="local-score-articulation-accent-staff-articulation-note"]',
+      ),
+      container?.querySelector(
+        '[data-testid="local-score-articulation-staccato-staff-articulation-note"]',
+      ),
+      container?.querySelector(
+        '[data-testid="local-score-articulation-tenuto-staff-articulation-note"]',
+      ),
+    ];
+    const articulationYs = articulationElements.map((element) =>
+      Number(element?.getAttribute("data-articulation-y")));
+    expect(articulationYs).toEqual([96, 105, 114]);
+    for (const articulationY of articulationYs) {
+      expect(Math.min(...presentation.staffLineYs.map((staffLineY) =>
+        Math.abs(articulationY - staffLineY)))).toBeGreaterThanOrEqual(8);
+    }
+    expect(presentation.lyricY - Math.max(...articulationYs))
+      .toBeGreaterThanOrEqual(18);
+    expect(presentation.chordSymbolY - presentation.lyricY).toBe(18);
+    expect(presentation.height)
+      .toBeGreaterThanOrEqual(presentation.chordSymbolY + 12);
+    expect(Number(container?.querySelector(
+      '[data-testid="local-score-lyric-staff-articulation-note"]',
+    )?.getAttribute("y"))).toBe(presentation.lyricY);
+    expect(Number(container?.querySelector(
+      '[data-testid="local-score-chord-symbol-staff-articulation-note"]',
+    )?.getAttribute("y"))).toBe(presentation.chordSymbolY);
+    expect(Number(container?.querySelector(
+      '[data-testid="local-score-fingering-staff-articulation-note"]',
+    )?.getAttribute("y"))).toBe(12);
+    expect(Math.min(...articulationYs) - 12).toBeGreaterThanOrEqual(84);
+    expect(container?.querySelector(
+      '[data-event-id="staff-articulation-note"]',
+    )?.getAttribute("aria-label"))
+      .toContain("演奏法：重音、断奏、保持");
+    expect(container?.querySelector("svg")?.getAttribute("aria-label"))
+      .toContain("演奏法：重音、断奏、保持");
+  });
+
   it("呈现时值、休止、拍号、小节线以及独立选择和播放高亮", async () => {
     const onSelectEvent =
       vi.fn<(selection: LocalScoreProjectStaffSelection) => void>();

@@ -158,6 +158,23 @@ export type LocalScoreProjectEventV4 =
   | LocalScoreProjectNoteEventV4
   | LocalScoreProjectRestEventV4;
 
+export type LocalScoreProjectArticulationV1 =
+  | "accent"
+  | "staccato"
+  | "tenuto";
+
+export type LocalScoreProjectNoteEventV5 = Readonly<
+  LocalScoreProjectNoteEventV4 & {
+    articulations: readonly LocalScoreProjectArticulationV1[];
+  }
+>;
+
+export type LocalScoreProjectRestEventV5 = LocalScoreProjectRestEventV4;
+
+export type LocalScoreProjectEventV5 =
+  | LocalScoreProjectNoteEventV5
+  | LocalScoreProjectRestEventV5;
+
 /**
  * 本机乐谱项目独立演进到 v2；通用 ScoreDocumentEventV1 及其他练习文档
  * 保持不变，避免把本切片的编辑语义扩散到既有练习数据。
@@ -418,6 +435,44 @@ export type LocalNotationProjectScoreDocumentV8 = Readonly<{
         measures: readonly Readonly<{
           measureNumber: number;
           events: readonly LocalScoreProjectEventV4[];
+        }>[];
+      }>[];
+    }>[];
+  }>[];
+}>;
+
+/**
+ * 本机乐谱项目独立演进到 v9；重音、断奏和保持成为音符级 canonical
+ * 奏法。奏法采用固定顺序的无重复数组，休止符不携带奏法。
+ */
+export type LocalNotationProjectScoreDocumentV9 = Readonly<{
+  schemaVersion: "score-document-v9";
+  documentKind: "notation-project";
+  documentId: string;
+  revision: number;
+  reviewState: "draft";
+  localOnly: true;
+  sessionOnly: false;
+  source: Readonly<{
+    kind: "local-score-project";
+    projectId: string;
+  }>;
+  scoreCredits: LocalScoreProjectScoreCreditsV1;
+  meter: NotationTimeSignature;
+  keySignature: LocalScoreProjectKeySignatureV3;
+  parts: readonly Readonly<{
+    partId: string;
+    name: string;
+    instrument: LocalScoreProjectPartInstrumentV1;
+    staves: readonly Readonly<{
+      staffId: string;
+      staffKind: "pitched";
+      clef: LocalScoreProjectClefV3;
+      voices: readonly Readonly<{
+        voiceId: string;
+        measures: readonly Readonly<{
+          measureNumber: number;
+          events: readonly LocalScoreProjectEventV5[];
         }>[];
       }>[];
     }>[];
