@@ -12,6 +12,7 @@ import type {
   LocalNotationProjectScoreDocumentV3,
   LocalNotationProjectScoreDocumentV4,
   LocalNotationProjectScoreDocumentV5,
+  LocalNotationProjectScoreDocumentV6,
 } from "./scoreDocument";
 
 export const LOCAL_SCORE_STAFF_HEIGHT = 148;
@@ -33,6 +34,16 @@ export type LocalScoreProjectVoiceTarget = Readonly<{
   partId: string;
   staffId: string;
   voiceId: string;
+}>;
+
+export type LocalScoreCreditsPresentation = Readonly<{
+  title: string | null;
+  subtitle: string | null;
+  creators: readonly Readonly<{
+    role: "composer" | "lyricist" | "arranger";
+    name: string;
+  }>[];
+  rightsNotice: string | null;
 }>;
 
 export const getLocalScoreProjectVoiceIdentityLabel = (
@@ -90,6 +101,7 @@ export type LocalScoreStaffPresentation =
     status: "ready";
     documentId: string;
     revision: number;
+    scoreCredits: LocalScoreCreditsPresentation;
     meter: LocalNotationProjectScoreDocumentV3["meter"];
     meterNumerator: number;
     meterDenominator: 4;
@@ -194,6 +206,14 @@ const isPresentationContent = (
 ): boolean =>
   Array.isArray(document.parts)
   && isLocalScoreProjectContent({
+    scoreCredits: isRecord(document.scoreCredits)
+      ? document.scoreCredits
+      : {
+        title: "未命名乐谱",
+        subtitle: null,
+        creators: [],
+        rightsNotice: null,
+      },
     meter: document.meter,
     keySignature: document.keySignature,
     parts: document.parts.map((part, index) =>
@@ -215,12 +235,14 @@ const isLocalScoreProjectDocument = (
 ): document is
   | LocalNotationProjectScoreDocumentV3
   | LocalNotationProjectScoreDocumentV4
-  | LocalNotationProjectScoreDocumentV5 =>
+  | LocalNotationProjectScoreDocumentV5
+  | LocalNotationProjectScoreDocumentV6 =>
   isRecord(document)
   && (
     document.schemaVersion === "score-document-v3"
     || document.schemaVersion === "score-document-v4"
     || document.schemaVersion === "score-document-v5"
+    || document.schemaVersion === "score-document-v6"
   )
   && document.documentKind === "notation-project"
   && typeof document.documentId === "string"
@@ -454,6 +476,14 @@ export const createLocalScoreProjectStaffPresentation = (
     status: "ready",
     documentId: document.documentId,
     revision: document.revision,
+    scoreCredits: document.schemaVersion === "score-document-v6"
+      ? document.scoreCredits
+      : {
+        title: null,
+        subtitle: null,
+        creators: [],
+        rightsNotice: null,
+      },
     meter: document.meter,
     meterNumerator,
     meterDenominator: 4,

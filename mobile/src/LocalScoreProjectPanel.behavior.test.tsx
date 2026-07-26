@@ -471,6 +471,7 @@ describe("S1 本机谱项目面板", () => {
       project: withFirstPartEvent,
       expectedRevision: withFirstPartEvent.document.revision,
       content: {
+        scoreCredits: withFirstPartEvent.document.scoreCredits,
         meter: withFirstPartEvent.document.meter,
         keySignature: withFirstPartEvent.document.keySignature,
         parts: [
@@ -2391,6 +2392,113 @@ describe("S1 本机谱项目面板", () => {
       .toBe(true);
     expect(storedEvents?.[1]?.type === "note" && storedEvents[1].pitch)
       .toBe("C4");
+  });
+
+  it("显式保存谱面标题、多位署名与版权，并支持失败重试、双视图、撤销重做和重开", async () => {
+    const store = new MemoryProjectStore();
+    const container = await renderPanel(store);
+    expect(container.textContent).toContain(
+      "项目名称用于本机列表与管理；创建时也会作为初始谱面标题",
+    );
+    await click(findButton(container, "创建并保存"));
+    expect(container.textContent).toContain(
+      "项目名称用于本机列表与管理，并通过自动保存更新",
+    );
+    expect(container.textContent).toContain("当前已保存谱面标题：我的第一份谱");
+
+    await change(findInput(container, "谱面标题"), "山海之间");
+    await change(findInput(container, "副标题"), "为室内乐而作");
+    const firstComposer = container.querySelector<HTMLInputElement>(
+      '[aria-label="作曲姓名"]',
+    );
+    const lyricist = container.querySelector<HTMLInputElement>(
+      '[aria-label="作词姓名"]',
+    );
+    const arranger = container.querySelector<HTMLInputElement>(
+      '[aria-label="编曲姓名"]',
+    );
+    if (!firstComposer || !lyricist || !arranger) {
+      throw new Error("找不到谱面署名输入框");
+    }
+    await change(firstComposer, "甲");
+    await click(findButton(container, "添加作曲"));
+    const composers = container.querySelectorAll<HTMLInputElement>(
+      '[aria-label="作曲姓名"]',
+    );
+    if (!composers[1]) throw new Error("找不到第二位作曲输入框");
+    await change(composers[1], "乙");
+    await change(lyricist, "丙");
+    await change(arranger, "丁");
+    await change(findInput(container, "版权说明"), "© 2026 示例版权说明");
+
+    store.failNextPut = new LocalScoreProjectStorageError(
+      "write-failed",
+      "本机存储写入失败，谱面信息未保存；原有项目保持不变。",
+    );
+    await click(findButton(container, "保存谱面信息"));
+    await waitFor(
+      () => container.textContent?.includes("谱面信息未保存") ?? false,
+      "谱面信息保存失败",
+    );
+    let stored = Array.from(store.values.values())[0];
+    expect(stored?.document.scoreCredits.title).toBe("我的第一份谱");
+    expect(container.textContent).toContain("当前已保存谱面标题：我的第一份谱");
+    expect(container.textContent).not.toContain("作曲：甲、乙");
+    expect(findInput(container, "谱面标题").value).toBe("山海之间");
+    expect(container.querySelectorAll<HTMLInputElement>(
+      '[aria-label="作曲姓名"]',
+    )[1]?.value).toBe("乙");
+
+    await click(findButton(container, "保存谱面信息"));
+    await waitFor(
+      () => container.textContent?.includes("当前已保存谱面标题：山海之间")
+        ?? false,
+      "重试保存谱面信息",
+    );
+    stored = Array.from(store.values.values())[0];
+    expect(stored?.document.scoreCredits).toEqual({
+      title: "山海之间",
+      subtitle: "为室内乐而作",
+      creators: [
+        { role: "composer", name: "甲" },
+        { role: "lyricist", name: "丙" },
+        { role: "arranger", name: "丁" },
+        { role: "composer", name: "乙" },
+      ],
+      rightsNotice: "© 2026 示例版权说明",
+    });
+    expect(container.textContent).toContain("作曲：甲、乙");
+    expect(container.textContent).toContain("作词：丙");
+    expect(container.textContent).toContain("编曲：丁");
+
+    await click(findButton(container, "固定 C 简谱"));
+    expect(container.textContent).toContain("山海之间");
+    expect(container.textContent).toContain("作曲：甲、乙");
+
+    await click(findButton(container, "撤销"));
+    await waitFor(
+      () => container.textContent?.includes("当前已保存谱面标题：我的第一份谱")
+        ?? false,
+      "撤销谱面信息",
+    );
+    expect(Array.from(store.values.values())[0]?.document.scoreCredits.title)
+      .toBe("我的第一份谱");
+    await click(findButton(container, "重做"));
+    await waitFor(
+      () => container.textContent?.includes("当前已保存谱面标题：山海之间")
+        ?? false,
+      "重做谱面信息",
+    );
+
+    await click(findButton(container, "返回项目列表"));
+    await click(findButton(container, "打开"));
+    await waitFor(
+      () => container.textContent?.includes("已重新打开本机保存的谱项目")
+        ?? false,
+      "重开谱面信息",
+    );
+    expect(findInput(container, "谱面标题").value).toBe("山海之间");
+    expect(container.textContent).toContain("作曲：甲、乙");
   });
 
   it("跨小节延音存在时值间隙时传播中文原因并保持已保存谱面", async () => {
