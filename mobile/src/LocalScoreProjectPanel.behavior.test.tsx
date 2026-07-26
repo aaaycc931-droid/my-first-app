@@ -406,12 +406,19 @@ describe("S1 本机谱项目面板", () => {
       "完整双 Part 文档开始播放",
     );
     const activePlaybackControl = findButton(container, "停止播放");
+    expect(findButton(container, "新增声部组").disabled).toBe(true);
+    expect(findButton(container, "删除空声部组").disabled).toBe(true);
     await change(findSelectExact(container, "声部组"), "part-2");
     expect(findSelectExact(container, "声部组").value).toBe("part-2");
     expect(container.textContent).toContain("输入音符或休止");
     expect(container.textContent).not.toContain("编辑所选事件");
     expect(findButton(container, "停止播放")).toBe(activePlaybackControl);
     await click(activePlaybackControl);
+    await waitFor(
+      () => !findButton(container, "新增声部组").disabled
+        && !findButton(container, "删除空声部组").disabled,
+      "停止播放后允许声部组结构修改",
+    );
 
     await waitFor(
       () => container.textContent?.includes("歌词：乙") ?? false,
@@ -522,6 +529,8 @@ describe("S1 本机谱项目面板", () => {
       "完整文档开始播放",
     );
     const activePlaybackControl = findButton(container, "停止播放");
+    expect(findButton(container, "新增声部组").disabled).toBe(true);
+    expect(findButton(container, "删除空声部组").disabled).toBe(true);
     expect(findButton(container, "新增声部").disabled).toBe(true);
     expect(findButton(container, "新增谱表").disabled).toBe(true);
     const voiceSelect = findSelectExact(container, "声部");
@@ -562,6 +571,8 @@ describe("S1 本机谱项目面板", () => {
     expect(findSelectExact(container, "声部").value).toBe("voice-1");
     expect(container.textContent).toContain("歌词：原");
     await change(findInput(container, "项目名称"), "多声部未保存名称");
+    expect(findButton(container, "新增声部组").disabled).toBe(true);
+    expect(findButton(container, "删除空声部组").disabled).toBe(true);
     expect(findButton(container, "新增声部").disabled).toBe(true);
     expect(findButton(container, "新增谱表").disabled).toBe(true);
   });
@@ -753,6 +764,119 @@ describe("S1 本机谱项目面板", () => {
     const stored = Array.from(store.values.values())[0];
     expect(stored?.document.parts[0]?.staves).toHaveLength(1);
     expect(stored?.document.parts[0]?.staves[0]?.voices).toHaveLength(1);
+  });
+
+  it("声部组新增删除保持 save-first、撤销重做与重开闭环", async () => {
+    const store = new MemoryProjectStore();
+    const project = createLocalScoreProject({
+      projectId: "part-lifecycle-project",
+      title: "声部组生命周期",
+      now: "2026-07-24T04:40:00.000Z",
+    });
+    await store.put(project, null);
+    const container = await renderPanel(store);
+    await click(findButton(container, "打开"));
+    expect(findButton(container, "删除空声部组").disabled).toBe(true);
+
+    store.failNextPut = new LocalScoreProjectStorageError(
+      "write-failed",
+      "声部组写入失败，未发布幽灵结构。",
+    );
+    await click(findButton(container, "新增声部组"));
+    await waitFor(
+      () => container.textContent?.includes("声部组写入失败") ?? false,
+      "显示声部组写入失败",
+    );
+    expect(findSelectExact(container, "声部组").options).toHaveLength(1);
+    expect(Array.from(store.values.values())[0]?.document.parts).toHaveLength(1);
+
+    await click(findButton(container, "新增声部组"));
+    await waitFor(
+      () => findSelectExact(container, "声部组").options.length === 2,
+      "成功新增声部组",
+    );
+    expect(
+      Array.from(findSelectExact(container, "声部组").options)
+        .map((option) => option.value),
+    ).toContain("part-test-4");
+    expect(
+      Array.from(store.values.values())[0]?.document.parts[1]
+        ?.staves[0]?.staffId,
+    ).toBe("staff-test-5");
+    expect(
+      Array.from(store.values.values())[0]?.document.parts[1]
+        ?.staves[0]?.voices[0]?.voiceId,
+    ).toBe("voice-test-6");
+    await change(findInput(container, "项目名称"), "声部组生命周期草稿");
+    expect(findButton(container, "新增声部组").disabled).toBe(true);
+    expect(findButton(container, "删除空声部组").disabled).toBe(true);
+    await waitForAutosave();
+    await waitFor(
+      () => !findButton(container, "新增声部组").disabled
+        && !findButton(container, "删除空声部组").disabled,
+      "自动保存后恢复声部组结构修改",
+    );
+
+    await click(findButton(container, "撤销"));
+    await waitFor(
+      () => findSelectExact(container, "声部组").options.length === 1,
+      "撤销新增声部组",
+    );
+    await click(findButton(container, "重做"));
+    await waitFor(
+      () => findSelectExact(container, "声部组").options.length === 2,
+      "重做新增声部组",
+    );
+
+    await click(findButton(container, "返回项目列表"));
+    await click(findButton(container, "打开"));
+    await waitFor(
+      () => findSelectExact(container, "声部组").options.length === 2,
+      "重开后保留新增声部组",
+    );
+    await change(findSelectExact(container, "声部组"), "part-test-4");
+    expect(findSelectExact(container, "谱表").value).toBe("staff-test-5");
+    expect(findSelectExact(container, "声部").value).toBe("voice-test-6");
+
+    await change(findInput(container, "歌词"), "新组");
+    await click(findButton(container, "添加到第 1 小节并保存"));
+    await waitFor(
+      () => container.textContent?.includes("歌词：新组") ?? false,
+      "在新增声部组中定向编辑",
+    );
+    const protectedFirstPart =
+      Array.from(store.values.values())[0]?.document.parts[0];
+    expect(
+      protectedFirstPart?.staves[0]?.voices[0]?.measures[0]?.events,
+    ).toHaveLength(0);
+
+    await click(findButton(container, "删除空声部组"));
+    await waitFor(
+      () => container.textContent?.includes("仍有音符或休止符") ?? false,
+      "拒绝删除非空声部组",
+    );
+    expect(findSelectExact(container, "声部组").value).toBe("part-test-4");
+    expect(findSelectExact(container, "声部组").options).toHaveLength(2);
+
+    await click(findButton(container, "编辑"));
+    await click(findButton(container, "复制所选事件"));
+    expect(container.textContent).not.toContain("尚未复制事件");
+    await click(findButton(container, "删除"));
+    await waitFor(
+      () => container.textContent?.includes("当前小节为空") ?? false,
+      "清空目标声部组",
+    );
+    await click(findButton(container, "删除空声部组"));
+    await waitFor(
+      () => findSelectExact(container, "声部组").options.length === 1,
+      "删除空声部组",
+    );
+    expect(findSelectExact(container, "声部组").value).toBe("part-1");
+    expect(findSelectExact(container, "谱表").value).toBe("staff-1");
+    expect(findSelectExact(container, "声部").value).toBe("voice-1");
+    expect(container.textContent).toContain("尚未复制事件");
+    expect(findButton(container, "删除空声部组").disabled).toBe(true);
+    expect(Array.from(store.values.values())[0]?.document.parts).toHaveLength(1);
   });
 
   it("固定 C 简谱与五线谱切换保留同一事件选择和播放控制实例", async () => {

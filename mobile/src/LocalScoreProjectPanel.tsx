@@ -16,6 +16,7 @@ import {
 import {
   LocalScoreProjectDomainError,
   addLocalScoreProjectEvent,
+  addLocalScoreProjectPart,
   addLocalScoreProjectStaff,
   addLocalScoreProjectVoice,
   appendLocalScoreProjectMeasure,
@@ -25,6 +26,7 @@ import {
   copyLocalScoreProjectEvent,
   createLocalScoreProject,
   deleteEmptyLocalScoreProjectMeasure,
+  deleteEmptyLocalScoreProjectPart,
   deleteEmptyLocalScoreProjectStaff,
   deleteEmptyLocalScoreProjectVoice,
   deleteLocalScoreProjectEvent,
@@ -409,6 +411,7 @@ export function LocalScoreProjectPanel({
       savedSettings?: Readonly<{ title: string; tempoBpm: string }>;
     } = {},
   ) => {
+    const previousLocation = selectedVoiceLocationRef.current;
     const nextLocation = resetSettings
       ? getVoiceLocation(project, null)
       : getVoiceLocation(project, selectedVoiceLocationRef.current);
@@ -417,6 +420,16 @@ export function LocalScoreProjectPanel({
     setCurrentProject(project);
     selectedVoiceLocationRef.current = nextLocation;
     setSelectedVoiceLocation(nextLocation);
+    if (
+      previousLocation
+      && (
+        previousLocation.partId !== nextLocation.partId
+        || previousLocation.staffId !== nextLocation.staffId
+        || previousLocation.voiceId !== nextLocation.voiceId
+      )
+    ) {
+      setCopiedEvent(null);
+    }
     if (resetSettings) {
       setEditorTitle(project.title);
       setEditorTempoBpm(String(project.tempoBpm));
@@ -941,6 +954,52 @@ export function LocalScoreProjectPanel({
               </label>
             </div>
             <div className="mt-3 flex flex-wrap gap-2">
+              <button
+                type="button"
+                disabled={structureMutationDisabled}
+                onClick={() => {
+                  if (structureMutationDisabled) return;
+                  const partId = `part-${createId()}`;
+                  const staffId = `staff-${createId()}`;
+                  const voiceId = `voice-${createId()}`;
+                  void persistMutation((project) =>
+                    addLocalScoreProjectPart({
+                      project,
+                      expectedRevision: project.document.revision,
+                      partId,
+                      staffId,
+                      voiceId,
+                      clef: selectedVoice.staff.clef,
+                      now: now(),
+                    }));
+                }}
+                className="min-h-11 rounded-xl border border-teal-300 bg-white px-3 py-2 text-sm font-bold disabled:border-slate-200 disabled:text-slate-400"
+              >
+                新增声部组
+              </button>
+              <button
+                type="button"
+                disabled={
+                  structureMutationDisabled
+                  || currentProject.document.parts.length <= 1
+                }
+                onClick={() => {
+                  if (
+                    structureMutationDisabled
+                    || currentProject.document.parts.length <= 1
+                  ) return;
+                  void persistMutation((project) =>
+                    deleteEmptyLocalScoreProjectPart({
+                      project,
+                      expectedRevision: project.document.revision,
+                      partId: selectedVoice.partId,
+                      now: now(),
+                    }));
+                }}
+                className="min-h-11 rounded-xl border border-rose-300 bg-white px-3 py-2 text-sm font-bold text-rose-700 disabled:border-slate-200 disabled:text-slate-400"
+              >
+                删除空声部组
+              </button>
               <button
                 type="button"
                 disabled={structureMutationDisabled}
