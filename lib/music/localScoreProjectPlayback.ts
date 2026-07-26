@@ -10,6 +10,7 @@ import type {
   LocalNotationProjectScoreDocumentV1,
   LocalNotationProjectScoreDocumentV2,
   LocalNotationProjectScoreDocumentV3,
+  LocalNotationProjectScoreDocumentV4,
   LocalScoreProjectEventV2,
   ScoreDocumentEventV1,
 } from "./scoreDocument";
@@ -70,7 +71,8 @@ export type LocalScoreProjectPlaybackPlan =
 type PlaybackDocument =
   | LocalNotationProjectScoreDocumentV1
   | LocalNotationProjectScoreDocumentV2
-  | LocalNotationProjectScoreDocumentV3;
+  | LocalNotationProjectScoreDocumentV3
+  | LocalNotationProjectScoreDocumentV4;
 
 type PlaybackEvent = ScoreDocumentEventV1 | LocalScoreProjectEventV2;
 
@@ -111,7 +113,7 @@ const getDocumentIdentity = (document: unknown) => {
 
 const isLegacyPlaybackContent = (document: Record<string, unknown>): boolean => {
   if (!Array.isArray(document.parts)) return false;
-  const parts = document.parts.map((part) => {
+  const parts = document.parts.map((part, partIndex) => {
     if (!isRecord(part) || !Array.isArray(part.staves)) return null;
     const staves = part.staves.map((staff) => {
       if (!isRecord(staff) || !Array.isArray(staff.voices)) return null;
@@ -143,7 +145,7 @@ const isLegacyPlaybackContent = (document: Record<string, unknown>): boolean => 
       return { ...staff, voices };
     });
     if (staves.some((staff) => staff === null)) return null;
-    return { ...part, staves };
+    return { ...part, name: `声部组 ${partIndex + 1}`, staves };
   });
   return !parts.some((part) => part === null)
     && isLocalScoreProjectContent({
@@ -153,6 +155,19 @@ const isLegacyPlaybackContent = (document: Record<string, unknown>): boolean => 
     });
 };
 
+const isPreviousPlaybackContent = (
+  document: Record<string, unknown>,
+): boolean =>
+  Array.isArray(document.parts)
+  && isLocalScoreProjectContent({
+    meter: document.meter,
+    keySignature: document.keySignature,
+    parts: document.parts.map((part, index) =>
+      isRecord(part)
+        ? { ...part, name: `声部组 ${index + 1}` }
+        : part),
+  });
+
 const isPlaybackDocument = (
   document: unknown,
 ): document is PlaybackDocument =>
@@ -161,6 +176,7 @@ const isPlaybackDocument = (
     document.schemaVersion === "score-document-v1"
     || document.schemaVersion === "score-document-v2"
     || document.schemaVersion === "score-document-v3"
+    || document.schemaVersion === "score-document-v4"
   )
   && document.documentKind === "notation-project"
   && typeof document.documentId === "string"
@@ -185,6 +201,10 @@ const isPlaybackDocument = (
     )
     || (
       document.schemaVersion === "score-document-v3"
+      && isPreviousPlaybackContent(document)
+    )
+    || (
+      document.schemaVersion === "score-document-v4"
       && isLocalScoreProjectContent(document)
     )
   );
@@ -273,11 +293,10 @@ export const createLocalScoreProjectPlaybackPlan = ({
   if (!isPlaybackDocument(document)) {
     return blocked("乐谱项目文档无效，无法安全播放。");
   }
-  if (
-    document.schemaVersion !== "score-document-v1"
-    && !hasValidLocalScoreProjectTies(document)
-  ) {
-    return blocked(LOCAL_SCORE_PROJECT_TIE_CONTINUITY_ERROR);
+  if (document.schemaVersion !== "score-document-v1") {
+    if (!hasValidLocalScoreProjectTies(document)) {
+      return blocked(LOCAL_SCORE_PROJECT_TIE_CONTINUITY_ERROR);
+    }
   }
 
   const safeBpm = Math.max(

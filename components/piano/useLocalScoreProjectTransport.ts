@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState } from "react";
 import type {
   LocalNotationProjectScoreDocumentV2,
   LocalNotationProjectScoreDocumentV3,
+  LocalNotationProjectScoreDocumentV4,
 } from "../../lib/music/scoreDocument";
 import type { PianoVoiceProvider } from "../../lib/piano/pianoAudioProvider";
 import {
@@ -36,7 +37,8 @@ export function useLocalScoreProjectTransport({
 }: {
   document:
     | LocalNotationProjectScoreDocumentV2
-    | LocalNotationProjectScoreDocumentV3;
+    | LocalNotationProjectScoreDocumentV3
+    | LocalNotationProjectScoreDocumentV4;
   bpm: number;
   createAudioChannel?: LocalPianoAudioChannelFactory;
   voiceProvider?: PianoVoiceProvider;

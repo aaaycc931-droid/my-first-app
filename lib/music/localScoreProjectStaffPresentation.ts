@@ -8,7 +8,10 @@ import {
   isLocalScoreProjectContent,
   LOCAL_SCORE_PROJECT_TIE_CONTINUITY_ERROR,
 } from "./localScoreProject";
-import type { LocalNotationProjectScoreDocumentV3 } from "./scoreDocument";
+import type {
+  LocalNotationProjectScoreDocumentV3,
+  LocalNotationProjectScoreDocumentV4,
+} from "./scoreDocument";
 
 export const LOCAL_SCORE_STAFF_HEIGHT = 148;
 export const LOCAL_SCORE_STAFF_LINE_Y = [36, 48, 60, 72, 84] as const;
@@ -185,11 +188,34 @@ const getIdentity = (document: unknown) => {
   };
 };
 
+const isPresentationContent = (
+  document: Record<string, unknown>,
+): boolean =>
+  Array.isArray(document.parts)
+  && isLocalScoreProjectContent({
+    meter: document.meter,
+    keySignature: document.keySignature,
+    parts: document.parts.map((part, index) =>
+      isRecord(part)
+        ? {
+          ...part,
+          name: typeof part.name === "string"
+            ? part.name
+            : `声部组 ${index + 1}`,
+        }
+        : part),
+  });
+
 const isLocalScoreProjectDocument = (
   document: unknown,
-): document is LocalNotationProjectScoreDocumentV3 =>
+): document is
+  | LocalNotationProjectScoreDocumentV3
+  | LocalNotationProjectScoreDocumentV4 =>
   isRecord(document)
-  && document.schemaVersion === "score-document-v3"
+  && (
+    document.schemaVersion === "score-document-v3"
+    || document.schemaVersion === "score-document-v4"
+  )
   && document.documentKind === "notation-project"
   && typeof document.documentId === "string"
   && document.documentId.length > 0
@@ -202,7 +228,7 @@ const isLocalScoreProjectDocument = (
   && document.source.kind === "local-score-project"
   && typeof document.source.projectId === "string"
   && document.source.projectId.length > 0
-  && isLocalScoreProjectContent(document);
+  && isPresentationContent(document);
 
 const tokenX = ({
   measureStartX,
@@ -234,7 +260,13 @@ export const createLocalScoreProjectStaffPresentation = (
   if (!isLocalScoreProjectDocument(document)) {
     return blocked("乐谱项目文档无效，无法安全生成五线谱预览。");
   }
-  if (!hasValidLocalScoreProjectTies(document)) {
+  if (!hasValidLocalScoreProjectTies({
+    meter: document.meter,
+    parts: document.parts.map((part, index) => ({
+      ...part,
+      name: "name" in part ? part.name : `声部组 ${index + 1}`,
+    })),
+  })) {
     return blocked(`${LOCAL_SCORE_PROJECT_TIE_CONTINUITY_ERROR}无法安全生成五线谱预览。`);
   }
 

@@ -3,6 +3,7 @@ import {
   LOCAL_SCORE_PROJECT_PREVIOUS_SCHEMA_VERSION,
   LOCAL_SCORE_PROJECT_SCHEMA_VERSION,
   LOCAL_SCORE_PROJECT_V2_SCHEMA_VERSION,
+  LOCAL_SCORE_PROJECT_V3_SCHEMA_VERSION,
   LocalScoreProjectConflictError,
   cloneLocalScoreProject,
   parseLocalScoreProject,
@@ -292,6 +293,7 @@ const getStoredProjectIssue = (
     status: typeof record?.schemaVersion === "string"
     && record.schemaVersion !== LOCAL_SCORE_PROJECT_LEGACY_SCHEMA_VERSION
     && record.schemaVersion !== LOCAL_SCORE_PROJECT_V2_SCHEMA_VERSION
+    && record.schemaVersion !== LOCAL_SCORE_PROJECT_V3_SCHEMA_VERSION
     && record.schemaVersion !== LOCAL_SCORE_PROJECT_PREVIOUS_SCHEMA_VERSION
       && record.schemaVersion !== LOCAL_SCORE_PROJECT_SCHEMA_VERSION
       ? "unsupported"

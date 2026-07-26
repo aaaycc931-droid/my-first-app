@@ -9,7 +9,10 @@ import {
   type LocalScoreStaffEventLocation,
   type LocalScoreStaffToken,
 } from "../../lib/music/localScoreProjectStaffPresentation";
-import type { LocalNotationProjectScoreDocumentV3 } from "../../lib/music/scoreDocument";
+import type {
+  LocalNotationProjectScoreDocumentV3,
+  LocalNotationProjectScoreDocumentV4,
+} from "../../lib/music/scoreDocument";
 
 export type LocalScoreProjectStaffSelection = Readonly<{
   eventId: string;
@@ -17,7 +20,9 @@ export type LocalScoreProjectStaffSelection = Readonly<{
 }>;
 
 export type LocalScoreProjectStaffPreviewProps = Readonly<{
-  document: LocalNotationProjectScoreDocumentV3;
+  document:
+    | LocalNotationProjectScoreDocumentV3
+    | LocalNotationProjectScoreDocumentV4;
   selectedEventId?: string | null;
   activeEventIds?: readonly string[];
   target?: LocalScoreProjectVoiceTarget;
