@@ -51,8 +51,8 @@ const created = createLocalScoreProject({
   title: "单音指法",
   now: "2026-07-26T00:00:00.000Z",
 });
-assert.equal(created.schemaVersion, "local-score-project-storage-v11");
-assert.equal(created.document.schemaVersion, "score-document-v10");
+assert.equal(created.schemaVersion, "local-score-project-storage-v12");
+assert.equal(created.document.schemaVersion, "score-document-v11");
 
 const withNote = addLocalScoreProjectEvent({
   project: created,
@@ -276,6 +276,7 @@ assert.deepEqual(copied, {
   chordSymbol: null,
   articulations: [],
   dynamicMark: null,
+  damperPedalMark: null,
 });
 const pasted = pasteLocalScoreProjectEvent({
   project: fingered,
@@ -327,8 +328,8 @@ const migrationInput = JSON.stringify(previousStorage);
 const migrated = parseLocalScoreProject(previousStorage);
 assert.ok(migrated);
 assert.equal(JSON.stringify(previousStorage), migrationInput);
-assert.equal(migrated.schemaVersion, "local-score-project-storage-v11");
-assert.equal(migrated.document.schemaVersion, "score-document-v10");
+assert.equal(migrated.schemaVersion, "local-score-project-storage-v12");
+assert.equal(migrated.document.schemaVersion, "score-document-v11");
 for (const content of [
   migrated.document,
   ...migrated.undoStack,

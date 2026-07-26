@@ -99,3 +99,9 @@
 - 旧 storage v1–v10、document v1–v9 及 undo／redo 历史只读迁移为 `dynamicMark: null`；当前版本严格拒绝缺失或非法字段。
 - 五线谱与固定 C 简谱读取同一字段；当前仅显示，不改变 velocity、gate、duration、timbre、timeline、span、warning 或真实播放效果。
 - 专项测试、受影响的存储／恢复／容量／播放／移动端预览与 transport 回归、lint、typecheck 和 Quality 注册已在本地通过；PR 远端 Actions、浏览器手测、Android 真机、真实力度播放和教师审核仍未执行。
+
+### 制音踏板切片（当前分支）
+
+- `score-document-v11` 与 `local-score-project-storage-v12` 的事件起点 `damperPedalMark` 支持 `down`、`up` 或 `null`，note/rest 均可承载。
+- 旧 storage v1–v11、document v1–v10 及 undo/redo 历史只读迁移为 `null`；当前严格校验。
+- 当前分支已接入 domain、迁移、复制粘贴、两种谱面显示、Mobile 编辑、playback/transport 类型兼容和专项测试；真实踏板播放、MIDI CC64、真机、教师审核与格式 round-trip 仍未执行。

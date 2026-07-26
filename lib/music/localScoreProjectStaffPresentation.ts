@@ -17,7 +17,9 @@ import type {
   LocalNotationProjectScoreDocumentV8,
   LocalNotationProjectScoreDocumentV9,
   LocalNotationProjectScoreDocumentV10,
+  LocalNotationProjectScoreDocumentV11,
   LocalScoreProjectArticulationV1,
+  LocalScoreProjectDamperPedalMarkV1,
   LocalScoreProjectDynamicMarkV1,
   LocalScoreProjectFingeringV1,
 } from "./scoreDocument";
@@ -69,6 +71,7 @@ type LocalScoreStaffTokenBase = Readonly<{
   y: number;
   chordSymbol: string | null;
   dynamicMark: LocalScoreProjectDynamicMarkV1 | null;
+  damperPedalMark: LocalScoreProjectDamperPedalMarkV1 | null;
   accessibleLabel: string;
 }>;
 
@@ -133,6 +136,7 @@ export type LocalScoreStaffPresentation =
     lyricY: number;
     chordSymbolY: number;
     dynamicMarkY: number;
+    damperPedalY: number;
     width: number;
     height: number;
     partId: string;
@@ -170,6 +174,12 @@ Readonly<Record<LocalScoreProjectDynamicMarkV1, string>> = {
   mf: "中强",
   f: "强",
   ff: "很强",
+};
+
+const DAMPER_PEDAL_MARK_LABELS:
+Readonly<Record<LocalScoreProjectDamperPedalMarkV1, string>> = {
+  down: "踩下制音踏板",
+  up: "释放制音踏板",
 };
 
 const TREBLE_PITCH_Y: Readonly<Record<NotationPitch, number>> = {
@@ -249,7 +259,10 @@ const isPresentationContent = (
     keySignature: document.keySignature,
     parts: document.parts.map((part, index) => {
       if (!isRecord(part)) return part;
-      const staves = document.schemaVersion === "score-document-v10"
+      const staves = (
+        document.schemaVersion === "score-document-v10"
+        || document.schemaVersion === "score-document-v11"
+      )
         ? part.staves
         : Array.isArray(part.staves)
           ? part.staves.map((staff) =>
@@ -293,6 +306,7 @@ const isPresentationContent = (
                               return {
                                 ...withArticulations,
                                 dynamicMark: null,
+                                damperPedalMark: null,
                               };
                             }),
                           }
@@ -325,7 +339,8 @@ const isLocalScoreProjectDocument = (
   | LocalNotationProjectScoreDocumentV7
   | LocalNotationProjectScoreDocumentV8
   | LocalNotationProjectScoreDocumentV9
-  | LocalNotationProjectScoreDocumentV10 =>
+  | LocalNotationProjectScoreDocumentV10
+  | LocalNotationProjectScoreDocumentV11 =>
   isRecord(document)
   && (
     document.schemaVersion === "score-document-v3"
@@ -336,6 +351,7 @@ const isLocalScoreProjectDocument = (
     || document.schemaVersion === "score-document-v8"
     || document.schemaVersion === "score-document-v9"
     || document.schemaVersion === "score-document-v10"
+    || document.schemaVersion === "score-document-v11"
   )
   && document.documentKind === "notation-project"
   && typeof document.documentId === "string"
@@ -487,6 +503,9 @@ export const createLocalScoreProjectStaffPresentation = (
       const dynamicMark = "dynamicMark" in event
         ? event.dynamicMark as LocalScoreProjectDynamicMarkV1 | null
         : null;
+      const damperPedalMark = "damperPedalMark" in event
+        ? event.damperPedalMark as LocalScoreProjectDamperPedalMarkV1 | null
+        : null;
       if (event.type === "note" && event.pitch !== null) {
         const fingering = "fingering" in event
           ? event.fingering as LocalScoreProjectFingeringV1 | null
@@ -507,6 +526,9 @@ export const createLocalScoreProjectStaffPresentation = (
           dynamicMark === null
             ? ""
             : `力度记号 ${DYNAMIC_MARK_LABELS[dynamicMark]}（${dynamicMark}）`,
+          damperPedalMark === null
+            ? ""
+            : `${DAMPER_PEDAL_MARK_LABELS[damperPedalMark]}（${damperPedalMark}）`,
           accidental === "natural" ? "还原号" : "",
           `${event.augmentationDots === 1 ? "附点" : ""}${DURATION_LABELS[event.duration]}音符`,
           event.tieToNext ? "与下一音符用延音线相连" : "",
@@ -533,6 +555,7 @@ export const createLocalScoreProjectStaffPresentation = (
           y: pitchY[event.pitch],
           chordSymbol,
           dynamicMark,
+          damperPedalMark,
           head: event.duration === "half" ? "open" : "filled",
           hasStem: true,
           hasEighthFlag: event.duration === "eighth",
@@ -567,13 +590,16 @@ export const createLocalScoreProjectStaffPresentation = (
           y: clef === "bass" ? 126 : 66,
           chordSymbol,
           dynamicMark,
+          damperPedalMark,
           rest: "quarter",
           accessibleLabel:
             `${positionLabel}，${chordSymbol === null
               ? ""
               : `和弦名称“${chordSymbol}”，`}${dynamicMark === null
               ? ""
-              : `力度记号 ${DYNAMIC_MARK_LABELS[dynamicMark]}（${dynamicMark}），`}${event.augmentationDots === 1
+              : `力度记号 ${DYNAMIC_MARK_LABELS[dynamicMark]}（${dynamicMark}），`}${damperPedalMark === null
+              ? ""
+              : `${DAMPER_PEDAL_MARK_LABELS[damperPedalMark]}（${damperPedalMark}），`}${event.augmentationDots === 1
               ? "附点"
               : ""}四分休止符`,
         });
@@ -619,10 +645,13 @@ export const createLocalScoreProjectStaffPresentation = (
   );
   const chordSymbolY = lyricY + 18;
   const dynamicMarkY = chordSymbolY + 18;
+  const damperPedalY = dynamicMarkY + 18;
   const hasChordSymbol = measures.some((measure) =>
     measure.tokens.some((token) => token.chordSymbol !== null));
   const hasDynamicMark = measures.some((measure) =>
     measure.tokens.some((token) => token.dynamicMark !== null));
+  const hasDamperPedal = measures.some((measure) =>
+    measure.tokens.some((token) => token.damperPedalMark !== null));
   const hasLyric = measures.some((measure) =>
     measure.tokens.some((token) =>
       token.type === "note" && token.lyric !== null));
@@ -638,6 +667,7 @@ export const createLocalScoreProjectStaffPresentation = (
       || document.schemaVersion === "score-document-v8"
       || document.schemaVersion === "score-document-v9"
       || document.schemaVersion === "score-document-v10"
+      || document.schemaVersion === "score-document-v11"
       ? document.scoreCredits
       : {
         title: null,
@@ -661,6 +691,7 @@ export const createLocalScoreProjectStaffPresentation = (
     lyricY,
     chordSymbolY,
     dynamicMarkY,
+    damperPedalY,
     width,
     height: Math.max(
       baseHeight + (hasChordSymbol ? 18 : 0),
@@ -668,6 +699,7 @@ export const createLocalScoreProjectStaffPresentation = (
       hasLyric ? lyricY + 12 : baseHeight,
       hasChordSymbol ? chordSymbolY + 12 : baseHeight,
       hasDynamicMark ? dynamicMarkY + 12 : baseHeight,
+      hasDamperPedal ? damperPedalY + 12 : baseHeight,
     ),
     partId: part.partId,
     staffId: staff.staffId,

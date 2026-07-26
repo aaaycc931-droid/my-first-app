@@ -23,6 +23,7 @@ import {
   changeLocalScoreProjectClef,
   changeLocalScoreProjectEventArticulations,
   changeLocalScoreProjectEventChordSymbol,
+  changeLocalScoreProjectEventDamperPedalMark,
   changeLocalScoreProjectKeySignature,
   changeLocalScoreProjectMeter,
   changeLocalScoreProjectPartInstrument,
@@ -56,6 +57,7 @@ import type {
   LocalScoreProjectArticulationV1,
   LocalScoreProjectFingeringV1,
   LocalScoreProjectDynamicMarkV1,
+  LocalScoreProjectDamperPedalMarkV1,
   LocalScoreProjectKeySignatureV3,
   LocalScoreProjectPartInstrumentV1,
 } from "../../lib/music/scoreDocument";
@@ -111,6 +113,12 @@ const dynamicMarkOptions = [
   { value: "mf", label: "中强（mf）" },
   { value: "f", label: "强（f）" },
   { value: "ff", label: "很强（ff）" },
+] as const;
+
+const damperPedalMarkOptions = [
+  { value: "", label: "无制音踏板记号" },
+  { value: "down", label: "踩下（Ped.）" },
+  { value: "up", label: "释放（✱）" },
 ] as const;
 
 const templateCategoryOptions: readonly Readonly<{
@@ -500,6 +508,8 @@ export function LocalScoreProjectPanel({
   const [chordSymbol, setChordSymbol] = useState("");
   const [dynamicMark, setDynamicMark] =
     useState<LocalScoreProjectDynamicMarkV1 | null>(null);
+  const [damperPedalMark, setDamperPedalMark] =
+    useState<LocalScoreProjectDamperPedalMarkV1 | null>(null);
   const [targetMeasureNumber, setTargetMeasureNumber] = useState(1);
   const [selectedEvent, setSelectedEvent] =
     useState<LocalScoreProjectStaffSelection | null>(null);
@@ -769,6 +779,7 @@ export function LocalScoreProjectPanel({
               augmentationDots,
               chordSymbol,
               dynamicMark,
+              damperPedalMark,
             }
             : {
               type: "note",
@@ -781,6 +792,7 @@ export function LocalScoreProjectPanel({
               articulations,
               chordSymbol,
               dynamicMark,
+              damperPedalMark,
             },
           now: now(),
         })
@@ -797,6 +809,7 @@ export function LocalScoreProjectPanel({
             augmentationDots,
             chordSymbol,
             dynamicMark,
+            damperPedalMark,
           }
           : {
             type: "note",
@@ -809,6 +822,7 @@ export function LocalScoreProjectPanel({
             articulations,
             chordSymbol,
             dynamicMark,
+            damperPedalMark,
           },
           now: now(),
         }),
@@ -829,6 +843,7 @@ export function LocalScoreProjectPanel({
     setEventType(located.event.type);
     setChordSymbol(located.event.chordSymbol ?? "");
     setDynamicMark(located.event.dynamicMark);
+    setDamperPedalMark(located.event.damperPedalMark ?? null);
     if (located.event.type === "note" && located.event.pitch) {
       setPitch(located.event.pitch);
       setDuration(located.event.duration);
@@ -842,6 +857,7 @@ export function LocalScoreProjectPanel({
       setLyric("");
       setFingering(null);
       setArticulations([]);
+      setDamperPedalMark(located.event.damperPedalMark ?? null);
     }
     setAugmentationDots(located.event.augmentationDots);
   };
@@ -2039,6 +2055,29 @@ export function LocalScoreProjectPanel({
         </label>
         <p className="mt-2 text-xs leading-5 text-indigo-800">
           力度记号锚定音符或休止符的起点；两种预览读取同一记号。当前只显示 pp–ff，不改变真实播放力度、音长或音色。
+        </p>
+        <label className="mt-3 block text-sm font-bold">
+          事件起点制音踏板记号
+          <select
+            aria-label="制音踏板记号"
+            value={damperPedalMark ?? ""}
+            disabled={isBusy}
+            onChange={(event) => setDamperPedalMark(
+              event.target.value === ""
+                ? null
+                : event.target.value as LocalScoreProjectDamperPedalMarkV1,
+            )}
+            className="mt-2 min-h-11 w-full rounded-xl border border-indigo-300 bg-white px-3 py-2 disabled:bg-slate-100"
+          >
+            {damperPedalMarkOptions.map((option) => (
+              <option key={option.value || "none"} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </label>
+        <p className="mt-2 text-xs leading-5 text-indigo-800">
+          制音踏板记号锚定音符或休止符起点；当前只显示 Ped.／释放记号，不发送 MIDI CC64，也不改变真实 sustain、音长或 transport。
         </p>
         <button
           type="button"
