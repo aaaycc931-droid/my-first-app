@@ -5,6 +5,7 @@ import {
   LocalScoreProjectConflictError,
   LocalScoreProjectDomainError,
   addLocalScoreProjectEvent,
+  addLocalScoreProjectPart,
   addLocalScoreProjectStaff,
   addLocalScoreProjectVoice,
   appendLocalScoreProjectMeasure,
@@ -17,6 +18,7 @@ import {
   copyLocalScoreProjectEvent,
   createLocalScoreProject,
   deleteEmptyLocalScoreProjectMeasure,
+  deleteEmptyLocalScoreProjectPart,
   deleteEmptyLocalScoreProjectStaff,
   deleteEmptyLocalScoreProjectVoice,
   deleteLocalScoreProjectEvent,
@@ -1265,6 +1267,347 @@ assert.deepEqual(
     { measureNumber: 2, events: [] },
     { measureNumber: 4, events: [] },
   ],
+);
+
+const addedPart = addLocalScoreProjectPart({
+  project: sparseMeasureProject,
+  expectedRevision: 3,
+  partId: "part-2",
+  staffId: "part-2-staff-1",
+  voiceId: "part-2-voice-1",
+  clef: "bass",
+  now: "2026-07-24T00:00:03.000Z",
+});
+assert.equal(addedPart.document.revision, 4);
+assert.equal(addedPart.document.parts.length, 2);
+assert.deepEqual(addedPart.document.parts[1], {
+  partId: "part-2",
+  staves: [{
+    staffId: "part-2-staff-1",
+    staffKind: "pitched",
+    clef: "bass",
+    voices: [{
+      voiceId: "part-2-voice-1",
+      measures: [
+        { measureNumber: 1, events: [] },
+        { measureNumber: 2, events: [] },
+        { measureNumber: 4, events: [] },
+      ],
+    }],
+  }],
+});
+assert.deepEqual(
+  addedPart.document.parts[0],
+  sparseMeasureProject.document.parts[0],
+);
+assert.equal(sparseMeasureProject.document.parts.length, 1);
+assert.equal(addedPart.undoStack.length, sparseMeasureProject.undoStack.length + 1);
+assert.equal(addedPart.redoStack.length, 0);
+const addedPartContent = getLocalScoreProjectContent(addedPart);
+const sparseSecondPart = applyLocalScoreProjectContent({
+  project: addedPart,
+  expectedRevision: 4,
+  content: {
+    ...addedPartContent,
+    parts: addedPartContent.parts.map((part) =>
+      part.partId !== "part-2"
+        ? part
+        : {
+          ...part,
+          staves: part.staves.map((staff) => ({
+            ...staff,
+            voices: staff.voices.map((voice) => ({
+              ...voice,
+              measures: [{ measureNumber: 6, events: [] }],
+            })),
+          })),
+        }),
+  },
+  now: "2026-07-24T00:00:04.000Z",
+});
+const partFromDocumentMeasureUnion = addLocalScoreProjectPart({
+  project: sparseSecondPart,
+  expectedRevision: 5,
+  partId: "part-3",
+  staffId: "part-3-staff-1",
+  voiceId: "part-3-voice-1",
+  clef: "treble",
+  now: "2026-07-24T00:00:05.000Z",
+});
+assert.deepEqual(
+  partFromDocumentMeasureUnion.document.parts[2].staves[0].voices[0].measures,
+  [
+    { measureNumber: 1, events: [] },
+    { measureNumber: 2, events: [] },
+    { measureNumber: 4, events: [] },
+    { measureNumber: 6, events: [] },
+  ],
+);
+const addedPartAfterUndo = addLocalScoreProjectPart({
+  project: undone,
+  expectedRevision: 3,
+  partId: "part-after-undo",
+  staffId: "staff-after-undo",
+  voiceId: "voice-after-undo",
+  clef: "treble",
+  now: "2026-07-24T00:00:03.000Z",
+});
+assert.equal(undone.redoStack.length, 1);
+assert.equal(addedPartAfterUndo.redoStack.length, 0);
+assert.equal(addedPartAfterUndo.document.revision, 4);
+
+const undonePartAddition = undoLocalScoreProject({
+  project: addedPart,
+  expectedRevision: 4,
+  now: "2026-07-24T00:00:04.000Z",
+});
+assert.equal(undonePartAddition.document.revision, 5);
+assert.deepEqual(
+  undonePartAddition.document.parts.map((part) => part.partId),
+  ["part-1"],
+);
+const redonePartAddition = redoLocalScoreProject({
+  project: undonePartAddition,
+  expectedRevision: 5,
+  now: "2026-07-24T00:00:05.000Z",
+});
+assert.equal(redonePartAddition.document.revision, 6);
+assert.deepEqual(
+  redonePartAddition.document.parts.map((part) => part.partId),
+  ["part-1", "part-2"],
+);
+assert.deepEqual(
+  redonePartAddition.document.parts[1],
+  addedPart.document.parts[1],
+);
+
+for (const createInvalidPart of [
+  () => addLocalScoreProjectPart({
+    project: sparseMeasureProject,
+    expectedRevision: 3,
+    partId: "",
+    staffId: "valid-part-staff",
+    voiceId: "valid-part-voice",
+    clef: "treble" as const,
+    now: "2026-07-24T00:00:03.000Z",
+  }),
+  () => addLocalScoreProjectPart({
+    project: sparseMeasureProject,
+    expectedRevision: 3,
+    partId: "valid-part",
+    staffId: "",
+    voiceId: "valid-part-voice",
+    clef: "treble" as const,
+    now: "2026-07-24T00:00:03.000Z",
+  }),
+  () => addLocalScoreProjectPart({
+    project: sparseMeasureProject,
+    expectedRevision: 3,
+    partId: "valid-part",
+    staffId: "valid-part-staff",
+    voiceId: "",
+    clef: "treble" as const,
+    now: "2026-07-24T00:00:03.000Z",
+  }),
+  () => addLocalScoreProjectPart({
+    project: sparseMeasureProject,
+    expectedRevision: 3,
+    partId: "valid-part",
+    staffId: "valid-part-staff",
+    voiceId: "valid-part-voice",
+    clef: "alto" as never,
+    now: "2026-07-24T00:00:03.000Z",
+  }),
+]) {
+  assert.throws(
+    createInvalidPart,
+    (error) =>
+      error instanceof LocalScoreProjectDomainError
+      && error.code === "invalid-input",
+  );
+}
+
+for (const createDuplicatePartStructure of [
+  () => addLocalScoreProjectPart({
+    project: sparseMeasureProject,
+    expectedRevision: 3,
+    partId: "part-1",
+    staffId: "unique-part-staff",
+    voiceId: "unique-part-voice",
+    clef: "treble" as const,
+    now: "2026-07-24T00:00:03.000Z",
+  }),
+  () => addLocalScoreProjectPart({
+    project: sparseMeasureProject,
+    expectedRevision: 3,
+    partId: "unique-part",
+    staffId: "staff-1",
+    voiceId: "unique-part-voice",
+    clef: "treble" as const,
+    now: "2026-07-24T00:00:03.000Z",
+  }),
+  () => addLocalScoreProjectPart({
+    project: sparseMeasureProject,
+    expectedRevision: 3,
+    partId: "unique-part",
+    staffId: "unique-part-staff",
+    voiceId: "voice-1",
+    clef: "treble" as const,
+    now: "2026-07-24T00:00:03.000Z",
+  }),
+]) {
+  assert.throws(
+    createDuplicatePartStructure,
+    (error) =>
+      error instanceof LocalScoreProjectDomainError
+      && error.code === "duplicate",
+  );
+}
+assert.throws(
+  () => addLocalScoreProjectPart({
+    project: sparseMeasureProject,
+    expectedRevision: 2,
+    partId: "stale-part",
+    staffId: "stale-part-staff",
+    voiceId: "stale-part-voice",
+    clef: "treble",
+    now: "2026-07-24T00:00:03.000Z",
+  }),
+  LocalScoreProjectConflictError,
+);
+for (const [invalidTime, expectedCode] of [
+  ["2026-07-24", "invalid-input"],
+  ["2026-07-24T00:00:01.000Z", "clock-regression"],
+] as const) {
+  assert.throws(
+    () => addLocalScoreProjectPart({
+      project: sparseMeasureProject,
+      expectedRevision: 3,
+      partId: `timed-part-${expectedCode}`,
+      staffId: `timed-staff-${expectedCode}`,
+      voiceId: `timed-voice-${expectedCode}`,
+      clef: "treble",
+      now: invalidTime,
+    }),
+    (error) =>
+      error instanceof LocalScoreProjectDomainError
+      && error.code === expectedCode,
+  );
+}
+
+assert.throws(
+  () => deleteEmptyLocalScoreProjectPart({
+    project,
+    expectedRevision: 1,
+    partId: "part-1",
+    now: "2026-07-24T00:00:01.000Z",
+  }),
+  (error) =>
+    error instanceof LocalScoreProjectDomainError
+    && error.code === "would-empty",
+);
+assert.throws(
+  () => deleteEmptyLocalScoreProjectPart({
+    project: addedPart,
+    expectedRevision: 4,
+    partId: "",
+    now: "2026-07-24T00:00:04.000Z",
+  }),
+  (error) =>
+    error instanceof LocalScoreProjectDomainError
+    && error.code === "invalid-input",
+);
+assert.throws(
+  () => deleteEmptyLocalScoreProjectPart({
+    project: addedPart,
+    expectedRevision: 4,
+    partId: "missing-part",
+    now: "2026-07-24T00:00:04.000Z",
+  }),
+  (error) =>
+    error instanceof LocalScoreProjectDomainError
+    && error.code === "not-found",
+);
+assert.throws(
+  () => deleteEmptyLocalScoreProjectPart({
+    project: addedPart,
+    expectedRevision: 3,
+    partId: "part-2",
+    now: "2026-07-24T00:00:04.000Z",
+  }),
+  LocalScoreProjectConflictError,
+);
+assert.throws(
+  () => deleteEmptyLocalScoreProjectPart({
+    project: addedPart,
+    expectedRevision: 4,
+    partId: "part-2",
+    now: "2026-07-24T00:00:02.000Z",
+  }),
+  (error) =>
+    error instanceof LocalScoreProjectDomainError
+    && error.code === "clock-regression",
+);
+
+const nonEmptySecondPart = addLocalScoreProjectEvent({
+  project: addedPart,
+  expectedRevision: 4,
+  location: {
+    partId: "part-2",
+    staffId: "part-2-staff-1",
+    voiceId: "part-2-voice-1",
+    measureNumber: 1,
+  },
+  eventId: "part-2-note",
+  input: { type: "note", pitch: "C4", duration: "quarter" },
+  now: "2026-07-24T00:00:04.000Z",
+});
+assert.throws(
+  () => deleteEmptyLocalScoreProjectPart({
+    project: nonEmptySecondPart,
+    expectedRevision: 5,
+    partId: "part-2",
+    now: "2026-07-24T00:00:05.000Z",
+  }),
+  (error) =>
+    error instanceof LocalScoreProjectDomainError
+    && error.code === "not-empty",
+);
+
+const deletedPart = deleteEmptyLocalScoreProjectPart({
+  project: addedPart,
+  expectedRevision: 4,
+  partId: "part-2",
+  now: "2026-07-24T00:00:04.000Z",
+});
+assert.equal(deletedPart.document.revision, 5);
+assert.deepEqual(
+  deletedPart.document.parts.map((part) => part.partId),
+  ["part-1"],
+);
+assert.deepEqual(
+  deletedPart.document.parts[0],
+  sparseMeasureProject.document.parts[0],
+);
+const undonePartDelete = undoLocalScoreProject({
+  project: deletedPart,
+  expectedRevision: 5,
+  now: "2026-07-24T00:00:05.000Z",
+});
+assert.equal(undonePartDelete.document.revision, 6);
+assert.deepEqual(
+  undonePartDelete.document.parts.map((part) => part.partId),
+  ["part-1", "part-2"],
+);
+const redonePartDelete = redoLocalScoreProject({
+  project: undonePartDelete,
+  expectedRevision: 6,
+  now: "2026-07-24T00:00:06.000Z",
+});
+assert.equal(redonePartDelete.document.revision, 7);
+assert.deepEqual(
+  redonePartDelete.document.parts.map((part) => part.partId),
+  ["part-1"],
 );
 
 const deletedEmptyMeasure = deleteEmptyLocalScoreProjectMeasure({
