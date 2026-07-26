@@ -15,6 +15,8 @@ import type {
   LocalNotationProjectScoreDocumentV6,
   LocalNotationProjectScoreDocumentV7,
   LocalNotationProjectScoreDocumentV8,
+  LocalNotationProjectScoreDocumentV9,
+  LocalScoreProjectArticulationV1,
   LocalScoreProjectFingeringV1,
 } from "./scoreDocument";
 
@@ -79,6 +81,8 @@ export type LocalScoreStaffNoteToken = LocalScoreStaffTokenBase & Readonly<{
   tieTargetEventId: string | null;
   lyric: string | null;
   fingering: LocalScoreProjectFingeringV1 | null;
+  articulations: readonly LocalScoreProjectArticulationV1[];
+  articulationAnchorY: number;
 }>;
 
 export type LocalScoreStaffRestToken = LocalScoreStaffTokenBase & Readonly<{
@@ -145,6 +149,13 @@ const DURATION_LABELS: Readonly<Record<NotationDuration, string>> = {
   half: "二分",
   quarter: "四分",
   eighth: "八分",
+};
+
+const ARTICULATION_LABELS:
+Readonly<Record<LocalScoreProjectArticulationV1, string>> = {
+  accent: "重音",
+  staccato: "断奏",
+  tenuto: "保持",
 };
 
 const TREBLE_PITCH_Y: Readonly<Record<NotationPitch, number>> = {
@@ -224,7 +235,7 @@ const isPresentationContent = (
     keySignature: document.keySignature,
     parts: document.parts.map((part, index) => {
       if (!isRecord(part)) return part;
-      const staves = document.schemaVersion === "score-document-v8"
+      const staves = document.schemaVersion === "score-document-v9"
         ? part.staves
         : Array.isArray(part.staves)
           ? part.staves.map((staff) =>
@@ -241,13 +252,22 @@ const isPresentationContent = (
                             ...measure,
                             events: measure.events.map((event) => {
                               if (!isRecord(event)) return event;
-                              const previousEvent = document.schemaVersion
-                                === "score-document-v7"
-                                ? event
-                                : event.type === "note"
-                                  ? { ...event, fingering: null }
-                                  : event;
-                              return { ...previousEvent, chordSymbol: null };
+                              const withChordSymbol =
+                                document.schemaVersion === "score-document-v8"
+                                  ? event
+                                  : document.schemaVersion
+                                    === "score-document-v7"
+                                    ? { ...event, chordSymbol: null }
+                                    : event.type === "note"
+                                      ? {
+                                        ...event,
+                                        fingering: null,
+                                        chordSymbol: null,
+                                      }
+                                      : { ...event, chordSymbol: null };
+                              return event.type === "note"
+                                ? { ...withChordSymbol, articulations: [] }
+                                : withChordSymbol;
                             }),
                           }
                           : measure),
@@ -277,7 +297,8 @@ const isLocalScoreProjectDocument = (
   | LocalNotationProjectScoreDocumentV5
   | LocalNotationProjectScoreDocumentV6
   | LocalNotationProjectScoreDocumentV7
-  | LocalNotationProjectScoreDocumentV8 =>
+  | LocalNotationProjectScoreDocumentV8
+  | LocalNotationProjectScoreDocumentV9 =>
   isRecord(document)
   && (
     document.schemaVersion === "score-document-v3"
@@ -286,6 +307,7 @@ const isLocalScoreProjectDocument = (
     || document.schemaVersion === "score-document-v6"
     || document.schemaVersion === "score-document-v7"
     || document.schemaVersion === "score-document-v8"
+    || document.schemaVersion === "score-document-v9"
   )
   && document.documentKind === "notation-project"
   && typeof document.documentId === "string"
@@ -438,6 +460,9 @@ export const createLocalScoreProjectStaffPresentation = (
         const fingering = "fingering" in event
           ? event.fingering as LocalScoreProjectFingeringV1 | null
           : null;
+        const articulations = "articulations" in event
+          ? event.articulations as readonly LocalScoreProjectArticulationV1[]
+          : [];
         const orderedEventIndex = eventIndexById.get(event.id);
         const tieTarget = event.tieToNext && orderedEventIndex !== undefined
           ? orderedEvents[orderedEventIndex + 1]
@@ -453,6 +478,11 @@ export const createLocalScoreProjectStaffPresentation = (
           event.tieToNext ? "与下一音符用延音线相连" : "",
           event.lyric === null ? "" : `歌词“${event.lyric}”`,
           fingering === null ? "" : `指法 ${fingering}`,
+          articulations.length === 0
+            ? ""
+            : `演奏法：${articulations
+              .map((articulation) => ARTICULATION_LABELS[articulation])
+              .join("、")}`,
         ].filter(Boolean);
         tokens.push({
           eventId: event.id,
@@ -480,6 +510,9 @@ export const createLocalScoreProjectStaffPresentation = (
           tieTargetEventId: tieTarget?.id ?? null,
           lyric: event.lyric,
           fingering,
+          articulations,
+          articulationAnchorY:
+            Math.max(staffLineYs[4], pitchY[event.pitch]) + 12,
           accessibleLabel:
             `${positionLabel}，${event.pitch} ${detailLabels.join("，")}`,
         });
@@ -530,10 +563,31 @@ export const createLocalScoreProjectStaffPresentation = (
     LOCAL_SCORE_STAFF_HEADER_WIDTH
     + measures.length * LOCAL_SCORE_STAFF_MEASURE_WIDTH
     + LOCAL_SCORE_STAFF_MEASURE_PADDING;
-  const lyricY = clef === "bass" ? 180 : 124;
+  const hasArticulations = measures.some((measure) =>
+    measure.tokens.some((token) =>
+      token.type === "note" && token.articulations.length > 0));
+  const maxArticulationY = measures.reduce((maximum, measure) =>
+    measure.tokens.reduce((tokenMaximum, token) =>
+      token.type === "note" && token.articulations.length > 0
+        ? Math.max(
+          tokenMaximum,
+          token.articulationAnchorY
+            + (token.articulations.length - 1) * 9,
+        )
+        : tokenMaximum, maximum), Number.NEGATIVE_INFINITY);
+  const lyricY = Math.max(
+    clef === "bass" ? 180 : 124,
+    hasArticulations ? maxArticulationY + 18 : Number.NEGATIVE_INFINITY,
+  );
   const chordSymbolY = lyricY + 18;
   const hasChordSymbol = measures.some((measure) =>
     measure.tokens.some((token) => token.chordSymbol !== null));
+  const hasLyric = measures.some((measure) =>
+    measure.tokens.some((token) =>
+      token.type === "note" && token.lyric !== null));
+  const baseHeight = clef === "bass"
+    ? LOCAL_SCORE_BASS_STAFF_HEIGHT
+    : LOCAL_SCORE_STAFF_HEIGHT;
   return {
     status: "ready",
     documentId: document.documentId,
@@ -541,6 +595,7 @@ export const createLocalScoreProjectStaffPresentation = (
     scoreCredits: document.schemaVersion === "score-document-v6"
       || document.schemaVersion === "score-document-v7"
       || document.schemaVersion === "score-document-v8"
+      || document.schemaVersion === "score-document-v9"
       ? document.scoreCredits
       : {
         title: null,
@@ -564,9 +619,12 @@ export const createLocalScoreProjectStaffPresentation = (
     lyricY,
     chordSymbolY,
     width,
-    height: (clef === "bass"
-      ? LOCAL_SCORE_BASS_STAFF_HEIGHT
-      : LOCAL_SCORE_STAFF_HEIGHT) + (hasChordSymbol ? 18 : 0),
+    height: Math.max(
+      baseHeight + (hasChordSymbol ? 18 : 0),
+      hasArticulations ? maxArticulationY + 8 : baseHeight,
+      hasLyric ? lyricY + 12 : baseHeight,
+      hasChordSymbol ? chordSymbolY + 12 : baseHeight,
+    ),
     partId: part.partId,
     staffId: staff.staffId,
     voiceId: voice.voiceId,

@@ -8,7 +8,10 @@ import {
   type LocalScoreProjectVoiceTarget,
   type LocalScoreStaffEventLocation,
 } from "./localScoreProjectStaffPresentation";
-import type { LocalScoreProjectFingeringV1 } from "./scoreDocument";
+import type {
+  LocalScoreProjectArticulationV1,
+  LocalScoreProjectFingeringV1,
+} from "./scoreDocument";
 
 export type LocalScoreNumberedTokenBase = Readonly<{
   eventId: string;
@@ -34,6 +37,7 @@ export type LocalScoreNumberedNoteToken =
     tieTargetEventId: string | null;
     lyric: string | null;
     fingering: LocalScoreProjectFingeringV1 | null;
+    articulations: readonly LocalScoreProjectArticulationV1[];
   }>;
 
 export type LocalScoreNumberedRestToken =
@@ -110,6 +114,13 @@ const DURATION_LABELS: Readonly<Record<NotationDuration, string>> = {
   eighth: "八分",
 };
 
+export const LOCAL_SCORE_PROJECT_ARTICULATION_LABELS:
+Readonly<Record<LocalScoreProjectArticulationV1, string>> = {
+  accent: "重音",
+  staccato: "断奏",
+  tenuto: "保持",
+};
+
 const createAccessibleLabel = (
   token: LocalScoreNumberedTokenWithoutLabel,
 ) => {
@@ -130,7 +141,13 @@ const createAccessibleLabel = (
   const fingering = token.fingering === null
     ? ""
     : `，指法 ${token.fingering}`;
-  return `${position}，${octave}${token.degree}（${token.pitch}），${duration}音符${chord}${tie}${lyric}${fingering}`;
+  const articulations = token.articulations.length === 0
+    ? ""
+    : `，演奏法：${token.articulations
+      .map((articulation) =>
+        LOCAL_SCORE_PROJECT_ARTICULATION_LABELS[articulation])
+      .join("、")}`;
+  return `${position}，${octave}${token.degree}（${token.pitch}），${duration}音符${chord}${tie}${lyric}${fingering}${articulations}`;
 };
 
 export const createLocalScoreProjectNumberedPresentation = (
@@ -173,6 +190,7 @@ export const createLocalScoreProjectNumberedPresentation = (
           tieTargetEventId: token.tieTargetEventId,
           lyric: token.lyric,
           fingering: token.fingering,
+          articulations: token.articulations,
         };
       const numbered = {
         ...withoutLabel,

@@ -433,6 +433,57 @@ describe("本地谱项目固定 C 简谱组件", () => {
       .toContain("和弦名称“Cmaj7”");
   });
 
+  it("紧凑渲染组合演奏法并共享 canonical 无障碍顺序", async () => {
+    const base = createLocalScoreProject({
+      projectId: "numbered-articulations",
+      title: "组合演奏法简谱",
+      now: "2026-07-26T03:10:00.000Z",
+    });
+    const document = addLocalScoreProjectEvent({
+      project: base,
+      expectedRevision: base.document.revision,
+      location: {
+        partId: "part-1",
+        staffId: "staff-1",
+        voiceId: "voice-1",
+        measureNumber: 1,
+      },
+      eventId: "numbered-articulation-note",
+      input: {
+        type: "note",
+        pitch: "C4",
+        duration: "quarter",
+        articulations: ["tenuto", "accent", "staccato"],
+      },
+      now: "2026-07-26T03:10:01.000Z",
+    }).document;
+
+    await act(async () => {
+      root?.render(
+        <LocalScoreProjectNumberedPreview document={document} />,
+      );
+    });
+
+    expect(container?.querySelector(
+      '[data-testid="local-score-numbered-articulations-numbered-articulation-note"]',
+    )?.textContent).toBe("重音断奏保持");
+    expect(container?.querySelector(
+      '[data-testid="local-score-numbered-articulation-accent-numbered-articulation-note"]',
+    )?.textContent).toBe("重音");
+    expect(container?.querySelector(
+      '[data-testid="local-score-numbered-articulation-staccato-numbered-articulation-note"]',
+    )?.textContent).toBe("断奏");
+    expect(container?.querySelector(
+      '[data-testid="local-score-numbered-articulation-tenuto-numbered-articulation-note"]',
+    )?.textContent).toBe("保持");
+    expect(container?.querySelector(
+      '[data-event-id="numbered-articulation-note"]',
+    )?.getAttribute("aria-label"))
+      .toContain("演奏法：重音、断奏、保持");
+    expect(container?.querySelector('[role="group"]')?.getAttribute("aria-label"))
+      .toContain("演奏法：重音、断奏、保持");
+  });
+
   it("共享选择和播放事件 ID，并支持键盘选择", async () => {
     const onSelectEvent = vi.fn();
     await act(async () => {

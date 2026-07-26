@@ -46,8 +46,8 @@ const created = createLocalScoreProject({
   title: "和弦标记",
   now: "2026-07-26T01:00:00.000Z",
 });
-assert.equal(created.schemaVersion, "local-score-project-storage-v9");
-assert.equal(created.document.schemaVersion, "score-document-v8");
+assert.equal(created.schemaVersion, "local-score-project-storage-v10");
+assert.equal(created.document.schemaVersion, "score-document-v9");
 
 const withNote = addLocalScoreProjectEvent({
   project: created,
@@ -400,6 +400,7 @@ for (let version = 1; version <= 8; version += 1) {
     }
   }
   forEachEvent(fixture, (event) => {
+    delete event.articulations;
     delete event.chordSymbol;
     if (version <= 7) delete event.fingering;
     if (version <= 2) {
@@ -413,8 +414,8 @@ for (let version = 1; version <= 8; version += 1) {
   const migrated = parseLocalScoreProject(fixture);
   assert.ok(migrated, `storage v${version} must migrate`);
   assert.equal(JSON.stringify(fixture), before, `storage v${version} input`);
-  assert.equal(migrated.schemaVersion, "local-score-project-storage-v9");
-  assert.equal(migrated.document.schemaVersion, "score-document-v8");
+  assert.equal(migrated.schemaVersion, "local-score-project-storage-v10");
+  assert.equal(migrated.document.schemaVersion, "score-document-v9");
   for (const content of [
     migrated.document,
     ...migrated.undoStack,

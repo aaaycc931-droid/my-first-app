@@ -2483,6 +2483,107 @@ describe("S1 本机谱项目面板", () => {
     expect(chordInput.value).toBe("G7");
   });
 
+  it("组合演奏法原子保存失败时保留 canonical 与草稿，休止符清空且播放中禁止保存", async () => {
+    const store = new MemoryProjectStore();
+    const container = await renderPanel(store);
+    await click(findButton(container, "创建并保存"));
+    await change(findSelect(container, "时值"), "half");
+    await click(findButton(container, "添加到第 1 小节并保存"));
+    await waitFor(
+      () => container.textContent?.includes("第 1 小节 · C4 · 二分音符")
+        ?? false,
+      "保存演奏法测试音符",
+    );
+
+    await click(findButton(container, "编辑"));
+    const accent = findInput(container, "重音");
+    const staccato = findInput(container, "断奏");
+    const tenuto = findInput(container, "保持");
+    await click(tenuto);
+    await click(accent);
+    await click(staccato);
+    store.failNextPut = new LocalScoreProjectStorageError(
+      "write-failed",
+      "本机存储写入失败，演奏法未保存；原有项目保持不变。",
+    );
+    await click(findButton(container, "更新所选事件并保存"));
+    await waitFor(
+      () => container.textContent?.includes("演奏法未保存") ?? false,
+      "组合演奏法保存失败",
+    );
+
+    let storedEvent = Array.from(store.values.values())[0]
+      ?.document.parts[0]?.staves[0]?.voices[0]?.measures[0]?.events[0];
+    expect(storedEvent?.type === "note" && storedEvent.articulations)
+      .toEqual([]);
+    expect(accent.checked).toBe(true);
+    expect(staccato.checked).toBe(true);
+    expect(tenuto.checked).toBe(true);
+    expect(container.textContent)
+      .not.toContain("演奏法：重音、断奏、保持");
+    expect(container.querySelector(
+      '[data-testid^="local-score-articulation-"]',
+    )).toBeNull();
+
+    await click(findButton(container, "更新所选事件并保存"));
+    await waitFor(
+      () => container.textContent?.includes("演奏法：重音、断奏、保持")
+        ?? false,
+      "重试保存组合演奏法",
+    );
+    storedEvent = Array.from(store.values.values())[0]
+      ?.document.parts[0]?.staves[0]?.voices[0]?.measures[0]?.events[0];
+    expect(storedEvent?.type === "note" && storedEvent.articulations)
+      .toEqual(["accent", "staccato", "tenuto"]);
+    expect(container.querySelector(
+      '[data-testid^="local-score-articulation-accent-"]',
+    )).not.toBeNull();
+    expect(container.querySelector(
+      '[data-testid^="local-score-articulation-staccato-"]',
+    )).not.toBeNull();
+    expect(container.querySelector(
+      '[data-testid^="local-score-articulation-tenuto-"]',
+    )).not.toBeNull();
+
+    await change(findSelect(container, "类型"), "rest");
+    expect(accent.checked).toBe(false);
+    expect(staccato.checked).toBe(false);
+    expect(tenuto.checked).toBe(false);
+    expect(accent.disabled).toBe(true);
+    expect(staccato.disabled).toBe(true);
+    expect(tenuto.disabled).toBe(true);
+    expect(findButton(container, "清除演奏法并保存").disabled).toBe(true);
+
+    await click(findButton(container, "编辑"));
+    expect(accent.checked).toBe(true);
+    expect(staccato.checked).toBe(true);
+    expect(tenuto.checked).toBe(true);
+    await click(findButton(container, "播放草稿"));
+    await waitFor(
+      () => Array.from(container.querySelectorAll("button"))
+        .some((button) => button.textContent?.trim() === "停止播放"),
+      "组合演奏法测试谱面开始播放",
+    );
+    const activePlaybackControl = findButton(container, "停止播放");
+    expect(findButton(container, "更新所选事件并保存").disabled).toBe(true);
+    expect(findButton(container, "清除演奏法并保存").disabled).toBe(true);
+    expect(findButton(container, "停止播放")).toBe(activePlaybackControl);
+    expect(
+      Array.from(store.values.values())[0]
+        ?.document.parts[0]?.staves[0]?.voices[0]?.measures[0]?.events[0],
+    ).toMatchObject({
+      type: "note",
+      articulations: ["accent", "staccato", "tenuto"],
+    });
+
+    await click(activePlaybackControl);
+    await waitFor(
+      () => !findButton(container, "更新所选事件并保存").disabled,
+      "停止播放后恢复演奏法保存",
+    );
+    expect(findButton(container, "清除演奏法并保存").disabled).toBe(false);
+  });
+
   it("显式保存谱面标题、多位署名与版权，并支持失败重试、双视图、撤销重做和重开", async () => {
     const store = new MemoryProjectStore();
     const container = await renderPanel(store);

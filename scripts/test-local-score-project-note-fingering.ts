@@ -51,8 +51,8 @@ const created = createLocalScoreProject({
   title: "单音指法",
   now: "2026-07-26T00:00:00.000Z",
 });
-assert.equal(created.schemaVersion, "local-score-project-storage-v9");
-assert.equal(created.document.schemaVersion, "score-document-v8");
+assert.equal(created.schemaVersion, "local-score-project-storage-v10");
+assert.equal(created.document.schemaVersion, "score-document-v9");
 
 const withNote = addLocalScoreProjectEvent({
   project: created,
@@ -274,6 +274,7 @@ assert.deepEqual(copied, {
   lyric: null,
   fingering: 3,
   chordSymbol: null,
+  articulations: [],
 });
 const pasted = pasteLocalScoreProjectEvent({
   project: fingered,
@@ -309,7 +310,10 @@ const removeFingerings = (content: Record<string, unknown>) => {
   }>;
   for (const part of parts) for (const staff of part.staves) {
     for (const voice of staff.voices) for (const measure of voice.measures) {
-      for (const event of measure.events) delete event.fingering;
+      for (const event of measure.events) {
+        delete event.fingering;
+        delete event.articulations;
+      }
     }
   }
 };
@@ -322,8 +326,8 @@ const migrationInput = JSON.stringify(previousStorage);
 const migrated = parseLocalScoreProject(previousStorage);
 assert.ok(migrated);
 assert.equal(JSON.stringify(previousStorage), migrationInput);
-assert.equal(migrated.schemaVersion, "local-score-project-storage-v9");
-assert.equal(migrated.document.schemaVersion, "score-document-v8");
+assert.equal(migrated.schemaVersion, "local-score-project-storage-v10");
+assert.equal(migrated.document.schemaVersion, "score-document-v9");
 for (const content of [
   migrated.document,
   ...migrated.undoStack,
