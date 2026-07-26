@@ -175,6 +175,30 @@ export type LocalScoreProjectEventV5 =
   | LocalScoreProjectNoteEventV5
   | LocalScoreProjectRestEventV5;
 
+export type LocalScoreProjectDynamicMarkV1 =
+  | "pp"
+  | "p"
+  | "mp"
+  | "mf"
+  | "f"
+  | "ff";
+
+export type LocalScoreProjectNoteEventV6 = Readonly<
+  LocalScoreProjectNoteEventV5 & {
+    dynamicMark: LocalScoreProjectDynamicMarkV1 | null;
+  }
+>;
+
+export type LocalScoreProjectRestEventV6 = Readonly<
+  LocalScoreProjectRestEventV5 & {
+    dynamicMark: LocalScoreProjectDynamicMarkV1 | null;
+  }
+>;
+
+export type LocalScoreProjectEventV6 =
+  | LocalScoreProjectNoteEventV6
+  | LocalScoreProjectRestEventV6;
+
 /**
  * 本机乐谱项目独立演进到 v2；通用 ScoreDocumentEventV1 及其他练习文档
  * 保持不变，避免把本切片的编辑语义扩散到既有练习数据。
@@ -473,6 +497,44 @@ export type LocalNotationProjectScoreDocumentV9 = Readonly<{
         measures: readonly Readonly<{
           measureNumber: number;
           events: readonly LocalScoreProjectEventV5[];
+        }>[];
+      }>[];
+    }>[];
+  }>[];
+}>;
+
+/**
+ * 本机乐谱项目独立演进到 v10；pp–ff 力度记号成为事件起点级 canonical
+ * 内容。音符与休止符都可锚定力度记号，null 表示该起点没有显式记号。
+ */
+export type LocalNotationProjectScoreDocumentV10 = Readonly<{
+  schemaVersion: "score-document-v10";
+  documentKind: "notation-project";
+  documentId: string;
+  revision: number;
+  reviewState: "draft";
+  localOnly: true;
+  sessionOnly: false;
+  source: Readonly<{
+    kind: "local-score-project";
+    projectId: string;
+  }>;
+  scoreCredits: LocalScoreProjectScoreCreditsV1;
+  meter: NotationTimeSignature;
+  keySignature: LocalScoreProjectKeySignatureV3;
+  parts: readonly Readonly<{
+    partId: string;
+    name: string;
+    instrument: LocalScoreProjectPartInstrumentV1;
+    staves: readonly Readonly<{
+      staffId: string;
+      staffKind: "pitched";
+      clef: LocalScoreProjectClefV3;
+      voices: readonly Readonly<{
+        voiceId: string;
+        measures: readonly Readonly<{
+          measureNumber: number;
+          events: readonly LocalScoreProjectEventV6[];
         }>[];
       }>[];
     }>[];

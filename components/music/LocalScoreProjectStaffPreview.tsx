@@ -17,6 +17,7 @@ import type {
   LocalNotationProjectScoreDocumentV7,
   LocalNotationProjectScoreDocumentV8,
   LocalNotationProjectScoreDocumentV9,
+  LocalNotationProjectScoreDocumentV10,
 } from "../../lib/music/scoreDocument";
 
 export type LocalScoreProjectStaffSelection = Readonly<{
@@ -32,7 +33,8 @@ export type LocalScoreProjectStaffPreviewProps = Readonly<{
     | LocalNotationProjectScoreDocumentV6
     | LocalNotationProjectScoreDocumentV7
     | LocalNotationProjectScoreDocumentV8
-    | LocalNotationProjectScoreDocumentV9;
+    | LocalNotationProjectScoreDocumentV9
+    | LocalNotationProjectScoreDocumentV10;
   selectedEventId?: string | null;
   activeEventIds?: readonly string[];
   target?: LocalScoreProjectVoiceTarget;
@@ -358,6 +360,21 @@ export function LocalScoreProjectStaffPreview({
                     aria-hidden="true"
                   >
                     {token.chordSymbol}
+                  </text>
+                ) : null}
+                {token.dynamicMark !== null ? (
+                  <text
+                    x={token.x}
+                    y={presentation.dynamicMarkY}
+                    textAnchor="middle"
+                    fontSize="13"
+                    fontStyle="italic"
+                    fontWeight="700"
+                    fill="currentColor"
+                    aria-hidden="true"
+                    data-testid={`local-score-dynamic-mark-${token.eventId}`}
+                  >
+                    {token.dynamicMark}
                   </text>
                 ) : null}
 

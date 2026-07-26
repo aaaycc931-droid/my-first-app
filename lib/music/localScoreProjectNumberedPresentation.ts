@@ -10,6 +10,7 @@ import {
 } from "./localScoreProjectStaffPresentation";
 import type {
   LocalScoreProjectArticulationV1,
+  LocalScoreProjectDynamicMarkV1,
   LocalScoreProjectFingeringV1,
 } from "./scoreDocument";
 
@@ -22,6 +23,7 @@ export type LocalScoreNumberedTokenBase = Readonly<{
   durationBeats: number;
   augmentationDots: 0 | 1;
   chordSymbol: string | null;
+  dynamicMark: LocalScoreProjectDynamicMarkV1 | null;
   accessibleLabel: string;
 }>;
 
@@ -121,6 +123,16 @@ Readonly<Record<LocalScoreProjectArticulationV1, string>> = {
   tenuto: "保持",
 };
 
+const LOCAL_SCORE_PROJECT_DYNAMIC_MARK_LABELS:
+Readonly<Record<LocalScoreProjectDynamicMarkV1, string>> = {
+  pp: "很弱",
+  p: "弱",
+  mp: "中弱",
+  mf: "中强",
+  f: "强",
+  ff: "很强",
+};
+
 const createAccessibleLabel = (
   token: LocalScoreNumberedTokenWithoutLabel,
 ) => {
@@ -129,11 +141,14 @@ const createAccessibleLabel = (
   const chord = token.chordSymbol === null
     ? ""
     : `，和弦名称“${token.chordSymbol}”`;
+  const dynamic = token.dynamicMark === null
+    ? ""
+    : `，力度记号 ${LOCAL_SCORE_PROJECT_DYNAMIC_MARK_LABELS[token.dynamicMark]}（${token.dynamicMark}）`;
   const duration = token.augmentationDots === 1
     ? `附点${DURATION_LABELS[token.duration]}`
     : DURATION_LABELS[token.duration];
   if (token.type === "rest") {
-    return `${position}，0，${duration}休止符${chord}`;
+    return `${position}，0，${duration}休止符${chord}${dynamic}`;
   }
   const octave = token.octave === "upper" ? "高音" : "";
   const tie = token.tieToNext ? "，与下一音符用延音线相连" : "";
@@ -147,7 +162,7 @@ const createAccessibleLabel = (
       .map((articulation) =>
         LOCAL_SCORE_PROJECT_ARTICULATION_LABELS[articulation])
       .join("、")}`;
-  return `${position}，${octave}${token.degree}（${token.pitch}），${duration}音符${chord}${tie}${lyric}${fingering}${articulations}`;
+  return `${position}，${octave}${token.degree}（${token.pitch}），${duration}音符${chord}${dynamic}${tie}${lyric}${fingering}${articulations}`;
 };
 
 export const createLocalScoreProjectNumberedPresentation = (
@@ -169,6 +184,7 @@ export const createLocalScoreProjectNumberedPresentation = (
         durationBeats: token.durationBeats,
         augmentationDots: token.augmentationDots,
         chordSymbol: token.chordSymbol,
+        dynamicMark: token.dynamicMark,
       };
       const withoutLabel: LocalScoreNumberedTokenWithoutLabel =
         token.type === "rest"
