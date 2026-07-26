@@ -244,6 +244,21 @@ export type LocalScoreProjectPartInstrumentV1 =
     program: number;
   }>;
 
+export type LocalScoreProjectCreatorRoleV1 =
+  | "composer"
+  | "lyricist"
+  | "arranger";
+
+export type LocalScoreProjectScoreCreditsV1 = Readonly<{
+  title: string;
+  subtitle: string | null;
+  creators: readonly Readonly<{
+    role: LocalScoreProjectCreatorRoleV1;
+    name: string;
+  }>[];
+  rightsNotice: string | null;
+}>;
+
 /**
  * 本机乐谱项目独立演进到 v5；声部组乐器归属属于 canonical 项目内容，
  * 但不绑定任何本地音色 provider 或资源包。
@@ -279,6 +294,28 @@ export type LocalNotationProjectScoreDocumentV5 = Readonly<{
       }>[];
     }>[];
   }>[];
+}>;
+
+/**
+ * 本机乐谱项目独立演进到 v6；谱面标题、署名和版权声明成为 canonical
+ * 文档内容。它们与本机项目列表名称相互独立，并随 undo／redo 演进。
+ */
+export type LocalNotationProjectScoreDocumentV6 = Readonly<{
+  schemaVersion: "score-document-v6";
+  documentKind: "notation-project";
+  documentId: string;
+  revision: number;
+  reviewState: "draft";
+  localOnly: true;
+  sessionOnly: false;
+  source: Readonly<{
+    kind: "local-score-project";
+    projectId: string;
+  }>;
+  scoreCredits: LocalScoreProjectScoreCreditsV1;
+  meter: NotationTimeSignature;
+  keySignature: LocalScoreProjectKeySignatureV3;
+  parts: LocalNotationProjectScoreDocumentV5["parts"];
 }>;
 
 export type RhythmDictationScoreDocumentV1 = Readonly<{

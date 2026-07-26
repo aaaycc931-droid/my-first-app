@@ -24,6 +24,7 @@ import {
   changeLocalScoreProjectKeySignature,
   changeLocalScoreProjectMeter,
   changeLocalScoreProjectPartInstrument,
+  changeLocalScoreProjectScoreCredits,
   copyLocalScoreProjectEvent,
   deleteEmptyLocalScoreProjectMeasure,
   deleteEmptyLocalScoreProjectPart,
@@ -37,6 +38,8 @@ import {
   undoLocalScoreProject,
   updateLocalScoreProjectEvent,
   type LocalScoreProjectEventInput,
+  type LocalScoreProjectCreatorRole,
+  type LocalScoreProjectScoreCredits,
   type LocalScoreProjectV1,
   type LocalScoreProjectVoiceLocation,
 } from "../../lib/music/localScoreProject";
@@ -73,6 +76,15 @@ import { useLocalScoreProjectAutosave } from "./useLocalScoreProjectAutosave";
 
 type EditorEventType = "note" | "rest";
 type ScorePreviewMode = "staff" | "numbered";
+type ScoreCreditsDraft = Readonly<{
+  title: string;
+  subtitle: string;
+  creators: readonly Readonly<{
+    role: LocalScoreProjectCreatorRole;
+    name: string;
+  }>[];
+  rightsNotice: string;
+}>;
 
 const DEFAULT_LOCAL_SCORE_PROJECT_TEMPLATE_ID =
   "blank-treble-staff-v1";
@@ -121,6 +133,37 @@ const durationLabels: Record<NotationDuration, string> = {
   half: "二分音符",
   quarter: "四分音符",
   eighth: "八分音符",
+};
+
+const creatorRoleLabels: Readonly<
+  Record<LocalScoreProjectCreatorRole, string>
+> = {
+  composer: "作曲",
+  lyricist: "作词",
+  arranger: "编曲",
+};
+
+const creatorRoles = [
+  "composer",
+  "lyricist",
+  "arranger",
+] as const satisfies readonly LocalScoreProjectCreatorRole[];
+
+const getScoreCreditsDraft = (
+  scoreCredits: LocalScoreProjectScoreCredits,
+): ScoreCreditsDraft => {
+  const creators = scoreCredits.creators.map((creator) => ({ ...creator }));
+  for (const role of creatorRoles) {
+    if (!creators.some((creator) => creator.role === role)) {
+      creators.push({ role, name: "" });
+    }
+  }
+  return {
+    title: scoreCredits.title,
+    subtitle: scoreCredits.subtitle ?? "",
+    creators,
+    rightsNotice: scoreCredits.rightsNotice ?? "",
+  };
 };
 
 const createDefaultId = () => {
@@ -410,6 +453,13 @@ export function LocalScoreProjectPanel({
   );
   const [editorTitle, setEditorTitle] = useState("");
   const [editorTempoBpm, setEditorTempoBpm] = useState("90");
+  const [scoreCreditsDraft, setScoreCreditsDraft] =
+    useState<ScoreCreditsDraft>({
+      title: "",
+      subtitle: "",
+      creators: creatorRoles.map((role) => ({ role, name: "" })),
+      rightsNotice: "",
+    });
   const [partNameDraft, setPartNameDraft] = useState("");
   const [partInstrumentDraft, setPartInstrumentDraft] =
     useState("unassigned");
@@ -463,9 +513,11 @@ export function LocalScoreProjectPanel({
     {
       resetSettings = false,
       savedSettings,
+      preserveScoreCreditsDraft = false,
     }: {
       resetSettings?: boolean;
       savedSettings?: Readonly<{ title: string; tempoBpm: string }>;
+      preserveScoreCreditsDraft?: boolean;
     } = {},
   ) => {
     const previousLocation = selectedVoiceLocationRef.current;
@@ -486,6 +538,9 @@ export function LocalScoreProjectPanel({
         part.partId === nextLocation.partId)?.instrument
         ?? { kind: "unassigned" },
     ));
+    if (!preserveScoreCreditsDraft) {
+      setScoreCreditsDraft(getScoreCreditsDraft(project.document.scoreCredits));
+    }
     if (
       previousLocation
       && (
@@ -532,7 +587,10 @@ export function LocalScoreProjectPanel({
     project: LocalScoreProjectV1,
     savedSettings: Readonly<{ title: string; tempoBpm: string }>,
   ) => {
-    publishProject(project, { savedSettings });
+    publishProject(project, {
+      savedSettings,
+      preserveScoreCreditsDraft: true,
+    });
   }, [publishProject]);
 
   const autosave = useLocalScoreProjectAutosave({
@@ -753,6 +811,57 @@ export function LocalScoreProjectPanel({
     || autosave.status === "saving"
     || autosave.status === "deferred"
     || autosave.status === "recovery-available";
+  const updateScoreCreatorName = (
+    index: number,
+    name: string,
+  ) => {
+    setScoreCreditsDraft((draft) => ({
+      ...draft,
+      creators: draft.creators.map((creator, creatorIndex) =>
+        creatorIndex === index ? { ...creator, name } : creator),
+    }));
+  };
+  const addScoreCreator = (role: LocalScoreProjectCreatorRole) => {
+    setScoreCreditsDraft((draft) => ({
+      ...draft,
+      creators: [...draft.creators, { role, name: "" }],
+    }));
+  };
+  const removeScoreCreator = (
+    index: number,
+    role: LocalScoreProjectCreatorRole,
+  ) => {
+    setScoreCreditsDraft((draft) => {
+      const roleCount = draft.creators.filter(
+        (creator) => creator.role === role,
+      ).length;
+      return {
+        ...draft,
+        creators: roleCount <= 1
+          ? draft.creators.map((creator, creatorIndex) =>
+            creatorIndex === index ? { ...creator, name: "" } : creator)
+          : draft.creators.filter((_, creatorIndex) => creatorIndex !== index),
+      };
+    });
+  };
+  const saveScoreCredits = () => {
+    if (structureMutationDisabled) return;
+    const requestedCredits = {
+      title: scoreCreditsDraft.title,
+      subtitle: scoreCreditsDraft.subtitle,
+      creators: scoreCreditsDraft.creators
+        .filter((creator) => creator.name.trim().length > 0)
+        .map((creator) => ({ ...creator })),
+      rightsNotice: scoreCreditsDraft.rightsNotice,
+    };
+    void persistMutation((project) =>
+      changeLocalScoreProjectScoreCredits({
+        project,
+        expectedRevision: project.document.revision,
+        scoreCredits: requestedCredits,
+        now: now(),
+      }));
+  };
 
   const chooseVoice = (location: LocalScoreProjectVoiceLocation) => {
     if (!currentProject) return;
@@ -870,6 +979,9 @@ export function LocalScoreProjectPanel({
               className="mt-2 min-h-11 w-full rounded-xl border border-teal-300 bg-white px-3 py-2 disabled:bg-slate-100"
             />
           </label>
+          <p className="mt-2 text-xs leading-5 text-teal-800">
+            项目名称用于本机列表与管理；创建时也会作为初始谱面标题，之后两者可以分别修改。
+          </p>
           <button
             type="button"
             disabled={
@@ -1363,7 +1475,124 @@ export function LocalScoreProjectPanel({
               className="mt-2 min-h-11 w-full rounded-xl border border-slate-300 px-3 py-2 disabled:bg-slate-100"
             />
           </label>
+          <p className="mt-2 text-xs leading-5 text-slate-600">
+            项目名称用于本机列表与管理，并通过自动保存更新；它不会代替谱面中显示的标题。
+          </p>
         </div>
+        <section
+          className="mt-4 rounded-2xl border border-violet-200 bg-violet-50 p-4"
+          aria-labelledby="local-score-project-credits-heading"
+        >
+          <h2
+            id="local-score-project-credits-heading"
+            className="text-base font-black text-violet-950"
+          >
+            谱面标题与署名
+          </h2>
+          <p className="mt-1 text-xs leading-5 text-violet-800">
+            这些内容会显示在五线谱与固定 C 简谱的页眉。修改草稿后请显式保存；谱面标题不能为空。
+          </p>
+          <div className="mt-3 grid gap-3 sm:grid-cols-2">
+            <label className="text-sm font-bold text-violet-950">
+              谱面标题
+              <input
+                value={scoreCreditsDraft.title}
+                disabled={structureMutationDisabled}
+                onChange={(event) => setScoreCreditsDraft((draft) => ({
+                  ...draft,
+                  title: event.target.value,
+                }))}
+                className="mt-2 min-h-11 w-full rounded-xl border border-violet-200 bg-white px-3 py-2 disabled:bg-slate-100"
+              />
+            </label>
+            <label className="text-sm font-bold text-violet-950">
+              副标题（可选）
+              <input
+                value={scoreCreditsDraft.subtitle}
+                disabled={structureMutationDisabled}
+                onChange={(event) => setScoreCreditsDraft((draft) => ({
+                  ...draft,
+                  subtitle: event.target.value,
+                }))}
+                className="mt-2 min-h-11 w-full rounded-xl border border-violet-200 bg-white px-3 py-2 disabled:bg-slate-100"
+              />
+            </label>
+          </div>
+          <div className="mt-3 grid gap-3 sm:grid-cols-3">
+            {creatorRoles.map((role) => (
+              <fieldset
+                key={role}
+                className="rounded-xl border border-violet-200 bg-white p-3"
+              >
+                <legend className="px-1 text-sm font-bold text-violet-950">
+                  {creatorRoleLabels[role]}
+                </legend>
+                <div className="grid gap-2">
+                  {scoreCreditsDraft.creators.map((creator, index) =>
+                    creator.role === role ? (
+                      <div key={`${role}-${index}`} className="flex gap-2">
+                        <label className="min-w-0 flex-1 text-xs text-violet-800">
+                          <span className="sr-only">
+                            {creatorRoleLabels[role]}姓名
+                          </span>
+                          <input
+                            aria-label={`${creatorRoleLabels[role]}姓名`}
+                            value={creator.name}
+                            disabled={structureMutationDisabled}
+                            onChange={(event) =>
+                              updateScoreCreatorName(index, event.target.value)}
+                            className="min-h-11 w-full rounded-xl border border-violet-200 px-3 py-2 text-sm disabled:bg-slate-100"
+                          />
+                        </label>
+                        <button
+                          type="button"
+                          aria-label={`移除${creatorRoleLabels[role]}`}
+                          disabled={structureMutationDisabled}
+                          onClick={() => removeScoreCreator(index, role)}
+                          className="min-h-11 rounded-xl border border-violet-200 px-3 text-sm font-bold text-violet-800 disabled:text-slate-400"
+                        >
+                          移除
+                        </button>
+                      </div>
+                    ) : null)}
+                </div>
+                <button
+                  type="button"
+                  disabled={structureMutationDisabled}
+                  onClick={() => addScoreCreator(role)}
+                  className="mt-2 min-h-11 w-full rounded-xl border border-dashed border-violet-300 px-3 py-2 text-xs font-bold text-violet-800 disabled:text-slate-400"
+                >
+                  添加{creatorRoleLabels[role]}
+                </button>
+              </fieldset>
+            ))}
+          </div>
+          <label className="mt-3 block text-sm font-bold text-violet-950">
+            版权说明（可选）
+            <input
+              value={scoreCreditsDraft.rightsNotice}
+              disabled={structureMutationDisabled}
+              onChange={(event) => setScoreCreditsDraft((draft) => ({
+                ...draft,
+                rightsNotice: event.target.value,
+              }))}
+              className="mt-2 min-h-11 w-full rounded-xl border border-violet-200 bg-white px-3 py-2 disabled:bg-slate-100"
+            />
+          </label>
+          <div className="mt-3 flex flex-wrap items-center gap-3">
+            <button
+              type="button"
+              disabled={structureMutationDisabled}
+              onClick={saveScoreCredits}
+              className="min-h-11 rounded-xl bg-violet-800 px-4 py-2 text-sm font-bold text-white disabled:bg-slate-300"
+            >
+              保存谱面信息
+            </button>
+            <p className="text-xs leading-5 text-violet-800">
+              当前已保存谱面标题：{currentProject.document.scoreCredits.title}
+            </p>
+          </div>
+        </section>
         <label className="mt-4 block text-sm font-bold">
           拍号
           <select

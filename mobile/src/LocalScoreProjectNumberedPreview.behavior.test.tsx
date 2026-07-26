@@ -8,6 +8,7 @@ import {
 } from "../../lib/music/localScoreProjectNumberedPresentation";
 import type {
   LocalNotationProjectScoreDocumentV3,
+  LocalNotationProjectScoreDocumentV6,
   LocalScoreProjectEventV2,
 } from "../../lib/music/scoreDocument";
 
@@ -116,7 +117,39 @@ const createMultiHierarchyDocument = () => {
   } satisfies LocalNotationProjectScoreDocumentV3;
 };
 
+const createCreditsDocument = (): LocalNotationProjectScoreDocumentV6 => {
+  const legacy = createDocument();
+  return {
+    ...legacy,
+    schemaVersion: "score-document-v6",
+    scoreCredits: {
+      title: "同一首歌",
+      subtitle: "固定 C 视图",
+      creators: [
+        { role: "composer", name: "作曲者" },
+        { role: "lyricist", name: "作词者" },
+        { role: "arranger", name: "编曲者" },
+      ],
+      rightsNotice: "仅用于页眉展示",
+    },
+    parts: legacy.parts.map((part) => ({
+      ...part,
+      name: "钢琴",
+      instrument: { kind: "unassigned" as const },
+    })),
+  };
+};
+
 describe("本地谱项目固定 C 简谱 pure presentation", () => {
+  it("与五线谱共享同一份完整谱面标题与署名页眉", () => {
+    const document = createCreditsDocument();
+    const presentation =
+      createLocalScoreProjectNumberedPresentation(document);
+    expect(presentation.status).toBe("ready");
+    if (presentation.status !== "ready") throw new Error(presentation.reason);
+    expect(presentation.scoreCredits).toEqual(document.scoreCredits);
+  });
+
   it("以同一事件身份确定性呈现音级、休止和时值", () => {
     const left = createLocalScoreProjectNumberedPresentation(createDocument());
     const right = createLocalScoreProjectNumberedPresentation(createDocument());
@@ -334,6 +367,25 @@ describe("本地谱项目固定 C 简谱组件", () => {
     root = null;
     container?.remove();
     container = null;
+  });
+
+  it("只在有谱面信息时显示完整页眉", async () => {
+    await act(async () => {
+      root?.render(
+        <LocalScoreProjectNumberedPreview
+          document={createCreditsDocument()}
+        />,
+      );
+    });
+    const header = container?.querySelector(
+      '[data-testid="local-score-project-score-credits"]',
+    );
+    expect(header?.textContent).toContain("同一首歌");
+    expect(header?.textContent).toContain("固定 C 视图");
+    expect(header?.textContent).toContain("作曲：作曲者");
+    expect(header?.textContent).toContain("作词：作词者");
+    expect(header?.textContent).toContain("编曲：编曲者");
+    expect(header?.textContent).toContain("仅用于页眉展示");
   });
 
   it("共享选择和播放事件 ID，并支持键盘选择", async () => {

@@ -12,6 +12,7 @@ import type {
   LocalNotationProjectScoreDocumentV2,
   LocalNotationProjectScoreDocumentV3,
   LocalNotationProjectScoreDocumentV5,
+  LocalNotationProjectScoreDocumentV6,
   LocalScoreProjectEventV2,
   ScoreDocumentEventV1,
 } from "../lib/music/scoreDocument";
@@ -492,6 +493,71 @@ const documentV3WithMeasures = (
       warnings: pianoPlan.warnings,
     },
     "谱面乐器归属不得改变当前钢琴预览的音符、时序或 provider 输入",
+  );
+
+  const titled: LocalNotationProjectScoreDocumentV6 = {
+    ...pianoMarked,
+    schemaVersion: "score-document-v6",
+    scoreCredits: {
+      title: "第一标题",
+      subtitle: null,
+      creators: [],
+      rightsNotice: null,
+    },
+  };
+  const credited: LocalNotationProjectScoreDocumentV6 = {
+    ...titled,
+    revision: titled.revision + 1,
+    scoreCredits: {
+      title: "第二标题",
+      subtitle: "副标题",
+      creators: [{ role: "composer", name: "作者" }],
+      rightsNotice: "保留所有权利",
+    },
+  };
+  const titledPlan = createLocalScoreProjectPlaybackPlan({
+    document: titled,
+    bpm: 120,
+  });
+  const creditedPlan = createLocalScoreProjectPlaybackPlan({
+    document: credited,
+    bpm: 120,
+  });
+  assert.equal(titledPlan.status, "ready");
+  assert.equal(creditedPlan.status, "ready");
+  if (titledPlan.status !== "ready" || creditedPlan.status !== "ready") {
+    throw new Error("expected ready score-credit-neutral plans");
+  }
+  assert.deepEqual(
+    {
+      durationMs: creditedPlan.durationMs,
+      events: creditedPlan.events.map((event) =>
+        event.type === "all-notes-off"
+          ? event
+          : {
+            type: event.type,
+            delayMs: event.delayMs,
+            midi: event.midi,
+            sourceEventId: event.sourceEventId,
+          }),
+      spans: creditedPlan.spans,
+      warnings: creditedPlan.warnings,
+    },
+    {
+      durationMs: titledPlan.durationMs,
+      events: titledPlan.events.map((event) =>
+        event.type === "all-notes-off"
+          ? event
+          : {
+            type: event.type,
+            delayMs: event.delayMs,
+            midi: event.midi,
+            sourceEventId: event.sourceEventId,
+          }),
+      spans: titledPlan.spans,
+      warnings: titledPlan.warnings,
+    },
+    "谱面标题与署名不得改变音符或播放时序",
   );
 }
 

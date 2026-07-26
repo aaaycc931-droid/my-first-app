@@ -4,6 +4,7 @@ import type {
 } from "../practice/localNotationFragmentDraft";
 import {
   createLocalScoreProjectStaffPresentation,
+  type LocalScoreCreditsPresentation,
   type LocalScoreProjectVoiceTarget,
   type LocalScoreStaffEventLocation,
 } from "./localScoreProjectStaffPresentation";
@@ -60,6 +61,7 @@ export type LocalScoreNumberedPresentation =
     status: "ready";
     documentId: string;
     revision: number;
+    scoreCredits: LocalScoreCreditsPresentation;
     meter: string;
     keySignatureFifths: -1 | 0 | 1;
     keySignatureLabel:
@@ -180,6 +182,7 @@ export const createLocalScoreProjectNumberedPresentation = (
     status: "ready",
     documentId: staff.documentId,
     revision: staff.revision,
+    scoreCredits: staff.scoreCredits,
     meter: staff.meter,
     keySignatureFifths: staff.keySignatureFifths,
     keySignatureLabel: staff.keySignatureLabel,

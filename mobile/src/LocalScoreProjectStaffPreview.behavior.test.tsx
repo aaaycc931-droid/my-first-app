@@ -14,6 +14,7 @@ import {
 } from "../../lib/music/localScoreProjectStaffPresentation";
 import type {
   LocalNotationProjectScoreDocumentV3,
+  LocalNotationProjectScoreDocumentV6,
   LocalScoreProjectEventV2,
 } from "../../lib/music/scoreDocument";
 
@@ -164,7 +165,40 @@ const createMultiHierarchyDocument = () => {
   } satisfies LocalNotationProjectScoreDocumentV3;
 };
 
+const createCreditsDocument = (): LocalNotationProjectScoreDocumentV6 => {
+  const legacy = createDocument();
+  return {
+    ...legacy,
+    schemaVersion: "score-document-v6",
+    scoreCredits: {
+      title: "山海之间",
+      subtitle: "为室内乐而作",
+      creators: [
+        { role: "composer", name: "甲" },
+        { role: "composer", name: "乙" },
+        { role: "lyricist", name: "丙" },
+        { role: "arranger", name: "丁" },
+      ],
+      rightsNotice: "© 2026 示例版权说明",
+    },
+    parts: legacy.parts.map((part) => ({
+      ...part,
+      name: "钢琴",
+      instrument: { kind: "unassigned" as const },
+    })),
+  };
+};
+
 describe("本地谱项目五线谱 pure presentation", () => {
+  it("将完整谱面标题与多位署名无损传给五线谱页眉", () => {
+    const document = createCreditsDocument();
+    const presentation =
+      createLocalScoreProjectStaffPresentation(document);
+    expect(presentation.status).toBe("ready");
+    if (presentation.status !== "ready") throw new Error(presentation.reason);
+    expect(presentation.scoreCredits).toEqual(document.scoreCredits);
+  });
+
   it("按第一声部、小节和拍位生成确定性图形 token", () => {
     const document = createDocument({
       secondVoiceEvents: [
@@ -592,6 +626,23 @@ describe("本地谱项目五线谱 SVG 预览", () => {
     root = null;
     container?.remove();
     container = null;
+  });
+
+  it("只在有谱面信息时显示完整页眉", async () => {
+    await act(async () => {
+      root?.render(
+        <LocalScoreProjectStaffPreview document={createCreditsDocument()} />,
+      );
+    });
+    const header = container?.querySelector(
+      '[data-testid="local-score-project-score-credits"]',
+    );
+    expect(header?.textContent).toContain("山海之间");
+    expect(header?.textContent).toContain("为室内乐而作");
+    expect(header?.textContent).toContain("作曲：甲、乙");
+    expect(header?.textContent).toContain("作词：丙");
+    expect(header?.textContent).toContain("编曲：丁");
+    expect(header?.textContent).toContain("© 2026 示例版权说明");
   });
 
   it("呈现时值、休止、拍号、小节线以及独立选择和播放高亮", async () => {

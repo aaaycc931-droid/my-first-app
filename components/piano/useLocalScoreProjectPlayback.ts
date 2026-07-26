@@ -13,6 +13,7 @@ import type {
   LocalNotationProjectScoreDocumentV3,
   LocalNotationProjectScoreDocumentV4,
   LocalNotationProjectScoreDocumentV5,
+  LocalNotationProjectScoreDocumentV6,
 } from "../../lib/music/scoreDocument";
 import { getFullPianoKeys } from "../../lib/piano/localPianoKeyboard";
 import type { PianoVoiceProvider } from "../../lib/piano/pianoAudioProvider";
@@ -37,7 +38,8 @@ export function useLocalScoreProjectPlayback({
     | LocalNotationProjectScoreDocumentV2
     | LocalNotationProjectScoreDocumentV3
     | LocalNotationProjectScoreDocumentV4
-    | LocalNotationProjectScoreDocumentV5;
+    | LocalNotationProjectScoreDocumentV5
+    | LocalNotationProjectScoreDocumentV6;
   bpm: number;
   voiceSelection?: LocalScoreProjectPlaybackVoiceSelection;
   createAudioChannel?: LocalPianoAudioChannelFactory;

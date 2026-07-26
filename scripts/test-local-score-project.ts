@@ -44,9 +44,9 @@ const project = createLocalScoreProject({
   now: createdAt,
 });
 assert.equal(project.title, "第一份谱");
-assert.equal(project.schemaVersion, "local-score-project-storage-v6");
+assert.equal(project.schemaVersion, "local-score-project-storage-v7");
 assert.equal(project.tempoBpm, 90);
-assert.equal(project.document.schemaVersion, "score-document-v5");
+assert.equal(project.document.schemaVersion, "score-document-v6");
 assert.deepEqual(project.document.keySignature, { fifths: 0 });
 assert.equal(project.document.parts[0].staves[0].clef, "treble");
 assert.equal(project.document.parts[0].name, "声部组 1");
@@ -297,6 +297,7 @@ assert.deepEqual(
 );
 
 const multiStaffContent = {
+  scoreCredits: firstContent.scoreCredits,
   meter: "4/4" as const,
   keySignature: { fifths: 0 as const },
   parts: [
@@ -424,8 +425,18 @@ for (const content of [
 }
 const legacyBefore = JSON.stringify(legacySchema);
 const migratedLegacy = parseLocalScoreProject(legacySchema);
-assert.equal(migratedLegacy?.schemaVersion, "local-score-project-storage-v6");
-assert.equal(migratedLegacy?.document.schemaVersion, "score-document-v5");
+assert.equal(migratedLegacy?.schemaVersion, "local-score-project-storage-v7");
+assert.equal(migratedLegacy?.document.schemaVersion, "score-document-v6");
+assert.deepEqual(migratedLegacy?.document.scoreCredits, {
+  title: multiStaff.title,
+  subtitle: null,
+  creators: [],
+  rightsNotice: null,
+});
+assert.ok(migratedLegacy?.undoStack.every((content) =>
+  content.scoreCredits.title === multiStaff.title));
+assert.ok(migratedLegacy?.redoStack.every((content) =>
+  content.scoreCredits.title === multiStaff.title));
 assert.deepEqual(
   migratedLegacy?.document.parts.map((part) => part.name),
   ["声部组 1", "声部组 2"],
@@ -453,7 +464,7 @@ assert.equal(
 );
 assert.match(
   serializeLocalScoreProject(migratedLegacy!),
-  /local-score-project-storage-v6/,
+  /local-score-project-storage-v7/,
 );
 
 const previousSchema = JSON.parse(legacyBefore) as typeof legacySchema;
@@ -481,8 +492,14 @@ for (const content of [...storageV3.undoStack, ...storageV3.redoStack]) {
 }
 const storageV3Before = JSON.stringify(storageV3);
 const migratedStorageV3 = parseLocalScoreProject(storageV3);
-assert.equal(migratedStorageV3?.schemaVersion, "local-score-project-storage-v6");
-assert.equal(migratedStorageV3?.document.schemaVersion, "score-document-v5");
+assert.equal(migratedStorageV3?.schemaVersion, "local-score-project-storage-v7");
+assert.equal(migratedStorageV3?.document.schemaVersion, "score-document-v6");
+assert.equal(
+  migratedStorageV3?.document.scoreCredits.title,
+  multiStaff.title,
+);
+assert.ok(migratedStorageV3?.undoStack.every((content) =>
+  content.scoreCredits.title === multiStaff.title));
 assert.deepEqual(migratedStorageV3?.document.keySignature, { fifths: 0 });
 assert.equal(migratedStorageV3?.document.revision, storageV3.document.revision);
 assert.equal(migratedStorageV3?.createdAt, storageV3.createdAt);
@@ -515,8 +532,14 @@ for (const content of [
 }
 const storageV4Before = JSON.stringify(storageV4);
 const migratedStorageV4 = parseLocalScoreProject(storageV4);
-assert.equal(migratedStorageV4?.schemaVersion, "local-score-project-storage-v6");
-assert.equal(migratedStorageV4?.document.schemaVersion, "score-document-v5");
+assert.equal(migratedStorageV4?.schemaVersion, "local-score-project-storage-v7");
+assert.equal(migratedStorageV4?.document.schemaVersion, "score-document-v6");
+assert.equal(
+  migratedStorageV4?.document.scoreCredits.title,
+  multiStaff.title,
+);
+assert.ok(migratedStorageV4?.undoStack.every((content) =>
+  content.scoreCredits.title === multiStaff.title));
 assert.deepEqual(
   migratedStorageV4?.document.parts.map((part) => part.name),
   ["声部组 1", "声部组 2"],
@@ -547,8 +570,14 @@ for (const content of [
 }
 const storageV5Before = JSON.stringify(storageV5);
 const migratedStorageV5 = parseLocalScoreProject(storageV5);
-assert.equal(migratedStorageV5?.schemaVersion, "local-score-project-storage-v6");
-assert.equal(migratedStorageV5?.document.schemaVersion, "score-document-v5");
+assert.equal(migratedStorageV5?.schemaVersion, "local-score-project-storage-v7");
+assert.equal(migratedStorageV5?.document.schemaVersion, "score-document-v6");
+assert.equal(
+  migratedStorageV5?.document.scoreCredits.title,
+  multiStaff.title,
+);
+assert.ok(migratedStorageV5?.undoStack.every((content) =>
+  content.scoreCredits.title === multiStaff.title));
 assert.deepEqual(
   migratedStorageV5?.document.parts.map((part) => part.name),
   ["右手", "第二声部组"],
@@ -567,7 +596,7 @@ delete missingTempo.tempoBpm;
 assert.equal(parseLocalScoreProject(missingTempo), null);
 
 const futureSchema = JSON.parse(serialized) as { schemaVersion: string };
-futureSchema.schemaVersion = "local-score-project-storage-v7";
+futureSchema.schemaVersion = "local-score-project-storage-v8";
 assert.equal(parseLocalScoreProject(futureSchema), null);
 
 const missingKeySignature = JSON.parse(serialized) as {

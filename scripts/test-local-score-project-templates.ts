@@ -53,8 +53,8 @@ LOCAL_SCORE_PROJECT_TEMPLATES.forEach((template, index) => {
     now: `2026-07-26T00:${String(index).padStart(2, "0")}:00.000Z`,
     createStructureId: createIdFactory(),
   });
-  assert.equal(project.schemaVersion, "local-score-project-storage-v6");
-  assert.equal(project.document.schemaVersion, "score-document-v5");
+  assert.equal(project.schemaVersion, "local-score-project-storage-v7");
+  assert.equal(project.document.schemaVersion, "score-document-v6");
   assert.equal(project.document.revision, 1);
   assert.equal(project.undoStack.length, 0);
   assert.equal(project.redoStack.length, 0);

@@ -13,6 +13,7 @@ import type {
   LocalNotationProjectScoreDocumentV3,
   LocalNotationProjectScoreDocumentV4,
   LocalNotationProjectScoreDocumentV5,
+  LocalNotationProjectScoreDocumentV6,
 } from "../../lib/music/scoreDocument";
 
 export type LocalScoreProjectStaffSelection = Readonly<{
@@ -24,7 +25,8 @@ export type LocalScoreProjectStaffPreviewProps = Readonly<{
   document:
     | LocalNotationProjectScoreDocumentV3
     | LocalNotationProjectScoreDocumentV4
-    | LocalNotationProjectScoreDocumentV5;
+    | LocalNotationProjectScoreDocumentV5
+    | LocalNotationProjectScoreDocumentV6;
   selectedEventId?: string | null;
   activeEventIds?: readonly string[];
   target?: LocalScoreProjectVoiceTarget;
@@ -90,6 +92,21 @@ export function LocalScoreProjectStaffPreview({
   const tokenById = new Map(
     presentation.tokens.map((token) => [token.eventId, token]),
   );
+  const creatorLines = ([
+    ["composer", "作曲"],
+    ["lyricist", "作词"],
+    ["arranger", "编曲"],
+  ] as const).map(([role, label]) => ({
+    role,
+    label,
+    names: presentation.scoreCredits.creators
+      .filter((creator) => creator.role === role)
+      .map((creator) => creator.name),
+  })).filter(({ names }) => names.length > 0);
+  const hasCredits = presentation.scoreCredits.title !== null
+    || presentation.scoreCredits.subtitle !== null
+    || creatorLines.length > 0
+    || presentation.scoreCredits.rightsNotice !== null;
 
   return (
     <section
@@ -97,6 +114,35 @@ export function LocalScoreProjectStaffPreview({
       aria-label={`当前声部图形五线谱（${voiceIdentity}）`}
       data-testid="local-score-project-staff-preview"
     >
+      {hasCredits ? (
+        <header
+          className="mb-4 border-b border-indigo-100 pb-4 text-center"
+          data-testid="local-score-project-score-credits"
+        >
+          {presentation.scoreCredits.title !== null ? (
+            <h2 className="text-xl font-black text-slate-950">
+              {presentation.scoreCredits.title}
+            </h2>
+          ) : null}
+          {presentation.scoreCredits.subtitle !== null ? (
+            <p className="mt-1 text-sm text-slate-600">
+              {presentation.scoreCredits.subtitle}
+            </p>
+          ) : null}
+          {creatorLines.length > 0 ? (
+            <div className="mt-2 flex flex-wrap justify-center gap-x-4 gap-y-1 text-xs text-slate-700">
+              {creatorLines.map(({ role, label, names }) => (
+                <p key={role}>{label}：{names.join("、")}</p>
+              ))}
+            </div>
+          ) : null}
+          {presentation.scoreCredits.rightsNotice !== null ? (
+            <p className="mt-2 text-xs text-slate-500">
+              {presentation.scoreCredits.rightsNotice}
+            </p>
+          ) : null}
+        </header>
+      ) : null}
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
           <h3 className="font-bold text-slate-950">

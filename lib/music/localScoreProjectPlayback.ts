@@ -12,6 +12,7 @@ import type {
   LocalNotationProjectScoreDocumentV3,
   LocalNotationProjectScoreDocumentV4,
   LocalNotationProjectScoreDocumentV5,
+  LocalNotationProjectScoreDocumentV6,
   LocalScoreProjectEventV2,
   ScoreDocumentEventV1,
 } from "./scoreDocument";
@@ -74,7 +75,8 @@ type PlaybackDocument =
   | LocalNotationProjectScoreDocumentV2
   | LocalNotationProjectScoreDocumentV3
   | LocalNotationProjectScoreDocumentV4
-  | LocalNotationProjectScoreDocumentV5;
+  | LocalNotationProjectScoreDocumentV5
+  | LocalNotationProjectScoreDocumentV6;
 
 type PlaybackEvent = ScoreDocumentEventV1 | LocalScoreProjectEventV2;
 
@@ -156,6 +158,12 @@ const isLegacyPlaybackContent = (document: Record<string, unknown>): boolean => 
   });
   return !parts.some((part) => part === null)
     && isLocalScoreProjectContent({
+      scoreCredits: {
+        title: "未命名乐谱",
+        subtitle: null,
+        creators: [],
+        rightsNotice: null,
+      },
       meter: document.meter,
       keySignature: { fifths: 0 },
       parts,
@@ -167,6 +175,14 @@ const isPreviousPlaybackContent = (
 ): boolean =>
   Array.isArray(document.parts)
   && isLocalScoreProjectContent({
+    scoreCredits: isRecord(document.scoreCredits)
+      ? document.scoreCredits
+      : {
+        title: "未命名乐谱",
+        subtitle: null,
+        creators: [],
+        rightsNotice: null,
+      },
     meter: document.meter,
     keySignature: document.keySignature,
     parts: document.parts.map((part, index) =>
@@ -193,6 +209,7 @@ const isPlaybackDocument = (
     || document.schemaVersion === "score-document-v3"
     || document.schemaVersion === "score-document-v4"
     || document.schemaVersion === "score-document-v5"
+    || document.schemaVersion === "score-document-v6"
   )
   && document.documentKind === "notation-project"
   && typeof document.documentId === "string"
@@ -224,8 +241,11 @@ const isPlaybackDocument = (
       && isPreviousPlaybackContent(document)
     )
     || (
-      document.schemaVersion === "score-document-v5"
-      && isLocalScoreProjectContent(document)
+      (
+        document.schemaVersion === "score-document-v5"
+        || document.schemaVersion === "score-document-v6"
+      )
+      && isPreviousPlaybackContent(document)
     )
   );
 
