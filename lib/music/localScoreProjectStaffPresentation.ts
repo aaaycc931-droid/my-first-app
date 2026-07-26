@@ -268,6 +268,8 @@ const isPresentationContent = (
                               if (!isRecord(event)) return event;
                               const withChordSymbol =
                                 document.schemaVersion === "score-document-v8"
+                                  || document.schemaVersion
+                                    === "score-document-v9"
                                   ? event
                                   : document.schemaVersion
                                     === "score-document-v7"

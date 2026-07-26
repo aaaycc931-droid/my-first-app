@@ -456,6 +456,7 @@ for (let version = 1; version <= 9; version += 1) {
     }
   }
   forEachEvent(fixture, (event) => {
+    delete event.dynamicMark;
     delete event.articulations;
     if (version <= 8) delete event.chordSymbol;
     if (version <= 7) delete event.fingering;
@@ -480,6 +481,11 @@ for (let version = 1; version <= 9; version += 1) {
       for (const voice of staffValue.voices) {
         for (const measure of voice.measures) {
           for (const event of measure.events) {
+            assert.equal(
+              event.dynamicMark,
+              null,
+              `storage v${version} history dynamic mark`,
+            );
             if (event.type === "note") {
               assert.deepEqual(
                 event.articulations,
