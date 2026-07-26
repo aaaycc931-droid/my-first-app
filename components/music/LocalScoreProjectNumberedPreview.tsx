@@ -16,6 +16,7 @@ import type {
   LocalNotationProjectScoreDocumentV8,
   LocalNotationProjectScoreDocumentV9,
   LocalNotationProjectScoreDocumentV10,
+  LocalNotationProjectScoreDocumentV11,
 } from "../../lib/music/scoreDocument";
 import {
   getLocalScoreProjectVoiceIdentityLabel,
@@ -34,7 +35,8 @@ export type LocalScoreProjectNumberedPreviewProps = Readonly<{
     | LocalNotationProjectScoreDocumentV7
     | LocalNotationProjectScoreDocumentV8
     | LocalNotationProjectScoreDocumentV9
-    | LocalNotationProjectScoreDocumentV10;
+    | LocalNotationProjectScoreDocumentV10
+    | LocalNotationProjectScoreDocumentV11;
   selectedEventId?: string | null;
   activeEventIds?: readonly string[];
   target?: LocalScoreProjectVoiceTarget;
@@ -242,6 +244,15 @@ export function LocalScoreProjectNumberedPreview({
                           data-testid={`local-score-numbered-dynamic-mark-${token.eventId}`}
                         >
                           {token.dynamicMark}
+                        </span>
+                      ) : null}
+                      {token.damperPedalMark !== null ? (
+                        <span
+                          className="font-serif text-xs font-bold italic text-slate-600"
+                          aria-hidden="true"
+                          data-testid={`local-score-numbered-damper-pedal-mark-${token.eventId}`}
+                        >
+                          {token.damperPedalMark === "down" ? "Ped." : "✱"}
                         </span>
                       ) : null}
                       <span className="relative inline-flex min-h-10 items-end justify-center pt-3 font-serif text-3xl font-bold leading-none text-sky-950">

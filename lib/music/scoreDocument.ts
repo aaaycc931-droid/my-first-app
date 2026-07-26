@@ -186,18 +186,35 @@ export type LocalScoreProjectDynamicMarkV1 =
 export type LocalScoreProjectNoteEventV6 = Readonly<
   LocalScoreProjectNoteEventV5 & {
     dynamicMark: LocalScoreProjectDynamicMarkV1 | null;
+    damperPedalMark?: LocalScoreProjectDamperPedalMarkV1 | null;
   }
 >;
 
 export type LocalScoreProjectRestEventV6 = Readonly<
   LocalScoreProjectRestEventV5 & {
     dynamicMark: LocalScoreProjectDynamicMarkV1 | null;
+    damperPedalMark?: LocalScoreProjectDamperPedalMarkV1 | null;
   }
 >;
 
 export type LocalScoreProjectEventV6 =
   | LocalScoreProjectNoteEventV6
   | LocalScoreProjectRestEventV6;
+
+export type LocalScoreProjectDamperPedalMarkV1 = "down" | "up";
+export type LocalScoreProjectNoteEventV7 = Readonly<
+  LocalScoreProjectNoteEventV6 & {
+    damperPedalMark?: LocalScoreProjectDamperPedalMarkV1 | null;
+  }
+>;
+export type LocalScoreProjectRestEventV7 = Readonly<
+  LocalScoreProjectRestEventV6 & {
+    damperPedalMark?: LocalScoreProjectDamperPedalMarkV1 | null;
+  }
+>;
+export type LocalScoreProjectEventV7 =
+  | LocalScoreProjectNoteEventV7
+  | LocalScoreProjectRestEventV7;
 
 /**
  * 本机乐谱项目独立演进到 v2；通用 ScoreDocumentEventV1 及其他练习文档
@@ -540,6 +557,29 @@ export type LocalNotationProjectScoreDocumentV10 = Readonly<{
     }>[];
   }>[];
 }>;
+
+export type LocalNotationProjectScoreDocumentV11 = Readonly<
+  Omit<LocalNotationProjectScoreDocumentV10, "schemaVersion" | "parts"> & {
+    schemaVersion: "score-document-v11";
+    parts: readonly Readonly<{
+      partId: string;
+      name: string;
+      instrument: LocalScoreProjectPartInstrumentV1;
+      staves: readonly Readonly<{
+        staffId: string;
+        staffKind: "pitched";
+        clef: LocalScoreProjectClefV3;
+        voices: readonly Readonly<{
+          voiceId: string;
+          measures: readonly Readonly<{
+            measureNumber: number;
+            events: readonly LocalScoreProjectEventV7[];
+          }>[];
+        }>[];
+      }>[];
+    }>[];
+  }
+>;
 
 export type RhythmDictationScoreDocumentV1 = Readonly<{
   schemaVersion: "score-document-v1";

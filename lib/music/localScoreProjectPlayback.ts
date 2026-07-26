@@ -17,6 +17,7 @@ import type {
   LocalNotationProjectScoreDocumentV8,
   LocalNotationProjectScoreDocumentV9,
   LocalNotationProjectScoreDocumentV10,
+  LocalNotationProjectScoreDocumentV11,
   LocalScoreProjectEventV2,
   LocalScoreProjectEventV3,
   LocalScoreProjectEventV4,
@@ -88,7 +89,8 @@ type PlaybackDocument =
   | LocalNotationProjectScoreDocumentV7
   | LocalNotationProjectScoreDocumentV8
   | LocalNotationProjectScoreDocumentV9
-  | LocalNotationProjectScoreDocumentV10;
+  | LocalNotationProjectScoreDocumentV10
+  | LocalNotationProjectScoreDocumentV11;
 
 type PlaybackEvent =
   | ScoreDocumentEventV1
@@ -96,7 +98,8 @@ type PlaybackEvent =
   | LocalScoreProjectEventV3
   | LocalScoreProjectEventV4
   | LocalScoreProjectEventV5
-  | LocalScoreProjectEventV6;
+  | LocalScoreProjectEventV6
+  | import("./scoreDocument").LocalScoreProjectEventV7;
 
 type ScoreVoice = PlaybackDocument["parts"][number]["staves"][number]["voices"][number];
 
@@ -155,12 +158,14 @@ const isLegacyPlaybackContent = (document: Record<string, unknown>): boolean => 
                 chordSymbol: null,
                 articulations: [],
                 dynamicMark: null,
+                damperPedalMark: null,
               }
               : {
                 ...event,
                 augmentationDots: 0,
                 chordSymbol: null,
                 dynamicMark: null,
+                damperPedalMark: null,
               };
           });
           if (events.some((event) => event === null)) return null;
@@ -211,7 +216,10 @@ const isPreviousPlaybackContent = (
     keySignature: document.keySignature,
     parts: document.parts.map((part, index) => {
       if (!isRecord(part)) return part;
-      const staves = document.schemaVersion === "score-document-v10"
+      const staves = (
+        document.schemaVersion === "score-document-v10"
+        || document.schemaVersion === "score-document-v11"
+      )
         ? part.staves
         : Array.isArray(part.staves)
           ? part.staves.map((staff) =>
@@ -255,6 +263,7 @@ const isPreviousPlaybackContent = (
                               return {
                                 ...withArticulations,
                                 dynamicMark: null,
+                                damperPedalMark: null,
                               };
                             }),
                           }
@@ -292,6 +301,7 @@ const isPlaybackDocument = (
     || document.schemaVersion === "score-document-v8"
     || document.schemaVersion === "score-document-v9"
     || document.schemaVersion === "score-document-v10"
+    || document.schemaVersion === "score-document-v11"
   )
   && document.documentKind === "notation-project"
   && typeof document.documentId === "string"
@@ -330,6 +340,7 @@ const isPlaybackDocument = (
         || document.schemaVersion === "score-document-v8"
         || document.schemaVersion === "score-document-v9"
         || document.schemaVersion === "score-document-v10"
+        || document.schemaVersion === "score-document-v11"
       )
       && isPreviousPlaybackContent(document)
     )
