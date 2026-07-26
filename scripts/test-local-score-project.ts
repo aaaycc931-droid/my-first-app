@@ -5,6 +5,8 @@ import {
   LocalScoreProjectConflictError,
   LocalScoreProjectDomainError,
   addLocalScoreProjectEvent,
+  addLocalScoreProjectStaff,
+  addLocalScoreProjectVoice,
   appendLocalScoreProjectMeasure,
   applyLocalScoreProjectContent,
   changeLocalScoreProjectClef,
@@ -15,6 +17,8 @@ import {
   copyLocalScoreProjectEvent,
   createLocalScoreProject,
   deleteEmptyLocalScoreProjectMeasure,
+  deleteEmptyLocalScoreProjectStaff,
+  deleteEmptyLocalScoreProjectVoice,
   deleteLocalScoreProjectEvent,
   deserializeLocalScoreProject,
   getLocalScoreProjectContent,
@@ -761,6 +765,506 @@ assert.equal(
   new Set(appendedMeasureNumbers).size,
   appendedMeasureNumbers.length,
   "追加小节必须保持编号唯一且连续，不得产生重复或 gap",
+);
+
+const addedStaff = addLocalScoreProjectStaff({
+  project: appendedThirdMeasure,
+  expectedRevision: 3,
+  partId: "part-1",
+  staffId: "staff-2",
+  voiceId: "voice-2",
+  clef: "bass",
+  now: "2026-07-24T00:00:03.000Z",
+});
+assert.equal(addedStaff.document.revision, 4);
+assert.equal(addedStaff.document.parts[0].staves.length, 2);
+assert.equal(addedStaff.document.parts[0].staves[1].staffKind, "pitched");
+assert.equal(addedStaff.document.parts[0].staves[1].clef, "bass");
+assert.deepEqual(
+  addedStaff.document.parts[0].staves[1].voices[0].measures,
+  [
+    { measureNumber: 1, events: [] },
+    { measureNumber: 2, events: [] },
+    { measureNumber: 3, events: [] },
+  ],
+);
+assert.equal(addedStaff.undoStack.length, 3);
+assert.equal(addedStaff.redoStack.length, 0);
+const undoneStaffAddition = undoLocalScoreProject({
+  project: addedStaff,
+  expectedRevision: 4,
+  now: "2026-07-24T00:00:04.000Z",
+});
+assert.equal(undoneStaffAddition.document.revision, 5);
+assert.deepEqual(
+  undoneStaffAddition.document.parts[0].staves.map(
+    (staff) => staff.staffId,
+  ),
+  ["staff-1"],
+);
+const redoneStaffAddition = redoLocalScoreProject({
+  project: undoneStaffAddition,
+  expectedRevision: 5,
+  now: "2026-07-24T00:00:05.000Z",
+});
+assert.equal(redoneStaffAddition.document.revision, 6);
+assert.deepEqual(
+  redoneStaffAddition.document.parts[0].staves.map(
+    (staff) => staff.staffId,
+  ),
+  ["staff-1", "staff-2"],
+);
+
+const addedVoice = addLocalScoreProjectVoice({
+  project: addedStaff,
+  expectedRevision: 4,
+  location: { partId: "part-1", staffId: "staff-2" },
+  voiceId: "voice-3",
+  now: "2026-07-24T00:00:04.000Z",
+});
+assert.equal(addedVoice.document.revision, 5);
+assert.deepEqual(
+  addedVoice.document.parts[0].staves[1].voices[1].measures,
+  [
+    { measureNumber: 1, events: [] },
+    { measureNumber: 2, events: [] },
+    { measureNumber: 3, events: [] },
+  ],
+);
+assert.equal(addedVoice.undoStack.length, 4);
+
+for (const createDuplicate of [
+  () => addLocalScoreProjectStaff({
+    project: addedStaff,
+    expectedRevision: 4,
+    partId: "part-1",
+    staffId: "staff-1",
+    voiceId: "new-voice",
+    clef: "treble" as const,
+    now: "2026-07-24T00:00:04.000Z",
+  }),
+  () => addLocalScoreProjectStaff({
+    project: addedStaff,
+    expectedRevision: 4,
+    partId: "part-1",
+    staffId: "new-staff",
+    voiceId: "voice-1",
+    clef: "treble" as const,
+    now: "2026-07-24T00:00:04.000Z",
+  }),
+  () => addLocalScoreProjectVoice({
+    project: addedStaff,
+    expectedRevision: 4,
+    location: { partId: "part-1", staffId: "staff-2" },
+    voiceId: "voice-1",
+    now: "2026-07-24T00:00:04.000Z",
+  }),
+]) {
+  assert.throws(
+    createDuplicate,
+    (error) =>
+      error instanceof LocalScoreProjectDomainError
+      && error.code === "duplicate",
+  );
+}
+assert.throws(
+  () => addLocalScoreProjectStaff({
+    project: addedStaff,
+    expectedRevision: 3,
+    partId: "part-1",
+    staffId: "stale-staff",
+    voiceId: "stale-voice",
+    clef: "treble",
+    now: "2026-07-24T00:00:04.000Z",
+  }),
+  LocalScoreProjectConflictError,
+);
+assert.throws(
+  () => addLocalScoreProjectVoice({
+    project: addedStaff,
+    expectedRevision: 4,
+    location: { partId: "part-1", staffId: "staff-2" },
+    voiceId: "",
+    now: "2026-07-24T00:00:04.000Z",
+  }),
+  (error) =>
+    error instanceof LocalScoreProjectDomainError
+    && error.code === "invalid-input",
+);
+assert.throws(
+  () => addLocalScoreProjectVoice({
+    project: addedStaff,
+    expectedRevision: 4,
+    location: { partId: "part-1", staffId: "staff-2" },
+    voiceId: "clock-voice",
+    now: "2026-07-24T00:00:02.000Z",
+  }),
+  (error) =>
+    error instanceof LocalScoreProjectDomainError
+    && error.code === "clock-regression",
+);
+for (const createInvalidStaff of [
+  () => addLocalScoreProjectStaff({
+    project: addedStaff,
+    expectedRevision: 4,
+    partId: "part-1",
+    staffId: "",
+    voiceId: "valid-new-voice",
+    clef: "treble" as const,
+    now: "2026-07-24T00:00:04.000Z",
+  }),
+  () => addLocalScoreProjectStaff({
+    project: addedStaff,
+    expectedRevision: 4,
+    partId: "part-1",
+    staffId: "valid-new-staff",
+    voiceId: "",
+    clef: "treble" as const,
+    now: "2026-07-24T00:00:04.000Z",
+  }),
+  () => addLocalScoreProjectStaff({
+    project: addedStaff,
+    expectedRevision: 4,
+    partId: "part-1",
+    staffId: "valid-new-staff",
+    voiceId: "valid-new-voice",
+    clef: "alto" as never,
+    now: "2026-07-24T00:00:04.000Z",
+  }),
+]) {
+  assert.throws(
+    createInvalidStaff,
+    (error) =>
+      error instanceof LocalScoreProjectDomainError
+      && error.code === "invalid-input",
+  );
+}
+assert.throws(
+  () => addLocalScoreProjectStaff({
+    project: addedStaff,
+    expectedRevision: 4,
+    partId: "missing-part",
+    staffId: "missing-part-staff",
+    voiceId: "missing-part-voice",
+    clef: "treble",
+    now: "2026-07-24T00:00:04.000Z",
+  }),
+  (error) =>
+    error instanceof LocalScoreProjectDomainError
+    && error.code === "not-found",
+);
+assert.throws(
+  () => addLocalScoreProjectVoice({
+    project: addedStaff,
+    expectedRevision: 4,
+    location: { partId: "part-1", staffId: "missing-staff" },
+    voiceId: "missing-target-voice",
+    now: "2026-07-24T00:00:04.000Z",
+  }),
+  (error) =>
+    error instanceof LocalScoreProjectDomainError
+    && error.code === "not-found",
+);
+
+assert.throws(
+  () => deleteEmptyLocalScoreProjectVoice({
+    project: addedStaff,
+    expectedRevision: 4,
+    location: {
+      partId: "part-1",
+      staffId: "staff-2",
+      voiceId: "voice-2",
+    },
+    now: "2026-07-24T00:00:04.000Z",
+  }),
+  (error) =>
+    error instanceof LocalScoreProjectDomainError
+    && error.code === "would-empty",
+);
+assert.throws(
+  () => deleteEmptyLocalScoreProjectVoice({
+    project: addedVoice,
+    expectedRevision: 5,
+    location: {
+      partId: "part-1",
+      staffId: "staff-2",
+      voiceId: "missing-voice",
+    },
+    now: "2026-07-24T00:00:05.000Z",
+  }),
+  (error) =>
+    error instanceof LocalScoreProjectDomainError
+    && error.code === "not-found",
+);
+assert.throws(
+  () => deleteEmptyLocalScoreProjectStaff({
+    project: addedStaff,
+    expectedRevision: 4,
+    location: { partId: "part-1", staffId: "missing-staff" },
+    now: "2026-07-24T00:00:04.000Z",
+  }),
+  (error) =>
+    error instanceof LocalScoreProjectDomainError
+    && error.code === "not-found",
+);
+assert.throws(
+  () => deleteEmptyLocalScoreProjectVoice({
+    project: addedVoice,
+    expectedRevision: 4,
+    location: {
+      partId: "part-1",
+      staffId: "staff-2",
+      voiceId: "voice-3",
+    },
+    now: "2026-07-24T00:00:05.000Z",
+  }),
+  LocalScoreProjectConflictError,
+);
+assert.throws(
+  () => deleteEmptyLocalScoreProjectVoice({
+    project: addedVoice,
+    expectedRevision: 5,
+    location: {
+      partId: "part-1",
+      staffId: "staff-2",
+      voiceId: "voice-3",
+    },
+    now: "2026-07-24T00:00:03.000Z",
+  }),
+  (error) =>
+    error instanceof LocalScoreProjectDomainError
+    && error.code === "clock-regression",
+);
+const deletedVoice = deleteEmptyLocalScoreProjectVoice({
+  project: addedVoice,
+  expectedRevision: 5,
+  location: {
+    partId: "part-1",
+    staffId: "staff-2",
+    voiceId: "voice-3",
+  },
+  now: "2026-07-24T00:00:05.000Z",
+});
+assert.equal(deletedVoice.document.revision, 6);
+assert.deepEqual(
+  deletedVoice.document.parts[0].staves[1].voices.map(
+    (voice) => voice.voiceId,
+  ),
+  ["voice-2"],
+);
+const undoneVoiceDelete = undoLocalScoreProject({
+  project: deletedVoice,
+  expectedRevision: 6,
+  now: "2026-07-24T00:00:06.000Z",
+});
+assert.equal(undoneVoiceDelete.document.revision, 7);
+assert.deepEqual(
+  undoneVoiceDelete.document.parts[0].staves[1].voices.map(
+    (voice) => voice.voiceId,
+  ),
+  ["voice-2", "voice-3"],
+);
+const redoneVoiceDelete = redoLocalScoreProject({
+  project: undoneVoiceDelete,
+  expectedRevision: 7,
+  now: "2026-07-24T00:00:07.000Z",
+});
+assert.equal(redoneVoiceDelete.document.revision, 8);
+assert.deepEqual(
+  redoneVoiceDelete.document.parts[0].staves[1].voices.map(
+    (voice) => voice.voiceId,
+  ),
+  ["voice-2"],
+);
+
+const secondVoiceWithNote = addLocalScoreProjectEvent({
+  project: addedVoice,
+  expectedRevision: 5,
+  location: {
+    partId: "part-1",
+    staffId: "staff-2",
+    voiceId: "voice-3",
+    measureNumber: 1,
+  },
+  eventId: "voice-3-note",
+  input: { type: "note", pitch: "C4", duration: "quarter" },
+  now: "2026-07-24T00:00:05.000Z",
+});
+assert.throws(
+  () => deleteEmptyLocalScoreProjectVoice({
+    project: secondVoiceWithNote,
+    expectedRevision: 6,
+    location: {
+      partId: "part-1",
+      staffId: "staff-2",
+      voiceId: "voice-3",
+    },
+    now: "2026-07-24T00:00:06.000Z",
+  }),
+  (error) =>
+    error instanceof LocalScoreProjectDomainError
+    && error.code === "not-empty",
+);
+assert.throws(
+  () => deleteEmptyLocalScoreProjectStaff({
+    project: secondVoiceWithNote,
+    expectedRevision: 6,
+    location: { partId: "part-1", staffId: "staff-2" },
+    now: "2026-07-24T00:00:06.000Z",
+  }),
+  (error) =>
+    error instanceof LocalScoreProjectDomainError
+    && error.code === "not-empty",
+);
+assert.throws(
+  () => deleteEmptyLocalScoreProjectStaff({
+    project,
+    expectedRevision: 1,
+    location: { partId: "part-1", staffId: "staff-1" },
+    now: "2026-07-24T00:00:01.000Z",
+  }),
+  (error) =>
+    error instanceof LocalScoreProjectDomainError
+    && error.code === "would-empty",
+);
+const deletedStaff = deleteEmptyLocalScoreProjectStaff({
+  project: deletedVoice,
+  expectedRevision: 6,
+  location: { partId: "part-1", staffId: "staff-2" },
+  now: "2026-07-24T00:00:06.000Z",
+});
+assert.equal(deletedStaff.document.revision, 7);
+assert.deepEqual(
+  deletedStaff.document.parts[0].staves.map((staff) => staff.staffId),
+  ["staff-1"],
+);
+const undoneStaffDelete = undoLocalScoreProject({
+  project: deletedStaff,
+  expectedRevision: 7,
+  now: "2026-07-24T00:00:07.000Z",
+});
+assert.equal(undoneStaffDelete.document.revision, 8);
+assert.deepEqual(
+  undoneStaffDelete.document.parts[0].staves.map((staff) => staff.staffId),
+  ["staff-1", "staff-2"],
+);
+const redoneStaffDelete = redoLocalScoreProject({
+  project: undoneStaffDelete,
+  expectedRevision: 8,
+  now: "2026-07-24T00:00:08.000Z",
+});
+assert.equal(redoneStaffDelete.document.revision, 9);
+assert.deepEqual(
+  redoneStaffDelete.document.parts[0].staves.map((staff) => staff.staffId),
+  ["staff-1"],
+);
+
+const voiceWithExtraMeasure = appendLocalScoreProjectMeasure({
+  project: addedVoice,
+  expectedRevision: 5,
+  partId: "part-1",
+  staffId: "staff-2",
+  voiceId: "voice-3",
+  now: "2026-07-24T00:00:05.000Z",
+});
+const voiceFromMeasureUnion = addLocalScoreProjectVoice({
+  project: voiceWithExtraMeasure,
+  expectedRevision: 6,
+  location: { partId: "part-1", staffId: "staff-2" },
+  voiceId: "voice-4",
+  now: "2026-07-24T00:00:06.000Z",
+});
+assert.deepEqual(
+  voiceFromMeasureUnion.document.parts[0].staves[1].voices[2].measures,
+  [
+    { measureNumber: 1, events: [] },
+    { measureNumber: 2, events: [] },
+    { measureNumber: 3, events: [] },
+    { measureNumber: 4, events: [] },
+  ],
+);
+const staffFromPartMeasureUnion = addLocalScoreProjectStaff({
+  project: voiceWithExtraMeasure,
+  expectedRevision: 6,
+  partId: "part-1",
+  staffId: "staff-3",
+  voiceId: "voice-5",
+  clef: "treble",
+  now: "2026-07-24T00:00:06.000Z",
+});
+assert.deepEqual(
+  staffFromPartMeasureUnion.document.parts[0].staves[2].voices[0].measures,
+  [
+    { measureNumber: 1, events: [] },
+    { measureNumber: 2, events: [] },
+    { measureNumber: 3, events: [] },
+    { measureNumber: 4, events: [] },
+  ],
+);
+const sparseBaseWithSecondVoice = addLocalScoreProjectVoice({
+  project,
+  expectedRevision: 1,
+  location: { partId: "part-1", staffId: "staff-1" },
+  voiceId: "sparse-voice-2",
+  now: "2026-07-24T00:00:01.000Z",
+});
+const sparseBaseContent = getLocalScoreProjectContent(
+  sparseBaseWithSecondVoice,
+);
+const sparseMeasureProject = applyLocalScoreProjectContent({
+  project: sparseBaseWithSecondVoice,
+  expectedRevision: 2,
+  content: {
+    ...sparseBaseContent,
+    parts: sparseBaseContent.parts.map((part) => ({
+      ...part,
+      staves: part.staves.map((staff) => ({
+        ...staff,
+        voices: staff.voices.map((voice, index) => ({
+          ...voice,
+          measures: index === 0
+            ? [{ measureNumber: 2, events: [] }]
+            : [
+              { measureNumber: 2, events: [] },
+              { measureNumber: 4, events: [] },
+            ],
+        })),
+      })),
+    })),
+  },
+  now: "2026-07-24T00:00:02.000Z",
+});
+const sparseUnionVoice = addLocalScoreProjectVoice({
+  project: sparseMeasureProject,
+  expectedRevision: 3,
+  location: { partId: "part-1", staffId: "staff-1" },
+  voiceId: "sparse-voice-3",
+  now: "2026-07-24T00:00:03.000Z",
+});
+assert.deepEqual(
+  sparseUnionVoice.document.parts[0].staves[0].voices[2].measures,
+  [
+    { measureNumber: 1, events: [] },
+    { measureNumber: 2, events: [] },
+    { measureNumber: 4, events: [] },
+  ],
+);
+const sparseUnionStaff = addLocalScoreProjectStaff({
+  project: sparseMeasureProject,
+  expectedRevision: 3,
+  partId: "part-1",
+  staffId: "sparse-staff-2",
+  voiceId: "sparse-staff-voice",
+  clef: "bass",
+  now: "2026-07-24T00:00:03.000Z",
+});
+assert.deepEqual(
+  sparseUnionStaff.document.parts[0].staves[1].voices[0].measures,
+  [
+    { measureNumber: 1, events: [] },
+    { measureNumber: 2, events: [] },
+    { measureNumber: 4, events: [] },
+  ],
 );
 
 const deletedEmptyMeasure = deleteEmptyLocalScoreProjectMeasure({

@@ -4,6 +4,7 @@ import type {
 } from "../practice/localNotationFragmentDraft";
 import {
   createLocalScoreProjectStaffPresentation,
+  type LocalScoreProjectVoiceTarget,
   type LocalScoreStaffEventLocation,
 } from "./localScoreProjectStaffPresentation";
 
@@ -123,8 +124,9 @@ const createAccessibleLabel = (
 
 export const createLocalScoreProjectNumberedPresentation = (
   document: unknown,
+  target?: LocalScoreProjectVoiceTarget,
 ): LocalScoreNumberedPresentation => {
-  const staff = createLocalScoreProjectStaffPresentation(document);
+  const staff = createLocalScoreProjectStaffPresentation(document, target);
   if (staff.status === "blocked") return staff;
 
   const tokenByEventId = new Map<string, LocalScoreNumberedToken>();
