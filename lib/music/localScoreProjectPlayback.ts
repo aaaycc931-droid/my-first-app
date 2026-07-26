@@ -13,7 +13,9 @@ import type {
   LocalNotationProjectScoreDocumentV4,
   LocalNotationProjectScoreDocumentV5,
   LocalNotationProjectScoreDocumentV6,
+  LocalNotationProjectScoreDocumentV7,
   LocalScoreProjectEventV2,
+  LocalScoreProjectEventV3,
   ScoreDocumentEventV1,
 } from "./scoreDocument";
 
@@ -76,9 +78,13 @@ type PlaybackDocument =
   | LocalNotationProjectScoreDocumentV3
   | LocalNotationProjectScoreDocumentV4
   | LocalNotationProjectScoreDocumentV5
-  | LocalNotationProjectScoreDocumentV6;
+  | LocalNotationProjectScoreDocumentV6
+  | LocalNotationProjectScoreDocumentV7;
 
-type PlaybackEvent = ScoreDocumentEventV1 | LocalScoreProjectEventV2;
+type PlaybackEvent =
+  | ScoreDocumentEventV1
+  | LocalScoreProjectEventV2
+  | LocalScoreProjectEventV3;
 
 type ScoreVoice = PlaybackDocument["parts"][number]["staves"][number]["voices"][number];
 
@@ -133,6 +139,7 @@ const isLegacyPlaybackContent = (document: Record<string, unknown>): boolean => 
                 augmentationDots: 0,
                 tieToNext: false,
                 lyric: null,
+                fingering: null,
               }
               : {
                 ...event,
@@ -185,18 +192,45 @@ const isPreviousPlaybackContent = (
       },
     meter: document.meter,
     keySignature: document.keySignature,
-    parts: document.parts.map((part, index) =>
-      isRecord(part)
-        ? {
-          ...part,
-          name: typeof part.name === "string"
-            ? part.name
-            : `声部组 ${index + 1}`,
-          instrument: isRecord(part.instrument)
-            ? part.instrument
-            : { kind: "unassigned" },
-        }
-        : part),
+    parts: document.parts.map((part, index) => {
+      if (!isRecord(part)) return part;
+      const staves = document.schemaVersion === "score-document-v7"
+        ? part.staves
+        : Array.isArray(part.staves)
+          ? part.staves.map((staff) =>
+            isRecord(staff) && Array.isArray(staff.voices)
+              ? {
+                ...staff,
+                voices: staff.voices.map((voice) =>
+                  isRecord(voice) && Array.isArray(voice.measures)
+                    ? {
+                      ...voice,
+                      measures: voice.measures.map((measure) =>
+                        isRecord(measure) && Array.isArray(measure.events)
+                          ? {
+                            ...measure,
+                            events: measure.events.map((event) =>
+                              isRecord(event) && event.type === "note"
+                                ? { ...event, fingering: null }
+                                : event),
+                          }
+                          : measure),
+                    }
+                    : voice),
+              }
+              : staff)
+          : part.staves;
+      return {
+        ...part,
+        name: typeof part.name === "string"
+          ? part.name
+          : `声部组 ${index + 1}`,
+        instrument: isRecord(part.instrument)
+          ? part.instrument
+          : { kind: "unassigned" },
+        staves,
+      };
+    }),
   });
 
 const isPlaybackDocument = (
@@ -210,6 +244,7 @@ const isPlaybackDocument = (
     || document.schemaVersion === "score-document-v4"
     || document.schemaVersion === "score-document-v5"
     || document.schemaVersion === "score-document-v6"
+    || document.schemaVersion === "score-document-v7"
   )
   && document.documentKind === "notation-project"
   && typeof document.documentId === "string"
@@ -244,6 +279,7 @@ const isPlaybackDocument = (
       (
         document.schemaVersion === "score-document-v5"
         || document.schemaVersion === "score-document-v6"
+        || document.schemaVersion === "score-document-v7"
       )
       && isPreviousPlaybackContent(document)
     )
