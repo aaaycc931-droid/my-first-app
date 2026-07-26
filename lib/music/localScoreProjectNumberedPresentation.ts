@@ -8,6 +8,7 @@ import {
   type LocalScoreProjectVoiceTarget,
   type LocalScoreStaffEventLocation,
 } from "./localScoreProjectStaffPresentation";
+import type { LocalScoreProjectFingeringV1 } from "./scoreDocument";
 
 export type LocalScoreNumberedTokenBase = Readonly<{
   eventId: string;
@@ -31,6 +32,7 @@ export type LocalScoreNumberedNoteToken =
     tieToNext: boolean;
     tieTargetEventId: string | null;
     lyric: string | null;
+    fingering: LocalScoreProjectFingeringV1 | null;
   }>;
 
 export type LocalScoreNumberedRestToken =
@@ -121,7 +123,10 @@ const createAccessibleLabel = (
   const octave = token.octave === "upper" ? "高音" : "";
   const tie = token.tieToNext ? "，与下一音符用延音线相连" : "";
   const lyric = token.lyric === null ? "" : `，歌词“${token.lyric}”`;
-  return `${position}，${octave}${token.degree}（${token.pitch}），${duration}音符${tie}${lyric}`;
+  const fingering = token.fingering === null
+    ? ""
+    : `，指法 ${token.fingering}`;
+  return `${position}，${octave}${token.degree}（${token.pitch}），${duration}音符${tie}${lyric}${fingering}`;
 };
 
 export const createLocalScoreProjectNumberedPresentation = (
@@ -162,6 +167,7 @@ export const createLocalScoreProjectNumberedPresentation = (
           tieToNext: token.tieToNext,
           tieTargetEventId: token.tieTargetEventId,
           lyric: token.lyric,
+          fingering: token.fingering,
         };
       const numbered = {
         ...withoutLabel,

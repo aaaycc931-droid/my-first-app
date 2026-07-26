@@ -51,6 +51,7 @@ import {
 } from "../../lib/music/localScoreProjectTemplate";
 import type {
   LocalScoreProjectClefV3,
+  LocalScoreProjectFingeringV1,
   LocalScoreProjectKeySignatureV3,
   LocalScoreProjectPartInstrumentV1,
 } from "../../lib/music/scoreDocument";
@@ -469,6 +470,8 @@ export function LocalScoreProjectPanel({
   const [augmentationDots, setAugmentationDots] = useState<0 | 1>(0);
   const [tieToNext, setTieToNext] = useState(false);
   const [lyric, setLyric] = useState("");
+  const [fingering, setFingering] =
+    useState<LocalScoreProjectFingeringV1 | null>(null);
   const [targetMeasureNumber, setTargetMeasureNumber] = useState(1);
   const [selectedEvent, setSelectedEvent] =
     useState<LocalScoreProjectStaffSelection | null>(null);
@@ -744,6 +747,7 @@ export function LocalScoreProjectPanel({
               augmentationDots,
               tieToNext,
               lyric,
+              fingering,
             },
           now: now(),
         })
@@ -766,6 +770,7 @@ export function LocalScoreProjectPanel({
             augmentationDots,
             tieToNext,
             lyric,
+            fingering,
           },
           now: now(),
         }),
@@ -789,10 +794,12 @@ export function LocalScoreProjectPanel({
       setDuration(located.event.duration);
       setTieToNext(located.event.tieToNext);
       setLyric(located.event.lyric ?? "");
+      setFingering(located.event.fingering);
     } else {
       setDuration("quarter");
       setTieToNext(false);
       setLyric("");
+      setFingering(null);
     }
     setAugmentationDots(located.event.augmentationDots);
   };
@@ -1764,6 +1771,7 @@ export function LocalScoreProjectPanel({
                 if (nextType === "rest") {
                   setTieToNext(false);
                   setLyric("");
+                  setFingering(null);
                 }
               }}
               className="mt-2 min-h-11 w-full rounded-xl border border-indigo-300 bg-white px-3 py-2"
@@ -1799,7 +1807,7 @@ export function LocalScoreProjectPanel({
             </select>
           </label>
         </div>
-        <div className="mt-3 grid gap-3 sm:grid-cols-3">
+        <div className="mt-3 grid gap-3 sm:grid-cols-4">
           <label className="flex min-h-11 items-center gap-2 rounded-xl border border-indigo-300 bg-white px-3 py-2 text-sm font-bold">
             <input
               type="checkbox"
@@ -1829,13 +1837,34 @@ export function LocalScoreProjectPanel({
               className="mt-2 min-h-11 w-full rounded-xl border border-indigo-300 bg-white px-3 py-2 disabled:bg-slate-100"
             />
           </label>
+          <label className="text-sm font-bold">
+            单音指法
+            <select
+              value={fingering ?? ""}
+              disabled={isBusy || eventType === "rest"}
+              onChange={(event) => {
+                const value = event.target.value;
+                setFingering(
+                  value === ""
+                    ? null
+                    : Number(value) as LocalScoreProjectFingeringV1,
+                );
+              }}
+              className="mt-2 min-h-11 w-full rounded-xl border border-indigo-300 bg-white px-3 py-2 disabled:bg-slate-100"
+            >
+              <option value="">无</option>
+              {[1, 2, 3, 4, 5].map((value) => (
+                <option key={value} value={value}>{value} 指</option>
+              ))}
+            </select>
+          </label>
         </div>
         <p className="mt-2 text-xs leading-5 text-indigo-800">
-          延音线只允许连接同一声部中紧邻的同音音符；可跨连续小节。歌词只附着在音符上。
+          延音线只允许连接同一声部中紧邻的同音音符；可跨连续小节。歌词和 1–5 指法只附着在音符上。
         </p>
         <button
           type="button"
-          disabled={isBusy}
+          disabled={isBusy || transportMode !== "idle"}
           onClick={saveEvent}
           className="mt-4 min-h-11 rounded-xl bg-indigo-700 px-4 py-2 text-sm font-bold text-white disabled:bg-slate-300"
         >
@@ -1843,6 +1872,11 @@ export function LocalScoreProjectPanel({
             ? "更新所选事件并保存"
             : `添加到第 ${targetMeasureNumber} 小节并保存`}
         </button>
+        {transportMode !== "idle" ? (
+          <p className="mt-2 text-xs font-semibold text-amber-800" role="status">
+            播放或节拍器运行期间不能保存事件；停止后可继续，当前播放不会被重建或中断。
+          </p>
+        ) : null}
         <div className="mt-3 flex flex-wrap gap-2">
           {selectedEvent ? (
             <>
@@ -1861,7 +1895,7 @@ export function LocalScoreProjectPanel({
                       eventId: selectedEvent.eventId,
                     }));
                     setNotice(sourceEvent?.type === "note" && sourceEvent.tieToNext
-                      ? "已复制附点和歌词，但单事件复制不包含跨事件延音关系；粘贴副本不会带延音线。谱面尚未修改。"
+                      ? "已复制附点、歌词和指法，但单事件复制不包含跨事件延音关系；粘贴副本不会带延音线。谱面尚未修改。"
                       : "已复制所选事件；谱面尚未修改，可选择目标小节后粘贴。");
                   } catch (error) {
                     setNotice(error instanceof Error
@@ -2031,6 +2065,9 @@ export function LocalScoreProjectPanel({
                     {event.augmentationDots === 1 ? " · 附点" : ""}
                     {event.type === "note" && event.tieToNext ? " · 延音到下一音" : ""}
                     {event.type === "note" && event.lyric ? ` · 歌词：${event.lyric}` : ""}
+                    {event.type === "note" && event.fingering !== null
+                      ? ` · 指法：${event.fingering}`
+                      : ""}
                   </p>
                 </div>
                 <div className="flex gap-2">

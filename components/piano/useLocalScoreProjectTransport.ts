@@ -8,6 +8,7 @@ import type {
   LocalNotationProjectScoreDocumentV4,
   LocalNotationProjectScoreDocumentV5,
   LocalNotationProjectScoreDocumentV6,
+  LocalNotationProjectScoreDocumentV7,
 } from "../../lib/music/scoreDocument";
 import type { PianoVoiceProvider } from "../../lib/piano/pianoAudioProvider";
 import {
@@ -42,7 +43,8 @@ export function useLocalScoreProjectTransport({
     | LocalNotationProjectScoreDocumentV3
     | LocalNotationProjectScoreDocumentV4
     | LocalNotationProjectScoreDocumentV5
-    | LocalNotationProjectScoreDocumentV6;
+    | LocalNotationProjectScoreDocumentV6
+    | LocalNotationProjectScoreDocumentV7;
   bpm: number;
   createAudioChannel?: LocalPianoAudioChannelFactory;
   voiceProvider?: PianoVoiceProvider;

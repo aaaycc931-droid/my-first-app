@@ -524,6 +524,8 @@ describe("S1 本机谱项目面板", () => {
     const activePlaybackControl = findButton(container, "停止播放");
     expect(findButton(container, "新增声部组").disabled).toBe(true);
     expect(findButton(container, "删除空声部组").disabled).toBe(true);
+    expect(findButton(container, "更新所选事件并保存").disabled).toBe(true);
+    expect(container.textContent).toContain("当前播放不会被重建或中断");
     await change(findSelectExact(container, "声部组"), "part-2");
     expect(findSelectExact(container, "声部组").value).toBe("part-2");
     expect(container.textContent).toContain("输入音符或休止");
@@ -649,6 +651,7 @@ describe("S1 本机谱项目面板", () => {
     expect(findButton(container, "删除空声部组").disabled).toBe(true);
     expect(findButton(container, "新增声部").disabled).toBe(true);
     expect(findButton(container, "新增谱表").disabled).toBe(true);
+    expect(findButton(container, "更新所选事件并保存").disabled).toBe(true);
     const voiceSelect = findSelectExact(container, "声部");
     await change(voiceSelect, "voice-2");
     expect(findSelectExact(container, "声部").value).toBe("voice-2");
@@ -2323,7 +2326,7 @@ describe("S1 本机谱项目面板", () => {
     expect(findButton(container, "尚未复制事件").disabled).toBe(true);
   });
 
-  it("附点、延音线和歌词只在保存成功后发布，非法破坏延音关系会保留原谱", async () => {
+  it("附点、延音线、歌词和指法只在保存成功后发布，非法破坏延音关系会保留原谱", async () => {
     const store = new MemoryProjectStore();
     const container = await renderPanel(store);
     await click(findButton(container, "创建并保存"));
@@ -2342,6 +2345,7 @@ describe("S1 本机谱项目面板", () => {
     await click(findInput(container, "一个附点"));
     await click(findInput(container, "延音到下一个同音"));
     await change(findInput(container, "歌词"), "啦");
+    await change(findSelect(container, "单音指法"), "3");
 
     store.failNextPut = new LocalScoreProjectStorageError(
       "write-failed",
@@ -2357,18 +2361,32 @@ describe("S1 本机谱项目面板", () => {
     expect(firstEvent?.augmentationDots).toBe(0);
     expect(firstEvent?.type === "note" && firstEvent.tieToNext).toBe(false);
     expect(firstEvent?.type === "note" && firstEvent.lyric).toBe(null);
+    expect(firstEvent?.type === "note" && firstEvent.fingering).toBe(null);
     expect(container.textContent).not.toContain("歌词：啦");
+    expect(container.textContent).not.toContain("指法：3");
 
     await click(findButton(container, "更新所选事件并保存"));
     await waitFor(
       () => container.textContent?.includes("歌词：啦") ?? false,
-      "恢复后保存附点延音和歌词",
+      "恢复后保存附点延音、歌词和指法",
     );
     firstEvent = Array.from(store.values.values())[0]
       ?.document.parts[0]?.staves[0]?.voices[0]?.measures[0]?.events[0];
     expect(firstEvent?.augmentationDots).toBe(1);
     expect(firstEvent?.type === "note" && firstEvent.tieToNext).toBe(true);
     expect(firstEvent?.type === "note" && firstEvent.lyric).toBe("啦");
+    expect(firstEvent?.type === "note" && firstEvent.fingering).toBe(3);
+    expect(container.textContent).toContain("指法：3");
+    expect(
+      container.querySelector('[data-testid^="local-score-fingering-"]')
+        ?.textContent,
+    ).toBe("3");
+    await click(findButton(container, "固定 C 简谱"));
+    expect(
+      container.querySelector(
+        '[data-testid^="local-score-numbered-fingering-"]',
+      )?.textContent,
+    ).toContain("指法 3");
 
     await click(findButton(container, "复制所选事件"));
     expect(container.textContent).toContain("单事件复制不包含跨事件延音关系");

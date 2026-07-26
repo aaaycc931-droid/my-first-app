@@ -14,6 +14,7 @@ import type {
   LocalNotationProjectScoreDocumentV4,
   LocalNotationProjectScoreDocumentV5,
   LocalNotationProjectScoreDocumentV6,
+  LocalNotationProjectScoreDocumentV7,
 } from "../../lib/music/scoreDocument";
 
 export type LocalScoreProjectStaffSelection = Readonly<{
@@ -26,7 +27,8 @@ export type LocalScoreProjectStaffPreviewProps = Readonly<{
     | LocalNotationProjectScoreDocumentV3
     | LocalNotationProjectScoreDocumentV4
     | LocalNotationProjectScoreDocumentV5
-    | LocalNotationProjectScoreDocumentV6;
+    | LocalNotationProjectScoreDocumentV6
+    | LocalNotationProjectScoreDocumentV7;
   selectedEventId?: string | null;
   activeEventIds?: readonly string[];
   target?: LocalScoreProjectVoiceTarget;
@@ -411,6 +413,21 @@ export function LocalScoreProjectStaffPreview({
                         data-testid={`local-score-eighth-flag-${token.eventId}`}
                         aria-hidden="true"
                       />
+                    ) : null}
+                    {token.fingering !== null ? (
+                      <text
+                        x={token.x}
+                        y={token.y - 42}
+                        fill="#4338ca"
+                        fontFamily="sans-serif"
+                        fontSize="12"
+                        fontWeight="700"
+                        textAnchor="middle"
+                        data-testid={`local-score-fingering-${token.eventId}`}
+                        aria-hidden="true"
+                      >
+                        {token.fingering}
+                      </text>
                     ) : null}
                     {token.lyric !== null ? (
                       <text

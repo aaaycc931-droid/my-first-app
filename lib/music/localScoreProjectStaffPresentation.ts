@@ -13,6 +13,8 @@ import type {
   LocalNotationProjectScoreDocumentV4,
   LocalNotationProjectScoreDocumentV5,
   LocalNotationProjectScoreDocumentV6,
+  LocalNotationProjectScoreDocumentV7,
+  LocalScoreProjectFingeringV1,
 } from "./scoreDocument";
 
 export const LOCAL_SCORE_STAFF_HEIGHT = 148;
@@ -74,6 +76,7 @@ export type LocalScoreStaffNoteToken = LocalScoreStaffTokenBase & Readonly<{
   tieToNext: boolean;
   tieTargetEventId: string | null;
   lyric: string | null;
+  fingering: LocalScoreProjectFingeringV1 | null;
 }>;
 
 export type LocalScoreStaffRestToken = LocalScoreStaffTokenBase & Readonly<{
@@ -216,18 +219,45 @@ const isPresentationContent = (
       },
     meter: document.meter,
     keySignature: document.keySignature,
-    parts: document.parts.map((part, index) =>
-      isRecord(part)
-        ? {
-          ...part,
-          name: typeof part.name === "string"
-            ? part.name
-            : `声部组 ${index + 1}`,
-          instrument: isRecord(part.instrument)
-            ? part.instrument
-            : { kind: "unassigned" },
-        }
-        : part),
+    parts: document.parts.map((part, index) => {
+      if (!isRecord(part)) return part;
+      const staves = document.schemaVersion === "score-document-v7"
+        ? part.staves
+        : Array.isArray(part.staves)
+          ? part.staves.map((staff) =>
+            isRecord(staff) && Array.isArray(staff.voices)
+              ? {
+                ...staff,
+                voices: staff.voices.map((voice) =>
+                  isRecord(voice) && Array.isArray(voice.measures)
+                    ? {
+                      ...voice,
+                      measures: voice.measures.map((measure) =>
+                        isRecord(measure) && Array.isArray(measure.events)
+                          ? {
+                            ...measure,
+                            events: measure.events.map((event) =>
+                              isRecord(event) && event.type === "note"
+                                ? { ...event, fingering: null }
+                                : event),
+                          }
+                          : measure),
+                    }
+                    : voice),
+              }
+              : staff)
+          : part.staves;
+      return {
+        ...part,
+        name: typeof part.name === "string"
+          ? part.name
+          : `声部组 ${index + 1}`,
+        instrument: isRecord(part.instrument)
+          ? part.instrument
+          : { kind: "unassigned" },
+        staves,
+      };
+    }),
   });
 
 const isLocalScoreProjectDocument = (
@@ -236,13 +266,15 @@ const isLocalScoreProjectDocument = (
   | LocalNotationProjectScoreDocumentV3
   | LocalNotationProjectScoreDocumentV4
   | LocalNotationProjectScoreDocumentV5
-  | LocalNotationProjectScoreDocumentV6 =>
+  | LocalNotationProjectScoreDocumentV6
+  | LocalNotationProjectScoreDocumentV7 =>
   isRecord(document)
   && (
     document.schemaVersion === "score-document-v3"
     || document.schemaVersion === "score-document-v4"
     || document.schemaVersion === "score-document-v5"
     || document.schemaVersion === "score-document-v6"
+    || document.schemaVersion === "score-document-v7"
   )
   && document.documentKind === "notation-project"
   && typeof document.documentId === "string"
@@ -389,6 +421,9 @@ export const createLocalScoreProjectStaffPresentation = (
       const positionLabel =
         `第 ${measure.measureNumber} 小节第 ${eventIndex + 1} 个事件`;
       if (event.type === "note" && event.pitch !== null) {
+        const fingering = "fingering" in event
+          ? event.fingering as LocalScoreProjectFingeringV1 | null
+          : null;
         const orderedEventIndex = eventIndexById.get(event.id);
         const tieTarget = event.tieToNext && orderedEventIndex !== undefined
           ? orderedEvents[orderedEventIndex + 1]
@@ -402,6 +437,7 @@ export const createLocalScoreProjectStaffPresentation = (
           `${event.augmentationDots === 1 ? "附点" : ""}${DURATION_LABELS[event.duration]}音符`,
           event.tieToNext ? "与下一音符用延音线相连" : "",
           event.lyric === null ? "" : `歌词“${event.lyric}”`,
+          fingering === null ? "" : `指法 ${fingering}`,
         ].filter(Boolean);
         tokens.push({
           eventId: event.id,
@@ -427,6 +463,7 @@ export const createLocalScoreProjectStaffPresentation = (
           tieToNext: event.tieToNext,
           tieTargetEventId: tieTarget?.id ?? null,
           lyric: event.lyric,
+          fingering,
           accessibleLabel:
             `${positionLabel}，${event.pitch} ${detailLabels.join("，")}`,
         });
@@ -477,6 +514,7 @@ export const createLocalScoreProjectStaffPresentation = (
     documentId: document.documentId,
     revision: document.revision,
     scoreCredits: document.schemaVersion === "score-document-v6"
+      || document.schemaVersion === "score-document-v7"
       ? document.scoreCredits
       : {
         title: null,
