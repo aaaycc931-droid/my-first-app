@@ -93,15 +93,21 @@
 - 小改动先运行 focused tests；合并前运行完整 `check`、Android sync／validator，并以 GitHub `android-local` 为 APK 权威门禁。
 - 状态更新只记录已验证事实，并附 PR、提交、运行与工件标识；不得粘贴被截断的工具输出。
 
-## S2 本机谱项目接续（当前分支候选）
+## S2 本机谱项目接续（GitHub 权威状态）
 
-- `score-document-v10` 与 `local-score-project-storage-v11` 的 canonical 力度记号切片已在独立分支实现候选：事件起点 `dynamicMark` 支持 `pp`、`p`、`mp`、`mf`、`f`、`ff` 或 `null`，note/rest 均可承载。
+- PR #448 已合并：`score-document-v10` 与 `local-score-project-storage-v11` 的 canonical 力度记号切片，事件起点 `dynamicMark` 支持 `pp`、`p`、`mp`、`mf`、`f`、`ff` 或 `null`，note/rest 均可承载。
 - 旧 storage v1–v10、document v1–v9 及 undo／redo 历史只读迁移为 `dynamicMark: null`；当前版本严格拒绝缺失或非法字段。
 - 五线谱与固定 C 简谱读取同一字段；当前仅显示，不改变 velocity、gate、duration、timbre、timeline、span、warning 或真实播放效果。
-- 专项测试、受影响的存储／恢复／容量／播放／移动端预览与 transport 回归、lint、typecheck 和 Quality 注册已在本地通过；PR 远端 Actions、浏览器手测、Android 真机、真实力度播放和教师审核仍未执行。
+- 专项测试、受影响的存储／恢复／容量／播放／移动端预览与 transport 回归、lint、typecheck 和 Quality 注册已通过；PR #448 的 Quality 与 android-local 也已通过。浏览器手测、Android 真机、真实力度播放和教师审核仍未执行。
 
-### 制音踏板切片（当前分支）
+### 制音踏板切片
 
-- `score-document-v11` 与 `local-score-project-storage-v12` 的事件起点 `damperPedalMark` 支持 `down`、`up` 或 `null`，note/rest 均可承载。
+- PR #449 已合并：`score-document-v11` 与 `local-score-project-storage-v12` 的事件起点 `damperPedalMark` 支持 `down`、`up` 或 `null`，note/rest 均可承载。
 - 旧 storage v1–v11、document v1–v10 及 undo/redo 历史只读迁移为 `null`；当前严格校验。
 - 当前分支已接入 domain、迁移、复制粘贴、两种谱面显示、Mobile 编辑、playback/transport 类型兼容和专项测试；真实踏板播放、MIDI CC64、真机、教师审核与格式 round-trip 仍未执行。
+
+### 延长记号切片（下一独立候选）
+
+- 当前本地分支候选升级为 `score-document-v12` 与 `local-score-project-storage-v13`，事件起点 `fermataMark` 支持 `fermata` 或 `null`，note/rest 均可承载。
+- 旧 storage/document 与 undo/redo 历史只读迁移为 `null`；五线谱与固定 C 简谱一致显示；playback/transport 只补兼容字段，不延长真实播放。
+- 本地 focused fermata、v10 内存读取回归和 typecheck 已通过；尚未创建 PR，远端 Actions、真机、教师审核、真实 fermata 播放及 MusicXML/MIDI round-trip 仍未执行。
