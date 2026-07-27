@@ -165,6 +165,7 @@ const musicalProjection = (project: LocalScoreProjectV1) => ({
         duration: event.duration,
         measure: event.measure,
         augmentationDots: event.augmentationDots,
+        lyric: event.type === "note" ? event.lyric : null,
         fermataMark: event.fermataMark,
         tieToNext: event.type === "note" ? event.tieToNext : null,
         slurToNext: event.type === "note" ? event.slurToNext : null,
@@ -223,6 +224,38 @@ const createDottedSupportedProject = (): LocalScoreProjectV1 => {
   };
   const parsed = parseLocalScoreProject(candidate);
   assert.ok(parsed, "dotted export fixture must be canonical");
+  return parsed;
+};
+
+const lyricText = "你好 😀 内部 空格 & < > \" '";
+
+const createLyricSupportedProject = (): LocalScoreProjectV1 => {
+  const base = createDottedSupportedProject();
+  const measures = base.document.parts[0].staves[0].voices[0].measures;
+  const candidate: LocalScoreProjectV1 = {
+    ...base,
+    document: {
+      ...base.document,
+      parts: [{
+        ...base.document.parts[0],
+        staves: [{
+          ...base.document.parts[0].staves[0],
+          voices: [{
+            ...base.document.parts[0].staves[0].voices[0],
+            measures: measures.map((measure) => ({
+              ...measure,
+              events: measure.events.map((event) =>
+                event.id === "event-4" && event.type === "note"
+                  ? { ...event, lyric: lyricText }
+                  : event),
+            })),
+          }],
+        }],
+      }],
+    },
+  };
+  const parsed = parseLocalScoreProject(candidate);
+  assert.ok(parsed, "lyric export fixture must be canonical");
   return parsed;
 };
 
@@ -494,6 +527,83 @@ assert.deepEqual(
   "strict MXL re-import must preserve augmentationDots and coexisting notation",
 );
 
+const lyricProject = createLyricSupportedProject();
+const lyricSnapshot = JSON.stringify(lyricProject);
+const lyricReady = createLocalScoreProjectMusicXmlExportDraft({
+  project: lyricProject,
+});
+assert.equal(
+  JSON.stringify(lyricProject),
+  lyricSnapshot,
+  "lyric export draft must be pure",
+);
+assert.equal(lyricReady.status, "ready");
+assert.deepEqual(lyricReady.issues, []);
+assert.ok(lyricReady.xml);
+assert.match(
+  lyricReady.xml,
+  /<duration>3<\/duration>\s*<tie type="stop"\/>\s*<tie type="start"\/>\s*<voice>1<\/voice>\s*<type>eighth<\/type>\s*<dot\/>\s*<staff>1<\/staff>\s*<notations><fermata\/><tied type="stop"\/><tied type="start"\/><slur type="stop"\/><slur type="start"\/><\/notations>\s*<lyric><text>你好 😀 内部 空格 &amp; &lt; &gt; &quot; &apos;<\/text><\/lyric>\s*<\/note>/,
+  "escaped exact lyric text must follow notations on the dotted chain midpoint",
+);
+assert.deepEqual(
+  parseMusicXML(lyricReady.xml),
+  parseMusicXML(dottedReady.xml),
+  "legacy parsing must ignore lyric markup without changing note timing",
+);
+assert.deepEqual(
+  createLocalScoreProjectMusicXmlExportDraft({ project: lyricProject }),
+  lyricReady,
+  "the same lyric canonical revision must produce a deterministic draft",
+);
+
+const lyricXmlPayload = confirmLocalScoreProjectMusicXmlExportDraft({
+  draft: lyricReady,
+  currentProject: lyricProject,
+  format: "musicxml",
+});
+const reopenedLyricXml = createLocalScoreProjectMusicXmlImportDraft({
+  xml: String(lyricXmlPayload.data),
+  fileName: lyricXmlPayload.fileName,
+  sourceFormat: "musicxml",
+  projectId: lyricProject.projectId,
+  now: lyricProject.createdAt,
+  createEventId: () => `reopened-lyric-event-${++importedEventIndex}`,
+});
+assert.equal(reopenedLyricXml.status, "ready");
+assert.ok(reopenedLyricXml.project);
+assert.deepEqual(
+  musicalProjection(reopenedLyricXml.project),
+  musicalProjection(lyricProject),
+  "strict MusicXML re-import must preserve exact escaped lyric text",
+);
+
+const lyricMxlPayload = confirmLocalScoreProjectMusicXmlExportDraft({
+  draft: lyricReady,
+  currentProject: lyricProject,
+  format: "mxl",
+});
+assert.ok(lyricMxlPayload.data instanceof Uint8Array);
+assert.deepEqual(
+  lyricMxlPayload.data,
+  createMusicXmlMxlArchive(lyricReady.xml),
+  "lyric MXL generation must remain deterministic",
+);
+const reopenedLyricMxl = createLocalScoreProjectMusicXmlImportDraft({
+  xml: extractMusicXMLFromMxl(lyricMxlPayload.data as Uint8Array),
+  fileName: lyricMxlPayload.fileName,
+  sourceFormat: "mxl",
+  projectId: lyricProject.projectId,
+  now: lyricProject.createdAt,
+  createEventId: () => `reopened-lyric-mxl-event-${++importedEventIndex}`,
+});
+assert.equal(reopenedLyricMxl.status, "ready");
+assert.ok(reopenedLyricMxl.project);
+assert.deepEqual(
+  musicalProjection(reopenedLyricMxl.project),
+  musicalProjection(lyricProject),
+  "strict MXL re-import must preserve exact escaped lyric text",
+);
+
 const changedProject: LocalScoreProjectV1 = {
   ...project,
   document: {
@@ -574,6 +684,56 @@ const withFirstMeasureEvents = (
   },
 });
 const emptyMeasure = [{ measureNumber: 1, events: [] }] as const;
+const maxLyricProject = withFirstMeasureEvents([{
+  ...sourceNote,
+  lyric: `${"歌".repeat(79)}🎵`,
+}]);
+const maxLyricDraft = createLocalScoreProjectMusicXmlExportDraft({
+  project: maxLyricProject,
+});
+assert.equal(maxLyricDraft.status, "ready");
+assert.match(
+  maxLyricDraft.xml ?? "",
+  new RegExp(`<lyric><text>${"歌".repeat(79)}🎵</text></lyric>`),
+  "80 Unicode code points must remain exportable",
+);
+const invalidLyricCases = [
+  ["empty", ""],
+  ["whitespace-only", "   "],
+  ["outer-whitespace", " la "],
+  ["over-80-code-points", "歌".repeat(81)],
+  ["c0-control", "la\u0001"],
+  ["c1-control", "la\u0085"],
+  ["lone-high-surrogate", "la\ud800"],
+  ["lone-low-surrogate", "la\udfff"],
+  ["unicode-fffe", "la\ufffe"],
+  ["unicode-ffff", "la\uffff"],
+] as const;
+for (const [label, lyric] of invalidLyricCases) {
+  const invalidLyricProject = withFirstMeasureEvents([{
+    ...sourceNote,
+    lyric,
+  }]);
+  const invalidLyricDraft = createLocalScoreProjectMusicXmlExportDraft({
+    project: invalidLyricProject,
+  });
+  assert.equal(invalidLyricDraft.status, "blocked", label);
+  assert.equal(invalidLyricDraft.xml, null, label);
+  assert.equal(
+    invalidLyricDraft.issues[0]?.code,
+    "unsupported-lyric",
+    `${label} must produce the stable lyric blocker before any generic canonical blocker`,
+  );
+  assert.throws(
+    () => confirmLocalScoreProjectMusicXmlExportDraft({
+      draft: invalidLyricDraft,
+      currentProject: invalidLyricProject,
+      format: "musicxml",
+    }),
+    /阻断问题/,
+  );
+}
+
 const blockedFixtures: readonly [
   LocalScoreProjectV1,
   readonly string[],
@@ -701,7 +861,6 @@ const blockedFixtures: readonly [
       "unsupported-chord-symbol",
       "unsupported-dynamic",
       "unsupported-damper-pedal",
-      "unsupported-lyric",
       "unsupported-fingering",
       "unsupported-articulation",
     ],

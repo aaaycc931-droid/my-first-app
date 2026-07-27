@@ -1,6 +1,7 @@
 import {
   cloneLocalScoreProject,
   createLocalScoreProject,
+  LOCAL_SCORE_PROJECT_MAX_LYRIC_CODE_POINTS,
   parseLocalScoreProject,
   type LocalScoreProjectV1,
 } from "./localScoreProject";
@@ -79,7 +80,6 @@ const forbiddenElementCodes = [
   ["tuplet", "unsupported-tuplet", "当前导入不支持连音符。"],
   ["time-modification", "unsupported-tuplet", "当前导入不支持连音符时值比例。"],
   ["grace", "unsupported-grace", "当前导入不支持倚音。"],
-  ["lyric", "unsupported-lyric", "当前导入不支持歌词。"],
   ["fingering", "unsupported-fingering", "当前导入不支持指法。"],
   ["harmony", "unsupported-harmony", "当前导入不支持和弦标记。"],
   ["articulations", "unsupported-articulation", "当前导入不支持演奏法。"],
@@ -121,6 +121,8 @@ const allowedMeasureElements = new Set([
   "slur",
   "tie",
   "tied",
+  "lyric",
+  "text",
 ]);
 const allowedRootElements = new Set(["work", "part-list", "part"]);
 const allowedWorkElements = new Set(["work-title"]);
@@ -208,6 +210,143 @@ type SupportedNotationBundle = Readonly<{
 }>;
 
 type TieMarkerType = "start" | "stop";
+
+const containsUnsupportedLyricCharacter = (value: string) =>
+  Array.from(value).some((character) => {
+    const codePoint = character.codePointAt(0) ?? 0;
+    return (
+      codePoint <= 0x1f
+      || (codePoint >= 0x7f && codePoint <= 0x9f)
+      || (codePoint >= 0xd800 && codePoint <= 0xdfff)
+      || codePoint === 0xfffe
+      || codePoint === 0xffff
+    );
+  });
+
+const readSupportedLyric = ({
+  noteElement,
+  noteXml,
+  issues,
+  measureNumber,
+}: {
+  noteElement: Element | undefined;
+  noteXml: string;
+  issues: LocalScoreProjectMusicXmlImportIssue[];
+  measureNumber: number;
+}): string | null => {
+  if (!noteElement) return null;
+  const lyrics = directChildElements(noteElement).filter(
+    (element) => localElementName(element) === "lyric",
+  );
+  const allLyrics = Array.from(noteElement.getElementsByTagName("*"))
+    .filter((element) => localElementName(element) === "lyric");
+  if (allLyrics.length !== lyrics.length) {
+    issues.push(blockingIssue(
+      "unsupported-lyric",
+      "歌词 lyric 必须是 note 的直接子元素。",
+      measureNumber,
+    ));
+  }
+  if (allLyrics.length > 0 && noteElement.attributes.length !== 0) {
+    issues.push(blockingIssue(
+      "unsupported-lyric",
+      "带歌词的 note 不能包含当前无法保留的属性。",
+      measureNumber,
+    ));
+  }
+  if (lyrics.length > 1) {
+    issues.push(blockingIssue(
+      "unsupported-lyric",
+      "当前每个音符最多支持一个 lyric 容器。",
+      measureNumber,
+    ));
+  }
+  if (lyrics.length !== 1) return null;
+
+  const lyric = lyrics[0];
+  const noteChildren = directChildElements(noteElement);
+  const lyricIndex = noteChildren.indexOf(lyric);
+  const staffIndex = noteChildren.findIndex(
+    (element) => localElementName(element) === "staff",
+  );
+  const notationsIndex = noteChildren.findIndex(
+    (element) => localElementName(element) === "notations",
+  );
+  if (
+    lyricIndex !== noteChildren.length - 1
+    || staffIndex < 0
+    || lyricIndex < staffIndex
+    || (notationsIndex >= 0 && lyricIndex < notationsIndex)
+  ) {
+    issues.push(blockingIssue(
+      "unsupported-lyric",
+      "lyric 必须位于 note 的 staff 和可选 notations 之后，并作为当前受控 note 的最后一个子元素。",
+      measureNumber,
+    ));
+  }
+  const lyricChildren = directChildElements(lyric);
+  const texts = lyricChildren.filter(
+    (element) => localElementName(element) === "text",
+  );
+  const allTexts = Array.from(lyric.getElementsByTagName("*"))
+    .filter((element) => localElementName(element) === "text");
+  const hasInvalidLyricNode = Array.from(lyric.childNodes).some((child) => {
+    if (child.nodeType === 1) {
+      return localElementName(child as Element) !== "text";
+    }
+    if (child.nodeType === 3) {
+      return (child.textContent ?? "").trim() !== "";
+    }
+    return true;
+  });
+  if (
+    lyric.attributes.length !== 0
+    || lyricChildren.length !== 1
+    || texts.length !== 1
+    || allTexts.length !== texts.length
+    || hasInvalidLyricNode
+  ) {
+    issues.push(blockingIssue(
+      "unsupported-lyric",
+      "当前只支持无属性且仅包含一个直接 text 子元素的 lyric；不支持断词、延长、多段或其他结构。",
+      measureNumber,
+    ));
+  }
+  if (texts.length !== 1) return null;
+
+  const text = texts[0];
+  const hasInvalidTextNode = Array.from(text.childNodes).some(
+    (child) => child.nodeType !== 3,
+  );
+  const value = text.textContent ?? "";
+  if (
+    text.attributes.length !== 0
+    || directChildElements(text).length !== 0
+    || hasInvalidTextNode
+    || value.length === 0
+    || value.trim() !== value
+    || Array.from(value).length > LOCAL_SCORE_PROJECT_MAX_LYRIC_CODE_POINTS
+    || containsUnsupportedLyricCharacter(value)
+  ) {
+    issues.push(blockingIssue(
+      "unsupported-lyric",
+      `歌词 text 必须是无属性、无子元素的非空规范文本，首尾不能留白，且最多 ${LOCAL_SCORE_PROJECT_MAX_LYRIC_CODE_POINTS} 个字符。`,
+      measureNumber,
+    ));
+  }
+
+  const lyricMarkup = Array.from(noteXml.matchAll(
+    /<(?:[A-Za-z_][\w.-]*:)?lyric\b[^>]*>[\s\S]*?<\/(?:[A-Za-z_][\w.-]*:)?lyric\s*>/gi,
+  ));
+  if (lyricMarkup.some((match) => match[0].includes("<![CDATA["))) {
+    issues.push(blockingIssue(
+      "unsupported-lyric",
+      "歌词 lyric／text 不能包含 CDATA。",
+      measureNumber,
+    ));
+  }
+  return value;
+};
 
 const readSupportedAugmentationDots = ({
   noteElement,
@@ -641,6 +780,34 @@ const validateNotationHierarchy = ({
         measureNumber,
       ));
     }
+    if (
+      elementName === "lyric"
+      && (
+        !element.parentElement
+        || localElementName(element.parentElement) !== "note"
+      )
+    ) {
+      issues.push(blockingIssue(
+        "unsupported-lyric",
+        "lyric 必须是 note 的直接子元素。",
+        measureNumber,
+      ));
+    }
+    if (
+      elementName === "text"
+      && (
+        !element.parentElement
+        || localElementName(element.parentElement) !== "lyric"
+        || !element.parentElement.parentElement
+        || localElementName(element.parentElement.parentElement) !== "note"
+      )
+    ) {
+      issues.push(blockingIssue(
+        "unsupported-lyric",
+        "歌词 text 必须直接位于 note 的 lyric 子元素中。",
+        measureNumber,
+      ));
+    }
   });
 };
 
@@ -674,6 +841,7 @@ const noteEvent = ({
   pitch,
   duration,
   augmentationDots,
+  lyric,
   measure,
   fermataMark,
   tieToNext,
@@ -683,6 +851,7 @@ const noteEvent = ({
   pitch: NotationPitch;
   duration: NotationDuration;
   augmentationDots: 0 | 1;
+  lyric: string | null;
   measure: number;
   fermataMark: "fermata" | null;
   tieToNext: boolean;
@@ -696,7 +865,7 @@ const noteEvent = ({
   augmentationDots,
   tieToNext,
   slurToNext,
-  lyric: null,
+  lyric,
   fingering: null,
   chordSymbol: null,
   articulations: [],
@@ -1173,6 +1342,12 @@ export const createLocalScoreProjectMusicXmlImportDraft = (
         issues,
         measureNumber,
       });
+      const lyric = readSupportedLyric({
+        noteElement: noteElements[noteIndex],
+        noteXml,
+        issues,
+        measureNumber,
+      });
       const tieMarkersMatch = haveSameTieMarkerTypes(
         directTieTypes,
         notationBundle.tiedTypes,
@@ -1324,6 +1499,13 @@ export const createLocalScoreProjectMusicXmlImportDraft = (
       }
 
       if (isRest) {
+        if (lyric !== null || hasElement(noteXml, "lyric")) {
+          issues.push(blockingIssue(
+            "unsupported-lyric-on-rest",
+            "休止符不能包含歌词。",
+            measureNumber,
+          ));
+        }
         if (notationBundle.slurStop) {
           issues.push(blockingIssue(
             "unsupported-slur",
@@ -1375,6 +1557,7 @@ export const createLocalScoreProjectMusicXmlImportDraft = (
             pitch: pitch as NotationPitch,
             duration,
             augmentationDots,
+            lyric,
             measure: measureNumber,
             fermataMark: notationBundle.fermataMark,
             tieToNext: tieStart,

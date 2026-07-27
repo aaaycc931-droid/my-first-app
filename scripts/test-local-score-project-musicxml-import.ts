@@ -356,6 +356,254 @@ assert.deepEqual(
   "相同附点 XML 经 MXL 解包路径必须生成等价 canonical",
 );
 
+const lyricXml = dottedXml
+  .replace(
+    "<type>quarter</type><staff>1</staff></note>",
+    "<type>quarter</type><staff>1</staff><lyric><text>你 &amp; me</text></lyric></note>",
+  )
+  .replace(
+    '<notations><fermata/><tied type="start"/><slur type="start"/></notations></note>',
+    '<notations><fermata/><tied type="start"/><slur type="start"/></notations><lyric><text>唱 🎵 &amp; &lt;&gt;&quot;&apos;</text></lyric></note>',
+  )
+  .replace(
+    '<notations><fermata/><tied type="stop"/><slur type="stop"/></notations></note>',
+    '<notations><fermata/><tied type="stop"/><slur type="stop"/></notations><lyric><text>结束</text></lyric></note>',
+  );
+let lyricEventSequence = 0;
+const lyricReady = createLocalScoreProjectMusicXmlImportDraft({
+  xml: lyricXml,
+  fileName: "严格歌词.musicxml",
+  sourceFormat: "musicxml",
+  projectId: "import-project-lyric",
+  now: "2026-07-27T08:00:55.000Z",
+  createEventId: () => `lyric-event-${++lyricEventSequence}`,
+});
+assert.equal(lyricReady.status, "ready");
+assert.deepEqual(lyricReady.issues, []);
+assert.deepEqual(
+  lyricReady.project?.document.parts[0].staves[0].voices[0].measures
+    .flatMap((measure) => measure.events)
+    .map((event) => event.type === "note" ? event.lyric : null),
+  ["你 & me", "唱 🎵 & <>\"'", "结束", null, null],
+  "歌词必须解码实体并精确保留中英文、emoji 和内部空格",
+);
+assert.deepEqual(
+  lyricReady.project?.document.parts[0].staves[0].voices[0].measures[0]
+    .events[1],
+  {
+    ...dottedReady.project?.document.parts[0].staves[0].voices[0].measures[0]
+      .events[1],
+    id: "lyric-event-2",
+    lyric: "唱 🎵 & <>\"'",
+  },
+  "歌词必须与 dot、fermata、tie 和 slur 在同一 canonical note 上共存",
+);
+
+lyricEventSequence = 0;
+const lyricMxlEquivalent = createLocalScoreProjectMusicXmlImportDraft({
+  xml: lyricXml,
+  fileName: "严格歌词.mxl",
+  sourceFormat: "mxl",
+  projectId: "import-project-lyric",
+  now: "2026-07-27T08:00:55.000Z",
+  createEventId: () => `lyric-event-${++lyricEventSequence}`,
+});
+assert.equal(lyricMxlEquivalent.status, "ready");
+assert.deepEqual(
+  lyricMxlEquivalent.project,
+  lyricReady.project,
+  "相同歌词 XML 经 MXL 解包路径必须生成等价 canonical",
+);
+
+const maxLyric = `${"唱".repeat(79)}🎵`;
+let maxLyricEventSequence = 0;
+const maxLyricDraft = createLocalScoreProjectMusicXmlImportDraft({
+  xml: supportedXml.replace(
+    "<type>half</type></note>",
+    `<type>half</type><staff>1</staff><lyric><text>${maxLyric}</text></lyric></note>`,
+  ),
+  fileName: "max-lyric.musicxml",
+  sourceFormat: "musicxml",
+  projectId: "import-project-max-lyric",
+  now: "2026-07-27T08:00:56.000Z",
+  createEventId: () => `max-lyric-event-${++maxLyricEventSequence}`,
+});
+assert.equal(maxLyricDraft.status, "ready");
+assert.equal(
+  (maxLyricDraft.project?.document.parts[0].staves[0].voices[0].measures[0]
+    .events[2]?.type === "note"
+    ? maxLyricDraft.project.document.parts[0].staves[0].voices[0].measures[0]
+      .events[2].lyric
+    : null),
+  maxLyric,
+  "歌词上限必须按 Unicode code point 而非 UTF-16 code unit 计算",
+);
+
+const lyricInsertionTarget = "<type>half</type></note>";
+const invalidLyricXmls = [
+  supportedXml.replace(
+    lyricInsertionTarget,
+    "<type>half</type><lyric><text>缺少 staff</text></lyric></note>",
+  ),
+  supportedXml.replace(
+    lyricInsertionTarget,
+    "<type>half</type><lyric><text>一</text></lyric><lyric><text>二</text></lyric></note>",
+  ),
+  supportedXml.replace(
+    lyricInsertionTarget,
+    '<type>half</type><lyric number="1"><text>歌词</text></lyric></note>',
+  ),
+  supportedXml.replace(
+    lyricInsertionTarget,
+    "<type>half</type><lyric/></note>",
+  ),
+  supportedXml.replace(
+    lyricInsertionTarget,
+    "<type>half</type><lyric><text/></lyric></note>",
+  ),
+  supportedXml.replace(
+    lyricInsertionTarget,
+    "<type>half</type><lyric><text> 歌词</text></lyric></note>",
+  ),
+  supportedXml.replace(
+    lyricInsertionTarget,
+    "<type>half</type><lyric><text>歌词 </text></lyric></note>",
+  ),
+  supportedXml.replace(
+    lyricInsertionTarget,
+    "<type>half</type><lyric><text>   </text></lyric></note>",
+  ),
+  supportedXml.replace(
+    lyricInsertionTarget,
+    `<type>half</type><lyric><text>${"唱".repeat(81)}</text></lyric></note>`,
+  ),
+  supportedXml.replace(
+    lyricInsertionTarget,
+    "<type>half</type><lyric><text>坏&#x85;词</text></lyric></note>",
+  ),
+  supportedXml.replace(
+    lyricInsertionTarget,
+    "<type>half</type><lyric><text>坏&#xFFFE;词</text></lyric></note>",
+  ),
+  supportedXml.replace(
+    lyricInsertionTarget,
+    "<type>half</type><lyric><text>坏&#xFFFF;词</text></lyric></note>",
+  ),
+  supportedXml.replace(
+    lyricInsertionTarget,
+    "<type>half</type><lyric><text>坏&#xD800;词</text></lyric></note>",
+  ),
+  supportedXml.replace(
+    lyricInsertionTarget,
+    `<type>half</type><lyric><text>坏${String.fromCodePoint(0xfffe)}词</text></lyric></note>`,
+  ),
+  supportedXml.replace(
+    lyricInsertionTarget,
+    `<type>half</type><lyric><text>坏${String.fromCharCode(0xd800)}词</text></lyric></note>`,
+  ),
+  supportedXml.replace(
+    lyricInsertionTarget,
+    "<type>half</type><lyric>旁路<text>歌词</text></lyric></note>",
+  ),
+  supportedXml.replace(
+    lyricInsertionTarget,
+    "<type>half</type><lyric><![CDATA[ ]]><text>歌词</text></lyric></note>",
+  ),
+  supportedXml.replace(
+    lyricInsertionTarget,
+    "<type>half</type><lyric><text><![CDATA[]]></text></lyric></note>",
+  ),
+  supportedXml.replace(
+    lyricInsertionTarget,
+    "<type>half</type><lyric><!--comment--><text>歌词</text></lyric></note>",
+  ),
+  supportedXml.replace(
+    lyricInsertionTarget,
+    "<type>half</type><lyric><?lyric data?><text>歌词</text></lyric></note>",
+  ),
+  supportedXml.replace(
+    lyricInsertionTarget,
+    '<type>half</type><lyric><text xml:lang="zh">歌词</text></lyric></note>',
+  ),
+  supportedXml.replace(
+    lyricInsertionTarget,
+    "<type>half</type><lyric><text><unexpected/></text></lyric></note>",
+  ),
+  supportedXml.replace(
+    lyricInsertionTarget,
+    "<type>half</type><lyric><text>一</text><text>二</text></lyric></note>",
+  ),
+  supportedXml.replace(
+    lyricInsertionTarget,
+    "<type>half</type><lyric><syllabic>single</syllabic><text>歌词</text></lyric></note>",
+  ),
+  supportedXml.replace(
+    lyricInsertionTarget,
+    "<type>half</type><lyric><text>歌词</text><extend/></lyric></note>",
+  ),
+  supportedXml.replace(
+    lyricInsertionTarget,
+    "<type>half</type><lyric><text>一</text><elision>‿</elision><text>二</text></lyric></note>",
+  ),
+  supportedXml.replace(
+    lyricInsertionTarget,
+    "<type>half</type><lyric><laughing/></lyric></note>",
+  ),
+  supportedXml.replace(
+    "<note><pitch><step>D</step>",
+    "<lyric><text>错层级</text></lyric><note><pitch><step>D</step>",
+  ),
+  supportedXml.replace(
+    lyricInsertionTarget,
+    "<type>half</type><text>错层级</text></note>",
+  ),
+  supportedXml.replace(
+    lyricInsertionTarget,
+    "<type>half</type><lyric><text>错序</text></lyric><staff>1</staff></note>",
+  ),
+  supportedXml.replace(
+    lyricInsertionTarget,
+    "<type>half</type><lyric><text>错序</text></lyric><notations><fermata/></notations></note>",
+  ),
+  supportedXml.replace(
+    "<note><rest/><duration>2</duration><voice>1</voice><type>quarter</type><notations><fermata/></notations></note>",
+    "<note><rest/><duration>2</duration><voice>1</voice><type>quarter</type><notations><fermata/></notations><lyric><text>休止</text></lyric></note>",
+  ),
+  supportedXml
+    .replace(
+      "<note><pitch><step>D</step>",
+      '<note print-object="yes"><pitch><step>D</step>',
+    )
+    .replace(
+      lyricInsertionTarget,
+      "<type>half</type><lyric><text>歌词</text></lyric></note>",
+    ),
+];
+for (let index = 0; index < invalidLyricXmls.length; index += 1) {
+  let invalidLyricIdCalls = 0;
+  const invalidLyricDraft = createLocalScoreProjectMusicXmlImportDraft({
+    xml: invalidLyricXmls[index],
+    fileName: `invalid-lyric-${index + 1}.musicxml`,
+    sourceFormat: "musicxml",
+    projectId: `blocked-invalid-lyric-${index + 1}`,
+    now: "2026-07-27T08:00:57.000Z",
+    createEventId: () => {
+      invalidLyricIdCalls += 1;
+      return `unused-invalid-lyric-${invalidLyricIdCalls}`;
+    },
+  });
+  assert.equal(invalidLyricDraft.status, "blocked");
+  assert.equal(invalidLyricIdCalls, 0);
+  assert.ok(
+    invalidLyricDraft.issues.some(
+      (issue) =>
+        issue.code === "unsupported-lyric"
+        || issue.code === "unsupported-lyric-on-rest",
+    ),
+    `歌词结构 ${index + 1} 必须以稳定 lyric ledger 失败关闭`,
+  );
+}
+
 let metadataEventSequence = 0;
 const metadataReady = createLocalScoreProjectMusicXmlImportDraft({
   xml: supportedXml
@@ -618,7 +866,7 @@ assert.throws(
 );
 
 for (const [element, code] of [
-  ["<lyric><text>la</text></lyric>", "unsupported-lyric"],
+  ["<lyric><syllabic>single</syllabic><text>la</text></lyric>", "unsupported-lyric"],
   ["<notations><technical><fingering>1</fingering></technical></notations>", "unsupported-fingering"],
   ["<notations><articulations><accent/></articulations></notations>", "unsupported-articulation"],
   ["<accidental>sharp</accidental>", "unsupported-accidental"],

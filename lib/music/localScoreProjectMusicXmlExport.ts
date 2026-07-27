@@ -1,5 +1,6 @@
 import {
   getLocalScoreProjectEventDurationBeats,
+  LOCAL_SCORE_PROJECT_MAX_LYRIC_CODE_POINTS,
   parseLocalScoreProject,
   serializeLocalScoreProject,
   type LocalScoreProjectV1,
@@ -134,6 +135,84 @@ const getEventLocation = ({
   eventId,
 });
 
+const isSupportedLyric = (value: unknown): value is string => {
+  if (
+    typeof value !== "string"
+    || value.length === 0
+    || value.trim() !== value
+    || Array.from(value).length > LOCAL_SCORE_PROJECT_MAX_LYRIC_CODE_POINTS
+  ) {
+    return false;
+  }
+  return !Array.from(value).some((character) => {
+    const codePoint = character.codePointAt(0) ?? 0;
+    return codePoint <= 0x1f
+      || (codePoint >= 0x7f && codePoint <= 0x9f)
+      || (codePoint >= 0xd800 && codePoint <= 0xdfff)
+      || codePoint === 0xfffe
+      || codePoint === 0xffff;
+  });
+};
+
+const getRawUnsupportedLyricIssues = (
+  project: unknown,
+): LocalScoreProjectMusicXmlExportIssue[] => {
+  if (typeof project !== "object" || project === null) return [];
+  const document = (project as { document?: unknown }).document;
+  if (typeof document !== "object" || document === null) return [];
+  const parts = (document as { parts?: unknown }).parts;
+  if (!Array.isArray(parts)) return [];
+  const issues: LocalScoreProjectMusicXmlExportIssue[] = [];
+  parts.forEach((part, partIndex) => {
+    if (typeof part !== "object" || part === null) return;
+    const staves = (part as { staves?: unknown }).staves;
+    if (!Array.isArray(staves)) return;
+    staves.forEach((staff, staffIndex) => {
+      if (typeof staff !== "object" || staff === null) return;
+      const voices = (staff as { voices?: unknown }).voices;
+      if (!Array.isArray(voices)) return;
+      voices.forEach((voice, voiceIndex) => {
+        if (typeof voice !== "object" || voice === null) return;
+        const measures = (voice as { measures?: unknown }).measures;
+        if (!Array.isArray(measures)) return;
+        measures.forEach((measure) => {
+          if (typeof measure !== "object" || measure === null) return;
+          const measureNumber =
+            (measure as { measureNumber?: unknown }).measureNumber;
+          const events = (measure as { events?: unknown }).events;
+          if (!Array.isArray(events)) return;
+          events.forEach((event) => {
+            if (
+              typeof event !== "object"
+              || event === null
+              || (event as { type?: unknown }).type !== "note"
+            ) {
+              return;
+            }
+            const lyric = (event as { lyric?: unknown }).lyric;
+            if (lyric === null || lyric === undefined || isSupportedLyric(lyric)) {
+              return;
+            }
+            const eventId = (event as { id?: unknown }).id;
+            issues.push(blockingIssue(
+              "unsupported-lyric",
+              "歌词必须是首尾无空白、最多 80 个字符且可安全写入 XML 1.0 的非空文本。",
+              {
+                partIndex,
+                staffIndex,
+                voiceIndex,
+                ...(typeof measureNumber === "number" ? { measureNumber } : {}),
+                ...(typeof eventId === "string" ? { eventId } : {}),
+              },
+            ));
+          });
+        });
+      });
+    });
+  });
+  return issues;
+};
+
 const addEventIssues = ({
   event,
   issues,
@@ -187,10 +266,10 @@ const addEventIssues = ({
     }
     return;
   }
-  if (event.lyric !== null) {
+  if (event.lyric !== null && !isSupportedLyric(event.lyric)) {
     issues.push(blockingIssue(
       "unsupported-lyric",
-      "当前导出不支持歌词。",
+      "歌词必须是首尾无空白、最多 80 个字符且可安全写入 XML 1.0 的非空文本。",
       location,
     ));
   }
@@ -246,6 +325,9 @@ const renderNote = ({
   const notations = notationMarks.length > 0
     ? `\n        <notations>${notationMarks.join("")}</notations>`
     : "";
+  const lyric = event.type === "note" && event.lyric !== null
+    ? `\n        <lyric><text>${escapeXmlText(event.lyric)}</text></lyric>`
+    : "";
   if (event.type === "rest") {
     return `      <note>
         <rest/>
@@ -265,7 +347,7 @@ const renderNote = ({
         <duration>${durationValue}</duration>${directTieMarkup}
         <voice>1</voice>
         <type>${duration.type}</type>${dotMarkup}
-        <staff>1</staff>${notations}
+        <staff>1</staff>${notations}${lyric}
       </note>`;
 };
 
@@ -325,6 +407,7 @@ export const createLocalScoreProjectMusicXmlExportDraft = ({
 }: {
   project: LocalScoreProjectV1;
 }): LocalScoreProjectMusicXmlExportDraft => {
+  const rawUnsupportedLyricIssues = getRawUnsupportedLyricIssues(project);
   const parsedProject = parseLocalScoreProject(project);
   const summary = {
     partCount: parsedProject?.document.parts.length ?? 0,
@@ -370,10 +453,13 @@ export const createLocalScoreProjectMusicXmlExportDraft = ({
       sourceProjectId: project.projectId,
       sourceRevision: project.document.revision,
       sourceFingerprint: null,
-      issues: [blockingIssue(
-        "invalid-canonical-project",
-        "本机谱项目未通过当前 canonical 结构校验，不能导出。",
-      )],
+      issues: [
+        ...rawUnsupportedLyricIssues,
+        blockingIssue(
+          "invalid-canonical-project",
+          "本机谱项目未通过当前 canonical 结构校验，不能导出。",
+        ),
+      ],
       summary,
       xml: null,
       fileNames: null,

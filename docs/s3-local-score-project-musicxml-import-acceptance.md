@@ -51,6 +51,15 @@ QA level recommendation：**strict**
   rest 基础时值仍只限 quarter；MusicXML `duration / divisions`、小节容量、拍位以及
   slur／tie 连续性均按附点后的 `1.5×` 真实时值核对。重复、错层级或非空 dot 必须
   blocking，不允许忽略显示语义。
+- pitched note 最多允许一个位于 `<staff>` 和可选 `<notations>` 之后的直接
+  `<lyric>`，且必须无属性并只包含一个无属性的直接 `<text>`。解码后的 text 必须是
+  exact canonical 单行歌词：非空、前后无空白、最多 80 个 Unicode code point 且无
+  C0／C1 控制字符、孤立 surrogate 或 `U+FFFE`／`U+FFFF`；内部空格、汉字、emoji
+  与 XML entities 解码后的字符必须无损保留。
+- rest lyric、歌词所在 note 的属性、重复或错序 lyric、重复 text、lyric／text 属性、
+  非空旁路文本、CDATA、comment、processing instruction、嵌套或错误层级必须
+  blocking。`syllabic`、`elision`、`extend`、多 verse、换行及其他歌词结构不在当前
+  子集；不得静默选择、合并、trim、猜测或丢弃。
 - note 与 rest 各自最多允许一个直接、无属性且无非空文本的 `<notations>`。其中
   `<fermata/>` 必须无属性、无文本、无子元素，并无损映射为 canonical
   `fermataMark: "fermata"`。
@@ -77,8 +86,8 @@ QA level recommendation：**strict**
   使用 stale 候选。
 
 本切片不得为了增加成功率而静默跳过休止符、多 part／staff／voice、和弦时序、
-`backup`／`forward`、未知时值、谱号／调号／拍号、歌词、严格单附点／fermata／slur／tie
-结构以外的连线或其他 canonical 语义。
+`backup`／`forward`、未知时值、谱号／调号／拍号、严格单段歌词／单附点／fermata／
+slur／tie 结构以外的歌词、连线或其他 canonical 语义。
 不在本切片支持清单中的内容必须 blocking。
 
 ## 明确确认与原子保存
@@ -117,6 +126,11 @@ QA level recommendation：**strict**
 - note 的 half／quarter／eighth 单附点及 quarter rest 单附点映射为 canonical
   `augmentationDots: 1`；XML／MXL、容量、拍位和关系连续性使用 `1.5×` 真实时值，
   重复、属性、文本、子元素、错层级与 duration 不一致全部失败关闭；
+- pitched note 的唯一 `<lyric><text>` exact 映射为 canonical `lyric`，XML／MXL、
+  Unicode、内部空格、emoji、XML entities 及与 dot／fermata／slur／tie 共存保持
+  不变；rest、重复、属性、CDATA、comment、processing instruction、空白规范化、
+  81 code point、错层级／错顺序、`syllabic`、`elision`、`extend` 和多 verse 全部
+  失败关闭；
 - note/rest 的严格 `<notations><fermata/></notations>` 映射为 canonical
   `fermataMark`；带属性、文本、重复、空容器或错误层级的变体全部失败关闭；
 - 相邻时间连续 note 的严格 slur start／stop 映射为 canonical `slurToNext`；同小节、
@@ -181,3 +195,6 @@ round-trip、OMR、教师审核、真机验收或正式版 V1 已完成。
 
 单附点双向严格子集的独立验收边界见
 `docs/s3-local-score-project-musicxml-augmentation-dot-round-trip-acceptance.md`。
+
+单段歌词双向严格子集的独立验收边界见
+`docs/s3-local-score-project-musicxml-lyric-round-trip-acceptance.md`。
