@@ -13,6 +13,7 @@ import type {
   LocalScoreProjectDamperPedalMarkV1,
   LocalScoreProjectDynamicMarkV1,
   LocalScoreProjectFingeringV1,
+  LocalScoreProjectFermataMarkV1,
 } from "./scoreDocument";
 
 export type LocalScoreNumberedTokenBase = Readonly<{
@@ -26,6 +27,7 @@ export type LocalScoreNumberedTokenBase = Readonly<{
   chordSymbol: string | null;
   dynamicMark: LocalScoreProjectDynamicMarkV1 | null;
   damperPedalMark: LocalScoreProjectDamperPedalMarkV1 | null;
+  fermataMark: LocalScoreProjectFermataMarkV1 | null;
   accessibleLabel: string;
 }>;
 
@@ -155,11 +157,12 @@ const createAccessibleLabel = (
   const damper = token.damperPedalMark === null
     ? ""
     : `，${LOCAL_SCORE_PROJECT_DAMPER_PEDAL_MARK_LABELS[token.damperPedalMark]}（${token.damperPedalMark}）`;
+  const fermata = token.fermataMark === null ? "" : "，延长记号";
   const duration = token.augmentationDots === 1
     ? `附点${DURATION_LABELS[token.duration]}`
     : DURATION_LABELS[token.duration];
   if (token.type === "rest") {
-    return `${position}，0，${duration}休止符${chord}${dynamic}${damper}`;
+    return `${position}，0，${duration}休止符${chord}${dynamic}${damper}${fermata}`;
   }
   const octave = token.octave === "upper" ? "高音" : "";
   const tie = token.tieToNext ? "，与下一音符用延音线相连" : "";
@@ -173,7 +176,7 @@ const createAccessibleLabel = (
       .map((articulation) =>
         LOCAL_SCORE_PROJECT_ARTICULATION_LABELS[articulation])
       .join("、")}`;
-  return `${position}，${octave}${token.degree}（${token.pitch}），${duration}音符${chord}${dynamic}${damper}${tie}${lyric}${fingering}${articulations}`;
+  return `${position}，${octave}${token.degree}（${token.pitch}），${duration}音符${chord}${dynamic}${damper}${fermata}${tie}${lyric}${fingering}${articulations}`;
 };
 
 export const createLocalScoreProjectNumberedPresentation = (
@@ -197,6 +200,7 @@ export const createLocalScoreProjectNumberedPresentation = (
         chordSymbol: token.chordSymbol,
         dynamicMark: token.dynamicMark,
         damperPedalMark: token.damperPedalMark,
+        fermataMark: token.fermataMark,
       };
       const withoutLabel: LocalScoreNumberedTokenWithoutLabel =
         token.type === "rest"
