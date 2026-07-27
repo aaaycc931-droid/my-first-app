@@ -36,8 +36,8 @@ let project = createLocalScoreProject({
   title: "力度记号",
   now: "2026-07-26T08:00:00.000Z",
 });
-assert.equal(project.schemaVersion, "local-score-project-storage-v13");
-assert.equal(project.document.schemaVersion, "score-document-v12");
+assert.equal(project.schemaVersion, "local-score-project-storage-v14");
+assert.equal(project.document.schemaVersion, "score-document-v13");
 
 project = addLocalScoreProjectEvent({
   project,
@@ -271,8 +271,8 @@ const beforeMigration = JSON.stringify(storageV10);
 const migrated = parseLocalScoreProject(storageV10);
 assert.ok(migrated);
 assert.equal(JSON.stringify(storageV10), beforeMigration);
-assert.equal(migrated.schemaVersion, "local-score-project-storage-v13");
-assert.equal(migrated.document.schemaVersion, "score-document-v12");
+assert.equal(migrated.schemaVersion, "local-score-project-storage-v14");
+assert.equal(migrated.document.schemaVersion, "score-document-v13");
 assert.equal(getEvent(migrated, "note-1").dynamicMark, null);
 
 const directV9Document = JSON.parse(JSON.stringify(marked.document)) as Record<

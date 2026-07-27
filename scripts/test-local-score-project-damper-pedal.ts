@@ -44,8 +44,8 @@ project = addLocalScoreProjectEvent({
   eventId: "rest-1",
   now: "2026-07-26T00:00:00.200Z",
 });
-assert.equal(project.schemaVersion, "local-score-project-storage-v13");
-assert.equal(project.document.schemaVersion, "score-document-v12");
+assert.equal(project.schemaVersion, "local-score-project-storage-v14");
+assert.equal(project.document.schemaVersion, "score-document-v13");
 assert.equal(eventAt(project, "note-1").damperPedalMark, null);
 
 project = changeLocalScoreProjectEventDamperPedalMark({

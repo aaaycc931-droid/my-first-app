@@ -19,6 +19,7 @@ import type {
   LocalNotationProjectScoreDocumentV10,
   LocalNotationProjectScoreDocumentV11,
   LocalNotationProjectScoreDocumentV12,
+  LocalNotationProjectScoreDocumentV13,
   LocalScoreProjectArticulationV1,
   LocalScoreProjectDamperPedalMarkV1,
   LocalScoreProjectFermataMarkV1,
@@ -88,6 +89,8 @@ export type LocalScoreStaffNoteToken = LocalScoreStaffTokenBase & Readonly<{
   ledgerLineYs: readonly number[];
   tieToNext: boolean;
   tieTargetEventId: string | null;
+  slurToNext: boolean;
+  slurTargetEventId: string | null;
   lyric: string | null;
   fingering: LocalScoreProjectFingeringV1 | null;
   articulations: readonly LocalScoreProjectArticulationV1[];
@@ -264,7 +267,7 @@ const isPresentationContent = (
     keySignature: document.keySignature,
     parts: document.parts.map((part, index) => {
       if (!isRecord(part)) return part;
-      const staves = document.schemaVersion === "score-document-v12"
+      const staves = document.schemaVersion === "score-document-v13"
         ? part.staves
         : Array.isArray(part.staves)
           ? part.staves.map((staff) =>
@@ -281,6 +284,11 @@ const isPresentationContent = (
                             ...measure,
                             events: measure.events.map((event) => {
                               if (!isRecord(event)) return event;
+                              if (document.schemaVersion === "score-document-v12") {
+                                return event.type === "note"
+                                  ? { ...event, slurToNext: false }
+                                  : event;
+                              }
                               if (
                                 document.schemaVersion === "score-document-v10"
                                 || document.schemaVersion === "score-document-v11"
@@ -293,6 +301,9 @@ const isPresentationContent = (
                                       ? event.damperPedalMark
                                       : null,
                                   fermataMark: null,
+                                  ...(event.type === "note"
+                                    ? { slurToNext: false }
+                                    : {}),
                                 };
                               }
                               const withChordSymbol =
@@ -324,6 +335,9 @@ const isPresentationContent = (
                                 dynamicMark: null,
                                 damperPedalMark: null,
                                 fermataMark: null,
+                                ...(event.type === "note"
+                                  ? { slurToNext: false }
+                                  : {}),
                               };
                             }),
                           }
@@ -358,7 +372,8 @@ const isLocalScoreProjectDocument = (
   | LocalNotationProjectScoreDocumentV9
   | LocalNotationProjectScoreDocumentV10
   | LocalNotationProjectScoreDocumentV11
-  | LocalNotationProjectScoreDocumentV12 =>
+  | LocalNotationProjectScoreDocumentV12
+  | LocalNotationProjectScoreDocumentV13 =>
   isRecord(document)
   && (
     document.schemaVersion === "score-document-v3"
@@ -371,6 +386,7 @@ const isLocalScoreProjectDocument = (
     || document.schemaVersion === "score-document-v10"
     || document.schemaVersion === "score-document-v11"
     || document.schemaVersion === "score-document-v12"
+    || document.schemaVersion === "score-document-v13"
   )
   && document.documentKind === "notation-project"
   && typeof document.documentId === "string"
@@ -539,6 +555,11 @@ export const createLocalScoreProjectStaffPresentation = (
         const tieTarget = event.tieToNext && orderedEventIndex !== undefined
           ? orderedEvents[orderedEventIndex + 1]
           : undefined;
+        const slurToNext = "slurToNext" in event
+          && event.slurToNext === true;
+        const slurTarget = slurToNext && orderedEventIndex !== undefined
+          ? orderedEvents[orderedEventIndex + 1]
+          : undefined;
         const accidental = (
           (keySignatureFifths === 1 && event.pitch === "F4")
           || (keySignatureFifths === -1 && event.pitch === "B4")
@@ -555,6 +576,7 @@ export const createLocalScoreProjectStaffPresentation = (
           accidental === "natural" ? "还原号" : "",
           `${event.augmentationDots === 1 ? "附点" : ""}${DURATION_LABELS[event.duration]}音符`,
           event.tieToNext ? "与下一音符用延音线相连" : "",
+          slurToNext ? "与下一音符用圆滑线相连" : "",
           event.lyric === null ? "" : `歌词“${event.lyric}”`,
           fingering === null ? "" : `指法 ${fingering}`,
           articulations.length === 0
@@ -590,6 +612,8 @@ export const createLocalScoreProjectStaffPresentation = (
           }),
           tieToNext: event.tieToNext,
           tieTargetEventId: tieTarget?.id ?? null,
+          slurToNext,
+          slurTargetEventId: slurTarget?.id ?? null,
           lyric: event.lyric,
           fingering,
           articulations,
@@ -697,6 +721,7 @@ export const createLocalScoreProjectStaffPresentation = (
       || document.schemaVersion === "score-document-v10"
       || document.schemaVersion === "score-document-v11"
       || document.schemaVersion === "score-document-v12"
+      || document.schemaVersion === "score-document-v13"
       ? document.scoreCredits
       : {
         title: null,

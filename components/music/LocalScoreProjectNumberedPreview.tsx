@@ -18,6 +18,7 @@ import type {
   LocalNotationProjectScoreDocumentV10,
   LocalNotationProjectScoreDocumentV11,
   LocalNotationProjectScoreDocumentV12,
+  LocalNotationProjectScoreDocumentV13,
 } from "../../lib/music/scoreDocument";
 import {
   getLocalScoreProjectVoiceIdentityLabel,
@@ -38,7 +39,8 @@ export type LocalScoreProjectNumberedPreviewProps = Readonly<{
     | LocalNotationProjectScoreDocumentV9
     | LocalNotationProjectScoreDocumentV10
     | LocalNotationProjectScoreDocumentV11
-    | LocalNotationProjectScoreDocumentV12;
+    | LocalNotationProjectScoreDocumentV12
+    | LocalNotationProjectScoreDocumentV13;
   selectedEventId?: string | null;
   activeEventIds?: readonly string[];
   target?: LocalScoreProjectVoiceTarget;
@@ -311,6 +313,15 @@ export function LocalScoreProjectNumberedPreview({
                           aria-hidden="true"
                         >
                           ⌒
+                        </span>
+                      ) : null}
+                      {token.type === "note" && token.slurToNext ? (
+                        <span
+                          className="mt-1 block text-xl leading-none text-teal-700"
+                          data-testid={`local-score-numbered-slur-${token.eventId}-${token.slurTargetEventId}`}
+                          aria-hidden="true"
+                        >
+                          ⏜
                         </span>
                       ) : null}
                       {token.type === "note" && token.fingering !== null ? (

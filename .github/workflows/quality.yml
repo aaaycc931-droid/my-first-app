@@ -181,6 +181,7 @@ jobs:
           npm run test:local-score-project-dynamic-mark
           npm run test:local-score-project-damper-pedal
           npm run test:local-score-project-fermata
+          npm run test:local-score-project-slur
           npm run test:local-score-project-recovery-candidate
           npm run test:local-score-project-storage
           npm run test:local-score-project-capacity

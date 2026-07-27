@@ -14,10 +14,11 @@ import type {
   LocalNotationProjectScoreDocumentV10,
   LocalNotationProjectScoreDocumentV11,
   LocalNotationProjectScoreDocumentV12,
+  LocalNotationProjectScoreDocumentV13,
   LocalScoreProjectArticulationV1 as ScoreDocumentArticulationV1,
   LocalScoreProjectClefV3,
   LocalScoreProjectAugmentationDots,
-  LocalScoreProjectEventV8,
+  LocalScoreProjectEventV9,
   LocalScoreProjectKeySignatureV3,
   LocalScoreProjectFingeringV1 as ScoreDocumentFingeringV1,
   LocalScoreProjectPartInstrumentV1,
@@ -34,6 +35,8 @@ export const LOCAL_SCORE_PROJECT_V2_SCHEMA_VERSION =
   "local-score-project-storage-v2" as const;
 export const LOCAL_SCORE_PROJECT_PREVIOUS_SCHEMA_VERSION =
   "local-score-project-storage-v12" as const;
+export const LOCAL_SCORE_PROJECT_V13_SCHEMA_VERSION =
+  "local-score-project-storage-v13" as const;
 export const LOCAL_SCORE_PROJECT_V11_SCHEMA_VERSION =
   "local-score-project-storage-v11" as const;
 export const LOCAL_SCORE_PROJECT_V10_SCHEMA_VERSION =
@@ -53,7 +56,7 @@ export const LOCAL_SCORE_PROJECT_V4_SCHEMA_VERSION =
 export const LOCAL_SCORE_PROJECT_V3_SCHEMA_VERSION =
   "local-score-project-storage-v3" as const;
 export const LOCAL_SCORE_PROJECT_SCHEMA_VERSION =
-  "local-score-project-storage-v13" as const;
+  "local-score-project-storage-v14" as const;
 export const LOCAL_SCORE_PROJECT_MAX_HISTORY = 50;
 export const LOCAL_SCORE_PROJECT_MAX_TITLE_LENGTH = 80;
 export const LOCAL_SCORE_PROJECT_DEFAULT_TEMPO_BPM = 90;
@@ -73,44 +76,47 @@ export const LOCAL_SCORE_PROJECT_COPY_TIE_NOTICE =
   "单个事件复制不包含跨事件延音线；附点、歌词、指法、和弦标记和奏法已保留，延音线已清除。" as const;
 export const LOCAL_SCORE_PROJECT_TIE_CONTINUITY_ERROR =
   "延音线必须连接同一声部中相邻、同音高且时值连续的音符；跨小节时必须结束于小节线并从下一小节第一拍开始。" as const;
+export const LOCAL_SCORE_PROJECT_SLUR_CONTINUITY_ERROR =
+  "圆滑线必须连接同一声部中相邻且时值连续的两个音符。" as const;
 
 export type LocalScoreProjectContentV1 = Readonly<
   Pick<
-    LocalNotationProjectScoreDocumentV12,
+    LocalNotationProjectScoreDocumentV13,
     "meter" | "keySignature" | "parts"
   >
-  & Pick<LocalNotationProjectScoreDocumentV12, "scoreCredits">
+  & Pick<LocalNotationProjectScoreDocumentV13, "scoreCredits">
 >;
 
 type LocalScoreProjectTieContent = Readonly<
   Pick<LocalNotationProjectScoreDocumentV3, "meter" | "parts">
 >;
 
-export type LocalScoreProjectV13 = Readonly<{
+export type LocalScoreProjectV14 = Readonly<{
   schemaVersion: typeof LOCAL_SCORE_PROJECT_SCHEMA_VERSION;
   projectId: string;
   title: string;
   tempoBpm: number;
   createdAt: string;
   updatedAt: string;
-  document: LocalNotationProjectScoreDocumentV12;
+  document: LocalNotationProjectScoreDocumentV13;
   undoStack: readonly LocalScoreProjectContentV1[];
   redoStack: readonly LocalScoreProjectContentV1[];
 }>;
 
-/** 兼容既有调用方名称；运行时值始终为 storage-v13。 */
-export type LocalScoreProjectV1 = LocalScoreProjectV13;
-export type LocalScoreProjectV2 = LocalScoreProjectV13;
-export type LocalScoreProjectV3 = LocalScoreProjectV13;
-export type LocalScoreProjectV4 = LocalScoreProjectV13;
-export type LocalScoreProjectV5 = LocalScoreProjectV13;
-export type LocalScoreProjectV6 = LocalScoreProjectV13;
-export type LocalScoreProjectV7 = LocalScoreProjectV13;
-export type LocalScoreProjectV8 = LocalScoreProjectV13;
-export type LocalScoreProjectV9 = LocalScoreProjectV13;
-export type LocalScoreProjectV10 = LocalScoreProjectV13;
-export type LocalScoreProjectV11 = LocalScoreProjectV13;
-export type LocalScoreProjectV12 = LocalScoreProjectV13;
+/** 兼容既有调用方名称；运行时值始终为 storage-v14。 */
+export type LocalScoreProjectV1 = LocalScoreProjectV14;
+export type LocalScoreProjectV2 = LocalScoreProjectV14;
+export type LocalScoreProjectV3 = LocalScoreProjectV14;
+export type LocalScoreProjectV4 = LocalScoreProjectV14;
+export type LocalScoreProjectV5 = LocalScoreProjectV14;
+export type LocalScoreProjectV6 = LocalScoreProjectV14;
+export type LocalScoreProjectV7 = LocalScoreProjectV14;
+export type LocalScoreProjectV8 = LocalScoreProjectV14;
+export type LocalScoreProjectV9 = LocalScoreProjectV14;
+export type LocalScoreProjectV10 = LocalScoreProjectV14;
+export type LocalScoreProjectV11 = LocalScoreProjectV14;
+export type LocalScoreProjectV12 = LocalScoreProjectV14;
+export type LocalScoreProjectV13 = LocalScoreProjectV14;
 
 export class LocalScoreProjectConflictError extends Error {
   constructor() {
@@ -127,7 +133,8 @@ export type LocalScoreProjectDomainErrorCode =
   | "not-found"
   | "not-empty"
   | "would-empty"
-  | "tie-integrity";
+  | "tie-integrity"
+  | "slur-integrity";
 
 export class LocalScoreProjectDomainError extends Error {
   constructor(
@@ -152,6 +159,7 @@ export type LocalScoreProjectEventInput = Readonly<{
   duration: NotationDuration;
   augmentationDots?: LocalScoreProjectAugmentationDots;
   tieToNext?: boolean;
+  slurToNext?: boolean;
   lyric?: string | null;
   fingering?: ScoreDocumentFingeringV1 | null;
   chordSymbol?: string | null;
@@ -527,8 +535,8 @@ const getDefaultPartName = (
 };
 
 const cloneEvent = (
-  event: LocalScoreProjectEventV8,
-): LocalScoreProjectEventV8 => ({
+  event: LocalScoreProjectEventV9,
+): LocalScoreProjectEventV9 => ({
   ...event,
   ...(event.type === "note"
     ? { articulations: [...event.articulations] }
@@ -542,7 +550,7 @@ const eventDurationBeats: Readonly<Record<NotationDuration, number>> = {
 };
 
 export const getLocalScoreProjectEventDurationBeats = (
-  event: Pick<LocalScoreProjectEventV8, "duration" | "augmentationDots">,
+  event: Pick<LocalScoreProjectEventV9, "duration" | "augmentationDots">,
 ) =>
   eventDurationBeats[event.duration]
   * (event.augmentationDots === 1 ? 1.5 : 1);
@@ -583,7 +591,7 @@ const hasUniqueIds = (values: readonly string[]) =>
 const isValidScoreEvent = (
   value: unknown,
   measureNumber: number,
-): value is LocalScoreProjectEventV8 => {
+): value is LocalScoreProjectEventV9 => {
   if (!isRecord(value) || !isValidId(value.id)) return false;
   if (
     value.type !== "note"
@@ -624,6 +632,7 @@ const isValidScoreEvent = (
     value.type === "note"
     && (
       typeof value.tieToNext !== "boolean"
+      || typeof value.slurToNext !== "boolean"
       || !isCanonicalArticulations(value.articulations)
       || (
         value.fingering !== null
@@ -648,6 +657,7 @@ const isValidScoreEvent = (
     value.type === "rest"
     && (
       "tieToNext" in value
+      || "slurToNext" in value
       || "lyric" in value
       || "fingering" in value
       || "articulations" in value
@@ -687,11 +697,46 @@ export const hasValidLocalScoreProjectTies = (
       });
     })));
 
+export const hasValidLocalScoreProjectSlurs = (
+  content: Pick<LocalScoreProjectContentV1, "meter" | "parts">,
+) =>
+  content.parts.every((part) => part.staves.every((staff) =>
+    staff.voices.every((voice) => {
+      const beatsPerMeasure = Number(content.meter.split("/")[0]);
+      const timedEvents = voice.measures.flatMap((measure) => {
+        let cursorBeat = 0;
+        return measure.events.map((event) => {
+          const onsetBeat =
+            (measure.measureNumber - 1) * beatsPerMeasure + cursorBeat;
+          const endBeat =
+            onsetBeat + getLocalScoreProjectEventDurationBeats(event);
+          cursorBeat += getLocalScoreProjectEventDurationBeats(event);
+          return { event, onsetBeat, endBeat };
+        });
+      });
+      return timedEvents.every(({ event, endBeat }, index) =>
+        event.type !== "note"
+        || !event.slurToNext
+        || (
+          timedEvents[index + 1]?.event.type === "note"
+          && timedEvents[index + 1]?.onsetBeat === endBeat
+        ));
+    })));
+
 const assertValidTies = (content: LocalScoreProjectContentV1) => {
   if (!hasValidLocalScoreProjectTies(content)) {
     throw new LocalScoreProjectDomainError(
       "tie-integrity",
       `${LOCAL_SCORE_PROJECT_TIE_CONTINUITY_ERROR}未执行修改，已保存谱面保持不变。`,
+    );
+  }
+};
+
+const assertValidSlurs = (content: LocalScoreProjectContentV1) => {
+  if (!hasValidLocalScoreProjectSlurs(content)) {
+    throw new LocalScoreProjectDomainError(
+      "slur-integrity",
+      `${LOCAL_SCORE_PROJECT_SLUR_CONTINUITY_ERROR}未执行修改，已保存谱面保持不变。`,
     );
   }
 };
@@ -788,8 +833,8 @@ const createEmptyProjectDocument = ({
 }: {
   projectId: string;
   title: string;
-}): LocalNotationProjectScoreDocumentV12 => ({
-  schemaVersion: "score-document-v12",
+}): LocalNotationProjectScoreDocumentV13 => ({
+  schemaVersion: "score-document-v13",
   documentKind: "notation-project",
   documentId: `local.score-project.${projectId}`,
   revision: 1,
@@ -856,7 +901,7 @@ const createDocumentRevision = ({
 }: {
   project: LocalScoreProjectV1;
   content: LocalScoreProjectContentV1;
-}): LocalNotationProjectScoreDocumentV12 => ({
+}): LocalNotationProjectScoreDocumentV13 => ({
   ...project.document,
   revision: project.document.revision + 1,
   ...cloneLocalScoreProjectContent(content),
@@ -914,6 +959,7 @@ export const applyLocalScoreProjectContent = ({
     throw new Error("乐谱内容无效，未保存本次修改。");
   }
   assertValidTies(content);
+  assertValidSlurs(content);
   const previousContent = getLocalScoreProjectContent(project);
   if (contentFingerprint(previousContent) === contentFingerprint(content)) {
     return project;
@@ -1091,7 +1137,7 @@ const normalizeProjectEvent = ({
   eventId: string;
   location: LocalScoreProjectEventLocation;
   input: LocalScoreProjectEventInput;
-}): import("./scoreDocument").LocalScoreProjectEventV8 => {
+}): import("./scoreDocument").LocalScoreProjectEventV9 => {
   const augmentationDots = input.augmentationDots ?? 0;
   const normalizedLyric = input.lyric?.trim() || null;
   const normalizedChordSymbol = normalizeChordSymbol(input.chordSymbol ?? null);
@@ -1119,10 +1165,16 @@ const normalizeProjectEvent = ({
       "休止符不能设置奏法；未执行修改。",
     );
   }
+  if (input.type === "rest" && input.slurToNext !== undefined) {
+    throw new LocalScoreProjectDomainError(
+      "invalid-input",
+      "休止符不能设置圆滑线；未执行修改。",
+    );
+  }
   const normalizedArticulations = input.type === "note"
     ? normalizeArticulations(input.articulations ?? [])
     : [];
-  const event: import("./scoreDocument").LocalScoreProjectEventV8 = input.type === "note"
+  const event: import("./scoreDocument").LocalScoreProjectEventV9 = input.type === "note"
     ? {
       id: eventId,
       type: "note",
@@ -1131,6 +1183,7 @@ const normalizeProjectEvent = ({
       measure: location.measureNumber,
       augmentationDots,
       tieToNext: input.tieToNext ?? false,
+      slurToNext: input.slurToNext ?? false,
       lyric: normalizedLyric,
       fingering: input.fingering ?? null,
       chordSymbol: normalizedChordSymbol,
@@ -1198,8 +1251,8 @@ const assertMeasureHasCapacity = ({
   measureNumber,
   action,
 }: {
-  events: readonly LocalScoreProjectEventV8[];
-  event: LocalScoreProjectEventV8;
+  events: readonly LocalScoreProjectEventV9[];
+  event: LocalScoreProjectEventV9;
   meter: NotationTimeSignature;
   measureNumber: number;
   action: "添加" | "修改" | "移动" | "粘贴";
@@ -1226,8 +1279,8 @@ const updateEventsAtLocation = ({
   content: LocalScoreProjectContentV1;
   location: LocalScoreProjectEventLocation;
   update: (
-    events: readonly LocalScoreProjectEventV8[],
-  ) => readonly LocalScoreProjectEventV8[];
+    events: readonly LocalScoreProjectEventV9[],
+  ) => readonly LocalScoreProjectEventV9[];
 }): LocalScoreProjectContentV1 => {
   let matched = 0;
   const parts = content.parts.map((part) => ({
@@ -2272,7 +2325,61 @@ export const changeLocalScoreProjectEventFermataMark = ({
   });
 };
 
-const assertEventIsNotTieParticipant = (
+export const changeLocalScoreProjectEventSlur = ({
+  project,
+  expectedRevision,
+  location,
+  eventId,
+  slurToNext,
+  now,
+}: {
+  project: LocalScoreProjectV1;
+  expectedRevision: number;
+  location: LocalScoreProjectEventLocation;
+  eventId: string;
+  slurToNext: boolean;
+  now: string;
+}) => {
+  assertExpectedRevision(project, expectedRevision);
+  assertMutationTimestamp(project, now);
+  if (typeof slurToNext !== "boolean") {
+    throw new LocalScoreProjectDomainError(
+      "invalid-input",
+      "圆滑线状态无效，未执行修改。",
+    );
+  }
+  const content = getLocalScoreProjectContent(project);
+  let found = false;
+  const nextContent = updateEventsAtLocation({
+    content,
+    location,
+    update: (events) => events.map((event) => {
+      if (event.id !== eventId) return event;
+      found = true;
+      if (event.type !== "note") {
+        throw new LocalScoreProjectDomainError(
+          "invalid-input",
+          "休止符不能设置圆滑线；未执行修改。",
+        );
+      }
+      return { ...event, slurToNext };
+    }),
+  });
+  if (!found) {
+    throw new LocalScoreProjectDomainError(
+      "not-found",
+      "未找到要修改圆滑线的音符。",
+    );
+  }
+  return applyLocalScoreProjectContent({
+    project,
+    expectedRevision,
+    content: nextContent,
+    now,
+  });
+};
+
+const assertEventIsNotConnectionParticipant = (
   content: LocalScoreProjectContentV1,
   eventId: string,
   action: "移动" | "删除",
@@ -2292,11 +2399,24 @@ const assertEventIsNotTieParticipant = (
               previous?.type === "note"
               && previous.tieToNext
             )
+            || (current?.type === "note" && current.slurToNext)
+            || (
+              previous?.type === "note"
+              && previous.slurToNext
+            )
           )
         ) {
+          const connectionLabel =
+            (current?.type === "note" && current.tieToNext)
+            || (previous?.type === "note" && previous.tieToNext)
+              ? "延音线"
+              : "圆滑线";
+          const code = connectionLabel === "延音线"
+            ? "tie-integrity"
+            : "slur-integrity";
           throw new LocalScoreProjectDomainError(
-            "tie-integrity",
-            `该音符属于延音线连接，请先取消延音线再${action}；未执行修改，已保存谱面保持不变。`,
+            code,
+            `该音符属于${connectionLabel}连接，请先取消${connectionLabel}再${action}；未执行修改，已保存谱面保持不变。`,
           );
         }
       }
@@ -2339,8 +2459,8 @@ export const moveLocalScoreProjectEvent = ({
   }
 
   const content = getLocalScoreProjectContent(project);
-  assertEventIsNotTieParticipant(content, eventId, "移动");
-  let movedEvent: LocalScoreProjectEventV8 | undefined;
+  assertEventIsNotConnectionParticipant(content, eventId, "移动");
+  let movedEvent: LocalScoreProjectEventV9 | undefined;
   const withoutSource = updateEventsAtLocation({
     content,
     location: source,
@@ -2361,7 +2481,7 @@ export const moveLocalScoreProjectEvent = ({
     );
   }
 
-  const movedToDestination: LocalScoreProjectEventV8 = {
+  const movedToDestination: LocalScoreProjectEventV9 = {
     ...movedEvent,
     measure: destination.measureNumber,
   };
@@ -2409,7 +2529,7 @@ export const copyLocalScoreProjectEvent = ({
   location: LocalScoreProjectEventLocation;
   eventId: string;
 }): LocalScoreProjectEventInput => {
-  let copied: LocalScoreProjectEventV8 | undefined;
+  let copied: LocalScoreProjectEventV9 | undefined;
   updateEventsAtLocation({
     content: getLocalScoreProjectContent(project),
     location,
@@ -2443,6 +2563,7 @@ export const copyLocalScoreProjectEvent = ({
       duration: copied.duration,
       augmentationDots: copied.augmentationDots,
       tieToNext: false,
+      slurToNext: false,
       lyric: copied.lyric,
       fingering: copied.fingering,
       chordSymbol: copied.chordSymbol,
@@ -2544,7 +2665,7 @@ export const deleteLocalScoreProjectEvent = ({
 }) => {
   assertExpectedRevision(project, expectedRevision);
   const content = getLocalScoreProjectContent(project);
-  assertEventIsNotTieParticipant(content, eventId, "删除");
+  assertEventIsNotConnectionParticipant(content, eventId, "删除");
   let found = false;
   const nextContent = updateEventsAtLocation({
     content,
@@ -2676,10 +2797,10 @@ export const changeLocalScoreProjectKeySignature = ({
 const isLocalNotationProjectDocument = (
   value: unknown,
   projectId: string,
-): value is LocalNotationProjectScoreDocumentV12 => {
+): value is LocalNotationProjectScoreDocumentV13 => {
   if (!isRecord(value)) return false;
   return (
-    value.schemaVersion === "score-document-v12"
+    value.schemaVersion === "score-document-v13"
     && value.documentKind === "notation-project"
     && value.documentId === `local.score-project.${projectId}`
     && Number.isSafeInteger(value.revision)
@@ -2692,6 +2813,7 @@ const isLocalNotationProjectDocument = (
     && value.source.projectId === projectId
     && isLocalScoreProjectContent(value)
     && hasValidLocalScoreProjectTies(value)
+    && hasValidLocalScoreProjectSlurs(value)
   );
 };
 
@@ -2933,6 +3055,48 @@ const migratePartsWithDefaultFermataMarks = (value: unknown): unknown =>
         : part)
     : value;
 
+const migratePartsWithDefaultSlurs = (value: unknown): unknown =>
+  Array.isArray(value)
+    ? value.map((part) =>
+      isRecord(part) && Array.isArray(part.staves)
+        ? {
+          ...part,
+          staves: part.staves.map((staff) =>
+            isRecord(staff) && Array.isArray(staff.voices)
+              ? {
+                ...staff,
+                voices: staff.voices.map((voice) =>
+                  isRecord(voice) && Array.isArray(voice.measures)
+                    ? {
+                      ...voice,
+                      measures: voice.measures.map((measure) =>
+                        isRecord(measure) && Array.isArray(measure.events)
+                          ? {
+                            ...measure,
+                            events: measure.events.map((event) =>
+                              isRecord(event) && event.type === "note"
+                                ? { ...event, slurToNext: false }
+                                : event),
+                          }
+                          : measure),
+                    }
+                    : voice),
+              }
+              : staff),
+        }
+        : part)
+    : value;
+
+const migrateContentValueWithDefaultSlurs = (value: unknown): unknown =>
+  isRecord(value)
+    ? { ...value, parts: migratePartsWithDefaultSlurs(value.parts) }
+    : value;
+
+const migrateDocumentValueWithDefaultSlurs = (value: unknown): unknown =>
+  isRecord(value)
+    ? { ...value, parts: migratePartsWithDefaultSlurs(value.parts) }
+    : value;
+
 const migrateLegacyLocalScoreProjectContent = (
   value: unknown,
   projectTitle: string,
@@ -3015,6 +3179,7 @@ const migrateLegacyLocalScoreProjectContent = (
                             measure: measureNumber,
                             augmentationDots: 0 as const,
                             tieToNext: false,
+                            slurToNext: false,
                             lyric: null,
                             fingering: null,
                             chordSymbol: null,
@@ -3263,6 +3428,19 @@ const migrateStorageV12LocalScoreProjectContent = (
   return cloneLocalScoreProjectContent(migrated);
 };
 
+const migrateStorageV13LocalScoreProjectContent = (
+  value: unknown,
+  _projectTitle: string,
+): LocalScoreProjectContentV1 | null => {
+  const migrated = migrateContentValueWithDefaultSlurs(value);
+  if (
+    !isLocalScoreProjectContent(migrated)
+    || !hasValidLocalScoreProjectTies(migrated)
+    || !hasValidLocalScoreProjectSlurs(migrated)
+  ) return null;
+  return cloneLocalScoreProjectContent(migrated);
+};
+
 const isLegacyDocumentEnvelope = (
   value: Record<string, unknown>,
   projectId: string,
@@ -3277,7 +3455,8 @@ const isLegacyDocumentEnvelope = (
     | "score-document-v8"
     | "score-document-v9"
     | "score-document-v10"
-    | "score-document-v11",
+    | "score-document-v11"
+    | "score-document-v12",
 ) =>
   value.schemaVersion === schemaVersion
   && value.documentKind === "notation-project"
@@ -3555,6 +3734,33 @@ const migrateStorageV12LocalNotationProjectDocument = (
   };
 };
 
+const migrateStorageV13LocalNotationProjectDocument = (
+  value: unknown,
+  projectId: string,
+  projectTitle: string,
+): LocalNotationProjectScoreDocumentV13 | null => {
+  if (
+    !isRecord(value)
+    || !isLegacyDocumentEnvelope(value, projectId, "score-document-v12")
+  ) return null;
+  const content = migrateStorageV13LocalScoreProjectContent(
+    value,
+    projectTitle,
+  );
+  if (!content) return null;
+  return {
+    schemaVersion: "score-document-v13",
+    documentKind: "notation-project",
+    documentId: value.documentId as string,
+    revision: value.revision as number,
+    reviewState: "draft",
+    localOnly: true,
+    sessionOnly: false,
+    source: { kind: "local-score-project", projectId },
+    ...content,
+  };
+};
+
 export const parseLocalScoreProject = (
   value: unknown,
 ): LocalScoreProjectV1 | null => {
@@ -3562,6 +3768,7 @@ export const parseLocalScoreProject = (
     !isRecord(value)
     || (
       value.schemaVersion !== LOCAL_SCORE_PROJECT_SCHEMA_VERSION
+      && value.schemaVersion !== LOCAL_SCORE_PROJECT_V13_SCHEMA_VERSION
       && value.schemaVersion !== LOCAL_SCORE_PROJECT_PREVIOUS_SCHEMA_VERSION
       && value.schemaVersion !== LOCAL_SCORE_PROJECT_V11_SCHEMA_VERSION
       && value.schemaVersion !== LOCAL_SCORE_PROJECT_V10_SCHEMA_VERSION
@@ -3602,10 +3809,12 @@ export const parseLocalScoreProject = (
       !isLocalNotationProjectDocument(value.document, value.projectId)
       || !value.undoStack.every((content) =>
         isLocalScoreProjectContent(content)
-        && hasValidLocalScoreProjectTies(content))
+        && hasValidLocalScoreProjectTies(content)
+        && hasValidLocalScoreProjectSlurs(content))
       || !value.redoStack.every((content) =>
         isLocalScoreProjectContent(content)
-        && hasValidLocalScoreProjectTies(content))
+        && hasValidLocalScoreProjectTies(content)
+        && hasValidLocalScoreProjectSlurs(content))
     ) return null;
     return cloneLocalScoreProject({
       ...value,
@@ -3614,6 +3823,8 @@ export const parseLocalScoreProject = (
   }
   const isStorageV10 =
     value.schemaVersion === LOCAL_SCORE_PROJECT_V10_SCHEMA_VERSION;
+  const isStorageV13 =
+    value.schemaVersion === LOCAL_SCORE_PROJECT_V13_SCHEMA_VERSION;
   const isStorageV12 =
     value.schemaVersion === LOCAL_SCORE_PROJECT_PREVIOUS_SCHEMA_VERSION;
   const isStorageV11 =
@@ -3632,7 +3843,9 @@ export const parseLocalScoreProject = (
     value.schemaVersion === LOCAL_SCORE_PROJECT_V4_SCHEMA_VERSION;
   const isStorageV3 =
     value.schemaVersion === LOCAL_SCORE_PROJECT_V3_SCHEMA_VERSION;
-  const migrateDocument = isStorageV12
+  const migrateDocument = isStorageV13
+    ? migrateStorageV13LocalNotationProjectDocument
+    : isStorageV12
     ? migrateStorageV12LocalNotationProjectDocument
     : isStorageV11
     ? migrateStorageV11LocalNotationProjectDocument
@@ -3653,7 +3866,9 @@ export const parseLocalScoreProject = (
         : isStorageV3
           ? migratePreviousLocalNotationProjectDocument
           : migrateLegacyLocalNotationProjectDocument;
-  const migrateContent = isStorageV12
+  const migrateContent = isStorageV13
+    ? migrateStorageV13LocalScoreProjectContent
+    : isStorageV12
     ? migrateStorageV12LocalScoreProjectContent
     : isStorageV11
     ? migrateStorageV11LocalScoreProjectContent
@@ -3675,14 +3890,20 @@ export const parseLocalScoreProject = (
           ? migratePreviousLocalScoreProjectContent
           : migrateLegacyLocalScoreProjectContent;
   const document = migrateDocument(
-    value.document,
+    migrateDocumentValueWithDefaultSlurs(value.document),
     value.projectId,
     value.title,
   );
   const undoStack = value.undoStack.map((content) =>
-    migrateContent(content, value.title as string));
+    migrateContent(
+      migrateContentValueWithDefaultSlurs(content),
+      value.title as string,
+    ));
   const redoStack = value.redoStack.map((content) =>
-    migrateContent(content, value.title as string));
+    migrateContent(
+      migrateContentValueWithDefaultSlurs(content),
+      value.title as string,
+    ));
   if (
     !document
     || undoStack.some((content) => content === null)
@@ -3695,7 +3916,10 @@ export const parseLocalScoreProject = (
     tempoBpm: tempoBpm as number,
     createdAt: value.createdAt,
     updatedAt: value.updatedAt,
-    document: document as unknown as LocalNotationProjectScoreDocumentV12,
+    document: {
+      ...document,
+      schemaVersion: "score-document-v13",
+    } as LocalNotationProjectScoreDocumentV13,
     undoStack: undoStack as readonly LocalScoreProjectContentV1[],
     redoStack: redoStack as readonly LocalScoreProjectContentV1[],
   });

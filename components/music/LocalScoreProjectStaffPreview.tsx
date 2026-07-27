@@ -20,6 +20,7 @@ import type {
   LocalNotationProjectScoreDocumentV10,
   LocalNotationProjectScoreDocumentV11,
   LocalNotationProjectScoreDocumentV12,
+  LocalNotationProjectScoreDocumentV13,
 } from "../../lib/music/scoreDocument";
 
 export type LocalScoreProjectStaffSelection = Readonly<{
@@ -38,7 +39,8 @@ export type LocalScoreProjectStaffPreviewProps = Readonly<{
     | LocalNotationProjectScoreDocumentV9
     | LocalNotationProjectScoreDocumentV10
     | LocalNotationProjectScoreDocumentV11
-    | LocalNotationProjectScoreDocumentV12;
+    | LocalNotationProjectScoreDocumentV12
+    | LocalNotationProjectScoreDocumentV13;
   selectedEventId?: string | null;
   activeEventIds?: readonly string[];
   target?: LocalScoreProjectVoiceTarget;
@@ -289,6 +291,30 @@ export function LocalScoreProjectStaffPreview({
                 strokeWidth="2"
                 strokeLinecap="round"
                 data-testid={`local-score-tie-${token.eventId}-${target.eventId}`}
+                aria-hidden="true"
+              />
+            );
+          })}
+
+          {presentation.tokens.map((token) => {
+            if (token.type !== "note" || !token.slurToNext) return null;
+            const target = token.slurTargetEventId === null
+              ? null
+              : tokenById.get(token.slurTargetEventId);
+            if (!target || target.type !== "note") return null;
+            const startX = token.x + 4;
+            const endX = target.x - 4;
+            const startY = Math.min(token.y, target.y) - 18;
+            const archY = startY - 20;
+            return (
+              <path
+                key={`slur-${token.eventId}`}
+                d={`M ${startX} ${startY} C ${startX + 20} ${archY}, ${endX - 20} ${archY}, ${endX} ${startY}`}
+                fill="none"
+                stroke="#0f766e"
+                strokeWidth="2"
+                strokeLinecap="round"
+                data-testid={`local-score-slur-${token.eventId}-${target.eventId}`}
                 aria-hidden="true"
               />
             );

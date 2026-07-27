@@ -230,6 +230,16 @@ export type LocalScoreProjectEventV8 =
   | LocalScoreProjectNoteEventV8
   | LocalScoreProjectRestEventV8;
 
+export type LocalScoreProjectNoteEventV9 = Readonly<
+  LocalScoreProjectNoteEventV8 & {
+    slurToNext: boolean;
+  }
+>;
+export type LocalScoreProjectRestEventV9 = LocalScoreProjectRestEventV8;
+export type LocalScoreProjectEventV9 =
+  | LocalScoreProjectNoteEventV9
+  | LocalScoreProjectRestEventV9;
+
 /**
  * 本机乐谱项目独立演进到 v2；通用 ScoreDocumentEventV1 及其他练习文档
  * 保持不变，避免把本切片的编辑语义扩散到既有练习数据。
@@ -611,6 +621,29 @@ export type LocalNotationProjectScoreDocumentV12 = Readonly<
           measures: readonly Readonly<{
             measureNumber: number;
             events: readonly LocalScoreProjectEventV8[];
+          }>[];
+        }>[];
+      }>[];
+    }>[];
+  }
+>;
+
+export type LocalNotationProjectScoreDocumentV13 = Readonly<
+  Omit<LocalNotationProjectScoreDocumentV12, "schemaVersion" | "parts"> & {
+    schemaVersion: "score-document-v13";
+    parts: readonly Readonly<{
+      partId: string;
+      name: string;
+      instrument: LocalScoreProjectPartInstrumentV1;
+      staves: readonly Readonly<{
+        staffId: string;
+        staffKind: "pitched";
+        clef: LocalScoreProjectClefV3;
+        voices: readonly Readonly<{
+          voiceId: string;
+          measures: readonly Readonly<{
+            measureNumber: number;
+            events: readonly LocalScoreProjectEventV9[];
           }>[];
         }>[];
       }>[];

@@ -2326,7 +2326,7 @@ describe("S1 本机谱项目面板", () => {
     expect(findButton(container, "尚未复制事件").disabled).toBe(true);
   });
 
-  it("附点、延音线、歌词和指法只在保存成功后发布，非法破坏延音关系会保留原谱", async () => {
+  it("附点、延音线、圆滑线、歌词和指法只在保存成功后发布，非法关系会保留原谱", async () => {
     const store = new MemoryProjectStore();
     const container = await renderPanel(store);
     await click(findButton(container, "创建并保存"));
@@ -2344,6 +2344,7 @@ describe("S1 本机谱项目面板", () => {
     await click(editButtons[0]);
     await click(findInput(container, "一个附点"));
     await click(findInput(container, "延音到下一个同音"));
+    await click(findInput(container, "圆滑到下一音"));
     await change(findInput(container, "歌词"), "啦");
     await change(findSelect(container, "单音指法"), "3");
 
@@ -2360,6 +2361,7 @@ describe("S1 本机谱项目面板", () => {
       ?.document.parts[0]?.staves[0]?.voices[0]?.measures[0]?.events[0];
     expect(firstEvent?.augmentationDots).toBe(0);
     expect(firstEvent?.type === "note" && firstEvent.tieToNext).toBe(false);
+    expect(firstEvent?.type === "note" && firstEvent.slurToNext).toBe(false);
     expect(firstEvent?.type === "note" && firstEvent.lyric).toBe(null);
     expect(firstEvent?.type === "note" && firstEvent.fingering).toBe(null);
     expect(container.textContent).not.toContain("歌词：啦");
@@ -2374,6 +2376,7 @@ describe("S1 本机谱项目面板", () => {
       ?.document.parts[0]?.staves[0]?.voices[0]?.measures[0]?.events[0];
     expect(firstEvent?.augmentationDots).toBe(1);
     expect(firstEvent?.type === "note" && firstEvent.tieToNext).toBe(true);
+    expect(firstEvent?.type === "note" && firstEvent.slurToNext).toBe(true);
     expect(firstEvent?.type === "note" && firstEvent.lyric).toBe("啦");
     expect(firstEvent?.type === "note" && firstEvent.fingering).toBe(3);
     expect(container.textContent).toContain("指法：3");
@@ -2381,15 +2384,21 @@ describe("S1 本机谱项目面板", () => {
       container.querySelector('[data-testid^="local-score-fingering-"]')
         ?.textContent,
     ).toBe("3");
+    expect(
+      container.querySelector('[data-testid^="local-score-slur-"]'),
+    ).not.toBeNull();
     await click(findButton(container, "固定 C 简谱"));
     expect(
       container.querySelector(
         '[data-testid^="local-score-numbered-fingering-"]',
       )?.textContent,
     ).toContain("指法 3");
+    expect(
+      container.querySelector('[data-testid^="local-score-numbered-slur-"]'),
+    ).not.toBeNull();
 
     await click(findButton(container, "复制所选事件"));
-    expect(container.textContent).toContain("单事件复制不包含跨事件延音关系");
+    expect(container.textContent).toContain("单事件复制不包含跨事件延音或圆滑关系");
 
     const refreshedEditButtons = Array.from(container.querySelectorAll("button"))
       .filter((button) => button.textContent?.trim() === "编辑");
