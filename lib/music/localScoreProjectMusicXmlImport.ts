@@ -76,7 +76,6 @@ const forbiddenElementCodes = [
   ["chord", "unsupported-chord", "当前导入只支持单音，不能导入和弦音。"],
   ["backup", "unsupported-backup", "当前导入不支持 backup 时间回退。"],
   ["forward", "unsupported-forward", "当前导入不支持 forward 时间前移。"],
-  ["dot", "unsupported-dot", "当前导入不支持附点时值。"],
   ["tuplet", "unsupported-tuplet", "当前导入不支持连音符。"],
   ["time-modification", "unsupported-tuplet", "当前导入不支持连音符时值比例。"],
   ["grace", "unsupported-grace", "当前导入不支持倚音。"],
@@ -114,6 +113,7 @@ const allowedMeasureElements = new Set([
   "duration",
   "voice",
   "type",
+  "dot",
   "rest",
   "staff",
   "notations",
@@ -208,6 +208,76 @@ type SupportedNotationBundle = Readonly<{
 }>;
 
 type TieMarkerType = "start" | "stop";
+
+const readSupportedAugmentationDots = ({
+  noteElement,
+  noteXml,
+  issues,
+  measureNumber,
+}: {
+  noteElement: Element | undefined;
+  noteXml: string;
+  issues: LocalScoreProjectMusicXmlImportIssue[];
+  measureNumber: number;
+}): 0 | 1 => {
+  if (!noteElement) return 0;
+  const dots = directChildElements(noteElement).filter(
+    (element) => localElementName(element) === "dot",
+  );
+  const allDots = Array.from(noteElement.getElementsByTagName("*"))
+    .filter((element) => localElementName(element) === "dot");
+  if (allDots.length !== dots.length) {
+    issues.push(blockingIssue(
+      "unsupported-dot",
+      "附点 dot 必须是 note 的直接子元素。",
+      measureNumber,
+    ));
+  }
+  if (dots.length > 1) {
+    issues.push(blockingIssue(
+      "unsupported-dot",
+      "当前每个音符或休止符最多支持一个附点 dot。",
+      measureNumber,
+    ));
+  }
+  dots.forEach((dot) => {
+    const hasCdataNode = Array.from(dot.childNodes).some(
+      (child) => child.nodeType === 4,
+    );
+    const hasNonWhitespaceText = Array.from(dot.childNodes).some(
+      (child) =>
+        child.nodeType === 3
+        && (child.textContent ?? "").trim() !== "",
+    );
+    if (
+      dot.attributes.length !== 0
+      || directChildElements(dot).length !== 0
+      || hasCdataNode
+      || hasNonWhitespaceText
+    ) {
+      issues.push(blockingIssue(
+        "unsupported-dot",
+        "当前只支持无属性、无子元素且无文本的空 dot 元素。",
+        measureNumber,
+      ));
+    }
+  });
+  if (
+    /<(?:[A-Za-z_][\w.-]*:)?dot\b[^>]*>[\s\S]*?<!\[CDATA\[[\s\S]*?\]\]>[\s\S]*?<\/(?:[A-Za-z_][\w.-]*:)?dot\s*>/i
+      .test(noteXml)
+    && !Array.from(noteElement.getElementsByTagName("*"))
+      .some((element) =>
+        localElementName(element) === "dot"
+        && Array.from(element.childNodes).some((child) => child.nodeType === 4))
+  ) {
+    issues.push(blockingIssue(
+      "unsupported-dot",
+      "当前只支持无属性、无子元素且无文本或 CDATA 的空 dot 元素。",
+      measureNumber,
+    ));
+  }
+  return dots.length === 1 ? 1 : 0;
+};
 
 const haveSameTieMarkerTypes = (
   left: readonly TieMarkerType[],
@@ -558,6 +628,19 @@ const validateNotationHierarchy = ({
         measureNumber,
       ));
     }
+    if (
+      elementName === "dot"
+      && (
+        !element.parentElement
+        || localElementName(element.parentElement) !== "note"
+      )
+    ) {
+      issues.push(blockingIssue(
+        "unsupported-dot",
+        "附点 dot 必须是 note 的直接子元素。",
+        measureNumber,
+      ));
+    }
   });
 };
 
@@ -590,6 +673,7 @@ const noteEvent = ({
   id,
   pitch,
   duration,
+  augmentationDots,
   measure,
   fermataMark,
   tieToNext,
@@ -598,6 +682,7 @@ const noteEvent = ({
   id: string;
   pitch: NotationPitch;
   duration: NotationDuration;
+  augmentationDots: 0 | 1;
   measure: number;
   fermataMark: "fermata" | null;
   tieToNext: boolean;
@@ -608,7 +693,7 @@ const noteEvent = ({
   pitch,
   duration,
   measure,
-  augmentationDots: 0,
+  augmentationDots,
   tieToNext,
   slurToNext,
   lyric: null,
@@ -622,10 +707,12 @@ const noteEvent = ({
 
 const restEvent = ({
   id,
+  augmentationDots,
   measure,
   fermataMark,
 }: {
   id: string;
+  augmentationDots: 0 | 1;
   measure: number;
   fermataMark: "fermata" | null;
 }): LocalScoreProjectEventV9 => ({
@@ -634,7 +721,7 @@ const restEvent = ({
   pitch: null,
   duration: "quarter",
   measure,
-  augmentationDots: 0,
+  augmentationDots,
   chordSymbol: null,
   dynamicMark: null,
   damperPedalMark: null,
@@ -1080,6 +1167,12 @@ export const createLocalScoreProjectMusicXmlImportDraft = (
         issues,
         measureNumber,
       });
+      const augmentationDots = readSupportedAugmentationDots({
+        noteElement: noteElements[noteIndex],
+        noteXml,
+        issues,
+        measureNumber,
+      });
       const tieMarkersMatch = haveSameTieMarkerTypes(
         directTieTypes,
         notationBundle.tiedTypes,
@@ -1108,12 +1201,15 @@ export const createLocalScoreProjectMusicXmlImportDraft = (
       const rawDuration = parsePositiveInteger(
         getElementText(noteXml, "duration"),
       );
+      const effectiveDurationBeats = duration
+        ? durationBeats[duration] * (augmentationDots === 1 ? 1.5 : 1)
+        : null;
       if (
-        duration
+        effectiveDurationBeats !== null
         && divisions
         && (
           rawDuration === null
-          || rawDuration / divisions !== durationBeats[duration]
+          || rawDuration / divisions !== effectiveDurationBeats
         )
       ) {
         issues.push(blockingIssue(
@@ -1125,10 +1221,12 @@ export const createLocalScoreProjectMusicXmlImportDraft = (
       const onsetBeat = meter
         ? (measureNumber - 1) * Number(meter.split("/")[0]) + occupiedBeats
         : null;
-      const endBeat = duration && onsetBeat !== null
-        ? onsetBeat + durationBeats[duration]
+      const endBeat = effectiveDurationBeats !== null && onsetBeat !== null
+        ? onsetBeat + effectiveDurationBeats
         : null;
-      if (duration) occupiedBeats += durationBeats[duration];
+      if (effectiveDurationBeats !== null) {
+        occupiedBeats += effectiveDurationBeats;
+      }
 
       const isRest = hasElement(noteXml, "rest");
       const pitchXml = getElementMatches(noteXml, "pitch")[0]?.[2];
@@ -1253,6 +1351,7 @@ export const createLocalScoreProjectMusicXmlImportDraft = (
           if (!issues.some((issue) => issue.severity === "blocking")) {
             events.push(restEvent({
               id: `musicxml-import-provisional-${provisionalEventCount}`,
+              augmentationDots,
               measure: measureNumber,
               fermataMark: notationBundle.fermataMark,
             }));
@@ -1275,6 +1374,7 @@ export const createLocalScoreProjectMusicXmlImportDraft = (
             id: `musicxml-import-provisional-${provisionalEventCount}`,
             pitch: pitch as NotationPitch,
             duration,
+            augmentationDots,
             measure: measureNumber,
             fermataMark: notationBundle.fermataMark,
             tieToNext: tieStart,

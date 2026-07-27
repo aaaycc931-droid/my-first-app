@@ -38,6 +38,10 @@ QA level recommendation：**strict**
   明确核对的文本，XML 特殊字符必须正确转义，重新导入后不得静默改变。副标题必须为
   `null`、creators 必须为空数组、版权声明必须为 `null`；任一非空额外 credits 都
   必须形成 blocking 项。
+- canonical note 的 half／quarter／eighth 与 canonical quarter rest 可携带
+  `augmentationDots: 1`，并确定性写成 `<type>` 后、`<staff>` 前的唯一 `<dot/>`。
+  导出固定使用 `divisions=4`，使基础时值分别为 `8`／`4`／`2`、单附点时值分别为
+  `12`／`6`／`3`；容量、关系连续性与 importer re-import 均按附点后真实时值核对。
 - canonical note/rest 的 `fermataMark: "fermata"` 必须确定性写为其直接子级
   `<notations><fermata/></notations>`，并由当前 importer 无损重建。
 - canonical note 的 `slurToNext: true` 必须在源 note 写入
@@ -53,7 +57,7 @@ QA level recommendation：**strict**
   marker 均使用固定、可复核的确定性顺序：direct tie 为 stop 后 start，notations
   为 fermata、tied stop、tied start、slur stop、slur start；不存在的 marker 跳过。
   不得创建第二个容器或只输出视觉／播放 marker 的一侧。
-- 附点、歌词、指法、和弦标记、演奏法、力度、制音踏板及其他当前
+- 多附点、歌词、指法、和弦标记、演奏法、力度、制音踏板及其他当前
   未映射的非中性 canonical 语义，必须逐类形成稳定 blocking 项。
 - 项目至少包含一个事件；任何超过当前拍号容量的小节必须 blocking。
 
@@ -92,8 +96,8 @@ QA level recommendation：**strict**
 ## MusicXML 与 MXL 结构
 
 - `.musicxml` 输出为确定性的 UTF-8 `score-partwise` MusicXML，明确写出 divisions、
-  调号、拍号、谱号、staff、voice、顺序小节和每个事件的 pitch／rest、duration 与
-  type。
+  调号、拍号、谱号、staff、voice、顺序小节和每个事件的 pitch／rest、duration、
+  type 与受控单附点。
 - 文本必须进行 XML escape；不得通过拼接未经转义的项目标题或 part 名称生成无效 XML。
 - `.mxl` 必须把未压缩的标准 `mimetype`
   `application/vnd.recordare.musicxml` 作为首项，并包含
@@ -112,10 +116,10 @@ QA level recommendation：**strict**
 
 1. 当前 canonical MusicXML importer 重新读取 `.musicxml`，以及从 `.mxl` 安全解包
    后的 XML，核对标题、part 名称、音高、时值、休止符、小节、调号、拍号和谱号等本
-   切片承诺的语义，以及 fermata、slur 与 tie 的 canonical 映射。
+   切片承诺的语义，以及单附点、fermata、slur 与 tie 的 canonical 映射。
 2. 既有 legacy `musicxmlParser` 作为独立代码路径，交叉核对其能够表达的音符音高、
-   时值、小节和拍位。该 parser 不表达休止符、credits 或全部 canonical 字段，不能
-   单独证明完整 round-trip。
+   基础时值、小节和拍位。该 parser 以 raw duration 推进附点后的拍位，但不表达 dot
+   identity、休止符、credits 或全部 canonical 字段，不能单独证明完整 round-trip。
 
 上述两个路径都是本仓库内部自动测试，不是 MuseScore、Dorico、Sibelius 或其他第三方
 独立阅读器证据。没有真实外部程序执行记录时，不得使用“独立阅读器已通过”或“第三方
@@ -129,6 +133,9 @@ QA level recommendation：**strict**
 - XML escaping、确定性输出、安全文件名、标准 MXL container 和 rootfile；
 - 音符、四分休止符、小节、调号、拍号、谱号、主标题和 part 名称的内部 re-import
   语义等价；
+- half／quarter／eighth note 单附点及 quarter rest 单附点确定性写为严格 `<dot/>`，
+  `.musicxml`／`.mxl` re-import 后保持 `augmentationDots`，整数 duration、容量与
+  后续拍位均按 `1.5×` 真实时值；
 - note/rest 延长记号写为严格 `<notations><fermata/></notations>`，`.musicxml`
   与 `.mxl` re-import 后保持同一 canonical `fermataMark`；
 - canonical 圆滑线写为相邻时间连续 note 上严格配对的 slur start／stop；同小节、
@@ -183,3 +190,6 @@ QA level recommendation：**strict**
 
 延音线双向严格子集的独立验收边界见
 `docs/s3-local-score-project-musicxml-tie-round-trip-acceptance.md`。
+
+单附点双向严格子集的独立验收边界见
+`docs/s3-local-score-project-musicxml-augmentation-dot-round-trip-acceptance.md`。

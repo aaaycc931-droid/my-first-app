@@ -1,4 +1,5 @@
 import {
+  getLocalScoreProjectEventDurationBeats,
   parseLocalScoreProject,
   serializeLocalScoreProject,
   type LocalScoreProjectV1,
@@ -61,9 +62,9 @@ const FNV_64_OFFSET_A = BigInt("0xcbf29ce484222325");
 const FNV_64_OFFSET_B = BigInt("0x84222325cbf29ce4");
 const utf8Encoder = new TextEncoder();
 const durationToMusicXml = {
-  eighth: { duration: 1, type: "eighth", beats: 0.5 },
-  quarter: { duration: 2, type: "quarter", beats: 1 },
-  half: { duration: 4, type: "half", beats: 2 },
+  eighth: { duration: 2, type: "eighth" },
+  quarter: { duration: 4, type: "quarter" },
+  half: { duration: 8, type: "half" },
 } as const;
 
 const blockingIssue = (
@@ -155,13 +156,6 @@ const addEventIssues = ({
     measureNumber,
     eventId: event.id,
   });
-  if (event.augmentationDots !== 0) {
-    issues.push(blockingIssue(
-      "unsupported-augmentation-dot",
-      "当前导出不支持附点时值。",
-      location,
-    ));
-  }
   if (event.chordSymbol !== null) {
     issues.push(blockingIssue(
       "unsupported-chord-symbol",
@@ -226,6 +220,9 @@ const renderNote = ({
   slurStop: boolean;
 }) => {
   const duration = durationToMusicXml[event.duration];
+  const durationValue = duration.duration
+    * (event.augmentationDots === 1 ? 1.5 : 1);
+  const dotMarkup = event.augmentationDots === 1 ? "\n        <dot/>" : "";
   const notationMarks = [
     ...(event.fermataMark === "fermata" ? ["<fermata/>"] : []),
     ...(tieStop ? ['<tied type="stop"/>'] : []),
@@ -252,9 +249,9 @@ const renderNote = ({
   if (event.type === "rest") {
     return `      <note>
         <rest/>
-        <duration>${duration.duration}</duration>
+        <duration>${durationValue}</duration>
         <voice>1</voice>
-        <type>${duration.type}</type>
+        <type>${duration.type}</type>${dotMarkup}
         <staff>1</staff>${notations}
       </note>`;
   }
@@ -265,9 +262,9 @@ const renderNote = ({
           <step>${step}</step>
           <octave>${octave}</octave>
         </pitch>
-        <duration>${duration.duration}</duration>${directTieMarkup}
+        <duration>${durationValue}</duration>${directTieMarkup}
         <voice>1</voice>
-        <type>${duration.type}</type>
+        <type>${duration.type}</type>${dotMarkup}
         <staff>1</staff>${notations}
       </note>`;
 };
@@ -284,7 +281,7 @@ const renderMusicXml = (project: LocalScoreProjectV1) => {
   const measures = voice.measures.map((measure, measureIndex) => {
     const attributes = measureIndex === 0
       ? `      <attributes>
-        <divisions>2</divisions>
+        <divisions>4</divisions>
         <key><fifths>${project.document.keySignature.fifths}</fifths></key>
         <time><beats>${beats}</beats><beat-type>${beatType}</beat-type></time>
         <staves>1</staves>
@@ -470,7 +467,7 @@ export const createLocalScoreProjectMusicXmlExportDraft = ({
               voiceIndex,
               measureNumber: measure.measureNumber,
             });
-            occupiedBeats += durationToMusicXml[event.duration].beats;
+            occupiedBeats += getLocalScoreProjectEventDurationBeats(event);
           });
           const measureCapacity = Number(parsedProject.document.meter.split("/")[0]);
           if (occupiedBeats > measureCapacity) {

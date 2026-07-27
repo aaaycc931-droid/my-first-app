@@ -246,6 +246,116 @@ assert.deepEqual(
   "strict tie import must preserve cross-measure chains and coexist with fermata/slur",
 );
 
+const dottedXml = `<?xml version="1.0"?>
+<score-partwise version="4.0">
+  <part-list><score-part id="P1"><part-name>附点练习</part-name></score-part></part-list>
+  <part id="P1">
+    <measure number="1">
+      <attributes>
+        <divisions>4</divisions>
+        <key><fifths>0</fifths></key>
+        <time><beats>4</beats><beat-type>4</beat-type></time>
+        <clef><sign>G</sign><line>2</line></clef>
+      </attributes>
+      <note><pitch><step>C</step><octave>4</octave></pitch><duration>4</duration><voice>1</voice><type>quarter</type><staff>1</staff></note>
+      <note><pitch><step>D</step><octave>4</octave></pitch><duration>12</duration><tie type="start"/><voice>1</voice><type>half</type><dot/><staff>1</staff><notations><fermata/><tied type="start"/><slur type="start"/></notations></note>
+    </measure>
+    <measure number="2">
+      <note><pitch><step>D</step><octave>4</octave></pitch><duration>6</duration><tie type="stop"/><voice>1</voice><type>quarter</type><dot/><staff>1</staff><notations><fermata/><tied type="stop"/><slur type="stop"/></notations></note>
+      <note><pitch><step>E</step><octave>4</octave></pitch><duration>3</duration><voice>1</voice><type>eighth</type><dot/><staff>1</staff></note>
+      <note><rest/><duration>6</duration><voice>1</voice><type>quarter</type><dot/><staff>1</staff></note>
+    </measure>
+  </part>
+</score-partwise>`;
+let dottedEventSequence = 0;
+const dottedReady = createLocalScoreProjectMusicXmlImportDraft({
+  xml: dottedXml,
+  fileName: "严格附点.musicxml",
+  sourceFormat: "musicxml",
+  projectId: "import-project-dotted",
+  now: "2026-07-27T08:00:50.000Z",
+  createEventId: () => `dotted-event-${++dottedEventSequence}`,
+});
+assert.equal(dottedReady.status, "ready");
+assert.deepEqual(dottedReady.issues, []);
+assert.deepEqual(
+  dottedReady.project?.document.parts[0].staves[0].voices[0].measures
+    .flatMap((measure) => measure.events)
+    .map((event) => ({
+      type: event.type,
+      pitch: event.pitch,
+      duration: event.duration,
+      augmentationDots: event.augmentationDots,
+      fermataMark: event.fermataMark,
+      tieToNext: event.type === "note" ? event.tieToNext : null,
+      slurToNext: event.type === "note" ? event.slurToNext : null,
+    })),
+  [
+    {
+      type: "note",
+      pitch: "C4",
+      duration: "quarter",
+      augmentationDots: 0,
+      fermataMark: null,
+      tieToNext: false,
+      slurToNext: false,
+    },
+    {
+      type: "note",
+      pitch: "D4",
+      duration: "half",
+      augmentationDots: 1,
+      fermataMark: "fermata",
+      tieToNext: true,
+      slurToNext: true,
+    },
+    {
+      type: "note",
+      pitch: "D4",
+      duration: "quarter",
+      augmentationDots: 1,
+      fermataMark: "fermata",
+      tieToNext: false,
+      slurToNext: false,
+    },
+    {
+      type: "note",
+      pitch: "E4",
+      duration: "eighth",
+      augmentationDots: 1,
+      fermataMark: null,
+      tieToNext: false,
+      slurToNext: false,
+    },
+    {
+      type: "rest",
+      pitch: null,
+      duration: "quarter",
+      augmentationDots: 1,
+      fermataMark: null,
+      tieToNext: null,
+      slurToNext: null,
+    },
+  ],
+  "strict dot import must preserve all supported note values, the quarter rest, and notation coexistence",
+);
+
+let dottedMxlEventSequence = 0;
+const dottedMxlEquivalent = createLocalScoreProjectMusicXmlImportDraft({
+  xml: dottedXml,
+  fileName: "严格附点.mxl",
+  sourceFormat: "mxl",
+  projectId: "import-project-dotted",
+  now: "2026-07-27T08:00:50.000Z",
+  createEventId: () => `dotted-event-${++dottedMxlEventSequence}`,
+});
+assert.equal(dottedMxlEquivalent.status, "ready");
+assert.deepEqual(
+  dottedMxlEquivalent.project,
+  dottedReady.project,
+  "相同附点 XML 经 MXL 解包路径必须生成等价 canonical",
+);
+
 let metadataEventSequence = 0;
 const metadataReady = createLocalScoreProjectMusicXmlImportDraft({
   xml: supportedXml
@@ -299,7 +409,7 @@ const blockedXml = `<?xml version="1.0"?>
       <backup><duration>2</duration></backup>
       <forward><duration>2</duration></forward>
       <note><grace/><pitch><step>C</step><octave>4</octave></pitch><duration>2</duration><voice>2</voice><type>quarter</type></note>
-      <note><chord/><pitch><step>F</step><alter>1</alter><octave>4</octave></pitch><duration>2</duration><voice>2</voice><type>quarter</type><dot/></note>
+      <note><chord/><pitch><step>F</step><alter>1</alter><octave>4</octave></pitch><duration>2</duration><voice>2</voice><type>quarter</type><dot placement="above"/></note>
       <note><chord/><pitch><step>D</step><octave>4</octave></pitch><duration>2</duration><voice>2</voice><type>quarter</type><notations><tuplet type="start"/></notations></note>
       <note><pitch><step>E</step><octave>4</octave></pitch><duration>8</duration><voice>2</voice><type>whole</type></note>
       <note><pitch><step>F</step><octave>4</octave></pitch><duration>2</duration><voice>2</voice><type>quarter</type></note>
@@ -369,6 +479,98 @@ assert.equal(
 assert.throws(
   () => confirmLocalScoreProjectMusicXmlImportDraft(blocked),
   /阻断问题/,
+);
+
+const firstDot = "<dot/>";
+const invalidDotXmls = [
+  dottedXml.replace(firstDot, "<dot/><dot/>"),
+  dottedXml.replace(firstDot, '<dot placement="above"/>'),
+  dottedXml.replace(firstDot, "<dot>bad</dot>"),
+  dottedXml.replace(firstDot, "<dot><![CDATA[bad]]></dot>"),
+  dottedXml.replace(firstDot, "<dot><![CDATA[]]></dot>"),
+  dottedXml.replace(firstDot, "<dot><unexpected/></dot>"),
+  dottedXml.replace(
+    "<notations><fermata/><tied",
+    "<notations><dot/><fermata/><tied",
+  ),
+];
+for (let index = 0; index < invalidDotXmls.length; index += 1) {
+  const xml = invalidDotXmls[index];
+  let invalidDotIdCalls = 0;
+  const invalidDotDraft = createLocalScoreProjectMusicXmlImportDraft({
+    xml,
+    fileName: `invalid-dot-${index + 1}.musicxml`,
+    sourceFormat: "musicxml",
+    projectId: `blocked-invalid-dot-${index + 1}`,
+    now: "2026-07-27T08:06:00.000Z",
+    createEventId: () => {
+      invalidDotIdCalls += 1;
+      return `unused-invalid-dot-${invalidDotIdCalls}`;
+    },
+  });
+  assert.equal(invalidDotDraft.status, "blocked");
+  assert.equal(invalidDotIdCalls, 0);
+  assert.ok(
+    invalidDotDraft.issues.some((issue) => issue.code === "unsupported-dot"),
+    "重复、有属性、有内容或错误层级的 dot 必须失败关闭",
+  );
+}
+
+for (const xml of [
+  dottedXml.replace("<duration>12</duration>", "<duration>8</duration>"),
+  dottedXml.replace("<type>half</type><dot/>", "<type>half</type>"),
+]) {
+  const inconsistentDottedDraft = createLocalScoreProjectMusicXmlImportDraft({
+    xml,
+    fileName: "inconsistent-dotted-duration.musicxml",
+    sourceFormat: "musicxml",
+    projectId: "blocked-inconsistent-dotted-duration",
+    now: "2026-07-27T08:07:00.000Z",
+    createEventId: () => "unused-event",
+  });
+  assert.equal(inconsistentDottedDraft.status, "blocked");
+  assert.ok(
+    inconsistentDottedDraft.issues.some(
+      (issue) => issue.code === "inconsistent-duration",
+    ),
+    "dot、type 与 duration 必须表达相同有效时值",
+  );
+}
+
+const dottedOverfullDraft = createLocalScoreProjectMusicXmlImportDraft({
+  xml: dottedXml.replace(
+    "</measure>\n  </part>",
+    "      <note><pitch><step>F</step><octave>4</octave></pitch><duration>2</duration><voice>1</voice><type>eighth</type><staff>1</staff></note>\n    </measure>\n  </part>",
+  ),
+  fileName: "dotted-overfull.musicxml",
+  sourceFormat: "musicxml",
+  projectId: "blocked-dotted-overfull",
+  now: "2026-07-27T08:08:00.000Z",
+  createEventId: () => "unused-event",
+});
+assert.equal(dottedOverfullDraft.status, "blocked");
+assert.ok(
+  dottedOverfullDraft.issues.some((issue) => issue.code === "overfull-measure"),
+  "附点有效时值必须计入小节容量",
+);
+
+const dottedHalfRestDraft = createLocalScoreProjectMusicXmlImportDraft({
+  xml: dottedXml.replace(
+    "<rest/><duration>6</duration><voice>1</voice><type>quarter</type><dot/>",
+    "<rest/><duration>12</duration><voice>1</voice><type>half</type><dot/>",
+  ),
+  fileName: "dotted-half-rest.musicxml",
+  sourceFormat: "musicxml",
+  projectId: "blocked-dotted-half-rest",
+  now: "2026-07-27T08:09:00.000Z",
+  createEventId: () => "unused-event",
+});
+assert.equal(dottedHalfRestDraft.status, "blocked");
+assert.ok(
+  dottedHalfRestDraft.issues.some(
+    (issue) => issue.code === "unsupported-rest-duration",
+  ),
+  "本切片不得扩大既有四分休止符范围",
 );
 
 const tampered = {

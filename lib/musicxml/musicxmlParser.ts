@@ -52,6 +52,22 @@ function durationToBeats(duration: MusicXMLNoteDuration): number {
   }
 }
 
+function parseElapsedBeats(
+  noteXml: string,
+  divisions: number,
+  fallbackDuration: MusicXMLNoteDuration,
+): number {
+  const rawDuration = Number(getElementText(noteXml, "duration"));
+  const rawBeats = rawDuration / divisions;
+
+  return Number.isFinite(rawDuration) &&
+      rawDuration > 0 &&
+      Number.isFinite(rawBeats) &&
+      rawBeats > 0
+    ? rawBeats
+    : durationToBeats(fallbackDuration);
+}
+
 function parsePitch(noteXml: string): string | undefined {
   const pitchXml = noteXml.match(
     /<pitch(?:\s[^>]*)?>([\s\S]*?)<\/pitch>/i,
@@ -129,7 +145,7 @@ export function parseMusicXML(xml: string): ParsedScore {
       }
 
       // Chord timing is intentionally deferred for the MVP parser.
-      elapsedBeats += durationToBeats(duration);
+      elapsedBeats += parseElapsedBeats(noteXml, divisions, duration);
     }
   }
 

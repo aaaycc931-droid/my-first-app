@@ -95,7 +95,7 @@
       "note": "G4",
       "duration": "quarter",
       "measure": 2,
-      "beat": 6,
+      "beat": 6.5,
       "confidence": 0.8,
       "source": "musicxml"
     },
@@ -104,7 +104,7 @@
       "note": "D5",
       "duration": "quarter",
       "measure": 2,
-      "beat": 7,
+      "beat": 8,
       "confidence": 0.8,
       "source": "musicxml"
     },
@@ -113,7 +113,7 @@
       "note": "G4",
       "duration": "quarter",
       "measure": 2,
-      "beat": 8,
+      "beat": 9.5,
       "confidence": 0.8,
       "source": "musicxml"
     },
@@ -347,7 +347,7 @@
       "note": "G5",
       "duration": "eighth",
       "measure": 5,
-      "beat": 6.5,
+      "beat": 6.25,
       "confidence": 0.8,
       "source": "musicxml"
     },
@@ -356,7 +356,7 @@
       "note": "E5",
       "duration": "eighth",
       "measure": 5,
-      "beat": 7,
+      "beat": 6.5,
       "confidence": 0.8,
       "source": "musicxml"
     },
@@ -365,7 +365,7 @@
       "note": "D5",
       "duration": "eighth",
       "measure": 5,
-      "beat": 7.5,
+      "beat": 7,
       "confidence": 0.8,
       "source": "musicxml"
     },
@@ -374,7 +374,7 @@
       "note": "C5",
       "duration": "eighth",
       "measure": 5,
-      "beat": 8,
+      "beat": 7.5,
       "confidence": 0.8,
       "source": "musicxml"
     },
@@ -383,7 +383,7 @@
       "note": "A4",
       "duration": "eighth",
       "measure": 5,
-      "beat": 8.5,
+      "beat": 8,
       "confidence": 0.8,
       "source": "musicxml"
     },
@@ -392,7 +392,7 @@
       "note": "C5",
       "duration": "eighth",
       "measure": 5,
-      "beat": 9,
+      "beat": 8.25,
       "confidence": 0.8,
       "source": "musicxml"
     },
@@ -401,7 +401,7 @@
       "note": "D5",
       "duration": "eighth",
       "measure": 5,
-      "beat": 9.5,
+      "beat": 8.75,
       "confidence": 0.8,
       "source": "musicxml"
     },
@@ -518,7 +518,7 @@
       "note": "D4",
       "duration": "quarter",
       "measure": 7,
-      "beat": 5.5,
+      "beat": 5.25,
       "confidence": 0.8,
       "source": "musicxml"
     },
@@ -527,7 +527,7 @@
       "note": "D5",
       "duration": "quarter",
       "measure": 7,
-      "beat": 6.5,
+      "beat": 6.25,
       "confidence": 0.8,
       "source": "musicxml"
     },
@@ -536,7 +536,7 @@
       "note": "E4",
       "duration": "quarter",
       "measure": 7,
-      "beat": 7.5,
+      "beat": 7.25,
       "confidence": 0.8,
       "source": "musicxml"
     },
@@ -545,7 +545,7 @@
       "note": "E5",
       "duration": "quarter",
       "measure": 7,
-      "beat": 8.5,
+      "beat": 8.25,
       "confidence": 0.8,
       "source": "musicxml"
     },
@@ -851,7 +851,7 @@
       "note": "C4",
       "duration": "quarter",
       "measure": 11,
-      "beat": 7.5,
+      "beat": 7.25,
       "confidence": 0.8,
       "source": "musicxml"
     },
@@ -923,7 +923,7 @@
       "note": "E4",
       "duration": "eighth",
       "measure": 13,
-      "beat": 4.5,
+      "beat": 4.25,
       "confidence": 0.8,
       "source": "musicxml"
     },
@@ -932,7 +932,7 @@
       "note": "G4",
       "duration": "eighth",
       "measure": 13,
-      "beat": 5,
+      "beat": 4.75,
       "confidence": 0.8,
       "source": "musicxml"
     },
@@ -941,7 +941,7 @@
       "note": "E4",
       "duration": "eighth",
       "measure": 13,
-      "beat": 5.5,
+      "beat": 5.25,
       "confidence": 0.8,
       "source": "musicxml"
     },
@@ -1022,7 +1022,7 @@
       "note": "F4",
       "duration": "half",
       "measure": 15,
-      "beat": 4.5,
+      "beat": 5,
       "confidence": 0.8,
       "source": "musicxml"
     },
@@ -1031,7 +1031,7 @@
       "note": "A4",
       "duration": "half",
       "measure": 15,
-      "beat": 6.5,
+      "beat": 7,
       "confidence": 0.8,
       "source": "musicxml"
     },
@@ -1040,7 +1040,7 @@
       "note": "C5",
       "duration": "half",
       "measure": 15,
-      "beat": 8.5,
+      "beat": 9,
       "confidence": 0.8,
       "source": "musicxml"
     },
@@ -1049,7 +1049,7 @@
       "note": "A3",
       "duration": "quarter",
       "measure": 15,
-      "beat": 10.5,
+      "beat": 11,
       "confidence": 0.8,
       "source": "musicxml"
     },
@@ -1058,7 +1058,7 @@
       "note": "A3",
       "duration": "quarter",
       "measure": 15,
-      "beat": 11.5,
+      "beat": 12,
       "confidence": 0.8,
       "source": "musicxml"
     },
@@ -1175,7 +1175,7 @@
       "note": "G2",
       "duration": "eighth",
       "measure": 2,
-      "beat": 3.5,
+      "beat": 3.75,
       "confidence": 0.8,
       "source": "musicxml"
     },
@@ -1184,7 +1184,7 @@
       "note": "B3",
       "duration": "eighth",
       "measure": 2,
-      "beat": 4,
+      "beat": 4.5,
       "confidence": 0.8,
       "source": "musicxml"
     },
@@ -1193,7 +1193,7 @@
       "note": "D4",
       "duration": "eighth",
       "measure": 2,
-      "beat": 4.5,
+      "beat": 5.25,
       "confidence": 0.8,
       "source": "musicxml"
     },
@@ -1202,7 +1202,7 @@
       "note": "G4",
       "duration": "eighth",
       "measure": 2,
-      "beat": 5,
+      "beat": 5.75,
       "confidence": 0.8,
       "source": "musicxml"
     },
@@ -1211,7 +1211,7 @@
       "note": "D3",
       "duration": "eighth",
       "measure": 2,
-      "beat": 5.5,
+      "beat": 6.25,
       "confidence": 0.8,
       "source": "musicxml"
     },
@@ -1220,7 +1220,7 @@
       "note": "B3",
       "duration": "eighth",
       "measure": 2,
-      "beat": 6,
+      "beat": 6.75,
       "confidence": 0.8,
       "source": "musicxml"
     },
@@ -1328,7 +1328,7 @@
       "note": "A3",
       "duration": "eighth",
       "measure": 4,
-      "beat": 1.5,
+      "beat": 1.75,
       "confidence": 0.8,
       "source": "musicxml"
     },
@@ -1337,7 +1337,7 @@
       "note": "C4",
       "duration": "eighth",
       "measure": 4,
-      "beat": 2,
+      "beat": 2.5,
       "confidence": 0.8,
       "source": "musicxml"
     },
@@ -1346,7 +1346,7 @@
       "note": "A3",
       "duration": "eighth",
       "measure": 4,
-      "beat": 2.5,
+      "beat": 3,
       "confidence": 0.8,
       "source": "musicxml"
     },
@@ -1355,7 +1355,7 @@
       "note": "G2",
       "duration": "eighth",
       "measure": 4,
-      "beat": 3,
+      "beat": 3.75,
       "confidence": 0.8,
       "source": "musicxml"
     },
@@ -1364,7 +1364,7 @@
       "note": "B3",
       "duration": "eighth",
       "measure": 4,
-      "beat": 3.5,
+      "beat": 4.5,
       "confidence": 0.8,
       "source": "musicxml"
     },
@@ -1373,7 +1373,7 @@
       "note": "D4",
       "duration": "eighth",
       "measure": 4,
-      "beat": 4,
+      "beat": 5.25,
       "confidence": 0.8,
       "source": "musicxml"
     },
@@ -1382,7 +1382,7 @@
       "note": "D3",
       "duration": "eighth",
       "measure": 4,
-      "beat": 4.5,
+      "beat": 5.75,
       "confidence": 0.8,
       "source": "musicxml"
     },
@@ -1391,7 +1391,7 @@
       "note": "B3",
       "duration": "eighth",
       "measure": 4,
-      "beat": 5,
+      "beat": 6.5,
       "confidence": 0.8,
       "source": "musicxml"
     },
@@ -1508,7 +1508,7 @@
       "note": "E3",
       "duration": "eighth",
       "measure": 7,
-      "beat": 2.5,
+      "beat": 2.25,
       "confidence": 0.8,
       "source": "musicxml"
     },
@@ -1517,7 +1517,7 @@
       "note": "B2",
       "duration": "eighth",
       "measure": 7,
-      "beat": 3,
+      "beat": 2.5,
       "confidence": 0.8,
       "source": "musicxml"
     },
@@ -1526,7 +1526,7 @@
       "note": "A2",
       "duration": "quarter",
       "measure": 7,
-      "beat": 4,
+      "beat": 3,
       "confidence": 0.8,
       "source": "musicxml"
     },
@@ -1607,7 +1607,7 @@
       "note": "B3",
       "duration": "eighth",
       "measure": 9,
-      "beat": 3.5,
+      "beat": 3.25,
       "confidence": 0.8,
       "source": "musicxml"
     },
@@ -1616,7 +1616,7 @@
       "note": "C4",
       "duration": "quarter",
       "measure": 9,
-      "beat": 4,
+      "beat": 3.75,
       "confidence": 0.8,
       "source": "musicxml"
     },
@@ -1652,7 +1652,7 @@
       "note": "A3",
       "duration": "quarter",
       "measure": 10,
-      "beat": 3.5,
+      "beat": 3.25,
       "confidence": 0.8,
       "source": "musicxml"
     },
@@ -1661,7 +1661,7 @@
       "note": "C4",
       "duration": "quarter",
       "measure": 10,
-      "beat": 5,
+      "beat": 4.625,
       "confidence": 0.8,
       "source": "musicxml"
     },
@@ -1796,7 +1796,7 @@
       "note": "G3",
       "duration": "quarter",
       "measure": 12,
-      "beat": 8.5,
+      "beat": 8.25,
       "confidence": 0.8,
       "source": "musicxml"
     },
@@ -1823,7 +1823,7 @@
       "note": "C4",
       "duration": "quarter",
       "measure": 13,
-      "beat": 3.5,
+      "beat": 3.375,
       "confidence": 0.8,
       "source": "musicxml"
     },
@@ -1832,7 +1832,7 @@
       "note": "D3",
       "duration": "quarter",
       "measure": 13,
-      "beat": 4.5,
+      "beat": 4.375,
       "confidence": 0.8,
       "source": "musicxml"
     },
@@ -1841,7 +1841,7 @@
       "note": "B3",
       "duration": "quarter",
       "measure": 13,
-      "beat": 5.5,
+      "beat": 5.375,
       "confidence": 0.8,
       "source": "musicxml"
     },
@@ -1886,7 +1886,7 @@
       "note": "F3",
       "duration": "eighth",
       "measure": 14,
-      "beat": 4.5,
+      "beat": 4.25,
       "confidence": 0.8,
       "source": "musicxml"
     },
@@ -1895,7 +1895,7 @@
       "note": "G3",
       "duration": "quarter",
       "measure": 14,
-      "beat": 5.5,
+      "beat": 4.75,
       "confidence": 0.8,
       "source": "musicxml"
     },
@@ -1931,7 +1931,7 @@
       "note": "D3",
       "duration": "quarter",
       "measure": 15,
-      "beat": 4.5,
+      "beat": 4.25,
       "confidence": 0.8,
       "source": "musicxml"
     },
@@ -1940,7 +1940,7 @@
       "note": "F3",
       "duration": "quarter",
       "measure": 15,
-      "beat": 5.5,
+      "beat": 5.25,
       "confidence": 0.8,
       "source": "musicxml"
     },
@@ -1949,7 +1949,7 @@
       "note": "A3",
       "duration": "quarter",
       "measure": 15,
-      "beat": 6.5,
+      "beat": 6.25,
       "confidence": 0.8,
       "source": "musicxml"
     },
@@ -1958,7 +1958,7 @@
       "note": "F3",
       "duration": "eighth",
       "measure": 15,
-      "beat": 7.5,
+      "beat": 7.25,
       "confidence": 0.8,
       "source": "musicxml"
     },
@@ -1967,7 +1967,7 @@
       "note": "A1",
       "duration": "eighth",
       "measure": 15,
-      "beat": 8,
+      "beat": 7.75,
       "confidence": 0.8,
       "source": "musicxml"
     },
@@ -1976,7 +1976,7 @@
       "note": "A2",
       "duration": "eighth",
       "measure": 15,
-      "beat": 8.5,
+      "beat": 8.25,
       "confidence": 0.8,
       "source": "musicxml"
     },
@@ -2021,7 +2021,7 @@
       "note": "F3",
       "duration": "quarter",
       "measure": 16,
-      "beat": 5.5,
+      "beat": 5.25,
       "confidence": 0.8,
       "source": "musicxml"
     },
@@ -2030,7 +2030,7 @@
       "note": "C3",
       "duration": "quarter",
       "measure": 16,
-      "beat": 6.5,
+      "beat": 6.25,
       "confidence": 0.8,
       "source": "musicxml"
     }
