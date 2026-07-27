@@ -73,7 +73,7 @@ const createSupportedProject = (): LocalScoreProjectV1 => {
                 articulations: [],
                 dynamicMark: null,
                 damperPedalMark: null,
-                fermataMark: null,
+                fermataMark: "fermata",
               }, {
                 id: "event-2",
                 type: "rest",
@@ -84,7 +84,7 @@ const createSupportedProject = (): LocalScoreProjectV1 => {
                 chordSymbol: null,
                 dynamicMark: null,
                 damperPedalMark: null,
-                fermataMark: null,
+                fermataMark: "fermata",
               }, {
                 id: "event-3",
                 type: "note",
@@ -148,6 +148,7 @@ const musicalProjection = (project: LocalScoreProjectV1) => ({
         pitch: event.pitch,
         duration: event.duration,
         measure: event.measure,
+        fermataMark: event.fermataMark,
       })),
     }),
   ),
@@ -175,6 +176,11 @@ assert.deepEqual(ready.summary, {
 });
 assert.match(ready.xml, /<work-title>基础 &amp; &lt;视唱&gt;<\/work-title>/);
 assert.match(ready.xml, /<part-name>旋律 &amp; &lt;主声部&gt;<\/part-name>/);
+assert.equal(
+  ready.xml.match(/<notations><fermata\/><\/notations>/g)?.length,
+  2,
+  "note and rest fermatas must be exported deterministically",
+);
 assert.deepEqual(
   createLocalScoreProjectMusicXmlExportDraft({ project }),
   ready,
@@ -472,20 +478,17 @@ const blockedFixtures: readonly [
       articulations: ["accent"],
       dynamicMark: "f",
       damperPedalMark: "down",
-      fermataMark: "fermata",
     }, {
       ...sourceRest,
       chordSymbol: "Dm",
       dynamicMark: "p",
       damperPedalMark: "up",
-      fermataMark: "fermata",
     }]),
     [
       "unsupported-augmentation-dot",
       "unsupported-chord-symbol",
       "unsupported-dynamic",
       "unsupported-damper-pedal",
-      "unsupported-fermata",
       "unsupported-lyric",
       "unsupported-fingering",
       "unsupported-articulation",

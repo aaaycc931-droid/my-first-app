@@ -9,6 +9,7 @@ import {
   addLocalScoreProjectStaff,
   addLocalScoreProjectVoice,
   applyLocalScoreProjectContent,
+  changeLocalScoreProjectEventFermataMark,
   changeLocalScoreProjectEventSlur,
   changeLocalScoreProjectSettings,
   cloneLocalScoreProject,
@@ -325,6 +326,7 @@ const supportedMusicXml = ({
         <voice>1</voice>
         <type>quarter</type>
         <staff>1</staff>
+        <notations><fermata/></notations>
       </note>
       <note>
         <rest/>
@@ -332,6 +334,7 @@ const supportedMusicXml = ({
         <voice>1</voice>
         <type>quarter</type>
         <staff>1</staff>
+        <notations><fermata/></notations>
       </note>
     </measure>
   </part>
@@ -384,7 +387,7 @@ const createSupportedMusicXmlExportProject = ({
     title,
     now: "2026-07-27T07:00:00.000Z",
   });
-  return addLocalScoreProjectEvent({
+  const withNote = addLocalScoreProjectEvent({
     project: base,
     expectedRevision: base.document.revision,
     location: {
@@ -403,6 +406,19 @@ const createSupportedMusicXmlExportProject = ({
       lyric: null,
     },
     now: "2026-07-27T07:00:01.000Z",
+  });
+  return changeLocalScoreProjectEventFermataMark({
+    project: withNote,
+    expectedRevision: withNote.document.revision,
+    location: {
+      partId: "part-1",
+      staffId: "staff-1",
+      voiceId: "voice-1",
+      measureNumber: 1,
+    },
+    eventId: `${projectId}-event-1`,
+    fermataMark: "fermata",
+    now: "2026-07-27T07:00:02.000Z",
   });
 };
 
@@ -545,8 +561,18 @@ describe("S1 本机谱项目面板", () => {
     expect(stored?.title).toBe("受支持导入");
     expect(stored?.document.parts[0]?.staves[0]?.voices[0]?.measures[0]?.events)
       .toMatchObject([
-        { type: "note", pitch: "C4", duration: "quarter" },
-        { type: "rest", pitch: null, duration: "quarter" },
+        {
+          type: "note",
+          pitch: "C4",
+          duration: "quarter",
+          fermataMark: "fermata",
+        },
+        {
+          type: "rest",
+          pitch: null,
+          duration: "quarter",
+          fermataMark: "fermata",
+        },
       ]);
     expect(container.textContent).toContain("受支持导入");
     expect(container.textContent).toContain("第 1 小节 · C4 · 四分音符");

@@ -35,8 +35,8 @@ const supportedXml = `<?xml version="1.0"?>
         <time><beats>4</beats><beat-type>4</beat-type></time>
         <clef><sign>G</sign><line>2</line></clef>
       </attributes>
-      <note><pitch><step>C</step><octave>4</octave></pitch><duration>2</duration><voice>1</voice><type>quarter</type></note>
-      <note><rest/><duration>2</duration><voice>1</voice><type>quarter</type></note>
+      <note><pitch><step>C</step><octave>4</octave></pitch><duration>2</duration><voice>1</voice><type>quarter</type><notations><fermata/></notations></note>
+      <note><rest/><duration>2</duration><voice>1</voice><type>quarter</type><notations><fermata/></notations></note>
       <note><pitch><step>D</step><octave>4</octave></pitch><duration>4</duration><voice>1</voice><type>half</type></note>
     </measure>
     <measure number="2">
@@ -78,13 +78,14 @@ assert.deepEqual(
       event.pitch,
       event.duration,
       event.measure,
+      event.fermataMark,
     ]),
   [
-    ["note", "C4", "quarter", 1],
-    ["rest", null, "quarter", 1],
-    ["note", "D4", "half", 1],
-    ["note", "E4", "eighth", 2],
-    ["note", "F4", "eighth", 2],
+    ["note", "C4", "quarter", 1, "fermata"],
+    ["rest", null, "quarter", 1, "fermata"],
+    ["note", "D4", "half", 1, null],
+    ["note", "E4", "eighth", 2, null],
+    ["note", "F4", "eighth", 2, null],
   ],
 );
 assert.deepEqual(ready.project?.undoStack, []);
@@ -266,13 +267,12 @@ for (const [element, code] of [
   ["<lyric><text>la</text></lyric>", "unsupported-lyric"],
   ["<notations><technical><fingering>1</fingering></technical></notations>", "unsupported-fingering"],
   ["<notations><articulations><accent/></articulations></notations>", "unsupported-articulation"],
-  ["<notations><fermata/></notations>", "unsupported-fermata"],
   ["<accidental>sharp</accidental>", "unsupported-accidental"],
   ["<cue/>", "unsupported-element"],
 ] as const) {
   const semanticXml = supportedXml.replace(
-    "<type>quarter</type></note>",
-    `<type>quarter</type>${element}</note>`,
+    "<type>half</type></note>",
+    `<type>half</type>${element}</note>`,
   );
   const semanticDraft = createLocalScoreProjectMusicXmlImportDraft({
     xml: semanticXml,
@@ -288,6 +288,91 @@ for (const [element, code] of [
     `canonical 语义不得静默丢失：${code}`,
   );
 }
+
+for (const invalidFermata of [
+  "<notations><fermata type=\"upright\"/></notations>",
+  "<notations><fermata>normal</fermata></notations>",
+  "<notations placement=\"above\"><fermata/></notations>",
+  "<notations><fermata><other/></fermata></notations>",
+  "<notations><fermata/><fermata/></notations>",
+  "<notations><fermata/></notations><notations><fermata/></notations>",
+  "<notations/>",
+  "<fermata/>",
+]) {
+  const invalidFermataDraft = createLocalScoreProjectMusicXmlImportDraft({
+    xml: supportedXml.replace(
+      "<type>half</type></note>",
+      `<type>half</type>${invalidFermata}</note>`,
+    ),
+    fileName: "invalid-fermata.musicxml",
+    sourceFormat: "musicxml",
+    projectId: "blocked-invalid-fermata",
+    now: "2026-07-27T08:12:00.000Z",
+    createEventId: () => "unused-event",
+  });
+  assert.equal(invalidFermataDraft.status, "blocked");
+  assert.ok(
+    invalidFermataDraft.issues.some(
+      (issue) =>
+        issue.code === "unsupported-fermata"
+        || issue.code === "unsupported-notations",
+    ),
+    "非严格 fermata 结构必须失败关闭",
+  );
+}
+
+for (const misplacedFermataXml of [
+  supportedXml.replace(
+    "<note><pitch>",
+    "<notations><fermata/></notations><note><pitch>",
+  ),
+  supportedXml.replace(
+    "<note><pitch>",
+    "<fermata/><note><pitch>",
+  ),
+  supportedXml.replace(
+    "<attributes>",
+    "<attributes><notations><fermata/></notations>",
+  ),
+]) {
+  const misplacedFermataDraft = createLocalScoreProjectMusicXmlImportDraft({
+    xml: misplacedFermataXml,
+    fileName: "misplaced-fermata.musicxml",
+    sourceFormat: "musicxml",
+    projectId: "blocked-misplaced-fermata",
+    now: "2026-07-27T08:13:00.000Z",
+    createEventId: () => "unused-event",
+  });
+  assert.equal(misplacedFermataDraft.status, "blocked");
+  assert.ok(
+    misplacedFermataDraft.issues.some(
+      (issue) =>
+        issue.code === "unsupported-fermata"
+        || issue.code === "unsupported-notations",
+    ),
+    "note 外错误层级的 fermata/notations 必须失败关闭",
+  );
+}
+
+const nestedNoteXml = supportedXml.replace(
+  /(<note><pitch>[\s\S]*?<\/note>)/,
+  "<attributes>$1</attributes>",
+);
+const nestedNoteDraft = createLocalScoreProjectMusicXmlImportDraft({
+  xml: nestedNoteXml,
+  fileName: "nested-note.musicxml",
+  sourceFormat: "musicxml",
+  projectId: "blocked-nested-note",
+  now: "2026-07-27T08:14:00.000Z",
+  createEventId: () => "unused-event",
+});
+assert.equal(nestedNoteDraft.status, "blocked");
+assert.ok(
+  nestedNoteDraft.issues.some(
+    (issue) => issue.code === "unsupported-note-hierarchy",
+  ),
+  "嵌套在非 measure 元素中的 note 必须失败关闭",
+);
 
 const missingMeasureNumber = createLocalScoreProjectMusicXmlImportDraft({
   xml: supportedXml.replace('measure number="1"', "measure"),

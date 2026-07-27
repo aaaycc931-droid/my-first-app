@@ -4,7 +4,7 @@
 
 状态：**Canonical integrated roadmap / 统一长期开发主路线**
 
-当前执行状态：**P119a–P119c MERGED / P119d SAMPLE PLAN APPROVED / NEXT DUAL-TEACHER ITEM REVIEW**
+当前执行状态：**S3 STRICT MUSICXML/MXL EXPANSION IN PROGRESS / EXTERNAL ROUND-TRIP QA NOT_EXECUTED / P119d ITEM REVIEW DEFERRED**
 
 适用项目：`aaaycc931-droid/my-first-app`
 
@@ -39,6 +39,7 @@
 - P119a 已通过 PR #415 合并为 `28a448faf1f387a1c7f394f5baac6a2a7dbc4eac`；它只建立 Q3 内容盘点和双教师审核证据协议。自动盘点暴露两个基础档各 8 个变体的数量缺口，外部教师审核仍为 `NOT_EXECUTED`。
 - P119b 已通过 PR #417 合并为 `bd5c5af211a3a1b36f4fcfacebdfe89b65fbafc1`；两个基础档各达到 20，当前 30 个自动盘点组满足 V1 数量前置。
 - P119c 已通过 PR #419 合并为 `de9ab7f9a6d050a951e70835fbe97cecc693b9f4`；catalog v10 可复核清单已绑定 P119b source commit、18 个真源文件、1,855 个题目 item、3 个课节和 canonical SHA-256。P119d 已记录产品所有者对仓库外双教师预批准的无身份摘要：30 层各 5 项、3 个课程项，共 153 项；获批批次继续冻结，逐题六维双教师审核与 finding 闭环延期到正式推广测试启动时，专业 40 与教育有效性仍未完成。
+- S2 canonical fermata／slur 与 S3 受控单 part／staff／voice MusicXML/MXL 导入、导出及仓库内部 round-trip 已形成连续主线；当前最小扩展把 note/rest fermata 纳入严格双向映射。完整 MusicXML、MIDI、浏览器下载、Android WebView／真机及 MuseScore 等第三方独立阅读器验证仍为 `NOT_EXECUTED`。
 
 本次产品决策是：
 

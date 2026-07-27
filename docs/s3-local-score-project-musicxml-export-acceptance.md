@@ -38,8 +38,10 @@ QA level recommendation：**strict**
   明确核对的文本，XML 特殊字符必须正确转义，重新导入后不得静默改变。副标题必须为
   `null`、creators 必须为空数组、版权声明必须为 `null`；任一非空额外 credits 都
   必须形成 blocking 项。
-- 附点、延音线、圆滑线、歌词、指法、和弦标记、演奏法、力度、制音踏板、延长记号
-  及其他当前未映射的非中性 canonical 语义，必须逐类形成稳定 blocking 项。
+- canonical note/rest 的 `fermataMark: "fermata"` 必须确定性写为其直接子级
+  `<notations><fermata/></notations>`，并由当前 importer 无损重建。
+- 附点、延音线、圆滑线、歌词、指法、和弦标记、演奏法、力度、制音踏板及其他当前
+  未映射的非中性 canonical 语义，必须逐类形成稳定 blocking 项。
 - 项目至少包含一个事件；任何超过当前拍号容量的小节必须 blocking。
 
 项目 ID、document ID、event ID、创建／更新时间、revision 和 undo／redo 是本机项目
@@ -114,6 +116,8 @@ QA level recommendation：**strict**
 - XML escaping、确定性输出、安全文件名、标准 MXL container 和 rootfile；
 - 音符、四分休止符、小节、调号、拍号、谱号、主标题和 part 名称的内部 re-import
   语义等价；
+- note/rest 延长记号写为严格 `<notations><fermata/></notations>`，`.musicxml`
+  与 `.mxl` re-import 后保持同一 canonical `fermataMark`；
 - legacy parser 对音符音高、时值、小节和拍位的交叉检查；
 - 非 `90 BPM`、已分配 instrument、非空副标题／creator／版权，以及每类未支持
   canonical 记谱字段分别形成 blocking ledger；
@@ -148,3 +152,6 @@ QA level recommendation：**strict**
 
 本切片只建立当前严格子集的受控 MusicXML／MXL 导出与仓库内部语义 round-trip，
 不代表完整 S3 或正式版 V1 已完成。
+
+延长记号双向严格子集的独立验收边界见
+`docs/s3-local-score-project-musicxml-fermata-round-trip-acceptance.md`。
