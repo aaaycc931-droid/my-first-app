@@ -18,8 +18,10 @@ import type {
   LocalNotationProjectScoreDocumentV9,
   LocalNotationProjectScoreDocumentV10,
   LocalNotationProjectScoreDocumentV11,
+  LocalNotationProjectScoreDocumentV12,
   LocalScoreProjectArticulationV1,
   LocalScoreProjectDamperPedalMarkV1,
+  LocalScoreProjectFermataMarkV1,
   LocalScoreProjectDynamicMarkV1,
   LocalScoreProjectFingeringV1,
 } from "./scoreDocument";
@@ -72,6 +74,7 @@ type LocalScoreStaffTokenBase = Readonly<{
   chordSymbol: string | null;
   dynamicMark: LocalScoreProjectDynamicMarkV1 | null;
   damperPedalMark: LocalScoreProjectDamperPedalMarkV1 | null;
+  fermataMark: LocalScoreProjectFermataMarkV1 | null;
   accessibleLabel: string;
 }>;
 
@@ -137,6 +140,7 @@ export type LocalScoreStaffPresentation =
     chordSymbolY: number;
     dynamicMarkY: number;
     damperPedalY: number;
+    fermataY: number;
     width: number;
     height: number;
     partId: string;
@@ -181,6 +185,7 @@ Readonly<Record<LocalScoreProjectDamperPedalMarkV1, string>> = {
   down: "踩下制音踏板",
   up: "释放制音踏板",
 };
+const FERMATA_MARK_LABELS = { fermata: "延长记号" } as const;
 
 const TREBLE_PITCH_Y: Readonly<Record<NotationPitch, number>> = {
   C4: 96,
@@ -259,10 +264,7 @@ const isPresentationContent = (
     keySignature: document.keySignature,
     parts: document.parts.map((part, index) => {
       if (!isRecord(part)) return part;
-      const staves = (
-        document.schemaVersion === "score-document-v10"
-        || document.schemaVersion === "score-document-v11"
-      )
+      const staves = document.schemaVersion === "score-document-v12"
         ? part.staves
         : Array.isArray(part.staves)
           ? part.staves.map((staff) =>
@@ -279,6 +281,20 @@ const isPresentationContent = (
                             ...measure,
                             events: measure.events.map((event) => {
                               if (!isRecord(event)) return event;
+                              if (
+                                document.schemaVersion === "score-document-v10"
+                                || document.schemaVersion === "score-document-v11"
+                              ) {
+                                return {
+                                  ...event,
+                                  damperPedalMark:
+                                    document.schemaVersion === "score-document-v11"
+                                      && ("damperPedalMark" in event)
+                                      ? event.damperPedalMark
+                                      : null,
+                                  fermataMark: null,
+                                };
+                              }
                               const withChordSymbol =
                                 document.schemaVersion === "score-document-v8"
                                   || document.schemaVersion
@@ -307,6 +323,7 @@ const isPresentationContent = (
                                 ...withArticulations,
                                 dynamicMark: null,
                                 damperPedalMark: null,
+                                fermataMark: null,
                               };
                             }),
                           }
@@ -340,7 +357,8 @@ const isLocalScoreProjectDocument = (
   | LocalNotationProjectScoreDocumentV8
   | LocalNotationProjectScoreDocumentV9
   | LocalNotationProjectScoreDocumentV10
-  | LocalNotationProjectScoreDocumentV11 =>
+  | LocalNotationProjectScoreDocumentV11
+  | LocalNotationProjectScoreDocumentV12 =>
   isRecord(document)
   && (
     document.schemaVersion === "score-document-v3"
@@ -352,6 +370,7 @@ const isLocalScoreProjectDocument = (
     || document.schemaVersion === "score-document-v9"
     || document.schemaVersion === "score-document-v10"
     || document.schemaVersion === "score-document-v11"
+    || document.schemaVersion === "score-document-v12"
   )
   && document.documentKind === "notation-project"
   && typeof document.documentId === "string"
@@ -506,6 +525,9 @@ export const createLocalScoreProjectStaffPresentation = (
       const damperPedalMark = "damperPedalMark" in event
         ? event.damperPedalMark as LocalScoreProjectDamperPedalMarkV1 | null
         : null;
+      const fermataMark = "fermataMark" in event
+        ? event.fermataMark as LocalScoreProjectFermataMarkV1 | null
+        : null;
       if (event.type === "note" && event.pitch !== null) {
         const fingering = "fingering" in event
           ? event.fingering as LocalScoreProjectFingeringV1 | null
@@ -529,6 +551,7 @@ export const createLocalScoreProjectStaffPresentation = (
           damperPedalMark === null
             ? ""
             : `${DAMPER_PEDAL_MARK_LABELS[damperPedalMark]}（${damperPedalMark}）`,
+          fermataMark === null ? "" : "延长记号",
           accidental === "natural" ? "还原号" : "",
           `${event.augmentationDots === 1 ? "附点" : ""}${DURATION_LABELS[event.duration]}音符`,
           event.tieToNext ? "与下一音符用延音线相连" : "",
@@ -556,6 +579,7 @@ export const createLocalScoreProjectStaffPresentation = (
           chordSymbol,
           dynamicMark,
           damperPedalMark,
+          fermataMark,
           head: event.duration === "half" ? "open" : "filled",
           hasStem: true,
           hasEighthFlag: event.duration === "eighth",
@@ -591,6 +615,7 @@ export const createLocalScoreProjectStaffPresentation = (
           chordSymbol,
           dynamicMark,
           damperPedalMark,
+          fermataMark,
           rest: "quarter",
           accessibleLabel:
             `${positionLabel}，${chordSymbol === null
@@ -599,7 +624,7 @@ export const createLocalScoreProjectStaffPresentation = (
               ? ""
               : `力度记号 ${DYNAMIC_MARK_LABELS[dynamicMark]}（${dynamicMark}），`}${damperPedalMark === null
               ? ""
-              : `${DAMPER_PEDAL_MARK_LABELS[damperPedalMark]}（${damperPedalMark}），`}${event.augmentationDots === 1
+              : `${DAMPER_PEDAL_MARK_LABELS[damperPedalMark]}（${damperPedalMark}），`}${fermataMark === null ? "" : `${FERMATA_MARK_LABELS[fermataMark]}，`}${event.augmentationDots === 1
               ? "附点"
               : ""}四分休止符`,
         });
@@ -646,12 +671,15 @@ export const createLocalScoreProjectStaffPresentation = (
   const chordSymbolY = lyricY + 18;
   const dynamicMarkY = chordSymbolY + 18;
   const damperPedalY = dynamicMarkY + 18;
+  const fermataY = damperPedalY + 18;
   const hasChordSymbol = measures.some((measure) =>
     measure.tokens.some((token) => token.chordSymbol !== null));
   const hasDynamicMark = measures.some((measure) =>
     measure.tokens.some((token) => token.dynamicMark !== null));
   const hasDamperPedal = measures.some((measure) =>
     measure.tokens.some((token) => token.damperPedalMark !== null));
+  const hasFermata = measures.some((measure) =>
+    measure.tokens.some((token) => token.fermataMark !== null));
   const hasLyric = measures.some((measure) =>
     measure.tokens.some((token) =>
       token.type === "note" && token.lyric !== null));
@@ -668,6 +696,7 @@ export const createLocalScoreProjectStaffPresentation = (
       || document.schemaVersion === "score-document-v9"
       || document.schemaVersion === "score-document-v10"
       || document.schemaVersion === "score-document-v11"
+      || document.schemaVersion === "score-document-v12"
       ? document.scoreCredits
       : {
         title: null,
@@ -692,6 +721,7 @@ export const createLocalScoreProjectStaffPresentation = (
     chordSymbolY,
     dynamicMarkY,
     damperPedalY,
+    fermataY,
     width,
     height: Math.max(
       baseHeight + (hasChordSymbol ? 18 : 0),
@@ -700,6 +730,7 @@ export const createLocalScoreProjectStaffPresentation = (
       hasChordSymbol ? chordSymbolY + 12 : baseHeight,
       hasDynamicMark ? dynamicMarkY + 12 : baseHeight,
       hasDamperPedal ? damperPedalY + 12 : baseHeight,
+      hasFermata ? fermataY + 12 : baseHeight,
     ),
     partId: part.partId,
     staffId: staff.staffId,
