@@ -56,6 +56,14 @@ QA level recommendation：**strict**
 - fermata、slur stop 与 slur start 可以共用同一个 `<notations>`；每种 marker 在同一
   note 最多一个。重复容器／marker、孤立或错序 start／stop、休止符上的 slur、跨休止符
   或空拍、额外属性、文本、嵌套元素及错误层级必须 blocking。
+- canonical 延音线只接受同声部紧邻、同音高且时间连续的 pitched notes。源／目标
+  note 必须分别同时提供直接子级 `<tie type="start|stop"/>` 和唯一 `<notations>`
+  中的 `<tied type="start|stop"/>`，两套 marker 必须逐 note 完全一致，才能无损映射
+  为源 note 的 `tieToNext: true`。
+- tie／tied 支持同小节、跨连续小节和中间 note 同时 stop／start 的链式关系，并可与
+  fermata／slur 共用唯一 `<notations>`。direct-only、tied-only、两套 type 不一致、
+  孤立／错序／重复 marker、不同音高、休止符、空拍、额外属性、未知 type、文本、
+  嵌套元素或错误层级均必须 blocking。
 - blocking 项应包含稳定 code、元素类型与原因，并在可用时包含 measure；无法定位到
   具体小节时也必须提供文件级原因。
 - 只要存在任意 blocking 项，“确认并保存”保持禁用，并显示简体中文 disabled reason。
@@ -64,7 +72,7 @@ QA level recommendation：**strict**
   使用 stale 候选。
 
 本切片不得为了增加成功率而静默跳过休止符、多 part／staff／voice、和弦时序、
-`backup`／`forward`、未知时值、谱号／调号／拍号、歌词、严格 fermata／slur
+`backup`／`forward`、未知时值、谱号／调号／拍号、歌词、严格 fermata／slur／tie
 结构以外的连线或其他 canonical 语义。
 不在本切片支持清单中的内容必须 blocking。
 
@@ -106,6 +114,10 @@ QA level recommendation：**strict**
 - 相邻时间连续 note 的严格 slur start／stop 映射为 canonical `slurToNext`；同小节、
   跨小节、链式及 fermata 共存保持不变，孤立、错序、重复、休止符、空拍、额外属性、
   非 `start`／`stop` type、文本、嵌套和错误层级全部失败关闭；
+- 相邻同音高且时间连续 note 的 direct tie 与 notations/tied start／stop 必须成对
+  一致并映射为 canonical `tieToNext`；同小节、跨小节、链式和 fermata／slur 共存
+  保持不变，两套 marker 缺失或不一致、孤立、错序、重复、不同音高、休止符、空拍、
+  额外属性、未知 type、文本、嵌套和错误层级全部失败关闭；
 - 空文件、2 MiB 超限、非良构／损坏 XML／archive、根级未映射语义、part ID 不一致、
   100 entries 超限、4 MiB 解压超限、
   container/rootfile 异常和路径穿越全部失败关闭；
@@ -155,3 +167,6 @@ round-trip、OMR、教师审核、真机验收或正式版 V1 已完成。
 
 圆滑线双向严格子集的独立验收边界见
 `docs/s3-local-score-project-musicxml-slur-round-trip-acceptance.md`。
+
+延音线双向严格子集的独立验收边界见
+`docs/s3-local-score-project-musicxml-tie-round-trip-acceptance.md`。

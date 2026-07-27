@@ -172,6 +172,80 @@ assert.deepEqual(
   "strict slur import must preserve cross-measure chains and fermata coexistence",
 );
 
+const strictTieXml = supportedXml
+  .replace(
+    "<note><pitch><step>D</step><octave>4</octave></pitch><duration>4</duration><voice>1</voice><type>half</type></note>",
+    '<note><pitch><step>D</step><octave>4</octave></pitch><duration>4</duration><tie type="start"/><voice>1</voice><type>half</type><notations><fermata/><tied type="start"/><slur type="start"/></notations></note>',
+  )
+  .replace(
+    "<note><pitch><step>E</step><octave>4</octave></pitch><duration>1</duration><voice>1</voice><type>eighth</type></note>",
+    '<note><pitch><step>D</step><octave>4</octave></pitch><duration>1</duration><tie type="stop"/><tie type="start"/><voice>1</voice><type>eighth</type><notations><fermata/><tied type="stop"/><tied type="start"/><slur type="stop"/><slur type="start"/></notations></note>',
+  )
+  .replace(
+    "<note><pitch><step>F</step><octave>4</octave></pitch><duration>1</duration><voice>1</voice><type>eighth</type></note>",
+    '<note><pitch><step>D</step><octave>4</octave></pitch><duration>1</duration><tie type="stop"/><voice>1</voice><type>eighth</type><notations><tied type="stop"/><slur type="stop"/></notations></note>',
+  );
+let tieEventSequence = 0;
+const strictTieReady = createLocalScoreProjectMusicXmlImportDraft({
+  xml: strictTieXml,
+  fileName: "跨小节链式延音线.musicxml",
+  sourceFormat: "musicxml",
+  projectId: "import-project-tie",
+  now: "2026-07-27T08:00:45.000Z",
+  createEventId: () => `tie-event-${++tieEventSequence}`,
+});
+assert.equal(strictTieReady.status, "ready");
+assert.deepEqual(strictTieReady.issues, []);
+assert.deepEqual(
+  strictTieReady.project?.document.parts[0].staves[0].voices[0].measures
+    .flatMap((measure) => measure.events)
+    .map((event) => ({
+      type: event.type,
+      pitch: event.pitch,
+      fermataMark: event.fermataMark,
+      tieToNext: event.type === "note" ? event.tieToNext : null,
+      slurToNext: event.type === "note" ? event.slurToNext : null,
+    })),
+  [
+    {
+      type: "note",
+      pitch: "C4",
+      fermataMark: "fermata",
+      tieToNext: false,
+      slurToNext: false,
+    },
+    {
+      type: "rest",
+      pitch: null,
+      fermataMark: "fermata",
+      tieToNext: null,
+      slurToNext: null,
+    },
+    {
+      type: "note",
+      pitch: "D4",
+      fermataMark: "fermata",
+      tieToNext: true,
+      slurToNext: true,
+    },
+    {
+      type: "note",
+      pitch: "D4",
+      fermataMark: "fermata",
+      tieToNext: true,
+      slurToNext: true,
+    },
+    {
+      type: "note",
+      pitch: "D4",
+      fermataMark: null,
+      tieToNext: false,
+      slurToNext: false,
+    },
+  ],
+  "strict tie import must preserve cross-measure chains and coexist with fermata/slur",
+);
+
 let metadataEventSequence = 0;
 const metadataReady = createLocalScoreProjectMusicXmlImportDraft({
   xml: supportedXml
@@ -342,7 +416,6 @@ assert.throws(
 );
 
 for (const [element, code] of [
-  ["<tie type=\"start\"/>", "unsupported-tie"],
   ["<lyric><text>la</text></lyric>", "unsupported-lyric"],
   ["<notations><technical><fingering>1</fingering></technical></notations>", "unsupported-fingering"],
   ["<notations><articulations><accent/></articulations></notations>", "unsupported-articulation"],
@@ -532,6 +605,216 @@ assert.equal(
   blockedSlurEventIdCalls,
   0,
   "blocked slur input must not allocate canonical event ids",
+);
+
+const strictTiePairXml = supportedXml
+  .replace(
+    "<note><pitch><step>D</step><octave>4</octave></pitch><duration>4</duration><voice>1</voice><type>half</type></note>",
+    '<note><pitch><step>D</step><octave>4</octave></pitch><duration>4</duration><tie type="start"/><voice>1</voice><type>half</type><notations><tied type="start"/></notations></note>',
+  )
+  .replace(
+    "<note><pitch><step>E</step><octave>4</octave></pitch><duration>1</duration><voice>1</voice><type>eighth</type></note>",
+    '<note><pitch><step>D</step><octave>4</octave></pitch><duration>1</duration><tie type="stop"/><voice>1</voice><type>eighth</type><notations><tied type="stop"/></notations></note>',
+  );
+
+for (const [invalidTieXml, expectedCode] of [
+  [
+    strictTiePairXml.replace('<tie type="start"/>', ""),
+    "unsupported-tie-mismatch",
+  ],
+  [
+    strictTiePairXml.replace('<tied type="start"/>', ""),
+    "unsupported-tie-mismatch",
+  ],
+  [
+    strictTiePairXml.replace(
+      '<tied type="start"/>',
+      '<tied type="stop"/>',
+    ),
+    "unsupported-tie-mismatch",
+  ],
+  [
+    strictTiePairXml
+      .replace('<tie type="stop"/>', "")
+      .replace('<tied type="stop"/>', ""),
+    "unsupported-tie-pair",
+  ],
+  [
+    supportedXml.replace(
+      "<duration>2</duration><voice>1</voice><type>quarter</type><notations><fermata/></notations></note>",
+      '<duration>2</duration><tie type="stop"/><voice>1</voice><type>quarter</type><notations><fermata/><tied type="stop"/></notations></note>',
+    ),
+    "unsupported-tie-pair",
+  ],
+  [
+    supportedXml.replace(
+      "<note><rest/><duration>2</duration><voice>1</voice><type>quarter</type><notations><fermata/></notations></note>",
+      '<note><rest/><duration>2</duration><tie type="start"/><voice>1</voice><type>quarter</type><notations><fermata/><tied type="start"/></notations></note>',
+    ),
+    "unsupported-tie",
+  ],
+  [
+    supportedXml
+      .replace(
+        "<note><pitch><step>C</step><octave>4</octave></pitch><duration>2</duration><voice>1</voice><type>quarter</type><notations><fermata/></notations></note>",
+        '<note><pitch><step>C</step><octave>4</octave></pitch><duration>2</duration><tie type="start"/><voice>1</voice><type>quarter</type><notations><fermata/><tied type="start"/></notations></note>',
+      )
+      .replace(
+        "<note><rest/><duration>2</duration><voice>1</voice><type>quarter</type><notations><fermata/></notations></note>",
+        '<note><rest/><duration>2</duration><tie type="stop"/><voice>1</voice><type>quarter</type><notations><fermata/><tied type="stop"/></notations></note>',
+      ),
+    "unsupported-tie",
+  ],
+  [
+    strictTiePairXml.replace(
+      '<note><pitch><step>D</step><octave>4</octave></pitch><duration>1</duration><tie type="stop"/>',
+      '<note><pitch><step>E</step><octave>4</octave></pitch><duration>1</duration><tie type="stop"/>',
+    ),
+    "unsupported-tie-pitch",
+  ],
+  [
+    strictTiePairXml.replace(
+      '<duration>4</duration><tie type="start"/><voice>1</voice><type>half</type>',
+      '<duration>2</duration><tie type="start"/><voice>1</voice><type>quarter</type>',
+    ),
+    "unsupported-tie-continuity",
+  ],
+  [
+    strictTiePairXml.replace(
+      '<tie type="start"/>',
+      '<tie type="start" time-only="1"/>',
+    ),
+    "unsupported-tie",
+  ],
+  [
+    strictTiePairXml.replace(
+      '<tied type="start"/>',
+      '<tied type="start" placement="above"/>',
+    ),
+    "unsupported-tie",
+  ],
+  [
+    strictTiePairXml.replace(
+      '<tie type="start"/>',
+      '<tie type="start">text</tie>',
+    ),
+    "unsupported-tie",
+  ],
+  [
+    strictTiePairXml.replace(
+      '<tied type="start"/>',
+      '<tied type="start"><other/></tied>',
+    ),
+    "unsupported-tie",
+  ],
+  [
+    strictTiePairXml.replace(
+      '<tie type="start"/>',
+      '<tie type="start"><other/></tie>',
+    ),
+    "unsupported-tie",
+  ],
+  [
+    strictTiePairXml.replace(
+      '<tied type="start"/>',
+      '<tied type="start">text</tied>',
+    ),
+    "unsupported-tie",
+  ],
+  [
+    strictTiePairXml
+      .replace(
+        '<tie type="start"/>',
+        '<tie type="start"/><tie type="start"/>',
+      )
+      .replace(
+        '<tied type="start"/>',
+        '<tied type="start"/><tied type="start"/>',
+      ),
+    "unsupported-tie",
+  ],
+  [
+    strictTiePairXml
+      .replace(
+        '<tie type="start"/>',
+        '<tie type="start"/><tie type="stop"/>',
+      )
+      .replace(
+        '<tied type="start"/>',
+        '<tied type="start"/><tied type="stop"/>',
+      ),
+    "unsupported-tie-order",
+  ],
+  [
+    supportedXml.replace(
+      "<note><pitch>",
+      '<tie type="start"/><note><pitch>',
+    ),
+    "unsupported-tie",
+  ],
+  [
+    supportedXml.replace(
+      "<type>half</type></note>",
+      '<type>half</type><tied type="start"/></note>',
+    ),
+    "unsupported-tie",
+  ],
+  [
+    strictTiePairXml.replace(
+      '<tie type="start"/>',
+      "<tie/>",
+    ),
+    "unsupported-tie",
+  ],
+  [
+    strictTiePairXml.replace(
+      '<tied type="start"/>',
+      '<tied type="let-ring"/>',
+    ),
+    "unsupported-tie",
+  ],
+  [
+    strictTiePairXml.replace(
+      '<tied type="start"/>',
+      '<tied type="continue"/>',
+    ),
+    "unsupported-tie",
+  ],
+] as const) {
+  const invalidTieDraft = createLocalScoreProjectMusicXmlImportDraft({
+    xml: invalidTieXml,
+    fileName: "invalid-tie.musicxml",
+    sourceFormat: "musicxml",
+    projectId: "blocked-invalid-tie",
+    now: "2026-07-27T08:11:45.000Z",
+    createEventId: () => "unused-event",
+  });
+  assert.equal(invalidTieDraft.status, "blocked");
+  assert.ok(
+    invalidTieDraft.issues.some((issue) => issue.code === expectedCode),
+    `非严格 tie/tied 结构必须失败关闭：${expectedCode}`,
+  );
+}
+
+let blockedTieEventIdCalls = 0;
+const blockedTieWithoutIds = createLocalScoreProjectMusicXmlImportDraft({
+  xml: strictTiePairXml
+    .replace('<tie type="stop"/>', "")
+    .replace('<tied type="stop"/>', ""),
+  fileName: "blocked-tie-no-ids.musicxml",
+  sourceFormat: "musicxml",
+  projectId: "blocked-tie-no-ids",
+  now: "2026-07-27T08:11:50.000Z",
+  createEventId: () => {
+    blockedTieEventIdCalls += 1;
+    return `unexpected-tie-${blockedTieEventIdCalls}`;
+  },
+});
+assert.equal(blockedTieWithoutIds.status, "blocked");
+assert.equal(
+  blockedTieEventIdCalls,
+  0,
+  "blocked tie input must not allocate canonical event ids",
 );
 
 for (const invalidFermata of [

@@ -14,6 +14,7 @@ import {
   changeLocalScoreProjectSettings,
   cloneLocalScoreProject,
   createLocalScoreProject,
+  getLocalScoreProjectContent,
   renameLocalScoreProjectPart,
   type LocalScoreProjectV1,
 } from "../../lib/music/localScoreProject";
@@ -340,6 +341,31 @@ const supportedMusicXml = ({
   </part>
 </score-partwise>`;
 
+const supportedTiedMusicXml = () => supportedMusicXml()
+  .replace(
+    "<duration>2</duration>\n        <voice>1</voice>",
+    '<duration>2</duration>\n        <tie type="start"/>\n        <voice>1</voice>',
+  )
+  .replace(
+    "<notations><fermata/></notations>",
+    '<notations><fermata/><tied type="start"/></notations>',
+  )
+  .replace(
+    `<rest/>
+        <duration>2</duration>
+        <voice>1</voice>
+        <type>quarter</type>
+        <staff>1</staff>
+        <notations><fermata/></notations>`,
+    `<pitch><step>C</step><octave>4</octave></pitch>
+        <duration>2</duration>
+        <tie type="stop"/>
+        <voice>1</voice>
+        <type>quarter</type>
+        <staff>1</staff>
+        <notations><fermata/><tied type="stop"/></notations>`,
+  );
+
 const selectMusicXmlImportFile = async ({
   container,
   xml,
@@ -576,6 +602,43 @@ describe("S1 本机谱项目面板", () => {
       ]);
     expect(container.textContent).toContain("受支持导入");
     expect(container.textContent).toContain("第 1 小节 · C4 · 四分音符");
+  });
+
+  it("严格 tie 双标记导入后仅在明确确认时原子保存 canonical tie", async () => {
+    const store = new MemoryProjectStore();
+    const container = await renderPanel(store);
+
+    await selectMusicXmlImportFile({
+      container,
+      xml: supportedTiedMusicXml(),
+      fileName: "延音线导入.musicxml",
+    });
+
+    expect(store.putCalls).toBe(0);
+    expect(findButton(container, "我已检查，确认新增并保存").disabled)
+      .toBe(false);
+    await click(findButton(container, "我已检查，确认新增并保存"));
+    await waitFor(
+      () => store.putCalls === 1,
+      "确认后原子保存延音线项目",
+    );
+
+    const events = Array.from(store.values.values())[0]
+      ?.document.parts[0]?.staves[0]?.voices[0]?.measures[0]?.events;
+    expect(events).toMatchObject([
+      {
+        type: "note",
+        pitch: "C4",
+        tieToNext: true,
+        fermataMark: "fermata",
+      },
+      {
+        type: "note",
+        pitch: "C4",
+        tieToNext: false,
+        fermataMark: "fermata",
+      },
+    ]);
   });
 
   it.each([
@@ -970,6 +1033,92 @@ describe("S1 本机谱项目面板", () => {
     const downloadedXml = await createObjectUrl.mock.calls[0]?.[0].text();
     expect(downloadedXml).toContain('<slur type="start"/>');
     expect(downloadedXml).toContain('<slur type="stop"/>');
+    expect(store.putCalls).toBe(0);
+    expectProjectSnapshotUnchanged({
+      store,
+      projectId: project.projectId,
+      snapshot,
+    });
+  });
+
+  it("canonical 延音线可生成双标记导出候选并在明确确认后下载", async () => {
+    const store = new MemoryProjectStore();
+    let project = createSupportedMusicXmlExportProject({
+      projectId: "tie-export-project",
+      title: "延音线导出",
+    });
+    project = addLocalScoreProjectEvent({
+      project,
+      expectedRevision: project.document.revision,
+      location: {
+        partId: "part-1",
+        staffId: "staff-1",
+        voiceId: "voice-1",
+        measureNumber: 1,
+      },
+      eventId: "tie-export-event-2",
+      input: {
+        type: "note",
+        pitch: "C4",
+        duration: "quarter",
+        augmentationDots: 0,
+        tieToNext: false,
+        lyric: null,
+      },
+      now: "2026-07-27T07:03:00.000Z",
+    });
+    const content = getLocalScoreProjectContent(project);
+    project = applyLocalScoreProjectContent({
+      project,
+      expectedRevision: project.document.revision,
+      content: {
+        ...content,
+        parts: content.parts.map((part) => ({
+          ...part,
+          staves: part.staves.map((staff) => ({
+            ...staff,
+            voices: staff.voices.map((voice) => ({
+              ...voice,
+              measures: voice.measures.map((measure) => ({
+                ...measure,
+                events: measure.events.map((event) =>
+                  event.id === `${project.projectId}-event-1`
+                    ? { ...event, tieToNext: true }
+                    : event
+                ),
+              })),
+            })),
+          })),
+        })),
+      },
+      now: "2026-07-27T07:03:01.000Z",
+    });
+    await store.put(project, null);
+    store.putCalls = 0;
+    const snapshot = JSON.stringify(store.values.get(project.projectId));
+    const { anchorClick, createObjectUrl } = installDownloadSpies();
+    const container = await renderPanel(store);
+    await click(findButton(container, "打开"));
+    await click(findButton(container, "检查 MusicXML/MXL 导出"));
+    await waitFor(
+      () => container.querySelector(
+        "[data-testid='local-score-project-musicxml-export-draft']",
+      ) !== null,
+      "生成延音线导出候选",
+    );
+
+    const confirm = findButton(container, "确认下载 .musicxml");
+    expect(confirm.disabled).toBe(false);
+    await click(confirm);
+    await waitFor(
+      () => anchorClick.mock.calls.length === 1,
+      "明确确认后下载延音线 MusicXML",
+    );
+    const downloadedXml = await createObjectUrl.mock.calls[0]?.[0].text();
+    expect(downloadedXml).toContain('<tie type="start"/>');
+    expect(downloadedXml).toContain('<tie type="stop"/>');
+    expect(downloadedXml).toContain('<tied type="start"/>');
+    expect(downloadedXml).toContain('<tied type="stop"/>');
     expect(store.putCalls).toBe(0);
     expectProjectSnapshotUnchanged({
       store,

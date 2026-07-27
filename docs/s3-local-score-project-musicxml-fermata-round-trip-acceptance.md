@@ -19,7 +19,7 @@
   形成 blocking ledger，不能静默忽略或降级。
 - slur、tie、articulation、ornament 等其他 notations 语义不属于本切片；后续独立
   slur 切片允许 fermata 与严格 slur marker 共用同一个 `<notations>`，不反向扩大
-  本切片当时的验收结论。
+  本切片当时的验收结论；再后续的独立 tie 切片也允许严格 tied marker 共用该容器。
 
 ## 自动证据
 
@@ -44,3 +44,6 @@
 `docs/s3-local-score-project-musicxml-slur-round-trip-acceptance.md`。浏览器真实下载、
 Android WebView／真机、第三方独立阅读器、真实音频、教师审核、MIDI、OMR、完整
 MusicXML、S3 与正式版 V1 均仍为 `NOT_EXECUTED` 或未完成。
+
+后续延音线双向严格子集的独立验收边界见
+`docs/s3-local-score-project-musicxml-tie-round-trip-acceptance.md`。
