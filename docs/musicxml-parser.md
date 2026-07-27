@@ -13,7 +13,9 @@ MusicXML 标准。
 - 同时输出相同值的 `pitch` 和兼容 UI / 播放逻辑的 `note`。
 - 优先从 `<type>` 读取 `whole`、`half`、`quarter` 或 `eighth`。
 - 缺少 `<type>` 时，根据 `<duration>` / `<divisions>` 粗略推断时值。
-- 按小节累计每个音符的 `beat`。
+- 按小节累计每个音符的 `beat`。存在有效正数 `<duration>` 时，优先使用
+  `<duration>` / 当前 `<divisions>` 推进拍点，因此附点等由实际 sounding duration
+  表达的时长可以正确影响后续事件位置；缺失或非法时才回退到基础 `duration` 拍数。
 - 跳过 `<rest/>`，但休止符仍会推进拍点。
 - 为每个音符设置默认 `confidence: 0.8` 和 `source: "musicxml"`。
 - 空输入、没有音符的输入或缺少 pitch 的单个音符会被安全跳过。
@@ -39,9 +41,11 @@ MusicXML 标准。
 - 复杂和弦
 - 多声部
 - tie
-- 附点
+- 附点身份或数量：输出 `duration` 仍只是 `whole`、`half`、`quarter`、`eighth`
+  基础类型，不包含 `augmentationDots`；原始时长只用于推进后续 `beat`
 - 多个 staff
 - 复杂拍号
 
 这是 MVP parser。后续接入 Audiveris 后，可以基于真实输出样本逐步增强结构校验、和弦、
-多声部和更完整的 MusicXML 时值处理。
+多声部和更完整的 MusicXML 时值处理。受控本机谱项目的附点身份 round-trip 必须由
+canonical MusicXML importer 验证，不能由本 parser 的拍点交叉检查替代。

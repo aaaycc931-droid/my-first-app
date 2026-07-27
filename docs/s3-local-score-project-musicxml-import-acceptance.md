@@ -46,6 +46,11 @@ QA level recommendation：**strict**
 - 根级、`work`、`part-list` 与 `score-part` 同样采用显式白名单；creator、rights、
   instrument、movement、credit 等未映射元数据必须 blocking，`score-part` 与 `part`
   的非空 ID 必须一致。
+- note/rest 最多允许一个直接子级 `<dot/>`，且不得包含属性、非空文本、CDATA 或子元素；它无损映射
+  为 canonical `augmentationDots: 1`。note 基础时值只限 half／quarter／eighth，
+  rest 基础时值仍只限 quarter；MusicXML `duration / divisions`、小节容量、拍位以及
+  slur／tie 连续性均按附点后的 `1.5×` 真实时值核对。重复、错层级或非空 dot 必须
+  blocking，不允许忽略显示语义。
 - note 与 rest 各自最多允许一个直接、无属性且无非空文本的 `<notations>`。其中
   `<fermata/>` 必须无属性、无文本、无子元素，并无损映射为 canonical
   `fermataMark: "fermata"`。
@@ -72,7 +77,7 @@ QA level recommendation：**strict**
   使用 stale 候选。
 
 本切片不得为了增加成功率而静默跳过休止符、多 part／staff／voice、和弦时序、
-`backup`／`forward`、未知时值、谱号／调号／拍号、歌词、严格 fermata／slur／tie
+`backup`／`forward`、未知时值、谱号／调号／拍号、歌词、严格单附点／fermata／slur／tie
 结构以外的连线或其他 canonical 语义。
 不在本切片支持清单中的内容必须 blocking。
 
@@ -109,6 +114,9 @@ QA level recommendation：**strict**
 - `.musicxml` 与 `.xml` 的受支持最小 fixture 生成等价 canonical；
 - 同一内容的 `.mxl` 与未压缩 XML 生成等价候选；
 - 音符、休止符、小节边界及当前明确支持的谱号／调号／拍号无静默丢失；
+- note 的 half／quarter／eighth 单附点及 quarter rest 单附点映射为 canonical
+  `augmentationDots: 1`；XML／MXL、容量、拍位和关系连续性使用 `1.5×` 真实时值，
+  重复、属性、文本、子元素、错层级与 duration 不一致全部失败关闭；
 - note/rest 的严格 `<notations><fermata/></notations>` 映射为 canonical
   `fermataMark`；带属性、文本、重复、空容器或错误层级的变体全部失败关闭；
 - 相邻时间连续 note 的严格 slur start／stop 映射为 canonical `slurToNext`；同小节、
@@ -170,3 +178,6 @@ round-trip、OMR、教师审核、真机验收或正式版 V1 已完成。
 
 延音线双向严格子集的独立验收边界见
 `docs/s3-local-score-project-musicxml-tie-round-trip-acceptance.md`。
+
+单附点双向严格子集的独立验收边界见
+`docs/s3-local-score-project-musicxml-augmentation-dot-round-trip-acceptance.md`。
