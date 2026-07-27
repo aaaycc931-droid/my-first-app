@@ -46,6 +46,9 @@ QA level recommendation：**strict**
 - 根级、`work`、`part-list` 与 `score-part` 同样采用显式白名单；creator、rights、
   instrument、movement、credit 等未映射元数据必须 blocking，`score-part` 与 `part`
   的非空 ID 必须一致。
+- note 与 rest 各自最多允许一个直接 `<notations>`，且该容器必须只包含一个无属性、
+  无文本、无子元素的 `<fermata/>`；它无损映射为 canonical `fermataMark:
+  "fermata"`。重复容器、重复标记、属性、文本、嵌套元素或错误层级必须 blocking。
 - blocking 项应包含稳定 code、元素类型与原因，并在可用时包含 measure；无法定位到
   具体小节时也必须提供文件级原因。
 - 只要存在任意 blocking 项，“确认并保存”保持禁用，并显示简体中文 disabled reason。
@@ -54,7 +57,8 @@ QA level recommendation：**strict**
   使用 stale 候选。
 
 本切片不得为了增加成功率而静默跳过休止符、多 part／staff／voice、和弦时序、
-`backup`／`forward`、未知时值、谱号／调号／拍号、歌词、连线或其他 canonical 语义。
+`backup`／`forward`、未知时值、谱号／调号／拍号、歌词、连线或严格 fermata
+结构以外的其他 canonical 语义。
 不在本切片支持清单中的内容必须 blocking。
 
 ## 明确确认与原子保存
@@ -90,6 +94,8 @@ QA level recommendation：**strict**
 - `.musicxml` 与 `.xml` 的受支持最小 fixture 生成等价 canonical；
 - 同一内容的 `.mxl` 与未压缩 XML 生成等价候选；
 - 音符、休止符、小节边界及当前明确支持的谱号／调号／拍号无静默丢失；
+- note/rest 的严格 `<notations><fermata/></notations>` 映射为 canonical
+  `fermataMark`；带属性、文本、重复、空容器或错误层级的变体全部失败关闭；
 - 空文件、2 MiB 超限、非良构／损坏 XML／archive、根级未映射语义、part ID 不一致、
   100 entries 超限、4 MiB 解压超限、
   container/rootfile 异常和路径穿越全部失败关闭；
@@ -116,7 +122,8 @@ QA level recommendation：**strict**
 
 ## 明确不做
 
-- MIDI 导入／导出、MusicXML／MXL 导出或任何格式 round-trip 宣称。
+- 本导入切片自身不验收 MIDI 导入／导出、MusicXML／MXL 导出或格式 round-trip；
+  后续受控导出与仓库内部 round-trip 已由独立切片完成。
 - 独立阅读器重新打开、PDF／图片／音频／视频导出、全谱／分谱导出。
 - 图片／PDF OMR、Audiveris production、自动转写、置信度评分或正式练习目标。
 - 上传、云同步、账号、公开曲库、协作、教师批注或第三方格式转换。
@@ -126,5 +133,9 @@ QA level recommendation：**strict**
 round-trip、OMR、教师审核、真机验收或正式版 V1 已完成。
 
 后续同一严格子集的受控导出边界见
-`docs/s3-local-score-project-musicxml-export-acceptance.md`；该后续切片不改变本文件的
-导入验收范围，也不能反向把本切片描述为已经完成导出或第三方阅读器验证。
+`docs/s3-local-score-project-musicxml-export-acceptance.md`；该切片已经完成，但不改变
+本文件的导入验收范围，也不能反向把首个导入切片描述为当时已经完成导出或第三方
+阅读器验证。
+
+延长记号双向严格子集的独立验收边界见
+`docs/s3-local-score-project-musicxml-fermata-round-trip-acceptance.md`。

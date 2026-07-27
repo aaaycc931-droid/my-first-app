@@ -16,7 +16,7 @@
 | V1-05 | 视唱与录音闭环 | IN_PROGRESS | Web 本地录音/回放；Android 实时曲线、录音、本机记录与 P103 观察；P112/P113 分析证据、P114f 固定 A4、P115h 音程模唱、P117d 旋律回唱与 P117e 可见目标视唱均已合并 | Browser/Android 真麦克风 QA；P113/P114f/P115h/P117d/P117e 真实人声；正式课程/云端记录；P104 真机同步/延迟/录音设备矩阵 |
 | V1-06 | 节奏练习与反馈 | IN_PROGRESS | 节拍器、tap/onset、延迟校准、DP 对齐、课程节奏听辨；P116a–P116d 已合并，覆盖视读、回模、找错和听写的非评分闭环 | 真实设备/输入数据基准、长期记录与复练、双教师校准和目标用户验证 |
 | V1-07 | 钢琴辅助 | IN_PROGRESS | P106–P110 已合并；P114g 共享事件/目标与 P114h Android 原生 USB MIDI 已合并；P114j 已有原生 TYPE_BLUETOOTH 候选 | P114j 远端门禁与 BLE 真机；三档真机低延迟/听感/10 指/32 音与设备断连证据；完整应用内 BLE 扫描/选择另行决策；竞品完整任务差距闭环 |
-| V1-08 | MusicXML/MXL | IN_PROGRESS | parser、fixture 与 dev import；P114k 最小确认 ScoreDocument；本机谱项目已有受控单 part/staff/voice 导入，以及同一严格子集的 `.musicxml`／`.mxl` 导出候选、blocking ledger、明确确认和仓库内部 re-import／legacy parser 交叉验证 | 扩大受支持语义、候选内修正；浏览器下载、Android WebView／真机与 MuseScore 等外部独立阅读器 round-trip 均未执行 |
+| V1-08 | MusicXML/MXL | IN_PROGRESS | parser、fixture 与 dev import；P114k 最小确认 ScoreDocument；本机谱项目已有受控单 part/staff/voice 导入，以及同一严格子集的 `.musicxml`／`.mxl` 导出候选、blocking ledger、明确确认和仓库内部 re-import／legacy parser 交叉验证；note/rest fermata 已纳入严格双向映射 | 扩大受支持语义、候选内修正；浏览器下载、Android WebView／真机与 MuseScore 等外部独立阅读器 round-trip 均为 `NOT_EXECUTED` |
 | V1-09 | 图片/PDF OMR | IN_PROGRESS | mock flow、Audiveris fixture/runner 研究基础 | 隔离 worker、私有上传、真实 OMR、草稿编辑、失败恢复 |
 | V1-10 | 私有音频素材 | IN_PROGRESS | 浏览器本地导入、decode、音高曲线草稿、检查与临时目标；P114l 会话内非破坏 MediaProject 候选 | 私有上传、worker、持久项目、保留/删除、任务恢复、版权说明 |
 | V1-11 | 私有云任务 | NOT_STARTED | 数据模型和架构蓝图 | Storage、队列 worker、取消/重试、审计、配额和运行手册 |
@@ -49,7 +49,7 @@
 
 ## 3. 当前最高优先级
 
-产品所有者已明确恢复开发；P114a–P114m、P115a–P115i、P116a–P116d、P117a–P117e、P118a–P118e 已合并。P119a/P119b/P119c 已分别通过 PR #415/#417/#419 合并；P119c 合并后的 main Quality run `30006334599` 的 `quality` 与 `android-local` 均成功，PR #419 的 Vercel preview Ready。P119/Q 已进入严格证据准备，当前 V1 数量前置、可复核清单和双教师预先签署的 153 项样本计划已具备；逐题六维教师审核、finding 闭环、真机、真实人声和目标用户证据仍未执行。角色设定不代表伙伴运行时，合并代码和自动测试也不代表真机、真实人声或教育证据。当前依赖顺序如下：
+产品所有者已明确恢复开发；P114a–P114m、P115a–P115i、P116a–P116d、P117a–P117e、P118a–P118e 已合并。P119a/P119b/P119c 已分别通过 PR #415/#417/#419 合并；P119c 合并后的 main Quality run `30006334599` 的 `quality` 与 `android-local` 均成功，PR #419 的 Vercel preview Ready。P119/Q 的教师逐题审核按已批准计划延期，不阻断无需教师的 S3 严格工程切片；当前 MusicXML/MXL 仍是受控子集，外部 round-trip QA 为 `NOT_EXECUTED`。角色设定不代表伙伴运行时，合并代码和自动测试也不代表真机、真实人声或教育证据。当前依赖顺序如下：
 
 1. P106–P113 已合并；P104 最低真实证据、三档 Android、教育审核和竞品同机任务继续保留，不能用 PR 或路线文档替代。
 2. P113 已通过 PR #365 squash merge，merge commit 为 `2a786f1b66fee095224214430d12e96f78a5057e`；真机和真实人声证据继续单列，不因合并或自动测试通过而冒充完成。

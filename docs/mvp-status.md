@@ -110,7 +110,7 @@
 
 - PR #451 已合并：`score-document-v12` 与 `local-score-project-storage-v13` 的事件起点 `fermataMark` 支持 `fermata` 或 `null`，note/rest 均可承载。
 - 旧 storage/document 与 undo/redo 历史只读迁移为 `null`；五线谱与固定 C 简谱一致显示；playback/transport 只补兼容字段，不延长真实播放。
-- PR #451 Quality run `30234487273` 的 `quality` 与 `android-local` 均成功；真机、教师审核、真实 fermata 播放及 MusicXML/MIDI round-trip 仍未执行。
+- PR #451 Quality run `30234487273` 的 `quality` 与 `android-local` 均成功；后续 S3 严格子集已补 note/rest fermata 的仓库内部 MusicXML/MXL 双向 round-trip。真机、教师审核、真实 fermata 播放、第三方阅读器和 MIDI round-trip 仍为 `NOT_EXECUTED`。
 
 ### 圆滑线切片
 
@@ -123,7 +123,8 @@
 - S3 首个独立切片增加 MusicXML／MXL 到 canonical 本机谱项目的受控导入：本机内存候选 → 逐项 blocking ledger → 用户明确确认 → `persistNewLocalScoreProject` 原子保存 → 重开、双谱面与播放。
 - 本切片只接受当前明确支持且可无损映射的元素；所有不支持、会被忽略或会改变音乐语义的元素一律 blocking，不允许静默丢失。
 - `.musicxml`／`.xml`／`.mxl` 输入、2 MiB 输入限制，以及 MXL 既有的 100 entries／4 MiB 解压保护必须保持 fail-closed；容量、quota、事务和迁移失败必须保留全部既有项目。
-- 导入后的下一切片增加 canonical 本机谱项目到 `.musicxml`／`.mxl` 的受控导出候选：只覆盖当前可无损重新导入的严格单 part／staff／voice 子集，先显示 blocking ledger 和摘要，用户明确确认后才触发一次本机下载。
+- canonical 本机谱项目到 `.musicxml`／`.mxl` 的受控导出候选已经完成：只覆盖当前可无损重新导入的严格单 part／staff／voice 子集，先显示 blocking ledger 和摘要，用户明确确认后才触发一次本机下载。
 - 当前导出 round-trip 只接受默认 `90 BPM`、未分配 instrument 和没有副标题／creator／版权声明的项目；任何尚未映射的 canonical 记谱语义必须阻断，不能为了生成文件而静默丢弃。
+- 当前严格子集已把 note/rest 的 canonical `fermataMark` 双向映射为唯一、无属性且无文本的 `<notations><fermata/></notations>`；其他 notations 语义继续 blocking。
 - 自动证据由当前 importer re-import 与 legacy parser 音符交叉检查组成，均属于仓库内部验证。浏览器下载、Android WebView／真机及 MuseScore 等外部独立阅读器仍为 `NOT_EXECUTED`，不得宣称第三方兼容已经通过。
-- 导入边界见 `docs/s3-local-score-project-musicxml-import-acceptance.md`，导出边界见 `docs/s3-local-score-project-musicxml-export-acceptance.md`。当前仍不宣称 MIDI、完整 MusicXML、第三方独立阅读器、OMR、教师审核或正式版 V1 完成。
+- 导入边界见 `docs/s3-local-score-project-musicxml-import-acceptance.md`，导出边界见 `docs/s3-local-score-project-musicxml-export-acceptance.md`，fermata 双向边界见 `docs/s3-local-score-project-musicxml-fermata-round-trip-acceptance.md`。当前仍不宣称 MIDI、完整 MusicXML、第三方独立阅读器、OMR、教师审核或正式版 V1 完成。

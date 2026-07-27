@@ -183,13 +183,6 @@ const addEventIssues = ({
       location,
     ));
   }
-  if (event.fermataMark !== null) {
-    issues.push(blockingIssue(
-      "unsupported-fermata",
-      "当前导出不支持延长记号。",
-      location,
-    ));
-  }
   if (event.type === "rest") {
     if (event.duration !== "quarter") {
       issues.push(blockingIssue(
@@ -239,13 +232,16 @@ const addEventIssues = ({
 
 const renderNote = (event: LocalScoreProjectEventV9) => {
   const duration = durationToMusicXml[event.duration];
+  const fermata = event.fermataMark === "fermata"
+    ? "\n        <notations><fermata/></notations>"
+    : "";
   if (event.type === "rest") {
     return `      <note>
         <rest/>
         <duration>${duration.duration}</duration>
         <voice>1</voice>
         <type>${duration.type}</type>
-        <staff>1</staff>
+        <staff>1</staff>${fermata}
       </note>`;
   }
   const step = event.pitch.slice(0, 1);
@@ -258,7 +254,7 @@ const renderNote = (event: LocalScoreProjectEventV9) => {
         <duration>${duration.duration}</duration>
         <voice>1</voice>
         <type>${duration.type}</type>
-        <staff>1</staff>
+        <staff>1</staff>${fermata}
       </note>`;
 };
 

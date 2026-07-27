@@ -88,11 +88,9 @@ const forbiddenElementCodes = [
   ["harmony", "unsupported-harmony", "当前导入不支持和弦标记。"],
   ["articulations", "unsupported-articulation", "当前导入不支持演奏法。"],
   ["dynamics", "unsupported-dynamic", "当前导入不支持力度记号。"],
-  ["fermata", "unsupported-fermata", "当前导入不支持延长记号。"],
   ["pedal", "unsupported-pedal", "当前导入不支持踏板记号。"],
   ["accidental", "unsupported-accidental", "当前导入只支持无临时升降号的自然音。"],
   ["transpose", "unsupported-transpose", "当前导入不支持移调声明。"],
-  ["notations", "unsupported-notations", "当前导入不支持其他 notations 记谱语义。"],
   ["technical", "unsupported-technical", "当前导入不支持其他 technical 演奏语义。"],
   ["ornaments", "unsupported-ornament", "当前导入不支持装饰音。"],
   ["direction", "unsupported-direction", "当前导入不支持速度、文字或其他 direction。"],
@@ -121,6 +119,8 @@ const allowedMeasureElements = new Set([
   "type",
   "rest",
   "staff",
+  "notations",
+  "fermata",
 ]);
 const allowedRootElements = new Set(["work", "part-list", "part"]);
 const allowedWorkElements = new Set(["work-title"]);
@@ -200,6 +200,120 @@ const blockingIssue = (
   ...(measureNumber === undefined ? {} : { measureNumber }),
 });
 
+const readSupportedFermataMark = ({
+  noteElement,
+  issues,
+  measureNumber,
+}: {
+  noteElement: Element | undefined;
+  issues: LocalScoreProjectMusicXmlImportIssue[];
+  measureNumber: number;
+}): "fermata" | null => {
+  if (!noteElement) return null;
+  const notationsElements = directChildElements(noteElement).filter(
+    (element) => localElementName(element) === "notations",
+  );
+  const allFermatas = Array.from(noteElement.getElementsByTagName("*"))
+    .filter((element) => localElementName(element) === "fermata");
+  if (notationsElements.length === 0) {
+    if (allFermatas.length > 0) {
+      issues.push(blockingIssue(
+        "unsupported-fermata",
+        "延长记号必须是 note 下 notations 中唯一的空 fermata 元素。",
+        measureNumber,
+      ));
+    }
+    return null;
+  }
+  if (notationsElements.length !== 1) {
+    issues.push(blockingIssue(
+      "unsupported-notations",
+      "当前导入只支持每个音符或休止符一个 notations 容器。",
+      measureNumber,
+    ));
+    return null;
+  }
+  const notations = notationsElements[0];
+  const notationChildren = directChildElements(notations);
+  const fermata = notationChildren.length === 1
+    && localElementName(notationChildren[0]) === "fermata"
+      ? notationChildren[0]
+      : null;
+  const hasNonWhitespaceText = Array.from(notations.childNodes).some(
+    (child) => child.nodeType === 3 && (child.textContent ?? "").trim() !== "",
+  );
+  if (
+    notations.attributes.length !== 0
+    || !fermata
+    || allFermatas.length !== 1
+    || fermata.attributes.length !== 0
+    || directChildElements(fermata).length !== 0
+    || (fermata.textContent ?? "").trim() !== ""
+    || hasNonWhitespaceText
+  ) {
+    issues.push(blockingIssue(
+      allFermatas.length > 0 ? "unsupported-fermata" : "unsupported-notations",
+      "当前只支持 notations 中唯一、无属性且无文本的 fermata 延长记号。",
+      measureNumber,
+    ));
+    return null;
+  }
+  return "fermata";
+};
+
+const validateFermataHierarchy = ({
+  measureElement,
+  issues,
+  measureNumber,
+}: {
+  measureElement: Element | undefined;
+  issues: LocalScoreProjectMusicXmlImportIssue[];
+  measureNumber: number;
+}) => {
+  if (!measureElement) return;
+  Array.from(measureElement.getElementsByTagName("*")).forEach((element) => {
+    const elementName = localElementName(element);
+    if (
+      elementName === "note"
+      && element.parentElement !== measureElement
+    ) {
+      issues.push(blockingIssue(
+        "unsupported-note-hierarchy",
+        "note 必须是 measure 的直接子元素，不能嵌套在其他元素中。",
+        measureNumber,
+      ));
+    }
+    if (
+      elementName === "notations"
+      && (
+        !element.parentElement
+        || localElementName(element.parentElement) !== "note"
+      )
+    ) {
+      issues.push(blockingIssue(
+        "unsupported-notations",
+        "notations 必须是 note 的直接子元素，不能放在其他层级。",
+        measureNumber,
+      ));
+    }
+    if (
+      elementName === "fermata"
+      && (
+        !element.parentElement
+        || localElementName(element.parentElement) !== "notations"
+        || !element.parentElement.parentElement
+        || localElementName(element.parentElement.parentElement) !== "note"
+      )
+    ) {
+      issues.push(blockingIssue(
+        "unsupported-fermata",
+        "fermata 必须位于 note 的直接 notations 子元素中。",
+        measureNumber,
+      ));
+    }
+  });
+};
+
 const sourceTitle = (fileName: string) => {
   const withoutExtension = fileName.replace(/\.(?:musicxml|xml|mxl)$/i, "");
   return withoutExtension.trim() || "导入的 MusicXML";
@@ -230,11 +344,13 @@ const noteEvent = ({
   pitch,
   duration,
   measure,
+  fermataMark,
 }: {
   id: string;
   pitch: NotationPitch;
   duration: NotationDuration;
   measure: number;
+  fermataMark: "fermata" | null;
 }): LocalScoreProjectEventV9 => ({
   id,
   type: "note",
@@ -250,15 +366,17 @@ const noteEvent = ({
   articulations: [],
   dynamicMark: null,
   damperPedalMark: null,
-  fermataMark: null,
+  fermataMark,
 });
 
 const restEvent = ({
   id,
   measure,
+  fermataMark,
 }: {
   id: string;
   measure: number;
+  fermataMark: "fermata" | null;
 }): LocalScoreProjectEventV9 => ({
   id,
   type: "rest",
@@ -269,7 +387,7 @@ const restEvent = ({
   chordSymbol: null,
   dynamicMark: null,
   damperPedalMark: null,
-  fermataMark: null,
+  fermataMark,
 });
 
 const parsePositiveInteger = (value: string | undefined) => {
@@ -479,6 +597,11 @@ export const createLocalScoreProjectMusicXmlImportDraft = (
   }
   const partXml = parts[0]?.[2] ?? "";
   const measureMatches = getElementMatches(partXml, "measure");
+  const measureElements = partElements[0]
+    ? directChildElements(partElements[0]).filter(
+      (element) => localElementName(element) === "measure",
+    )
+    : [];
 
   const timeMatches = getElementMatches(partXml, "time");
   const timeXml = timeMatches[0]?.[2];
@@ -675,8 +798,23 @@ export const createLocalScoreProjectMusicXmlImportDraft = (
 
     const events: LocalScoreProjectEventV9[] = [];
     let occupiedBeats = 0;
-    getElementMatches(measureXml, "note").forEach((noteMatch) => {
+    const noteElements = measureElements[measureIndex]
+      ? directChildElements(measureElements[measureIndex]).filter(
+        (element) => localElementName(element) === "note",
+      )
+      : [];
+    validateFermataHierarchy({
+      measureElement: measureElements[measureIndex],
+      issues,
+      measureNumber,
+    });
+    getElementMatches(measureXml, "note").forEach((noteMatch, noteIndex) => {
       const noteXml = noteMatch[2];
+      const fermataMark = readSupportedFermataMark({
+        noteElement: noteElements[noteIndex],
+        issues,
+        measureNumber,
+      });
       const type = getElementText(noteXml, "type")?.toLowerCase();
       const duration: NotationDuration | null =
         type === "half" || type === "quarter" || type === "eighth"
@@ -722,6 +860,7 @@ export const createLocalScoreProjectMusicXmlImportDraft = (
             events.push(restEvent({
               id: args.createEventId(),
               measure: measureNumber,
+              fermataMark,
             }));
           }
         }
@@ -757,6 +896,7 @@ export const createLocalScoreProjectMusicXmlImportDraft = (
             pitch: pitch as NotationPitch,
             duration,
             measure: measureNumber,
+            fermataMark,
           }));
         }
       }
