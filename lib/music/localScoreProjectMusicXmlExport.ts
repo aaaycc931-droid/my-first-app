@@ -193,13 +193,6 @@ const addEventIssues = ({
     }
     return;
   }
-  if (event.tieToNext) {
-    issues.push(blockingIssue(
-      "unsupported-tie",
-      "当前导出不支持延音线。",
-      location,
-    ));
-  }
   if (event.lyric !== null) {
     issues.push(blockingIssue(
       "unsupported-lyric",
@@ -225,19 +218,34 @@ const addEventIssues = ({
 
 const renderNote = ({
   event,
+  tieStop,
   slurStop,
 }: {
   event: LocalScoreProjectEventV9;
+  tieStop: boolean;
   slurStop: boolean;
 }) => {
   const duration = durationToMusicXml[event.duration];
   const notationMarks = [
     ...(event.fermataMark === "fermata" ? ["<fermata/>"] : []),
+    ...(tieStop ? ['<tied type="stop"/>'] : []),
+    ...(event.type === "note" && event.tieToNext
+      ? ['<tied type="start"/>']
+      : []),
     ...(slurStop ? ['<slur type="stop"/>'] : []),
     ...(event.type === "note" && event.slurToNext
       ? ['<slur type="start"/>']
       : []),
   ];
+  const directTies = event.type === "note"
+    ? [
+      ...(tieStop ? ['        <tie type="stop"/>'] : []),
+      ...(event.tieToNext ? ['        <tie type="start"/>'] : []),
+    ]
+    : [];
+  const directTieMarkup = directTies.length > 0
+    ? `\n${directTies.join("\n")}`
+    : "";
   const notations = notationMarks.length > 0
     ? `\n        <notations>${notationMarks.join("")}</notations>`
     : "";
@@ -257,7 +265,7 @@ const renderNote = ({
           <step>${step}</step>
           <octave>${octave}</octave>
         </pitch>
-        <duration>${duration.duration}</duration>
+        <duration>${duration.duration}</duration>${directTieMarkup}
         <voice>1</voice>
         <type>${duration.type}</type>
         <staff>1</staff>${notations}
@@ -285,9 +293,11 @@ const renderMusicXml = (project: LocalScoreProjectV1) => {
 `
       : "";
     const events = measure.events.map((event) => {
+      const tieStop = previousEvent?.type === "note"
+        && previousEvent.tieToNext;
       const slurStop = previousEvent?.type === "note"
         && previousEvent.slurToNext;
-      const rendered = renderNote({ event, slurStop });
+      const rendered = renderNote({ event, tieStop, slurStop });
       previousEvent = event;
       return rendered;
     }).join("\n");

@@ -92,7 +92,7 @@ const createSupportedProject = (): LocalScoreProjectV1 => {
                 duration: "half",
                 measure: 1,
                 augmentationDots: 0,
-                tieToNext: false,
+                tieToNext: true,
                 slurToNext: true,
                 lyric: null,
                 fingering: null,
@@ -107,11 +107,11 @@ const createSupportedProject = (): LocalScoreProjectV1 => {
               events: [{
                 id: "event-4",
                 type: "note",
-                pitch: "D4",
+                pitch: "C5",
                 duration: "eighth",
                 measure: 2,
                 augmentationDots: 0,
-                tieToNext: false,
+                tieToNext: true,
                 slurToNext: true,
                 lyric: null,
                 fingering: null,
@@ -123,7 +123,7 @@ const createSupportedProject = (): LocalScoreProjectV1 => {
               }, {
                 id: "event-5",
                 type: "note",
-                pitch: "E4",
+                pitch: "C5",
                 duration: "eighth",
                 measure: 2,
                 augmentationDots: 0,
@@ -165,6 +165,7 @@ const musicalProjection = (project: LocalScoreProjectV1) => ({
         duration: event.duration,
         measure: event.measure,
         fermataMark: event.fermataMark,
+        tieToNext: event.type === "note" ? event.tieToNext : null,
         slurToNext: event.type === "note" ? event.slurToNext : null,
       })),
     }),
@@ -198,20 +199,40 @@ assert.equal(
   2,
   "note and rest fermatas must be exported deterministically",
 );
-assert.match(
-  ready.xml,
-  /<notations><fermata\/><slur type="start"\/><\/notations>/,
-  "the cross-measure source must export fermata before slur start",
+assert.equal(
+  ready.xml.match(/<tie type="start"\/>/g)?.length,
+  2,
+  "each canonical tie must emit one direct start",
+);
+assert.equal(
+  ready.xml.match(/<tie type="stop"\/>/g)?.length,
+  2,
+  "each canonical tie target must emit one direct stop",
+);
+assert.equal(
+  ready.xml.match(/<tied type="start"\/>/g)?.length,
+  2,
+  "each canonical tie must emit one notated start",
+);
+assert.equal(
+  ready.xml.match(/<tied type="stop"\/>/g)?.length,
+  2,
+  "each canonical tie target must emit one notated stop",
 );
 assert.match(
   ready.xml,
-  /<notations><fermata\/><slur type="stop"\/><slur type="start"\/><\/notations>/,
-  "the chain midpoint must use one deterministic notations container",
+  /<duration>4<\/duration>\s*<tie type="start"\/>\s*<voice>1<\/voice>[\s\S]*?<notations><fermata\/><tied type="start"\/><slur type="start"\/><\/notations>/,
+  "the cross-measure source must export direct and notated tie starts in fixed order",
 );
 assert.match(
   ready.xml,
-  /<notations><slur type="stop"\/><\/notations>/,
-  "the chain target must export a matching slur stop",
+  /<duration>1<\/duration>\s*<tie type="stop"\/>\s*<tie type="start"\/>\s*<voice>1<\/voice>[\s\S]*?<notations><fermata\/><tied type="stop"\/><tied type="start"\/><slur type="stop"\/><slur type="start"\/><\/notations>/,
+  "the chain midpoint must emit tie stop before start and share one deterministic notations container",
+);
+assert.match(
+  ready.xml,
+  /<duration>1<\/duration>\s*<tie type="stop"\/>\s*<voice>1<\/voice>[\s\S]*?<notations><tied type="stop"\/><slur type="stop"\/><\/notations>/,
+  "the chain target must export matching direct and notated tie stops",
 );
 assert.deepEqual(
   createLocalScoreProjectMusicXmlExportDraft({ project }),
@@ -256,8 +277,8 @@ assert.deepEqual(
   [
     { pitch: "C4", duration: "quarter", measure: 1, beat: 1 },
     { pitch: "C5", duration: "half", measure: 1, beat: 3 },
-    { pitch: "D4", duration: "eighth", measure: 2, beat: 1 },
-    { pitch: "E4", duration: "eighth", measure: 2, beat: 1.5 },
+    { pitch: "C5", duration: "eighth", measure: 2, beat: 1 },
+    { pitch: "C5", duration: "eighth", measure: 2, beat: 1.5 },
   ],
   "the independent legacy parser must read the exported note timeline",
 );
@@ -526,16 +547,6 @@ const blockedFixtures: readonly [
       "unsupported-fingering",
       "unsupported-articulation",
     ],
-  ],
-  [
-    withFirstMeasureEvents([{
-      ...sourceNote,
-      tieToNext: true,
-    }, {
-      ...sourceNote,
-      id: "tied-event-2",
-    }]),
-    ["unsupported-tie"],
   ],
   [
     withFirstMeasureEvents(Array.from({ length: 5 }, (_, index) => ({

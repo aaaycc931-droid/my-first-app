@@ -45,7 +45,15 @@ QA level recommendation：**strict**
   `<slur type="stop"/>`；同小节、跨连续小节和链式关系必须由当前 importer 无损重建。
 - 同一 note 同时承载 fermata、前一圆滑线 stop 和后一圆滑线 start 时，必须只生成一个
   `<notations>`，并按 fermata、stop、start 的固定顺序确定性输出。
-- 附点、延音线、歌词、指法、和弦标记、演奏法、力度、制音踏板及其他当前
+- canonical note 的 `tieToNext: true` 必须在源 note 同时写入 direct
+  `<tie type="start"/>` 和 notations `<tied type="start"/>`，并在同声部紧邻、
+  同音高且时间连续的目标 note 同时写入对应 stop；同小节、跨连续小节和链式关系必须
+  由当前 importer 无损重建。
+- tied、fermata 与 slur 共存时必须复用一个 `<notations>`，direct tie 和 notation
+  marker 均使用固定、可复核的确定性顺序：direct tie 为 stop 后 start，notations
+  为 fermata、tied stop、tied start、slur stop、slur start；不存在的 marker 跳过。
+  不得创建第二个容器或只输出视觉／播放 marker 的一侧。
+- 附点、歌词、指法、和弦标记、演奏法、力度、制音踏板及其他当前
   未映射的非中性 canonical 语义，必须逐类形成稳定 blocking 项。
 - 项目至少包含一个事件；任何超过当前拍号容量的小节必须 blocking。
 
@@ -104,7 +112,7 @@ QA level recommendation：**strict**
 
 1. 当前 canonical MusicXML importer 重新读取 `.musicxml`，以及从 `.mxl` 安全解包
    后的 XML，核对标题、part 名称、音高、时值、休止符、小节、调号、拍号和谱号等本
-   切片承诺的语义，以及 fermata 与 slur 的 canonical 映射。
+   切片承诺的语义，以及 fermata、slur 与 tie 的 canonical 映射。
 2. 既有 legacy `musicxmlParser` 作为独立代码路径，交叉核对其能够表达的音符音高、
    时值、小节和拍位。该 parser 不表达休止符、credits 或全部 canonical 字段，不能
    单独证明完整 round-trip。
@@ -126,6 +134,9 @@ QA level recommendation：**strict**
 - canonical 圆滑线写为相邻时间连续 note 上严格配对的 slur start／stop；同小节、
   跨小节、链式和 fermata 共存经 `.musicxml`／`.mxl` re-import 后保持同一
   `slurToNext`；
+- canonical 延音线同时写为 direct tie 和 notations/tied 的严格 start／stop 对；
+  同小节、跨小节、链式及 fermata／slur 共存经 `.musicxml`／`.mxl` re-import 后
+  保持同一 `tieToNext`；
 - legacy parser 对音符音高、时值、小节和拍位的交叉检查；
 - 非 `90 BPM`、已分配 instrument、非空副标题／creator／版权，以及每类未支持
   canonical 记谱字段分别形成 blocking ledger；
@@ -169,3 +180,6 @@ QA level recommendation：**strict**
 
 圆滑线双向严格子集的独立验收边界见
 `docs/s3-local-score-project-musicxml-slur-round-trip-acceptance.md`。
+
+延音线双向严格子集的独立验收边界见
+`docs/s3-local-score-project-musicxml-tie-round-trip-acceptance.md`。

@@ -80,8 +80,6 @@ const forbiddenElementCodes = [
   ["tuplet", "unsupported-tuplet", "当前导入不支持连音符。"],
   ["time-modification", "unsupported-tuplet", "当前导入不支持连音符时值比例。"],
   ["grace", "unsupported-grace", "当前导入不支持倚音。"],
-  ["tie", "unsupported-tie", "当前导入不支持延音线。"],
-  ["tied", "unsupported-tie", "当前导入不支持延音线记谱。"],
   ["lyric", "unsupported-lyric", "当前导入不支持歌词。"],
   ["fingering", "unsupported-fingering", "当前导入不支持指法。"],
   ["harmony", "unsupported-harmony", "当前导入不支持和弦标记。"],
@@ -121,6 +119,8 @@ const allowedMeasureElements = new Set([
   "notations",
   "fermata",
   "slur",
+  "tie",
+  "tied",
 ]);
 const allowedRootElements = new Set(["work", "part-list", "part"]);
 const allowedWorkElements = new Set(["work-title"]);
@@ -204,12 +204,23 @@ type SupportedNotationBundle = Readonly<{
   fermataMark: "fermata" | null;
   slurStart: boolean;
   slurStop: boolean;
+  tiedTypes: readonly TieMarkerType[];
 }>;
+
+type TieMarkerType = "start" | "stop";
+
+const haveSameTieMarkerTypes = (
+  left: readonly TieMarkerType[],
+  right: readonly TieMarkerType[],
+) =>
+  left.length === right.length
+  && left.every((type, index) => type === right[index]);
 
 const EMPTY_NOTATION_BUNDLE: SupportedNotationBundle = {
   fermataMark: null,
   slurStart: false,
   slurStop: false,
+  tiedTypes: [],
 };
 
 const readSupportedNotationBundle = ({
@@ -229,6 +240,8 @@ const readSupportedNotationBundle = ({
     .filter((element) => localElementName(element) === "fermata");
   const allSlurs = Array.from(noteElement.getElementsByTagName("*"))
     .filter((element) => localElementName(element) === "slur");
+  const allTieds = Array.from(noteElement.getElementsByTagName("*"))
+    .filter((element) => localElementName(element) === "tied");
   if (notationsElements.length === 0) {
     if (allFermatas.length > 0) {
       issues.push(blockingIssue(
@@ -241,6 +254,13 @@ const readSupportedNotationBundle = ({
       issues.push(blockingIssue(
         "unsupported-slur",
         "圆滑线必须是 note 下 notations 中的空 slur 元素。",
+        measureNumber,
+      ));
+    }
+    if (allTieds.length > 0) {
+      issues.push(blockingIssue(
+        "unsupported-tie",
+        "记谱延音线 tied 必须直接位于 note 的 notations 子元素中。",
         measureNumber,
       ));
     }
@@ -262,9 +282,13 @@ const readSupportedNotationBundle = ({
   const slurs = notationChildren.filter(
     (element) => localElementName(element) === "slur",
   );
+  const tieds = notationChildren.filter(
+    (element) => localElementName(element) === "tied",
+  );
   const unsupportedChildren = notationChildren.filter((element) =>
     localElementName(element) !== "fermata"
     && localElementName(element) !== "slur"
+    && localElementName(element) !== "tied"
   );
   const hasNonWhitespaceText = Array.from(notations.childNodes).some(
     (child) =>
@@ -279,7 +303,7 @@ const readSupportedNotationBundle = ({
   ) {
     issues.push(blockingIssue(
       "unsupported-notations",
-      "当前只支持无属性的 notations，且其中只能包含受控 fermata／slur 记号。",
+      "当前只支持无属性的 notations，且其中只能包含受控 fermata／slur／tied 记号。",
       measureNumber,
     ));
   }
@@ -353,7 +377,114 @@ const readSupportedNotationBundle = ({
     }
     slurStop = true;
   });
-  return { fermataMark, slurStart, slurStop };
+
+  const tiedTypes: TieMarkerType[] = [];
+  if (allTieds.length !== tieds.length) {
+    issues.push(blockingIssue(
+      "unsupported-tie",
+      "tied 必须直接位于 note 的 notations 子元素中。",
+      measureNumber,
+    ));
+  }
+  tieds.forEach((tied) => {
+    const typeAttribute = tied.attributes.item(0);
+    const type = tied.getAttribute("type");
+    if (
+      tied.attributes.length !== 1
+      || typeAttribute?.name !== "type"
+      || (type !== "start" && type !== "stop")
+      || directChildElements(tied).length !== 0
+      || (tied.textContent ?? "").trim() !== ""
+    ) {
+      issues.push(blockingIssue(
+        "unsupported-tie",
+        "当前只支持仅含 type=\"start\" 或 type=\"stop\" 的空 tied 元素。",
+        measureNumber,
+      ));
+      return;
+    }
+    if (tiedTypes.includes(type)) {
+      issues.push(blockingIssue(
+        "unsupported-tie",
+        `同一音符不能包含重复的 tied ${type}。`,
+        measureNumber,
+      ));
+    }
+    tiedTypes.push(type);
+  });
+  if (
+    tiedTypes.length === 2
+    && (tiedTypes[0] !== "stop" || tiedTypes[1] !== "start")
+  ) {
+    issues.push(blockingIssue(
+      "unsupported-tie-order",
+      "链式延音线的同一音符必须先结束前一条 tied，再开始后一条 tied。",
+      measureNumber,
+    ));
+  }
+  return { fermataMark, slurStart, slurStop, tiedTypes };
+};
+
+const readSupportedDirectTieTypes = ({
+  noteElement,
+  issues,
+  measureNumber,
+}: {
+  noteElement: Element | undefined;
+  issues: LocalScoreProjectMusicXmlImportIssue[];
+  measureNumber: number;
+}): readonly TieMarkerType[] => {
+  if (!noteElement) return [];
+  const ties = directChildElements(noteElement).filter(
+    (element) => localElementName(element) === "tie",
+  );
+  const allTies = Array.from(noteElement.getElementsByTagName("*"))
+    .filter((element) => localElementName(element) === "tie");
+  if (allTies.length !== ties.length) {
+    issues.push(blockingIssue(
+      "unsupported-tie",
+      "发声延音线 tie 必须是 note 的直接子元素。",
+      measureNumber,
+    ));
+  }
+  const tieTypes: TieMarkerType[] = [];
+  ties.forEach((tie) => {
+    const typeAttribute = tie.attributes.item(0);
+    const type = tie.getAttribute("type");
+    if (
+      tie.attributes.length !== 1
+      || typeAttribute?.name !== "type"
+      || (type !== "start" && type !== "stop")
+      || directChildElements(tie).length !== 0
+      || (tie.textContent ?? "").trim() !== ""
+    ) {
+      issues.push(blockingIssue(
+        "unsupported-tie",
+        "当前只支持仅含 type=\"start\" 或 type=\"stop\" 的空 tie 元素。",
+        measureNumber,
+      ));
+      return;
+    }
+    if (tieTypes.includes(type)) {
+      issues.push(blockingIssue(
+        "unsupported-tie",
+        `同一音符不能包含重复的 tie ${type}。`,
+        measureNumber,
+      ));
+    }
+    tieTypes.push(type);
+  });
+  if (
+    tieTypes.length === 2
+    && (tieTypes[0] !== "stop" || tieTypes[1] !== "start")
+  ) {
+    issues.push(blockingIssue(
+      "unsupported-tie-order",
+      "链式延音线的同一音符必须先结束前一条 tie，再开始后一条 tie。",
+      measureNumber,
+    ));
+  }
+  return tieTypes;
 };
 
 const validateNotationHierarchy = ({
@@ -392,7 +523,11 @@ const validateNotationHierarchy = ({
       ));
     }
     if (
-      (elementName === "fermata" || elementName === "slur")
+      (
+        elementName === "fermata"
+        || elementName === "slur"
+        || elementName === "tied"
+      )
       && (
         !element.parentElement
         || localElementName(element.parentElement) !== "notations"
@@ -401,8 +536,25 @@ const validateNotationHierarchy = ({
       )
     ) {
       issues.push(blockingIssue(
-        elementName === "fermata" ? "unsupported-fermata" : "unsupported-slur",
+        elementName === "fermata"
+          ? "unsupported-fermata"
+          : elementName === "slur"
+            ? "unsupported-slur"
+            : "unsupported-tie",
         `${elementName} 必须位于 note 的直接 notations 子元素中。`,
+        measureNumber,
+      ));
+    }
+    if (
+      elementName === "tie"
+      && (
+        !element.parentElement
+        || localElementName(element.parentElement) !== "note"
+      )
+    ) {
+      issues.push(blockingIssue(
+        "unsupported-tie",
+        "tie 必须是 note 的直接子元素。",
         measureNumber,
       ));
     }
@@ -440,6 +592,7 @@ const noteEvent = ({
   duration,
   measure,
   fermataMark,
+  tieToNext,
   slurToNext,
 }: {
   id: string;
@@ -447,6 +600,7 @@ const noteEvent = ({
   duration: NotationDuration;
   measure: number;
   fermataMark: "fermata" | null;
+  tieToNext: boolean;
   slurToNext: boolean;
 }): LocalScoreProjectEventV9 => ({
   id,
@@ -455,7 +609,7 @@ const noteEvent = ({
   duration,
   measure,
   augmentationDots: 0,
-  tieToNext: false,
+  tieToNext,
   slurToNext,
   lyric: null,
   fingering: null,
@@ -824,6 +978,11 @@ export const createLocalScoreProjectMusicXmlImportDraft = (
     endBeat: number;
     measureNumber: number;
   }> | null = null;
+  let pendingTieStart: Readonly<{
+    endBeat: number;
+    measureNumber: number;
+    pitch: NotationPitch;
+  }> | null = null;
 
   measureMatches.forEach((measureMatch, measureIndex) => {
     const attributes = measureMatch[1];
@@ -916,6 +1075,24 @@ export const createLocalScoreProjectMusicXmlImportDraft = (
         issues,
         measureNumber,
       });
+      const directTieTypes = readSupportedDirectTieTypes({
+        noteElement: noteElements[noteIndex],
+        issues,
+        measureNumber,
+      });
+      const tieMarkersMatch = haveSameTieMarkerTypes(
+        directTieTypes,
+        notationBundle.tiedTypes,
+      );
+      if (!tieMarkersMatch) {
+        issues.push(blockingIssue(
+          "unsupported-tie-mismatch",
+          "同一音符上的发声 tie 与记谱 tied 必须使用完全一致的 start／stop 标记和顺序。",
+          measureNumber,
+        ));
+      }
+      const tieStart = tieMarkersMatch && directTieTypes.includes("start");
+      const tieStop = tieMarkersMatch && directTieTypes.includes("stop");
       const type = getElementText(noteXml, "type")?.toLowerCase();
       const duration: NotationDuration | null =
         type === "half" || type === "quarter" || type === "eighth"
@@ -954,6 +1131,22 @@ export const createLocalScoreProjectMusicXmlImportDraft = (
       if (duration) occupiedBeats += durationBeats[duration];
 
       const isRest = hasElement(noteXml, "rest");
+      const pitchXml = getElementMatches(noteXml, "pitch")[0]?.[2];
+      const step = pitchXml
+        ? getElementText(pitchXml, "step")?.toUpperCase()
+        : undefined;
+      const octave = pitchXml
+        ? getElementText(pitchXml, "octave")
+        : undefined;
+      const alterText = pitchXml
+        ? getElementText(pitchXml, "alter")
+        : undefined;
+      const alter = alterText === undefined ? 0 : Number(alterText);
+      const pitch = step && octave && alter === 0
+        ? `${step}${octave}`
+        : "";
+      const supportedPitch = allowedPitches.has(pitch as NotationPitch);
+
       if (pendingSlurStart) {
         if (!notationBundle.slurStop) {
           issues.push(blockingIssue(
@@ -988,11 +1181,63 @@ export const createLocalScoreProjectMusicXmlImportDraft = (
         }
       }
 
+      if (pendingTieStart) {
+        if (!tieStop) {
+          issues.push(blockingIssue(
+            "unsupported-tie-pair",
+            "tie start 后必须由紧邻的下一个同音音符以 tie stop 和 tied stop 闭合。",
+            pendingTieStart.measureNumber,
+          ));
+        } else if (isRest || onsetBeat !== pendingTieStart.endBeat) {
+          issues.push(blockingIssue(
+            "unsupported-tie-continuity",
+            "延音线只能连接时间连续的相邻同音音符，不能跨休止符或空拍。",
+            measureNumber,
+          ));
+        } else if (!supportedPitch || pitch !== pendingTieStart.pitch) {
+          issues.push(blockingIssue(
+            "unsupported-tie-pitch",
+            "延音线两端必须是完全相同的 canonical 音高。",
+            measureNumber,
+          ));
+        }
+      } else if (tieStop) {
+        issues.push(blockingIssue(
+          "unsupported-tie-pair",
+          "tie stop／tied stop 前必须是带 start 的紧邻同音音符。",
+          measureNumber,
+        ));
+      }
+      pendingTieStart = null;
+      if (tieStart) {
+        if (isRest || endBeat === null || !supportedPitch) {
+          issues.push(blockingIssue(
+            "unsupported-tie",
+            "休止符或无法确定音高／时值的事件不能开始延音线。",
+            measureNumber,
+          ));
+        } else {
+          pendingTieStart = {
+            endBeat,
+            measureNumber,
+            pitch: pitch as NotationPitch,
+          };
+        }
+      }
+
       if (isRest) {
         if (notationBundle.slurStop) {
           issues.push(blockingIssue(
             "unsupported-slur",
             "休止符不能结束圆滑线。",
+            measureNumber,
+          ));
+        }
+        if (tieStart || tieStop || directTieTypes.length > 0
+          || notationBundle.tiedTypes.length > 0) {
+          issues.push(blockingIssue(
+            "unsupported-tie",
+            "休止符不能开始或结束延音线。",
             measureNumber,
           ));
         }
@@ -1016,28 +1261,14 @@ export const createLocalScoreProjectMusicXmlImportDraft = (
         return;
       }
 
-      const pitchXml = getElementMatches(noteXml, "pitch")[0]?.[2];
-      const step = pitchXml
-        ? getElementText(pitchXml, "step")?.toUpperCase()
-        : undefined;
-      const octave = pitchXml
-        ? getElementText(pitchXml, "octave")
-        : undefined;
-      const alterText = pitchXml
-        ? getElementText(pitchXml, "alter")
-        : undefined;
-      const alter = alterText === undefined ? 0 : Number(alterText);
-      const pitch = step && octave && alter === 0
-        ? `${step}${octave}`
-        : "";
-      if (!allowedPitches.has(pitch as NotationPitch)) {
+      if (!supportedPitch) {
         issues.push(blockingIssue(
           "unsupported-pitch",
           `音高 ${pitch || "无法解析"} 超出当前自然音 C4–C5 范围。`,
           measureNumber,
         ));
       }
-      if (duration && allowedPitches.has(pitch as NotationPitch)) {
+      if (duration && supportedPitch) {
         provisionalEventCount += 1;
         if (!issues.some((issue) => issue.severity === "blocking")) {
           events.push(noteEvent({
@@ -1046,6 +1277,7 @@ export const createLocalScoreProjectMusicXmlImportDraft = (
             duration,
             measure: measureNumber,
             fermataMark: notationBundle.fermataMark,
+            tieToNext: tieStart,
             slurToNext: notationBundle.slurStart,
           }));
         }
@@ -1071,6 +1303,18 @@ export const createLocalScoreProjectMusicXmlImportDraft = (
       "unsupported-slur-pair",
       "乐谱结束前的 slur start 缺少紧邻音符上的 slur stop。",
       unresolvedSlur.measureNumber,
+    ));
+  }
+  const unresolvedTie = pendingTieStart as Readonly<{
+    endBeat: number;
+    measureNumber: number;
+    pitch: NotationPitch;
+  }> | null;
+  if (unresolvedTie) {
+    issues.push(blockingIssue(
+      "unsupported-tie-pair",
+      "乐谱结束前的 tie start／tied start 缺少紧邻同音音符上的 stop。",
+      unresolvedTie.measureNumber,
     ));
   }
 

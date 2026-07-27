@@ -24,9 +24,11 @@ QA level recommendation：**strict**
 - 每个 `<slur>` 必须是 `<notations>` 的直接子元素，只能有唯一
   `type="start"` 或 `type="stop"` 属性，并且不得含文本或子元素。
 - 每个 note 最多一个 slur stop 和一个 slur start；链式中间 note 可同时包含二者。
-- canonical `fermataMark: "fermata"` 可与 slur 共存于同一个 `<notations>`。导出按
+- canonical `fermataMark: "fermata"` 可与 slur 共存于同一个 `<notations>`。本切片
+  交付时，导出按
   `<fermata/>`、`<slur type="stop"/>`、`<slur type="start"/>` 的固定顺序输出存在
-  的 marker，不创建重复容器。
+  的 marker，不创建重复容器；后续独立 tie 切片允许严格 tied marker 加入同一容器，
+  不反向扩大本切片当时的验收结论。
 - `.musicxml` 与 `.mxl` 必须使用同一确定性 XML；同一 canonical revision 重复生成
   候选时，内容、fingerprint 和摘要保持确定。
 
@@ -76,3 +78,6 @@ QA level recommendation：**strict**
 本切片只建立 canonical `slurToNext` 在当前严格单声部子集中的仓库内部双向映射，
 不改变 playback gate、duration 或真实连奏效果，不证明第三方兼容，也不代表完整
 MusicXML/MXL、S3 或正式版 V1 已完成。
+
+后续延音线双向严格子集的独立验收边界见
+`docs/s3-local-score-project-musicxml-tie-round-trip-acceptance.md`。
