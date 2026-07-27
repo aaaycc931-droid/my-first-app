@@ -215,6 +215,20 @@ export type LocalScoreProjectRestEventV7 = Readonly<
 export type LocalScoreProjectEventV7 =
   | LocalScoreProjectNoteEventV7
   | LocalScoreProjectRestEventV7;
+export type LocalScoreProjectFermataMarkV1 = "fermata";
+export type LocalScoreProjectNoteEventV8 = Readonly<
+  LocalScoreProjectNoteEventV7 & {
+    fermataMark?: LocalScoreProjectFermataMarkV1 | null;
+  }
+>;
+export type LocalScoreProjectRestEventV8 = Readonly<
+  LocalScoreProjectRestEventV7 & {
+    fermataMark?: LocalScoreProjectFermataMarkV1 | null;
+  }
+>;
+export type LocalScoreProjectEventV8 =
+  | LocalScoreProjectNoteEventV8
+  | LocalScoreProjectRestEventV8;
 
 /**
  * 本机乐谱项目独立演进到 v2；通用 ScoreDocumentEventV1 及其他练习文档
@@ -574,6 +588,29 @@ export type LocalNotationProjectScoreDocumentV11 = Readonly<
           measures: readonly Readonly<{
             measureNumber: number;
             events: readonly LocalScoreProjectEventV7[];
+          }>[];
+        }>[];
+      }>[];
+    }>[];
+  }
+>;
+
+export type LocalNotationProjectScoreDocumentV12 = Readonly<
+  Omit<LocalNotationProjectScoreDocumentV11, "schemaVersion" | "parts"> & {
+    schemaVersion: "score-document-v12";
+    parts: readonly Readonly<{
+      partId: string;
+      name: string;
+      instrument: LocalScoreProjectPartInstrumentV1;
+      staves: readonly Readonly<{
+        staffId: string;
+        staffKind: "pitched";
+        clef: LocalScoreProjectClefV3;
+        voices: readonly Readonly<{
+          voiceId: string;
+          measures: readonly Readonly<{
+            measureNumber: number;
+            events: readonly LocalScoreProjectEventV8[];
           }>[];
         }>[];
       }>[];
