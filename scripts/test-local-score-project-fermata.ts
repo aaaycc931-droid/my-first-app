@@ -21,8 +21,8 @@ const eventAt = (project: ReturnType<typeof createLocalScoreProject>, id: string
 let project = createLocalScoreProject({ projectId: "fermata", title: "延长", now: "2026-07-27T00:00:00.000Z" });
 project = addLocalScoreProjectEvent({ project, expectedRevision: 1, location, input: { type: "note", pitch: "C4", duration: "quarter" }, eventId: "note-1", now: "2026-07-27T00:00:00.100Z" });
 project = addLocalScoreProjectEvent({ project, expectedRevision: 2, location, input: { type: "rest", pitch: null, duration: "quarter" }, eventId: "rest-1", now: "2026-07-27T00:00:00.200Z" });
-assert.equal(project.schemaVersion, "local-score-project-storage-v13");
-assert.equal(project.document.schemaVersion, "score-document-v12");
+assert.equal(project.schemaVersion, "local-score-project-storage-v14");
+assert.equal(project.document.schemaVersion, "score-document-v13");
 assert.equal(eventAt(project, "note-1").fermataMark, null);
 project = changeLocalScoreProjectEventFermataMark({ project, expectedRevision: project.document.revision, location, eventId: "note-1", fermataMark: "fermata", now: "2026-07-27T00:00:01.000Z" });
 project = changeLocalScoreProjectEventFermataMark({ project, expectedRevision: project.document.revision, location, eventId: "rest-1", fermataMark: "fermata", now: "2026-07-27T00:00:02.000Z" });

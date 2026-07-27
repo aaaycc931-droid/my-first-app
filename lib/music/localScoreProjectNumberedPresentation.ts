@@ -41,6 +41,8 @@ export type LocalScoreNumberedNoteToken =
     underlineCount: 0 | 1;
     tieToNext: boolean;
     tieTargetEventId: string | null;
+    slurToNext: boolean;
+    slurTargetEventId: string | null;
     lyric: string | null;
     fingering: LocalScoreProjectFingeringV1 | null;
     articulations: readonly LocalScoreProjectArticulationV1[];
@@ -166,6 +168,7 @@ const createAccessibleLabel = (
   }
   const octave = token.octave === "upper" ? "高音" : "";
   const tie = token.tieToNext ? "，与下一音符用延音线相连" : "";
+  const slur = token.slurToNext ? "，与下一音符用圆滑线相连" : "";
   const lyric = token.lyric === null ? "" : `，歌词“${token.lyric}”`;
   const fingering = token.fingering === null
     ? ""
@@ -176,7 +179,7 @@ const createAccessibleLabel = (
       .map((articulation) =>
         LOCAL_SCORE_PROJECT_ARTICULATION_LABELS[articulation])
       .join("、")}`;
-  return `${position}，${octave}${token.degree}（${token.pitch}），${duration}音符${chord}${dynamic}${damper}${fermata}${tie}${lyric}${fingering}${articulations}`;
+  return `${position}，${octave}${token.degree}（${token.pitch}），${duration}音符${chord}${dynamic}${damper}${fermata}${tie}${slur}${lyric}${fingering}${articulations}`;
 };
 
 export const createLocalScoreProjectNumberedPresentation = (
@@ -220,6 +223,8 @@ export const createLocalScoreProjectNumberedPresentation = (
           underlineCount: token.duration === "eighth" ? 1 : 0,
           tieToNext: token.tieToNext,
           tieTargetEventId: token.tieTargetEventId,
+          slurToNext: token.slurToNext,
+          slurTargetEventId: token.slurTargetEventId,
           lyric: token.lyric,
           fingering: token.fingering,
           articulations: token.articulations,

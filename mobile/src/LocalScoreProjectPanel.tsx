@@ -505,6 +505,7 @@ export function LocalScoreProjectPanel({
   const [duration, setDuration] = useState<NotationDuration>("quarter");
   const [augmentationDots, setAugmentationDots] = useState<0 | 1>(0);
   const [tieToNext, setTieToNext] = useState(false);
+  const [slurToNext, setSlurToNext] = useState(false);
   const [lyric, setLyric] = useState("");
   const [fingering, setFingering] =
     useState<LocalScoreProjectFingeringV1 | null>(null);
@@ -795,6 +796,7 @@ export function LocalScoreProjectPanel({
               duration,
               augmentationDots,
               tieToNext,
+              slurToNext,
               lyric,
               fingering,
               articulations,
@@ -827,6 +829,7 @@ export function LocalScoreProjectPanel({
             duration,
             augmentationDots,
             tieToNext,
+            slurToNext,
             lyric,
             fingering,
             articulations,
@@ -860,12 +863,14 @@ export function LocalScoreProjectPanel({
       setPitch(located.event.pitch);
       setDuration(located.event.duration);
       setTieToNext(located.event.tieToNext);
+      setSlurToNext(located.event.slurToNext);
       setLyric(located.event.lyric ?? "");
       setFingering(located.event.fingering);
       setArticulations(located.event.articulations);
     } else {
       setDuration("quarter");
       setTieToNext(false);
+      setSlurToNext(false);
       setLyric("");
       setFingering(null);
       setArticulations([]);
@@ -1925,7 +1930,7 @@ export function LocalScoreProjectPanel({
             </select>
           </label>
         </div>
-        <div className="mt-3 grid gap-3 sm:grid-cols-4">
+        <div className="mt-3 grid gap-3 sm:grid-cols-5">
           <label className="flex min-h-11 items-center gap-2 rounded-xl border border-indigo-300 bg-white px-3 py-2 text-sm font-bold">
             <input
               type="checkbox"
@@ -1943,6 +1948,15 @@ export function LocalScoreProjectPanel({
               onChange={(event) => setTieToNext(event.target.checked)}
             />
             延音到下一个同音
+          </label>
+          <label className="flex min-h-11 items-center gap-2 rounded-xl border border-indigo-300 bg-white px-3 py-2 text-sm font-bold">
+            <input
+              type="checkbox"
+              checked={slurToNext}
+              disabled={isBusy || eventType === "rest"}
+              onChange={(event) => setSlurToNext(event.target.checked)}
+            />
+            圆滑到下一音
           </label>
           <label className="text-sm font-bold">
             歌词
@@ -1978,7 +1992,7 @@ export function LocalScoreProjectPanel({
           </label>
         </div>
         <p className="mt-2 text-xs leading-5 text-indigo-800">
-          延音线只允许连接同一声部中紧邻的同音音符；可跨连续小节。歌词和 1–5 指法只附着在音符上。
+          延音线只连接同声部紧邻的同音音符；圆滑线可连接同声部紧邻的不同音符。两者均可跨连续小节，且不能越过休止符。歌词和 1–5 指法只附着在音符上。
         </p>
         <div className="mt-3 rounded-xl border border-indigo-300 bg-white p-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
@@ -2147,8 +2161,10 @@ export function LocalScoreProjectPanel({
                       location: selectedEvent.location,
                       eventId: selectedEvent.eventId,
                     }));
-                    setNotice(sourceEvent?.type === "note" && sourceEvent.tieToNext
-                      ? "已复制附点、歌词、指法和和弦名称以及演奏法，但单事件复制不包含跨事件延音关系；粘贴副本不会带延音线。谱面尚未修改。"
+                    setNotice(
+                      sourceEvent?.type === "note"
+                      && (sourceEvent.tieToNext || sourceEvent.slurToNext)
+                      ? "已复制附点、歌词、指法和和弦名称以及演奏法，但单事件复制不包含跨事件延音或圆滑关系；粘贴副本不会带延音线或圆滑线。谱面尚未修改。"
                       : "已复制所选事件及其和弦名称，并保留适用的演奏法；谱面尚未修改，可选择目标小节后粘贴。");
                   } catch (error) {
                     setNotice(error instanceof Error
@@ -2317,6 +2333,7 @@ export function LocalScoreProjectPanel({
                     {index + 1}. 第 {location.measureNumber} 小节 · {event.type === "note" ? event.pitch : "休止"} · {durationLabels[event.duration]}
                     {event.augmentationDots === 1 ? " · 附点" : ""}
                     {event.type === "note" && event.tieToNext ? " · 延音到下一音" : ""}
+                    {event.type === "note" && event.slurToNext ? " · 圆滑到下一音" : ""}
                     {event.type === "note" && event.lyric ? ` · 歌词：${event.lyric}` : ""}
                     {event.type === "note" && event.fingering !== null
                       ? ` · 指法：${event.fingering}`

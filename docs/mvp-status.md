@@ -106,8 +106,14 @@
 - 旧 storage v1–v11、document v1–v10 及 undo/redo 历史只读迁移为 `null`；当前严格校验。
 - 当前分支已接入 domain、迁移、复制粘贴、两种谱面显示、Mobile 编辑、playback/transport 类型兼容和专项测试；真实踏板播放、MIDI CC64、真机、教师审核与格式 round-trip 仍未执行。
 
-### 延长记号切片（下一独立候选）
+### 延长记号切片
 
-- 当前本地分支候选升级为 `score-document-v12` 与 `local-score-project-storage-v13`，事件起点 `fermataMark` 支持 `fermata` 或 `null`，note/rest 均可承载。
+- PR #451 已合并：`score-document-v12` 与 `local-score-project-storage-v13` 的事件起点 `fermataMark` 支持 `fermata` 或 `null`，note/rest 均可承载。
 - 旧 storage/document 与 undo/redo 历史只读迁移为 `null`；五线谱与固定 C 简谱一致显示；playback/transport 只补兼容字段，不延长真实播放。
-- 本地 focused fermata、旧迁移、存储／恢复、播放回归、lint、typecheck、Android 静态校验和 Web 构建已通过；尚未创建 PR，远端 Actions、真机、教师审核、真实 fermata 播放及 MusicXML/MIDI round-trip 仍未执行。
+- PR #451 Quality run `30234487273` 的 `quality` 与 `android-local` 均成功；真机、教师审核、真实 fermata 播放及 MusicXML/MIDI round-trip 仍未执行。
+
+### 圆滑线切片（当前独立候选）
+
+- 当前候选升级为 `score-document-v13` 与 `local-score-project-storage-v14`，音符以 `slurToNext` 表达到同声部相邻音符的圆滑线；休止符不得携带该字段。
+- 旧 storage/document 与 undo/redo 历史只读迁移为 `false`；复制单个事件清除跨事件关系；删除、移动或修改不得制造悬空圆滑线。
+- 五线谱与固定 C 简谱读取同一字段；playback/transport 仅兼容新版本，不改变真实 gate、duration 或连奏效果。远端 Actions、浏览器手测、真机、教师审核、真实连奏播放及 MusicXML/MIDI round-trip 仍未执行。
