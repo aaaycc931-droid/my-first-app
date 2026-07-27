@@ -274,10 +274,10 @@ assert.deepEqual(copied, {
   lyric: null,
   fingering: 3,
   chordSymbol: null,
-    articulations: [],
-    dynamicMark: null,
-    damperPedalMark: null,
-    fermataMark: null,
+  articulations: [],
+  dynamicMark: null,
+  damperPedalMark: null,
+  fermataMark: null,
 });
 const pasted = pasteLocalScoreProjectEvent({
   project: fingered,
