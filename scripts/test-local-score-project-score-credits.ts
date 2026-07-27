@@ -28,8 +28,8 @@ const project = createLocalScoreProject({
   now: createdAt,
 });
 
-assert.equal(project.schemaVersion, "local-score-project-storage-v12");
-assert.equal(project.document.schemaVersion, "score-document-v11");
+assert.equal(project.schemaVersion, "local-score-project-storage-v13");
+assert.equal(project.document.schemaVersion, "score-document-v12");
 assert.deepEqual(project.document.scoreCredits, {
   title: "本机项目名",
   subtitle: null,
@@ -255,8 +255,8 @@ const beforeMigration = JSON.stringify(previousStorage);
 const migrated = parseLocalScoreProject(previousStorage);
 assert.ok(migrated);
 assert.equal(JSON.stringify(previousStorage), beforeMigration);
-assert.equal(migrated.schemaVersion, "local-score-project-storage-v12");
-assert.equal(migrated.document.schemaVersion, "score-document-v11");
+assert.equal(migrated.schemaVersion, "local-score-project-storage-v13");
+assert.equal(migrated.document.schemaVersion, "score-document-v12");
 assert.deepEqual(migrated.document.scoreCredits, {
   title: previousStorage.title,
   subtitle: null,

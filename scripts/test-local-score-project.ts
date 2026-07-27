@@ -44,9 +44,9 @@ const project = createLocalScoreProject({
   now: createdAt,
 });
 assert.equal(project.title, "第一份谱");
-assert.equal(project.schemaVersion, "local-score-project-storage-v12");
+assert.equal(project.schemaVersion, "local-score-project-storage-v13");
 assert.equal(project.tempoBpm, 90);
-assert.equal(project.document.schemaVersion, "score-document-v11");
+assert.equal(project.document.schemaVersion, "score-document-v12");
 assert.deepEqual(project.document.keySignature, { fifths: 0 });
 assert.equal(project.document.parts[0].staves[0].clef, "treble");
 assert.equal(project.document.parts[0].name, "声部组 1");
@@ -89,6 +89,7 @@ const contentWithNote = {
             articulations: [],
             dynamicMark: null,
             damperPedalMark: null,
+            fermataMark: null,
           }],
         }],
       }],
@@ -333,6 +334,7 @@ const multiStaffContent = {
                 articulations: [],
                 dynamicMark: null,
                 damperPedalMark: null,
+                fermataMark: null,
               }],
             }],
           },
@@ -350,6 +352,7 @@ const multiStaffContent = {
                 chordSymbol: null,
                 dynamicMark: null,
                 damperPedalMark: null,
+                fermataMark: null,
               }],
             }],
           },
@@ -382,6 +385,7 @@ const multiStaffContent = {
               articulations: [],
               dynamicMark: null,
               damperPedalMark: null,
+              fermataMark: null,
             }],
           }],
         }],
@@ -438,14 +442,15 @@ for (const content of [
         delete event.tieToNext;
         delete event.lyric;
         delete event.damperPedalMark;
+        delete event.fermataMark;
       }
     }
   }
 }
 const legacyBefore = JSON.stringify(legacySchema);
 const migratedLegacy = parseLocalScoreProject(legacySchema);
-assert.equal(migratedLegacy?.schemaVersion, "local-score-project-storage-v12");
-assert.equal(migratedLegacy?.document.schemaVersion, "score-document-v11");
+assert.equal(migratedLegacy?.schemaVersion, "local-score-project-storage-v13");
+assert.equal(migratedLegacy?.document.schemaVersion, "score-document-v12");
 assert.deepEqual(migratedLegacy?.document.scoreCredits, {
   title: multiStaff.title,
   subtitle: null,
@@ -483,7 +488,7 @@ assert.equal(
 );
 assert.match(
   serializeLocalScoreProject(migratedLegacy!),
-  /local-score-project-storage-v12/,
+  /local-score-project-storage-v13/,
 );
 
 const previousSchema = JSON.parse(legacyBefore) as typeof legacySchema;
@@ -511,8 +516,8 @@ for (const content of [...storageV3.undoStack, ...storageV3.redoStack]) {
 }
 const storageV3Before = JSON.stringify(storageV3);
 const migratedStorageV3 = parseLocalScoreProject(storageV3);
-assert.equal(migratedStorageV3?.schemaVersion, "local-score-project-storage-v12");
-assert.equal(migratedStorageV3?.document.schemaVersion, "score-document-v11");
+assert.equal(migratedStorageV3?.schemaVersion, "local-score-project-storage-v13");
+assert.equal(migratedStorageV3?.document.schemaVersion, "score-document-v12");
 assert.equal(
   migratedStorageV3?.document.scoreCredits.title,
   multiStaff.title,
@@ -551,8 +556,8 @@ for (const content of [
 }
 const storageV4Before = JSON.stringify(storageV4);
 const migratedStorageV4 = parseLocalScoreProject(storageV4);
-assert.equal(migratedStorageV4?.schemaVersion, "local-score-project-storage-v12");
-assert.equal(migratedStorageV4?.document.schemaVersion, "score-document-v11");
+assert.equal(migratedStorageV4?.schemaVersion, "local-score-project-storage-v13");
+assert.equal(migratedStorageV4?.document.schemaVersion, "score-document-v12");
 assert.equal(
   migratedStorageV4?.document.scoreCredits.title,
   multiStaff.title,
@@ -589,8 +594,8 @@ for (const content of [
 }
 const storageV5Before = JSON.stringify(storageV5);
 const migratedStorageV5 = parseLocalScoreProject(storageV5);
-assert.equal(migratedStorageV5?.schemaVersion, "local-score-project-storage-v12");
-assert.equal(migratedStorageV5?.document.schemaVersion, "score-document-v11");
+assert.equal(migratedStorageV5?.schemaVersion, "local-score-project-storage-v13");
+assert.equal(migratedStorageV5?.document.schemaVersion, "score-document-v12");
 assert.equal(
   migratedStorageV5?.document.scoreCredits.title,
   multiStaff.title,
@@ -615,7 +620,7 @@ delete missingTempo.tempoBpm;
 assert.equal(parseLocalScoreProject(missingTempo), null);
 
 const futureSchema = JSON.parse(serialized) as { schemaVersion: string };
-futureSchema.schemaVersion = "local-score-project-storage-v13";
+  futureSchema.schemaVersion = "local-score-project-storage-v14";
 assert.equal(parseLocalScoreProject(futureSchema), null);
 
 const missingKeySignature = JSON.parse(serialized) as {
@@ -2213,6 +2218,7 @@ const moveFixture = applyLocalScoreProjectContent({
                   articulations: [],
                   dynamicMark: null,
                   damperPedalMark: null,
+                  fermataMark: null,
                 },
                 {
                   id: "move-b",
@@ -2224,6 +2230,7 @@ const moveFixture = applyLocalScoreProjectContent({
                   chordSymbol: null,
                   dynamicMark: null,
                   damperPedalMark: null,
+                  fermataMark: null,
                 },
                 {
                   id: "move-c",
@@ -2239,6 +2246,7 @@ const moveFixture = applyLocalScoreProjectContent({
                   articulations: [],
                   dynamicMark: null,
                   damperPedalMark: null,
+                  fermataMark: null,
                 },
               ]
               : [{
@@ -2255,6 +2263,7 @@ const moveFixture = applyLocalScoreProjectContent({
                 articulations: [],
                 dynamicMark: null,
                 damperPedalMark: null,
+                fermataMark: null,
               }],
           })),
         })),
@@ -2333,6 +2342,7 @@ assert.deepEqual(moveMeasureTwo(movedAcrossMeasures)[1], {
   articulations: [],
   dynamicMark: null,
   damperPedalMark: null,
+  fermataMark: null,
 });
 
 const undoneMove = undoLocalScoreProject({
@@ -2433,6 +2443,7 @@ assert.deepEqual(copiedMoveEvent, {
   articulations: [],
   dynamicMark: null,
   damperPedalMark: null,
+  fermataMark: null,
 });
 assert.equal(JSON.stringify(moveFixture), moveFixtureBefore);
 
@@ -2526,6 +2537,7 @@ const legacyOverfull = applyLocalScoreProjectContent({
                 articulations: [],
                 dynamicMark: null,
                 damperPedalMark: null,
+                fermataMark: null,
               }]
               : measure.events,
           })),
@@ -2655,6 +2667,7 @@ assert.deepEqual(copyLocalScoreProjectEvent({
   articulations: [],
   dynamicMark: null,
   damperPedalMark: null,
+  fermataMark: null,
 });
 for (const mutate of [
   () => deleteLocalScoreProjectEvent({

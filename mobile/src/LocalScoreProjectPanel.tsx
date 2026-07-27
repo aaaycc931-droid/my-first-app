@@ -58,6 +58,7 @@ import type {
   LocalScoreProjectFingeringV1,
   LocalScoreProjectDynamicMarkV1,
   LocalScoreProjectDamperPedalMarkV1,
+  LocalScoreProjectFermataMarkV1,
   LocalScoreProjectKeySignatureV3,
   LocalScoreProjectPartInstrumentV1,
 } from "../../lib/music/scoreDocument";
@@ -119,6 +120,10 @@ const damperPedalMarkOptions = [
   { value: "", label: "无制音踏板记号" },
   { value: "down", label: "踩下（Ped.）" },
   { value: "up", label: "释放（✱）" },
+] as const;
+const fermataMarkOptions = [
+  { value: "", label: "无延长记号" },
+  { value: "fermata", label: "延长记号（𝄐）" },
 ] as const;
 
 const templateCategoryOptions: readonly Readonly<{
@@ -510,6 +515,8 @@ export function LocalScoreProjectPanel({
     useState<LocalScoreProjectDynamicMarkV1 | null>(null);
   const [damperPedalMark, setDamperPedalMark] =
     useState<LocalScoreProjectDamperPedalMarkV1 | null>(null);
+  const [fermataMark, setFermataMark] =
+    useState<LocalScoreProjectFermataMarkV1 | null>(null);
   const [targetMeasureNumber, setTargetMeasureNumber] = useState(1);
   const [selectedEvent, setSelectedEvent] =
     useState<LocalScoreProjectStaffSelection | null>(null);
@@ -780,6 +787,7 @@ export function LocalScoreProjectPanel({
               chordSymbol,
               dynamicMark,
               damperPedalMark,
+              fermataMark,
             }
             : {
               type: "note",
@@ -793,6 +801,7 @@ export function LocalScoreProjectPanel({
               chordSymbol,
               dynamicMark,
               damperPedalMark,
+              fermataMark,
             },
           now: now(),
         })
@@ -810,6 +819,7 @@ export function LocalScoreProjectPanel({
             chordSymbol,
             dynamicMark,
             damperPedalMark,
+            fermataMark,
           }
           : {
             type: "note",
@@ -823,6 +833,7 @@ export function LocalScoreProjectPanel({
             chordSymbol,
             dynamicMark,
             damperPedalMark,
+            fermataMark,
           },
           now: now(),
         }),
@@ -844,6 +855,7 @@ export function LocalScoreProjectPanel({
     setChordSymbol(located.event.chordSymbol ?? "");
     setDynamicMark(located.event.dynamicMark);
     setDamperPedalMark(located.event.damperPedalMark ?? null);
+    setFermataMark(located.event.fermataMark ?? null);
     if (located.event.type === "note" && located.event.pitch) {
       setPitch(located.event.pitch);
       setDuration(located.event.duration);
@@ -858,6 +870,7 @@ export function LocalScoreProjectPanel({
       setFingering(null);
       setArticulations([]);
       setDamperPedalMark(located.event.damperPedalMark ?? null);
+      setFermataMark(located.event.fermataMark ?? null);
     }
     setAugmentationDots(located.event.augmentationDots);
   };
@@ -2078,6 +2091,29 @@ export function LocalScoreProjectPanel({
         </label>
         <p className="mt-2 text-xs leading-5 text-indigo-800">
           制音踏板记号锚定音符或休止符起点；当前只显示 Ped.／释放记号，不发送 MIDI CC64，也不改变真实 sustain、音长或 transport。
+        </p>
+        <label className="mt-3 block text-sm font-bold">
+          事件起点延长记号
+          <select
+            aria-label="延长记号"
+            value={fermataMark ?? ""}
+            disabled={isBusy}
+            onChange={(event) => setFermataMark(
+              event.target.value === ""
+                ? null
+                : event.target.value as LocalScoreProjectFermataMarkV1,
+            )}
+            className="mt-2 min-h-11 w-full rounded-xl border border-indigo-300 bg-white px-3 py-2 disabled:bg-slate-100"
+          >
+            {fermataMarkOptions.map((option) => (
+              <option key={option.value || "none"} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </label>
+        <p className="mt-2 text-xs leading-5 text-indigo-800">
+          延长记号锚定音符或休止符起点；当前只显示 𝄐，不延长真实播放、不改变 duration 或 transport。
         </p>
         <button
           type="button"
