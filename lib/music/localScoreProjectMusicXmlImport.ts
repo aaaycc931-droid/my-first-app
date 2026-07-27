@@ -122,6 +122,35 @@ const allowedMeasureElements = new Set([
   "rest",
   "staff",
 ]);
+const allowedRootElements = new Set(["work", "part-list", "part"]);
+const allowedWorkElements = new Set(["work-title"]);
+const allowedPartListElements = new Set(["score-part"]);
+const allowedScorePartElements = new Set(["part-name"]);
+const allowedPartElements = new Set(["measure"]);
+
+const directChildElements = (node: Node) => Array.from(node.childNodes)
+  .filter((child): child is Element => child.nodeType === 1);
+
+const localElementName = (element: Element) =>
+  (element.localName || element.nodeName.split(":").at(-1) || "")
+    .toLowerCase();
+
+const parseStrictXml = (xml: string) => {
+  if (
+    /&(?!(?:#\d+|#x[0-9a-f]+|amp|lt|gt|quot|apos);)/i.test(xml)
+  ) {
+    return null;
+  }
+  try {
+    if (typeof DOMParser === "undefined") return null;
+    const document = new DOMParser().parseFromString(xml, "application/xml");
+    return document.getElementsByTagName("parsererror").length === 0
+      ? document
+      : null;
+  } catch {
+    return null;
+  }
+};
 
 const getElementText = (xml: string, tagName: string) =>
   xml.match(
@@ -254,6 +283,23 @@ export const createLocalScoreProjectMusicXmlImportDraft = (
 ): LocalScoreProjectMusicXmlImportDraft => {
   const issues: LocalScoreProjectMusicXmlImportIssue[] = [];
   const xml = args.xml;
+  const xmlDocument = parseStrictXml(xml);
+  if (!xmlDocument) {
+    issues.push(blockingIssue(
+      "malformed-xml",
+      "MusicXML 不是良构 XML，已阻止导入。",
+    ));
+  }
+  const rootElement = xmlDocument?.documentElement ?? null;
+  if (
+    rootElement
+    && localElementName(rootElement) !== "score-partwise"
+  ) {
+    issues.push(blockingIssue(
+      "unsupported-root",
+      "当前导入只支持 score-partwise MusicXML 根元素。",
+    ));
+  }
   const rootMatches = getElementMatches(xml, "score-partwise");
   if (rootMatches.length !== 1 || hasElement(xml, "score-timewise")) {
     issues.push(blockingIssue(
@@ -263,11 +309,172 @@ export const createLocalScoreProjectMusicXmlImportDraft = (
   }
 
   const scoreXml = rootMatches[0]?.[2] ?? "";
+  const rootChildren = rootElement ? directChildElements(rootElement) : [];
+  rootChildren.forEach((element) => {
+    const elementName = localElementName(element);
+    if (!allowedRootElements.has(elementName)) {
+      issues.push(blockingIssue(
+        "unsupported-root-element",
+        `当前导入不支持根级 MusicXML 元素 <${elementName}>，不能静默忽略。`,
+      ));
+    }
+  });
+  const workElements = rootChildren.filter(
+    (element) => localElementName(element) === "work",
+  );
+  if (workElements.length > 1) {
+    issues.push(blockingIssue(
+      "unsupported-work-count",
+      "当前导入只支持一个 work 元素。",
+    ));
+  }
+  workElements.forEach((work) => {
+    directChildElements(work).forEach((element) => {
+      const elementName = localElementName(element);
+      if (!allowedWorkElements.has(elementName)) {
+        issues.push(blockingIssue(
+          "unsupported-work-element",
+          `当前导入不支持 work 元素 <${elementName}>，不能静默忽略。`,
+        ));
+      }
+    });
+  });
+  const partListElements = rootChildren.filter(
+    (element) => localElementName(element) === "part-list",
+  );
+  if (partListElements.length !== 1) {
+    issues.push(blockingIssue(
+      "unsupported-part-list-count",
+      "当前导入要求且只支持一个 part-list。",
+    ));
+  }
+  partListElements.forEach((partList) => {
+    directChildElements(partList).forEach((element) => {
+      const elementName = localElementName(element);
+      if (!allowedPartListElements.has(elementName)) {
+        issues.push(blockingIssue(
+          "unsupported-part-list-element",
+          `当前导入不支持 part-list 元素 <${elementName}>，不能静默忽略。`,
+        ));
+      }
+    });
+  });
+  const scorePartElements = partListElements.flatMap((partList) =>
+    directChildElements(partList).filter(
+      (element) => localElementName(element) === "score-part",
+    )
+  );
+  scorePartElements.forEach((scorePart) => {
+    directChildElements(scorePart).forEach((element) => {
+      const elementName = localElementName(element);
+      if (!allowedScorePartElements.has(elementName)) {
+        issues.push(blockingIssue(
+          "unsupported-score-part-element",
+          `当前导入不支持 score-part 元素 <${elementName}>，不能静默忽略。`,
+        ));
+      }
+    });
+  });
+  const workTitleMatches = getElementMatches(scoreXml, "work-title");
+  if (workTitleMatches.length > 1) {
+    issues.push(blockingIssue(
+      "unsupported-title-count",
+      "当前导入只支持一个 work-title。",
+    ));
+  }
+  const importedTitle = workElements[0]
+    ? directChildElements(workElements[0])
+      .find((element) => localElementName(element) === "work-title")
+      ?.textContent?.trim() ?? null
+    : null;
+  if (importedTitle !== null && importedTitle.length === 0) {
+    issues.push(blockingIssue(
+      "invalid-title",
+      "MusicXML work-title 不能为空。",
+    ));
+  }
+  if (importedTitle !== null && Array.from(importedTitle).length > 80) {
+    issues.push(blockingIssue(
+      "unsupported-title-length",
+      "MusicXML work-title 超过当前本机项目 80 字符上限。",
+    ));
+  }
+  const scorePartMatches = getElementMatches(scoreXml, "score-part");
+  if (scorePartMatches.length !== 1) {
+    issues.push(blockingIssue(
+      "unsupported-score-part-count",
+      "当前导入要求且只支持一个 score-part 声明。",
+    ));
+  }
+  const partNameElements = scorePartElements[0]
+    ? directChildElements(scorePartElements[0]).filter(
+      (element) => localElementName(element) === "part-name",
+    )
+    : [];
+  if (partNameElements.length !== 1) {
+    issues.push(blockingIssue(
+      "unsupported-part-name-count",
+      "当前导入要求且只支持一个 part-name。",
+    ));
+  }
+  const partNameText = scorePartMatches[0]
+    ? getElementText(scorePartMatches[0][2], "part-name")
+    : undefined;
+  const importedPartName = scorePartElements[0]
+    ? directChildElements(scorePartElements[0])
+      .find((element) => localElementName(element) === "part-name")
+      ?.textContent?.trim() ?? null
+    : partNameText === undefined ? null : partNameText.trim();
+  if (importedPartName !== null && importedPartName.length === 0) {
+    issues.push(blockingIssue(
+      "invalid-part-name",
+      "MusicXML part-name 不能为空。",
+    ));
+  }
+  if (
+    importedPartName !== null
+    && Array.from(importedPartName).length > 40
+  ) {
+    issues.push(blockingIssue(
+      "unsupported-part-name-length",
+      "MusicXML part-name 超过当前声部组 40 字符上限。",
+    ));
+  }
   const parts = getElementMatches(scoreXml, "part");
   if (parts.length !== 1) {
     issues.push(blockingIssue(
       "unsupported-part-count",
       `当前导入只支持一个 part；文件包含 ${parts.length} 个 part。`,
+    ));
+  }
+  const partElements = rootChildren.filter(
+    (element) => localElementName(element) === "part",
+  );
+  partElements.forEach((part) => {
+    directChildElements(part).forEach((element) => {
+      const elementName = localElementName(element);
+      if (!allowedPartElements.has(elementName)) {
+        issues.push(blockingIssue(
+          "unsupported-part-element",
+          `当前导入不支持 part 元素 <${elementName}>，不能静默忽略。`,
+        ));
+      }
+    });
+  });
+  const declaredPartId = scorePartElements[0]?.getAttribute("id")?.trim() ?? "";
+  const contentPartId = partElements[0]?.getAttribute("id")?.trim() ?? "";
+  if (
+    scorePartElements.length === 1
+    && partElements.length === 1
+    && (
+      declaredPartId.length === 0
+      || contentPartId.length === 0
+      || declaredPartId !== contentPartId
+    )
+  ) {
+    issues.push(blockingIssue(
+      "invalid-part-reference",
+      "score-part 与 part 必须使用同一个非空 id。",
     ));
   }
   const partXml = parts[0]?.[2] ?? "";
@@ -596,7 +803,7 @@ export const createLocalScoreProjectMusicXmlImportDraft = (
 
   const baseProject = createLocalScoreProject({
     projectId: args.projectId,
-    title: sourceTitle(args.fileName),
+    title: importedTitle ?? sourceTitle(args.fileName),
     now: args.now,
   });
   const project: LocalScoreProjectV1 = {
@@ -607,7 +814,7 @@ export const createLocalScoreProjectMusicXmlImportDraft = (
       keySignature: { fifths },
       parts: [{
         partId: "part-1",
-        name: "导入声部",
+        name: importedPartName ?? "导入声部",
         instrument: { kind: "unassigned" },
         staves: [{
           staffId: "staff-1",

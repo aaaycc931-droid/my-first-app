@@ -123,4 +123,7 @@
 - S3 首个独立切片增加 MusicXML／MXL 到 canonical 本机谱项目的受控导入：本机内存候选 → 逐项 blocking ledger → 用户明确确认 → `persistNewLocalScoreProject` 原子保存 → 重开、双谱面与播放。
 - 本切片只接受当前明确支持且可无损映射的元素；所有不支持、会被忽略或会改变音乐语义的元素一律 blocking，不允许静默丢失。
 - `.musicxml`／`.xml`／`.mxl` 输入、2 MiB 输入限制，以及 MXL 既有的 100 entries／4 MiB 解压保护必须保持 fail-closed；容量、quota、事务和迁移失败必须保留全部既有项目。
-- 详细边界见 `docs/s3-local-score-project-musicxml-import-acceptance.md`。该切片不宣称 MIDI、导出、round-trip、OMR、教师审核或正式版 V1 完成。
+- 导入后的下一切片增加 canonical 本机谱项目到 `.musicxml`／`.mxl` 的受控导出候选：只覆盖当前可无损重新导入的严格单 part／staff／voice 子集，先显示 blocking ledger 和摘要，用户明确确认后才触发一次本机下载。
+- 当前导出 round-trip 只接受默认 `90 BPM`、未分配 instrument 和没有副标题／creator／版权声明的项目；任何尚未映射的 canonical 记谱语义必须阻断，不能为了生成文件而静默丢弃。
+- 自动证据由当前 importer re-import 与 legacy parser 音符交叉检查组成，均属于仓库内部验证。浏览器下载、Android WebView／真机及 MuseScore 等外部独立阅读器仍为 `NOT_EXECUTED`，不得宣称第三方兼容已经通过。
+- 导入边界见 `docs/s3-local-score-project-musicxml-import-acceptance.md`，导出边界见 `docs/s3-local-score-project-musicxml-export-acceptance.md`。当前仍不宣称 MIDI、完整 MusicXML、第三方独立阅读器、OMR、教师审核或正式版 V1 完成。
