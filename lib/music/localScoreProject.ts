@@ -17,7 +17,6 @@ import type {
   LocalScoreProjectArticulationV1 as ScoreDocumentArticulationV1,
   LocalScoreProjectClefV3,
   LocalScoreProjectAugmentationDots,
-  LocalScoreProjectEventV6,
   LocalScoreProjectEventV8,
   LocalScoreProjectKeySignatureV3,
   LocalScoreProjectFingeringV1 as ScoreDocumentFingeringV1,
@@ -99,7 +98,7 @@ export type LocalScoreProjectV13 = Readonly<{
   redoStack: readonly LocalScoreProjectContentV1[];
 }>;
 
-/** 兼容既有调用方名称；运行时值始终为 storage-v11。 */
+/** 兼容既有调用方名称；运行时值始终为 storage-v13。 */
 export type LocalScoreProjectV1 = LocalScoreProjectV13;
 export type LocalScoreProjectV2 = LocalScoreProjectV13;
 export type LocalScoreProjectV3 = LocalScoreProjectV13;
@@ -528,8 +527,8 @@ const getDefaultPartName = (
 };
 
 const cloneEvent = (
-  event: LocalScoreProjectEventV6,
-): LocalScoreProjectEventV6 => ({
+  event: LocalScoreProjectEventV8,
+): LocalScoreProjectEventV8 => ({
   ...event,
   ...(event.type === "note"
     ? { articulations: [...event.articulations] }
@@ -543,7 +542,7 @@ const eventDurationBeats: Readonly<Record<NotationDuration, number>> = {
 };
 
 export const getLocalScoreProjectEventDurationBeats = (
-  event: Pick<LocalScoreProjectEventV6, "duration" | "augmentationDots">,
+  event: Pick<LocalScoreProjectEventV8, "duration" | "augmentationDots">,
 ) =>
   eventDurationBeats[event.duration]
   * (event.augmentationDots === 1 ? 1.5 : 1);
@@ -1199,8 +1198,8 @@ const assertMeasureHasCapacity = ({
   measureNumber,
   action,
 }: {
-  events: readonly LocalScoreProjectEventV6[];
-  event: LocalScoreProjectEventV6;
+  events: readonly LocalScoreProjectEventV8[];
+  event: LocalScoreProjectEventV8;
   meter: NotationTimeSignature;
   measureNumber: number;
   action: "添加" | "修改" | "移动" | "粘贴";
@@ -1227,8 +1226,8 @@ const updateEventsAtLocation = ({
   content: LocalScoreProjectContentV1;
   location: LocalScoreProjectEventLocation;
   update: (
-    events: readonly LocalScoreProjectEventV6[],
-  ) => readonly LocalScoreProjectEventV6[];
+    events: readonly LocalScoreProjectEventV8[],
+  ) => readonly LocalScoreProjectEventV8[];
 }): LocalScoreProjectContentV1 => {
   let matched = 0;
   const parts = content.parts.map((part) => ({
@@ -2341,7 +2340,7 @@ export const moveLocalScoreProjectEvent = ({
 
   const content = getLocalScoreProjectContent(project);
   assertEventIsNotTieParticipant(content, eventId, "移动");
-  let movedEvent: LocalScoreProjectEventV6 | undefined;
+  let movedEvent: LocalScoreProjectEventV8 | undefined;
   const withoutSource = updateEventsAtLocation({
     content,
     location: source,
@@ -2362,7 +2361,7 @@ export const moveLocalScoreProjectEvent = ({
     );
   }
 
-  const movedToDestination: LocalScoreProjectEventV6 = {
+  const movedToDestination: LocalScoreProjectEventV8 = {
     ...movedEvent,
     measure: destination.measureNumber,
   };
