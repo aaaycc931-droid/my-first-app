@@ -218,12 +218,12 @@ export type LocalScoreProjectEventV7 =
 export type LocalScoreProjectFermataMarkV1 = "fermata";
 export type LocalScoreProjectNoteEventV8 = Readonly<
   LocalScoreProjectNoteEventV7 & {
-    fermataMark?: LocalScoreProjectFermataMarkV1 | null;
+    fermataMark: LocalScoreProjectFermataMarkV1 | null;
   }
 >;
 export type LocalScoreProjectRestEventV8 = Readonly<
   LocalScoreProjectRestEventV7 & {
-    fermataMark?: LocalScoreProjectFermataMarkV1 | null;
+    fermataMark: LocalScoreProjectFermataMarkV1 | null;
   }
 >;
 export type LocalScoreProjectEventV8 =

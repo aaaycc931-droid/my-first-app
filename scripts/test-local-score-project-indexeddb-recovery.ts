@@ -543,7 +543,7 @@ const run = async () => {
       broken: true,
     },
   });
-  for (const version of [6, 7, 8, 9]) {
+  for (const version of [6, 7, 8, 9, 10, 11, 12]) {
     await putRawRecord({
       factory,
       value: {
@@ -572,6 +572,9 @@ const run = async () => {
   );
   assert.deepEqual(mixedList.issues, [
     { projectId: "corrupt-project", status: "corrupt" },
+    { projectId: "corrupt-project-v10", status: "corrupt" },
+    { projectId: "corrupt-project-v11", status: "corrupt" },
+    { projectId: "corrupt-project-v12", status: "corrupt" },
     { projectId: "corrupt-project-v6", status: "corrupt" },
     { projectId: "corrupt-project-v7", status: "corrupt" },
     { projectId: "corrupt-project-v8", status: "corrupt" },

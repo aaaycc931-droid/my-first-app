@@ -442,7 +442,6 @@ for (const content of [
         delete event.tieToNext;
         delete event.lyric;
         delete event.damperPedalMark;
-        delete event.fermataMark;
       }
     }
   }
@@ -620,7 +619,7 @@ delete missingTempo.tempoBpm;
 assert.equal(parseLocalScoreProject(missingTempo), null);
 
 const futureSchema = JSON.parse(serialized) as { schemaVersion: string };
-  futureSchema.schemaVersion = "local-score-project-storage-v14";
+futureSchema.schemaVersion = "local-score-project-storage-v14";
 assert.equal(parseLocalScoreProject(futureSchema), null);
 
 const missingKeySignature = JSON.parse(serialized) as {
