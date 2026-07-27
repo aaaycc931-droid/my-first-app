@@ -44,7 +44,9 @@ const requiredSources = [
   "lib/activity/melodySightSingingActivityAdapter.ts",
   "lib/music/scoreDocument.ts",
   "lib/music/localScoreProject.ts",
+  "lib/music/localScoreProjectMusicXmlImport.ts",
   "lib/music/localScoreProjectPlayback.ts",
+  "lib/musicxml/mxlExtractor.ts",
   "lib/activity/localVocalMicrophoneActivityAdapter.ts",
   "lib/practice/localEarTrainingChords.ts",
   "lib/practice/localEarTrainingHarmonyProgressions.ts",
@@ -1076,4 +1078,4 @@ if (existsSync(manifestPath) && !existsSync(syncedIndex)) {
   throw new Error("Android 工程存在，但本地 Web 资源尚未同步");
 }
 
-console.log("Android 本地模式校验通过：固定包名、本地资源、既有十类练习、P116a–P117e 既有主线、P118a 版本化中文课程路径与本地进度、P118b 本机详细练习统计、P118c 薄弱点复练分组、P118d 可解释非评分推荐、P118e 本机学习总览、S1 本机谱项目首个创建/编辑/保存/播放/重开闭环、音程比较/非评分模唱反馈、实时音高反馈、本机复练、非评分学习画像、本地参考钢琴、无远程运行时配置与生命周期保护。");
+console.log("Android 本地模式校验通过：固定包名、本地资源、既有十类练习、P116a–P117e 既有主线、P118a 版本化中文课程路径与本地进度、P118b 本机详细练习统计、P118c 薄弱点复练分组、P118d 可解释非评分推荐、P118e 本机学习总览、S1 本机谱项目闭环、S3 MusicXML/MXL 受控 canonical 导入、音程比较/非评分模唱反馈、实时音高反馈、本机复练、非评分学习画像、本地参考钢琴、无远程运行时配置与生命周期保护。");

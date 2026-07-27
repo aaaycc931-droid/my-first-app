@@ -52,6 +52,12 @@ import {
   getLocalScoreProjectTemplate,
   type LocalScoreProjectTemplateCategory,
 } from "../../lib/music/localScoreProjectTemplate";
+import {
+  confirmLocalScoreProjectMusicXmlImportDraft,
+  createLocalScoreProjectMusicXmlImportDraft,
+  type LocalScoreProjectMusicXmlImportDraft,
+} from "../../lib/music/localScoreProjectMusicXmlImport";
+import { extractMusicXMLFromMxl } from "../../lib/musicxml/mxlExtractor";
 import type {
   LocalScoreProjectClefV3,
   LocalScoreProjectArticulationV1,
@@ -96,6 +102,7 @@ type ScoreCreditsDraft = Readonly<{
 
 const DEFAULT_LOCAL_SCORE_PROJECT_TEMPLATE_ID =
   "blank-treble-staff-v1";
+const MAX_LOCAL_SCORE_PROJECT_IMPORT_FILE_BYTES = 2 * 1024 * 1024;
 
 const articulationOptions = [
   { id: "accent", label: "重音" },
@@ -531,6 +538,14 @@ export function LocalScoreProjectPanel({
     useState<"available" | "unavailable">("available");
   const [transportMode, setTransportMode] =
     useState<LocalScoreProjectTransportMode>("idle");
+  const [musicXmlImportDraft, setMusicXmlImportDraft] =
+    useState<LocalScoreProjectMusicXmlImportDraft | null>(null);
+  const [musicXmlImportStatus, setMusicXmlImportStatus] =
+    useState<"idle" | "reading" | "ready" | "blocked" | "error">("idle");
+  const [musicXmlImportNotice, setMusicXmlImportNotice] = useState(
+    "选择 MusicXML、XML 或 MXL 后会先生成内存候选；确认前不会写入项目列表。",
+  );
+  const musicXmlImportInputRef = useRef<HTMLInputElement | null>(null);
 
   const refreshProjects = useCallback(async () => {
     setIsBusy(true);
@@ -688,6 +703,113 @@ export function LocalScoreProjectPanel({
         error instanceof Error
           ? error.message
           : "无法创建本机谱项目。",
+      );
+    } finally {
+      setIsBusy(false);
+    }
+  };
+
+  const clearMusicXmlImport = () => {
+    setMusicXmlImportDraft(null);
+    setMusicXmlImportStatus("idle");
+    setMusicXmlImportNotice(
+      "MusicXML 导入候选已清除；没有写入或修改任何本机项目。",
+    );
+    if (musicXmlImportInputRef.current) {
+      musicXmlImportInputRef.current.value = "";
+    }
+  };
+
+  const readMusicXmlImport = async (file: File | null) => {
+    setMusicXmlImportDraft(null);
+    if (!file) {
+      setMusicXmlImportStatus("idle");
+      setMusicXmlImportNotice("未选择文件；没有写入或修改任何本机项目。");
+      return;
+    }
+    const extension = file.name.split(".").at(-1)?.toLowerCase();
+    if (
+      extension !== "musicxml"
+      && extension !== "xml"
+      && extension !== "mxl"
+    ) {
+      setMusicXmlImportStatus("error");
+      setMusicXmlImportNotice("请选择 .musicxml、.xml 或 .mxl 文件。");
+      return;
+    }
+    if (file.size === 0) {
+      setMusicXmlImportStatus("error");
+      setMusicXmlImportNotice("所选文件为空，未生成导入候选。");
+      return;
+    }
+    if (file.size > MAX_LOCAL_SCORE_PROJECT_IMPORT_FILE_BYTES) {
+      setMusicXmlImportStatus("error");
+      setMusicXmlImportNotice("文件超过 2 MiB 本机导入上限，未生成候选。");
+      return;
+    }
+    setMusicXmlImportStatus("reading");
+    setMusicXmlImportNotice("正在本机解析并检查受支持语义…");
+    try {
+      const sourceFormat = extension;
+      const xml = sourceFormat === "mxl"
+        ? extractMusicXMLFromMxl(new Uint8Array(await file.arrayBuffer()))
+        : await file.text();
+      let eventSequence = 0;
+      const draft = createLocalScoreProjectMusicXmlImportDraft({
+        xml,
+        fileName: file.name,
+        sourceFormat,
+        projectId: createId(),
+        now: now(),
+        createEventId: () => `import-event-${++eventSequence}`,
+      });
+      setMusicXmlImportDraft(draft);
+      setMusicXmlImportStatus(draft.status);
+      setMusicXmlImportNotice(
+        draft.status === "ready"
+          ? `候选已就绪：${draft.summary.measureCount} 小节、${draft.summary.eventCount} 个事件。请检查问题清单和谱面后明确确认。`
+          : "该文件包含当前 canonical 无法无损表达的内容，已阻止确认和保存。",
+      );
+    } catch (error) {
+      setMusicXmlImportStatus("error");
+      setMusicXmlImportNotice(
+        error instanceof Error
+          ? error.message
+          : "MusicXML/MXL 解析失败，未生成导入候选。",
+      );
+    }
+  };
+
+  const confirmMusicXmlImport = async () => {
+    if (!musicXmlImportDraft || isBusy) return;
+    setIsBusy(true);
+    setNotice(null);
+    try {
+      const project = confirmLocalScoreProjectMusicXmlImportDraft(
+        musicXmlImportDraft,
+      );
+      const result = await persistNewLocalScoreProject({
+        store: resolvedStore,
+        project,
+      });
+      if (result.status === "saved") {
+        publishProject(result.project, { resetSettings: true });
+        setMusicXmlImportDraft(null);
+        setMusicXmlImportStatus("idle");
+        if (musicXmlImportInputRef.current) {
+          musicXmlImportInputRef.current.value = "";
+        }
+        setNotice(
+          "MusicXML/MXL 候选已确认并原子保存在本机；现在打开的是保存后的 canonical 项目。",
+        );
+      } else {
+        setNotice(result.notice);
+      }
+    } catch (error) {
+      setNotice(
+        error instanceof Error
+          ? error.message
+          : "导入候选保存失败；既有项目和当前候选均保持不变。",
       );
     } finally {
       setIsBusy(false);
@@ -1129,6 +1251,128 @@ export function LocalScoreProjectPanel({
               已达到本机项目数量上限，请先删除一份不再需要的项目后再创建。
             </p>
           ) : null}
+        </section>
+
+        <section className="rounded-3xl border border-cyan-200 bg-cyan-50 p-5 text-cyan-950 shadow-sm">
+          <p className="text-sm font-semibold text-cyan-700">
+            S3 标准格式受控导入
+          </p>
+          <h2 className="mt-1 text-xl font-black">
+            导入 MusicXML／MXL 为本机谱项目
+          </h2>
+          <p className="mt-2 text-sm leading-6">
+            文件只在本机内存解析。系统先显示 canonical 候选和逐项问题清单；
+            只有你明确确认后才会尝试新增保存，不会覆盖或删除已有项目。
+          </p>
+          <label className="mt-4 block text-sm font-bold">
+            MusicXML、XML 或 MXL 文件（最大 2 MiB）
+            <input
+              ref={musicXmlImportInputRef}
+              type="file"
+              aria-label="选择要导入的 MusicXML 或 MXL"
+              accept=".musicxml,.xml,.mxl,application/vnd.recordare.musicxml+xml,application/vnd.recordare.musicxml,application/xml,text/xml"
+              disabled={musicXmlImportStatus === "reading" || isBusy}
+              onChange={(event) =>
+                void readMusicXmlImport(event.target.files?.[0] ?? null)}
+              className="mt-2 block w-full text-sm disabled:opacity-50"
+            />
+          </label>
+          <p
+            className="mt-3 rounded-xl border border-cyan-200 bg-white p-3 text-sm leading-6"
+            role="status"
+          >
+            {musicXmlImportNotice}
+          </p>
+
+          {musicXmlImportDraft ? (
+            <div
+              className="mt-3 rounded-2xl border border-cyan-200 bg-white p-4"
+              data-testid="local-score-project-musicxml-import-draft"
+            >
+              <p className="font-bold">
+                {musicXmlImportDraft.fileName} ·
+                {" "}{musicXmlImportDraft.sourceFormat.toUpperCase()}
+              </p>
+              <p className="mt-1 text-xs leading-5 text-cyan-800">
+                {musicXmlImportDraft.summary.measureCount} 小节 ·
+                {" "}{musicXmlImportDraft.summary.eventCount} 个 canonical 事件 ·
+                {" "}{musicXmlImportDraft.status === "ready"
+                  ? "可确认候选"
+                  : "已阻止确认"}
+              </p>
+              <h3 className="mt-3 text-sm font-black">导入问题清单</h3>
+              {musicXmlImportDraft.issues.length === 0 ? (
+                <p className="mt-1 text-sm leading-6 text-emerald-800">
+                  当前受支持子集没有发现需要披露的问题。
+                </p>
+              ) : (
+                <ul className="mt-2 grid gap-2 text-sm leading-6">
+                  {musicXmlImportDraft.issues.map((issue, index) => (
+                    <li
+                      key={`${issue.code}-${issue.measureNumber ?? "score"}-${index}`}
+                      className={`rounded-lg border px-3 py-2 ${
+                        issue.severity === "blocking"
+                          ? "border-rose-200 bg-rose-50 text-rose-900"
+                          : "border-amber-200 bg-amber-50 text-amber-950"
+                      }`}
+                    >
+                      {issue.severity === "blocking" ? "阻止导入" : "提示"}
+                      {issue.measureNumber
+                        ? ` · 第 ${issue.measureNumber} 小节`
+                        : ""}
+                      ：{issue.message}
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {musicXmlImportDraft.status === "ready"
+                && musicXmlImportDraft.project ? (
+                  <div className="mt-4">
+                    <LocalScoreProjectStaffPreview
+                      document={musicXmlImportDraft.project.document}
+                      target={getVoiceLocation(
+                        musicXmlImportDraft.project,
+                        null,
+                      )}
+                    />
+                  </div>
+                ) : null}
+              <div className="mt-4 flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  disabled={
+                    isBusy
+                    || sourceStatus === "unavailable"
+                    || projectCountLimitReached
+                    || musicXmlImportDraft.status !== "ready"
+                    || !musicXmlImportDraft.project
+                  }
+                  onClick={() => void confirmMusicXmlImport()}
+                  className="min-h-11 rounded-xl bg-cyan-800 px-4 py-2 text-sm font-bold text-white disabled:bg-slate-300"
+                >
+                  我已检查，确认新增并保存
+                </button>
+                <button
+                  type="button"
+                  disabled={isBusy || musicXmlImportStatus === "reading"}
+                  onClick={clearMusicXmlImport}
+                  className="min-h-11 rounded-xl border border-cyan-300 bg-white px-4 py-2 text-sm font-bold text-cyan-900 disabled:text-slate-400"
+                >
+                  清除导入候选
+                </button>
+              </div>
+              {projectCountLimitReached ? (
+                <p className="mt-2 text-sm leading-6 text-rose-800">
+                  已达到项目数量上限；候选仍保留，但必须先释放应用容量才能确认保存。
+                </p>
+              ) : null}
+            </div>
+          ) : null}
+          <p className="mt-3 text-xs leading-5 text-cyan-800">
+            当前首切片只接受能够无损映射到现有 canonical 的受控单声部子集。
+            多声部、和弦时序、复杂时值或超范围符号会明确列出并阻止确认；
+            不会静默跳过后继续保存。
+          </p>
         </section>
 
         <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">

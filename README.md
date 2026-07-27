@@ -4,7 +4,7 @@
 
 正式版 V1 的唯一范围与完成标准见 [`docs/final-release-definition-of-done.md`](docs/final-release-definition-of-done.md)，实时状态见 [`docs/final-release-status-matrix.md`](docs/final-release-status-matrix.md)，P113 之后包含伙伴系统的统一开发顺序见 [`docs/unified-development-roadmap-with-ai-music-companion-2026-07-18.md`](docs/unified-development-roadmap-with-ai-music-companion-2026-07-18.md)，Android 路线见 [`docs/android-apk-release-plan.md`](docs/android-apk-release-plan.md)，已经真实交付的阶段事实见 [`docs/mvp-status.md`](docs/mvp-status.md)。
 
-AI 音乐小伙伴与智能体已经纳入长期产品终局；能力、安全与智能体原则见 [`docs/ai-music-companion-agent-roadmap-2026-07-18.md`](docs/ai-music-companion-agent-roadmap-2026-07-18.md)，单伙伴先行、未来多伙伴以及“伙伴人格 × 学习风格”见 [`docs/ai-music-companion-single-companion-pilot-roadmap-2026-07-18.md`](docs/ai-music-companion-single-companion-pilot-roadmap-2026-07-18.md)。当前 P113 已合并，项目在规划更新后暂停；下一运行时切片仍是 P114，不代表伙伴运行时已经开始。
+AI 音乐小伙伴与智能体已经纳入长期产品终局；能力、安全与智能体原则见 [`docs/ai-music-companion-agent-roadmap-2026-07-18.md`](docs/ai-music-companion-agent-roadmap-2026-07-18.md)，单伙伴先行、未来多伙伴以及“伙伴人格 × 学习风格”见 [`docs/ai-music-companion-single-companion-pilot-roadmap-2026-07-18.md`](docs/ai-music-companion-single-companion-pilot-roadmap-2026-07-18.md)。当前已完成 S1 本机谱项目闭环及多项 S2 记谱能力，正在沿 S3 推进标准格式导入；这不表示完整格式往返、OMR 或伙伴运行时已经完成。
 
 下方“五线谱识别 MVP”章节保留早期项目背景；其中对“当前能力”的描述不应替代上述实时状态文件。
 
@@ -41,7 +41,8 @@ npm run android:build:debug
 - 支持按节奏播放钢琴音，便于试听识别结果。
 - 支持 BPM 控制，用于调整播放速度。
 - 已存在 MusicXML parser，可将受支持的 MusicXML 内容转换为当前识别结果使用的音符结构。
-- 已存在 dev-only MusicXML 导入 UI 和 dev API，用于上传 `.musicxml` / `.xml` 文件并验证解析链路。
+- 已存在 dev-only MusicXML 导入 UI 和 dev API，用于上传 `.musicxml` / `.xml` / `.mxl` 文件并验证解析链路。
+- 本机谱项目已有首个正式受控导入入口：支持明确的单声部 MusicXML／MXL 子集，先生成内存候选和 blocking ledger，用户确认后才原子新增保存。
 - 已存在 Audiveris 相关 dry-run / fixture 验证基础，但尚未成为默认识别链路。
 
 ## 早期 OMR 边界记录（历史）
@@ -57,11 +58,11 @@ npm run android:build:debug
 
 ## 下一阶段计划
 
-下一阶段将继续围绕最小可用产品迭代，优先补齐真实识别、验证链路与结果导出能力：
+下一阶段继续围绕最小可用产品迭代，先完成标准格式的受控确认链，再进入 OMR 和导出：
 
-1. 实现真实 OMR 流程，逐步替换当前 mock provider 返回的模拟音符数据。
-2. 增加 MIDI 导出能力，让识别结果可以导出为可播放文件。
-3. 完善 MusicXML 验证链路，用真实和合成样本持续校验 parser 与 UI 展示结果。
+1. 将受支持的 MusicXML/MXL 先解析为内存候选，显示问题清单并要求明确确认，再原子保存为 canonical 本机谱项目。
+2. 补齐 MusicXML/MXL 导出和独立阅读器重开验证，再扩展 MIDI 导入导出。
+3. 实现真实 OMR 流程，逐步替换当前 mock provider 返回的模拟音符数据。
 4. 评估 Audiveris 接入方式，明确是否以及如何将其纳入默认识别链路。
 5. 优化手机拍照上传体验，提升移动端拍摄、裁剪和识别前处理的可用性。
 
@@ -72,7 +73,7 @@ npm run android:build:debug
 - `dependencies`：生产运行时需要的 `next`、`react`、`react-dom`。
 - `devDependencies`：TypeScript、ESLint、Tailwind CSS、PostCSS、Autoprefixer 和类型声明等构建/开发工具。
 
-当前环境访问 npm registry 会返回 `403 Forbidden`，因此无法在本地生成 `package-lock.json`。依赖声明本身是有效的；请在能访问 npm registry 的网络环境中运行 `npm install`，生成并提交 `package-lock.json` 后再部署。
+仓库已提交 `package-lock.json`；CI 和本地验证均使用 `npm ci` 保持依赖解析一致。
 
 ## 本地运行
 

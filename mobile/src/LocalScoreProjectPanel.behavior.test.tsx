@@ -288,6 +288,78 @@ const change = async (
   await flushReact();
 };
 
+const supportedMusicXml = ({
+  extraNoteMarkup = "",
+  pitchStep = "C",
+  pitchOctave = "4",
+}: {
+  extraNoteMarkup?: string;
+  pitchStep?: string;
+  pitchOctave?: string;
+} = {}) => `<?xml version="1.0" encoding="UTF-8"?>
+<score-partwise version="4.0">
+  <part id="P1">
+    <measure number="1">
+      <attributes>
+        <divisions>2</divisions>
+        <key><fifths>0</fifths></key>
+        <time><beats>4</beats><beat-type>4</beat-type></time>
+        <clef><sign>G</sign><line>2</line></clef>
+      </attributes>
+      <note>
+        ${extraNoteMarkup}
+        <pitch><step>${pitchStep}</step><octave>${pitchOctave}</octave></pitch>
+        <duration>2</duration>
+        <voice>1</voice>
+        <type>quarter</type>
+        <staff>1</staff>
+      </note>
+      <note>
+        <rest/>
+        <duration>2</duration>
+        <voice>1</voice>
+        <type>quarter</type>
+        <staff>1</staff>
+      </note>
+    </measure>
+  </part>
+</score-partwise>`;
+
+const selectMusicXmlImportFile = async ({
+  container,
+  xml,
+  fileName,
+}: {
+  container: ParentNode;
+  xml: string;
+  fileName: string;
+}) => {
+  const input = container.querySelector<HTMLInputElement>(
+    'input[aria-label="选择要导入的 MusicXML 或 MXL"]',
+  );
+  if (!input) throw new Error("找不到本机谱项目 MusicXML 导入输入");
+  const file = new File([xml], fileName, { type: "application/xml" });
+  Object.defineProperty(file, "text", {
+    configurable: true,
+    value: async () => xml,
+  });
+  Object.defineProperty(input, "files", {
+    configurable: true,
+    value: [file],
+  });
+  await act(async () => {
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+    await Promise.resolve();
+    await Promise.resolve();
+  });
+  await waitFor(
+    () => container.querySelector(
+      "[data-testid='local-score-project-musicxml-import-draft']",
+    ) !== null,
+    `生成 ${fileName} 的内存导入候选`,
+  );
+};
+
 const renderPanel = async (store: MemoryProjectStore) => {
   const container = document.createElement("div");
   document.body.append(container);
@@ -325,6 +397,163 @@ afterEach(async () => {
 });
 
 describe("S1 本机谱项目面板", () => {
+  it("受支持 MusicXML 只生成内存候选，明确确认后才新增并打开已保存项目", async () => {
+    const store = new MemoryProjectStore();
+    const container = await renderPanel(store);
+
+    await selectMusicXmlImportFile({
+      container,
+      xml: supportedMusicXml(),
+      fileName: "受支持导入.musicxml",
+    });
+
+    expect(store.putCalls).toBe(0);
+    expect(store.values.size).toBe(0);
+    expect(container.textContent).toContain(
+      "候选已就绪：1 小节、2 个事件。请检查问题清单和谱面后明确确认。",
+    );
+    expect(container.textContent).toContain("可确认候选");
+    expect(container.textContent).toContain(
+      "当前受支持子集没有发现需要披露的问题。",
+    );
+    const confirm = findButton(container, "我已检查，确认新增并保存");
+    expect(confirm.disabled).toBe(false);
+
+    await click(confirm);
+    await waitFor(
+      () => container.textContent?.includes(
+        "MusicXML/MXL 候选已确认并原子保存在本机；现在打开的是保存后的 canonical 项目。",
+      ) ?? false,
+      "确认后原子保存并打开导入项目",
+    );
+
+    expect(store.putCalls).toBe(1);
+    expect(store.values.size).toBe(1);
+    expect(
+      container.querySelector(
+        "[data-testid='local-score-project-musicxml-import-draft']",
+      ),
+    ).toBeNull();
+    const stored = Array.from(store.values.values())[0];
+    expect(stored?.title).toBe("受支持导入");
+    expect(stored?.document.parts[0]?.staves[0]?.voices[0]?.measures[0]?.events)
+      .toMatchObject([
+        { type: "note", pitch: "C4", duration: "quarter" },
+        { type: "rest", pitch: null, duration: "quarter" },
+      ]);
+    expect(container.textContent).toContain("受支持导入");
+    expect(container.textContent).toContain("第 1 小节 · C4 · 四分音符");
+  });
+
+  it.each([
+    [
+      "IndexedDB quota",
+      new LocalScoreProjectStorageError(
+        "quota",
+        "浏览器或 Android WebView 分配给 IndexedDB 的空间不足，乐谱项目未保存。",
+      ),
+    ],
+    [
+      "事务中止",
+      new LocalScoreProjectStorageError(
+        "transaction-failed",
+        "IndexedDB 事务中止，导入项目未保存。",
+      ),
+    ],
+  ])(
+    "导入首次遭遇%s时不发布或删除旧数据并保留候选供重试",
+    async (_failureName, failure) => {
+      const store = new MemoryProjectStore();
+      const existing = createLocalScoreProject({
+        projectId: "existing-before-import",
+        title: "导入前既有项目",
+        now: "2026-07-27T06:00:00.000Z",
+      });
+      await store.put(existing, null);
+      store.putCalls = 0;
+      const existingBefore = JSON.stringify(
+        store.values.get(existing.projectId),
+      );
+      const container = await renderPanel(store);
+
+      await selectMusicXmlImportFile({
+        container,
+        xml: supportedMusicXml(),
+        fileName: "可重试导入.xml",
+      });
+      store.failNextPut = failure;
+      await click(findButton(container, "我已检查，确认新增并保存"));
+      await waitFor(
+        () => container.textContent?.includes(failure.message) ?? false,
+        `${_failureName}失败关闭`,
+      );
+
+      expect(store.putCalls).toBe(1);
+      expect(store.deleteCalls).toBe(0);
+      expect(store.values.size).toBe(1);
+      expect(JSON.stringify(store.values.get(existing.projectId)))
+        .toBe(existingBefore);
+      expect(
+        container.querySelector(
+          "[data-testid='local-score-project-musicxml-import-draft']",
+        ),
+      ).not.toBeNull();
+      expect(findButton(container, "我已检查，确认新增并保存").disabled)
+        .toBe(false);
+      expect(container.textContent).toContain("可确认候选");
+
+      await click(findButton(container, "我已检查，确认新增并保存"));
+      await waitFor(
+        () => container.textContent?.includes(
+          "MusicXML/MXL 候选已确认并原子保存在本机",
+        ) ?? false,
+        `${_failureName}恢复后重试保存`,
+      );
+      expect(store.putCalls).toBe(2);
+      expect(store.deleteCalls).toBe(0);
+      expect(store.values.size).toBe(2);
+      expect(JSON.stringify(store.values.get(existing.projectId)))
+        .toBe(existingBefore);
+      expect(container.textContent).toContain("可重试导入");
+    },
+  );
+
+  it.each([
+    [
+      "和弦",
+      supportedMusicXml({ extraNoteMarkup: "<chord/>" }),
+      "当前导入只支持单音，不能导入和弦音。",
+    ],
+    [
+      "超范围音高",
+      supportedMusicXml({ pitchStep: "G", pitchOctave: "5" }),
+      "音高 G5 超出当前自然音 C4–C5 范围。",
+    ],
+  ])(
+    "含%s的 MusicXML 显示 blocking ledger 且不能确认保存",
+    async (_caseName, xml, issueMessage) => {
+      const store = new MemoryProjectStore();
+      const container = await renderPanel(store);
+
+      await selectMusicXmlImportFile({
+        container,
+        xml,
+        fileName: `阻断-${_caseName}.musicxml`,
+      });
+
+      expect(store.putCalls).toBe(0);
+      expect(store.values.size).toBe(0);
+      expect(container.textContent).toContain(
+        "该文件包含当前 canonical 无法无损表达的内容，已阻止确认和保存。",
+      );
+      expect(container.textContent).toContain("已阻止确认");
+      expect(container.textContent).toContain("阻止导入");
+      expect(container.textContent).toContain(issueMessage);
+      expect(findButton(container, "我已检查，确认新增并保存").disabled)
+        .toBe(true);
+    },
+  );
+
   it("从原创编制模板预览并原子创建可独立编辑和重开的项目", async () => {
     const store = new MemoryProjectStore();
     const container = await renderPanel(store);
