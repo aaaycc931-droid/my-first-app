@@ -219,8 +219,8 @@ const run = async () => {
   await migrationStore.list();
   await putRawRecord({ factory: migrationFactory, value: legacyRaw });
   const migratedList = await migrationStore.list();
-  assert.equal(migratedList[0]?.schemaVersion, "local-score-project-storage-v12");
-  assert.equal(migratedList[0]?.document.schemaVersion, "score-document-v11");
+  assert.equal(migratedList[0]?.schemaVersion, "local-score-project-storage-v13");
+  assert.equal(migratedList[0]?.document.schemaVersion, "score-document-v12");
   assert.equal(migratedList[0]?.document.parts[0]?.name, "声部组 1");
   assert.deepEqual(
     migratedList[0]?.document.parts[0]?.instrument,
@@ -231,7 +231,7 @@ const run = async () => {
     store: migrationStore,
     projectId: migrationSeed.projectId,
   });
-  assert.equal(migratedLoad.project?.schemaVersion, "local-score-project-storage-v12");
+  assert.equal(migratedLoad.project?.schemaVersion, "local-score-project-storage-v13");
   assert.equal(migratedLoad.project?.tempoBpm, 90);
   assert.deepEqual(
     await getRawRecord({
@@ -263,10 +263,10 @@ const run = async () => {
   await previousStore.list();
   await putRawRecord({ factory: previousFactory, value: previousRaw });
   const previousList = await previousStore.list();
-  assert.equal(previousList[0]?.schemaVersion, "local-score-project-storage-v12");
-  assert.equal(previousList[0]?.document.schemaVersion, "score-document-v11");
+  assert.equal(previousList[0]?.schemaVersion, "local-score-project-storage-v13");
+  assert.equal(previousList[0]?.document.schemaVersion, "score-document-v12");
   const previousLoad = await previousStore.get(previousSeed.projectId);
-  assert.equal(previousLoad?.schemaVersion, "local-score-project-storage-v12");
+  assert.equal(previousLoad?.schemaVersion, "local-score-project-storage-v13");
   assert.deepEqual(
     await getRawRecord({
       factory: previousFactory,
@@ -304,9 +304,9 @@ const run = async () => {
   const storageV6List = await storageV6Store.list();
   assert.equal(
     storageV6List[0]?.schemaVersion,
-    "local-score-project-storage-v12",
+    "local-score-project-storage-v13",
   );
-  assert.equal(storageV6List[0]?.document.schemaVersion, "score-document-v11");
+  assert.equal(storageV6List[0]?.document.schemaVersion, "score-document-v12");
   assert.deepEqual(storageV6List[0]?.document.scoreCredits, {
     title: storageV6Seed.title,
     subtitle: null,
@@ -435,7 +435,7 @@ const run = async () => {
     factory: migrationFactory,
     projectId: migrationSeed.projectId,
   }) as { schemaVersion?: string; tempoBpm?: number };
-  assert.equal(migratedRaw.schemaVersion, "local-score-project-storage-v12");
+  assert.equal(migratedRaw.schemaVersion, "local-score-project-storage-v13");
   assert.equal(migratedRaw.tempoBpm, 72);
 
   const reopenedStore = createIndexedDbLocalScoreProjectStore({
@@ -557,7 +557,7 @@ const run = async () => {
     factory,
     value: {
       projectId: "future-project",
-      schemaVersion: "local-score-project-storage-v13",
+      schemaVersion: "local-score-project-storage-v14",
     },
   });
   const mixedList = await listLocalScoreProjects({
