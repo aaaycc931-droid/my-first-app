@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { DOMParser as XmlDomParser } from "@xmldom/xmldom";
 
 import {
   confirmLocalScoreProjectMusicXmlImportDraft,
@@ -9,6 +10,19 @@ import {
   LOCAL_SCORE_PROJECT_SCHEMA_VERSION,
   parseLocalScoreProject,
 } from "../lib/music/localScoreProject";
+
+if (typeof globalThis.DOMParser === "undefined") {
+  class QuietXmlDomParser extends XmlDomParser {
+    constructor() {
+      super({
+        onError: (_level, message) => {
+          throw new Error(message);
+        },
+      });
+    }
+  }
+  (globalThis as { DOMParser?: unknown }).DOMParser = QuietXmlDomParser;
+}
 
 const supportedXml = `<?xml version="1.0"?>
 <score-partwise version="4.0">
@@ -76,6 +90,25 @@ assert.deepEqual(
 assert.deepEqual(ready.project?.undoStack, []);
 assert.deepEqual(ready.project?.redoStack, []);
 assert.ok(parseLocalScoreProject(ready.project));
+
+let metadataEventSequence = 0;
+const metadataReady = createLocalScoreProjectMusicXmlImportDraft({
+  xml: supportedXml
+    .replace(
+      "<score-partwise version=\"4.0\">",
+      "<score-partwise version=\"4.0\"><work><work-title>标题 &amp; 练习 &#x97F3;</work-title></work>",
+    )
+    .replace("<part-name>练习</part-name>", "<part-name>钢琴 &lt;主部&gt;</part-name>"),
+  fileName: "文件名不应覆盖标题.musicxml",
+  sourceFormat: "musicxml",
+  projectId: "import-project-metadata",
+  now: "2026-07-27T08:00:00.000Z",
+  createEventId: () => `metadata-event-${++metadataEventSequence}`,
+});
+assert.equal(metadataReady.status, "ready");
+assert.equal(metadataReady.project?.title, "标题 & 练习 音");
+assert.equal(metadataReady.project?.document.scoreCredits.title, "标题 & 练习 音");
+assert.equal(metadataReady.project?.document.parts[0]?.name, "钢琴 <主部>");
 
 eventSequence = 0;
 const mxlEquivalent = createLocalScoreProjectMusicXmlImportDraft({
@@ -270,5 +303,71 @@ assert.ok(
     (issue) => issue.code === "invalid-measure-number",
   ),
 );
+
+for (const malformedXml of [
+  supportedXml.replace("<part-name>练习</part-name>", "<part-name>A & B</part-name>"),
+  supportedXml.replace("</part-name>", "</part-name-broken>"),
+  supportedXml.slice(0, -20),
+]) {
+  const malformedDraft = createLocalScoreProjectMusicXmlImportDraft({
+    xml: malformedXml,
+    fileName: "malformed.musicxml",
+    sourceFormat: "musicxml",
+    projectId: "blocked-malformed",
+    now: "2026-07-27T08:20:00.000Z",
+    createEventId: () => "unused-event",
+  });
+  assert.equal(malformedDraft.status, "blocked");
+  assert.ok(
+    malformedDraft.issues.some((issue) => issue.code === "malformed-xml"),
+    "非良构 XML 必须失败关闭",
+  );
+}
+
+for (const [unsupportedXml, code] of [
+  [
+    supportedXml.replace(
+      "<part-list>",
+      "<identification><creator type=\"composer\">作者</creator><rights>保留权利</rights></identification><part-list>",
+    ),
+    "unsupported-root-element",
+  ],
+  [
+    supportedXml.replace(
+      "</part-name>",
+      "</part-name><score-instrument id=\"P1-I1\"><instrument-name>Piano</instrument-name></score-instrument>",
+    ),
+    "unsupported-score-part-element",
+  ],
+  [
+    supportedXml.replace('<part id="P1">', '<part id="P2">'),
+    "invalid-part-reference",
+  ],
+  [
+    supportedXml.replace(
+      '<measure number="1">',
+      '<direction><direction-type><words>Allegro</words></direction-type></direction><measure number="1">',
+    ),
+    "unsupported-part-element",
+  ],
+  [
+    supportedXml.replace("<part-name>练习</part-name>", ""),
+    "unsupported-part-name-count",
+  ],
+] as const) {
+  const unsupportedDraft = createLocalScoreProjectMusicXmlImportDraft({
+    xml: unsupportedXml,
+    fileName: "unsupported-metadata.musicxml",
+    sourceFormat: "musicxml",
+    projectId: `blocked-${code}`,
+    now: "2026-07-27T08:25:00.000Z",
+    createEventId: () => "unused-event",
+  });
+  assert.equal(unsupportedDraft.status, "blocked");
+  assert.ok(
+    unsupportedDraft.issues.some((issue) => issue.code === code),
+    `根级 MusicXML 语义不得静默丢失：${code}`,
+  );
+}
 
 console.log("Local score project MusicXML import tests passed.");

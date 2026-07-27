@@ -57,6 +57,13 @@ import {
   createLocalScoreProjectMusicXmlImportDraft,
   type LocalScoreProjectMusicXmlImportDraft,
 } from "../../lib/music/localScoreProjectMusicXmlImport";
+import {
+  confirmLocalScoreProjectMusicXmlExportDraft,
+  createLocalScoreProjectMusicXmlExportDraft,
+  type LocalScoreProjectMusicXmlExportDraft,
+  type LocalScoreProjectMusicXmlExportFormat,
+  type LocalScoreProjectMusicXmlExportIssue,
+} from "../../lib/music/localScoreProjectMusicXmlExport";
 import { extractMusicXMLFromMxl } from "../../lib/musicxml/mxlExtractor";
 import type {
   LocalScoreProjectClefV3,
@@ -68,6 +75,7 @@ import type {
   LocalScoreProjectKeySignatureV3,
   LocalScoreProjectPartInstrumentV1,
 } from "../../lib/music/scoreDocument";
+
 import {
   notationDurations,
   notationPitches,
@@ -87,6 +95,16 @@ import {
   type LocalScoreProjectStore,
 } from "./runtime/localScoreProjectStorage";
 import { useLocalScoreProjectAutosave } from "./useLocalScoreProjectAutosave";
+
+const formatMusicXmlExportIssueLocation = (
+  issue: LocalScoreProjectMusicXmlExportIssue,
+) => [
+  issue.partIndex === undefined ? null : `part ${issue.partIndex + 1}`,
+  issue.staffIndex === undefined ? null : `staff ${issue.staffIndex + 1}`,
+  issue.voiceIndex === undefined ? null : `voice ${issue.voiceIndex + 1}`,
+  issue.measureNumber === undefined ? null : `measure ${issue.measureNumber}`,
+  issue.eventId === undefined ? null : `event ${issue.eventId}`,
+].filter(Boolean).join(" · ");
 
 type EditorEventType = "note" | "rest";
 type ScorePreviewMode = "staff" | "numbered";
@@ -546,6 +564,10 @@ export function LocalScoreProjectPanel({
     "选择 MusicXML、XML 或 MXL 后会先生成内存候选；确认前不会写入项目列表。",
   );
   const musicXmlImportInputRef = useRef<HTMLInputElement | null>(null);
+  const [musicXmlExportDraft, setMusicXmlExportDraft] =
+    useState<LocalScoreProjectMusicXmlExportDraft | null>(null);
+  const [musicXmlExportFormat, setMusicXmlExportFormat] =
+    useState<LocalScoreProjectMusicXmlExportFormat>("musicxml");
 
   const refreshProjects = useCallback(async () => {
     setIsBusy(true);
@@ -591,6 +613,7 @@ export function LocalScoreProjectPanel({
     const nextMeasures = getVoiceMeasures(project, nextLocation);
     const nextEvents = getVoiceEvents(project, nextLocation);
     setCurrentProject(project);
+    setMusicXmlExportDraft(null);
     selectedVoiceLocationRef.current = nextLocation;
     setSelectedVoiceLocation(nextLocation);
     setPartNameDraft(
@@ -813,6 +836,91 @@ export function LocalScoreProjectPanel({
       );
     } finally {
       setIsBusy(false);
+    }
+  };
+
+  const inspectMusicXmlExport = () => {
+    if (!currentProject || structureMutationDisabled) return;
+    setNotice(null);
+    try {
+      const draft = createLocalScoreProjectMusicXmlExportDraft({
+        project: currentProject,
+      });
+      setMusicXmlExportDraft(draft);
+      const formatLabel = musicXmlExportFormat === "mxl"
+        ? "MXL"
+        : "MusicXML";
+      setNotice(
+        draft.status === "ready"
+          ? `${formatLabel} 导出候选已就绪：${draft.summary.measureCount} 小节、${draft.summary.eventCount} 个事件。当前候选仅保存在内存中，确认前不会创建下载文件。`
+          : "当前项目包含本切片无法无损往返的内容，已阻止下载。",
+      );
+    } catch (error) {
+      setMusicXmlExportDraft(null);
+      setNotice(
+        error instanceof Error
+          ? error.message
+          : "无法生成 MusicXML/MXL 导出候选。",
+      );
+    }
+  };
+
+  const downloadMusicXmlExport = (
+    format: LocalScoreProjectMusicXmlExportFormat,
+  ) => {
+    if (
+      !currentProject
+      || !musicXmlExportDraft
+      || structureMutationDisabled
+    ) return;
+    let objectUrl: string | null = null;
+    try {
+      const confirmed = confirmLocalScoreProjectMusicXmlExportDraft({
+        draft: musicXmlExportDraft,
+        currentProject,
+        format,
+      });
+      const content = typeof confirmed.data === "string"
+        ? confirmed.data
+        : confirmed.data.slice().buffer;
+      objectUrl = URL.createObjectURL(new Blob(
+        [content],
+        { type: confirmed.mimeType },
+      ));
+      const anchor = document.createElement("a");
+      anchor.href = objectUrl;
+      anchor.download = confirmed.fileName;
+      anchor.hidden = true;
+      document.body.append(anchor);
+      try {
+        anchor.click();
+      } finally {
+        anchor.remove();
+      }
+      setNotice(
+        `${confirmed.fileName} 已在本机生成下载；项目、修订和历史没有变化。`,
+      );
+    } catch (error) {
+      setNotice(
+        error instanceof Error
+          ? error.message
+          : "本机下载启动失败；导出候选和项目均保持不变。",
+      );
+    } finally {
+      if (objectUrl) {
+        const urlToRevoke = objectUrl;
+        window.setTimeout(() => {
+          try {
+            URL.revokeObjectURL(urlToRevoke);
+          } catch (error) {
+            setNotice(
+              error instanceof Error
+                ? `无法回收导出下载 URL：${error.message}；候选和项目均保持不变。`
+                : "无法回收导出下载 URL；候选和项目均保持不变。",
+            );
+          }
+        }, 0);
+      }
     }
   };
 
@@ -1521,6 +1629,128 @@ export function LocalScoreProjectPanel({
               </div>
             </div>
           ) : null}
+        <section
+          className="mt-4 rounded-2xl border border-cyan-200 bg-cyan-50 p-4"
+          aria-labelledby="local-score-project-musicxml-export-heading"
+        >
+          <p className="text-xs font-semibold text-cyan-700">
+            S3 标准格式受控导出
+          </p>
+          <h2
+            id="local-score-project-musicxml-export-heading"
+            className="mt-1 text-lg font-black text-cyan-950"
+          >
+            检查并导出 MusicXML／MXL
+          </h2>
+          <p className="mt-2 text-sm leading-6 text-cyan-950">
+            系统先检查当前已保存修订并生成内存候选。只有当前严格子集能够无损往返时，
+            才能由你明确确认下载；检查和下载都不会修改项目、历史或本机存储。
+          </p>
+          <button
+            type="button"
+            disabled={structureMutationDisabled}
+            onClick={inspectMusicXmlExport}
+            className="mt-3 min-h-11 rounded-xl bg-cyan-800 px-4 py-2 text-sm font-bold text-white disabled:bg-slate-300"
+          >
+            检查 MusicXML/MXL 导出
+          </button>
+          <label className="mt-3 block text-sm font-bold text-cyan-950">
+            导出格式
+            <select
+              value={musicXmlExportFormat}
+              disabled={structureMutationDisabled}
+              onChange={(event) => {
+                setMusicXmlExportFormat(
+                  event.target.value as LocalScoreProjectMusicXmlExportFormat,
+                );
+                setMusicXmlExportDraft(null);
+                setNotice("导出格式已切换，请重新检查当前已保存修订。");
+              }}
+              className="mt-2 min-h-11 w-full rounded-xl border border-cyan-200 bg-white px-3 py-2 disabled:bg-slate-100"
+            >
+              <option value="musicxml">MusicXML（.musicxml）</option>
+              <option value="mxl">压缩 MusicXML（.mxl）</option>
+            </select>
+          </label>
+          {structureMutationDisabled ? (
+            <p className="mt-2 text-xs leading-5 text-cyan-800">
+              请先停止播放并完成名称/速度自动保存或恢复候选处理，再检查已保存修订。
+            </p>
+          ) : null}
+          {musicXmlExportDraft ? (
+            <div
+              className="mt-3 rounded-xl border border-cyan-200 bg-white p-3"
+              data-testid="local-score-project-musicxml-export-draft"
+            >
+              <p className="text-sm font-bold text-cyan-950">
+                修订 {musicXmlExportDraft.sourceRevision} ·
+                {" "}{musicXmlExportDraft.summary.measureCount} 小节 ·
+                {" "}{musicXmlExportDraft.summary.eventCount} 个事件 ·
+                {" "}{musicXmlExportDraft.status === "ready"
+                  ? "可确认下载"
+                  : "已阻止导出"}
+              </p>
+              {musicXmlExportDraft.fileNames && musicXmlExportDraft.byteSizes ? (
+                <p className="mt-1 text-xs leading-5 text-cyan-800">
+                  当前格式：{musicXmlExportFormat === "mxl" ? "MXL" : "MusicXML"} ·
+                  {" "}{musicXmlExportDraft.fileNames[musicXmlExportFormat]} ·
+                  {" "}{musicXmlExportDraft.byteSizes[musicXmlExportFormat]} bytes
+                </p>
+              ) : null}
+              <h3 className="mt-3 text-sm font-black text-cyan-950">
+                导出问题清单
+              </h3>
+              {musicXmlExportDraft.issues.length === 0 ? (
+                <p className="mt-1 text-sm leading-6 text-emerald-800">
+                  当前保存修订符合本切片无损往返子集。
+                </p>
+              ) : (
+                <ul className="mt-2 grid gap-2">
+                  {musicXmlExportDraft.issues.map((issue, index) => (
+                    <li
+                      key={`${issue.code}-${index}`}
+                      className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm leading-6 text-rose-900"
+                    >
+                      阻止导出 · {issue.code}：{issue.message}
+                      {formatMusicXmlExportIssueLocation(issue)
+                        ? `（${formatMusicXmlExportIssueLocation(issue)}）`
+                        : null}
+                    </li>
+                  ))}
+                </ul>
+              )}
+              <div className="mt-3 flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  disabled={
+                    structureMutationDisabled
+                    || musicXmlExportDraft.status !== "ready"
+                  }
+                  onClick={() => downloadMusicXmlExport(musicXmlExportFormat)}
+                  className="min-h-11 rounded-xl bg-cyan-800 px-4 py-2 text-sm font-bold text-white disabled:bg-slate-300"
+                >
+                  确认下载 {musicXmlExportFormat === "mxl"
+                    ? ".mxl"
+                    : ".musicxml"}
+                </button>
+                <button
+                  type="button"
+                  disabled={isBusy}
+                  onClick={() => {
+                    setMusicXmlExportDraft(null);
+                    setNotice("导出候选已清除；没有生成下载或修改项目。");
+                  }}
+                  className="min-h-11 rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-bold text-slate-700 disabled:text-slate-400"
+                >
+                  清除导出候选
+                </button>
+              </div>
+            </div>
+          ) : null}
+          <p className="mt-3 text-xs leading-5 text-cyan-800">
+            自动重开只证明仓库内部受控 round-trip；MuseScore 等第三方阅读器验证尚未执行。
+          </p>
+        </section>
         {selectedVoice && selectedPart ? (
           <div className="mt-4 rounded-2xl border border-teal-100 bg-teal-50 p-4">
             <h2 className="text-base font-black">编辑目标</h2>
@@ -2658,6 +2888,7 @@ export function LocalScoreProjectPanel({
             setSelectedVoiceLocation(null);
             setSelectedEvent(null);
             setCopiedEvent(null);
+            setMusicXmlExportDraft(null);
             setTargetMeasureNumber(1);
             setTransportMode("idle");
             setNotice(null);

@@ -29,6 +29,8 @@ QA level recommendation：**strict**
   `META-INF/container.xml`、不存在的 rootfile、损坏 archive、找不到有效
   `score-partwise`／`score-timewise` XML 均失败关闭。
 - 解析失败不得创建项目、修改既有项目、写入恢复候选或保留部分 canonical 数据。
+- 输入必须先通过严格 XML 良构校验；裸 `&`、非法实体、错配／缺失闭合标签和截断
+  文档均以 `malformed-xml` 失败关闭，不能依赖宽松正则恢复后继续。
 
 应用规定的 2 MiB 输入限制和 4 MiB 解压限制必须与浏览器／IndexedDB 物理 quota、
 单次事务失败、项目迁移失败分别呈现，不能使用同一个模糊“空间不足”结论。
@@ -41,6 +43,9 @@ QA level recommendation：**strict**
   进入候选。
 - 所有不支持、无法确定、值域非法、会被忽略、会被截断或会改变音乐语义的元素，一律
   记录为 **blocking**；不得自动丢弃、默认修复、降级为非阻塞 warning 或宣称导入成功。
+- 根级、`work`、`part-list` 与 `score-part` 同样采用显式白名单；creator、rights、
+  instrument、movement、credit 等未映射元数据必须 blocking，`score-part` 与 `part`
+  的非空 ID 必须一致。
 - blocking 项应包含稳定 code、元素类型与原因，并在可用时包含 measure；无法定位到
   具体小节时也必须提供文件级原因。
 - 只要存在任意 blocking 项，“确认并保存”保持禁用，并显示简体中文 disabled reason。
@@ -85,7 +90,8 @@ QA level recommendation：**strict**
 - `.musicxml` 与 `.xml` 的受支持最小 fixture 生成等价 canonical；
 - 同一内容的 `.mxl` 与未压缩 XML 生成等价候选；
 - 音符、休止符、小节边界及当前明确支持的谱号／调号／拍号无静默丢失；
-- 空文件、2 MiB 超限、损坏 XML／archive、100 entries 超限、4 MiB 解压超限、
+- 空文件、2 MiB 超限、非良构／损坏 XML／archive、根级未映射语义、part ID 不一致、
+  100 entries 超限、4 MiB 解压超限、
   container/rootfile 异常和路径穿越全部失败关闭；
 - 每类未支持元素形成 blocking ledger，任一 blocking 项阻止确认和保存；
 - 清除、替换、重新解析及候选修改使旧确认 stale；
@@ -118,3 +124,7 @@ QA level recommendation：**strict**
 
 本切片只是 S3 的第一个受控导入纵向切片，不代表完整 MusicXML 标准、MIDI、导出、
 round-trip、OMR、教师审核、真机验收或正式版 V1 已完成。
+
+后续同一严格子集的受控导出边界见
+`docs/s3-local-score-project-musicxml-export-acceptance.md`；该后续切片不改变本文件的
+导入验收范围，也不能反向把本切片描述为已经完成导出或第三方阅读器验证。

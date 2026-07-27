@@ -1,0 +1,629 @@
+import {
+  parseLocalScoreProject,
+  serializeLocalScoreProject,
+  type LocalScoreProjectV1,
+} from "./localScoreProject";
+import type { LocalScoreProjectEventV9 } from "./scoreDocument";
+import {
+  createMusicXmlMxlArchive,
+  MUSICXML_MIME_TYPE,
+  MXL_MIME_TYPE,
+} from "../musicxml/mxlWriter";
+
+export const LOCAL_SCORE_PROJECT_MUSICXML_EXPORT_MAX_BYTES = 2 * 1024 * 1024;
+
+export type LocalScoreProjectMusicXmlExportFormat = "musicxml" | "mxl";
+
+export type LocalScoreProjectMusicXmlExportIssue = Readonly<{
+  code: string;
+  severity: "blocking";
+  message: string;
+  partIndex?: number;
+  staffIndex?: number;
+  voiceIndex?: number;
+  measureNumber?: number;
+  eventId?: string;
+}>;
+
+export type LocalScoreProjectMusicXmlExportDraft = Readonly<{
+  status: "ready" | "blocked";
+  sourceProjectId: string;
+  sourceRevision: number;
+  sourceFingerprint: string | null;
+  issues: readonly LocalScoreProjectMusicXmlExportIssue[];
+  summary: Readonly<{
+    partCount: number;
+    staffCount: number;
+    voiceCount: number;
+    measureCount: number;
+    eventCount: number;
+  }>;
+  xml: string | null;
+  fileNames: Readonly<{
+    musicxml: string;
+    mxl: string;
+  }> | null;
+  byteSizes: Readonly<{
+    musicxml: number;
+    mxl: number;
+  }> | null;
+}>;
+
+export type LocalScoreProjectMusicXmlExportPayload = Readonly<{
+  fileName: string;
+  mimeType: typeof MUSICXML_MIME_TYPE | typeof MXL_MIME_TYPE;
+  data: string | Uint8Array;
+}>;
+
+const UINT64_MASK = BigInt("0xffffffffffffffff");
+const FNV_64_PRIME = BigInt("0x00000100000001b3");
+const FNV_64_OFFSET_A = BigInt("0xcbf29ce484222325");
+const FNV_64_OFFSET_B = BigInt("0x84222325cbf29ce4");
+const utf8Encoder = new TextEncoder();
+const durationToMusicXml = {
+  eighth: { duration: 1, type: "eighth", beats: 0.5 },
+  quarter: { duration: 2, type: "quarter", beats: 1 },
+  half: { duration: 4, type: "half", beats: 2 },
+} as const;
+
+const blockingIssue = (
+  code: string,
+  message: string,
+  location: Omit<
+    LocalScoreProjectMusicXmlExportIssue,
+    "code" | "severity" | "message"
+  > = {},
+): LocalScoreProjectMusicXmlExportIssue => ({
+  code,
+  severity: "blocking",
+  message,
+  ...location,
+});
+
+const fnv1a64Utf16Le = (value: string, offset: bigint) => {
+  let hash = offset;
+  for (let index = 0; index < value.length; index += 1) {
+    const codeUnit = value.charCodeAt(index);
+    hash ^= BigInt(codeUnit & 0xff);
+    hash = hash * FNV_64_PRIME & UINT64_MASK;
+    hash ^= BigInt(codeUnit >>> 8);
+    hash = hash * FNV_64_PRIME & UINT64_MASK;
+  }
+  return hash.toString(16).padStart(16, "0");
+};
+
+const getProjectFingerprint = (project: LocalScoreProjectV1) => {
+  const canonical = serializeLocalScoreProject(project);
+  return `local-score-project-musicxml-export-v1:${fnv1a64Utf16Le(canonical, FNV_64_OFFSET_A)}:${fnv1a64Utf16Le(canonical, FNV_64_OFFSET_B)}`;
+};
+
+const escapeXmlText = (value: string) => value
+  .replaceAll("&", "&amp;")
+  .replaceAll("<", "&lt;")
+  .replaceAll(">", "&gt;")
+  .replaceAll("\"", "&quot;")
+  .replaceAll("'", "&apos;");
+
+const getSafeFileBaseName = (title: string) => {
+  const sanitized = title
+    .replace(/[\u0000-\u001f\u007f<>:"/\\|?*]/g, "_")
+    .replace(/[.\s]+$/g, "")
+    .trim()
+    .slice(0, 80);
+  return sanitized || "本机乐谱";
+};
+
+const getEventLocation = ({
+  partIndex,
+  staffIndex,
+  voiceIndex,
+  measureNumber,
+  eventId,
+}: {
+  partIndex: number;
+  staffIndex: number;
+  voiceIndex: number;
+  measureNumber: number;
+  eventId: string;
+}) => ({
+  partIndex,
+  staffIndex,
+  voiceIndex,
+  measureNumber,
+  eventId,
+});
+
+const addEventIssues = ({
+  event,
+  issues,
+  partIndex,
+  staffIndex,
+  voiceIndex,
+  measureNumber,
+}: {
+  event: LocalScoreProjectEventV9;
+  issues: LocalScoreProjectMusicXmlExportIssue[];
+  partIndex: number;
+  staffIndex: number;
+  voiceIndex: number;
+  measureNumber: number;
+}) => {
+  const location = getEventLocation({
+    partIndex,
+    staffIndex,
+    voiceIndex,
+    measureNumber,
+    eventId: event.id,
+  });
+  if (event.augmentationDots !== 0) {
+    issues.push(blockingIssue(
+      "unsupported-augmentation-dot",
+      "当前导出不支持附点时值。",
+      location,
+    ));
+  }
+  if (event.chordSymbol !== null) {
+    issues.push(blockingIssue(
+      "unsupported-chord-symbol",
+      "当前导出不支持和弦标记。",
+      location,
+    ));
+  }
+  if (event.dynamicMark !== null) {
+    issues.push(blockingIssue(
+      "unsupported-dynamic",
+      "当前导出不支持力度记号。",
+      location,
+    ));
+  }
+  if (event.damperPedalMark !== null) {
+    issues.push(blockingIssue(
+      "unsupported-damper-pedal",
+      "当前导出不支持制音踏板记号。",
+      location,
+    ));
+  }
+  if (event.fermataMark !== null) {
+    issues.push(blockingIssue(
+      "unsupported-fermata",
+      "当前导出不支持延长记号。",
+      location,
+    ));
+  }
+  if (event.type === "rest") {
+    if (event.duration !== "quarter") {
+      issues.push(blockingIssue(
+        "unsupported-rest-duration",
+        "当前导出只支持四分休止符。",
+        location,
+      ));
+    }
+    return;
+  }
+  if (event.tieToNext) {
+    issues.push(blockingIssue(
+      "unsupported-tie",
+      "当前导出不支持延音线。",
+      location,
+    ));
+  }
+  if (event.slurToNext) {
+    issues.push(blockingIssue(
+      "unsupported-slur",
+      "当前导出不支持圆滑线。",
+      location,
+    ));
+  }
+  if (event.lyric !== null) {
+    issues.push(blockingIssue(
+      "unsupported-lyric",
+      "当前导出不支持歌词。",
+      location,
+    ));
+  }
+  if (event.fingering !== null) {
+    issues.push(blockingIssue(
+      "unsupported-fingering",
+      "当前导出不支持指法。",
+      location,
+    ));
+  }
+  if (event.articulations.length > 0) {
+    issues.push(blockingIssue(
+      "unsupported-articulation",
+      "当前导出不支持演奏法。",
+      location,
+    ));
+  }
+};
+
+const renderNote = (event: LocalScoreProjectEventV9) => {
+  const duration = durationToMusicXml[event.duration];
+  if (event.type === "rest") {
+    return `      <note>
+        <rest/>
+        <duration>${duration.duration}</duration>
+        <voice>1</voice>
+        <type>${duration.type}</type>
+        <staff>1</staff>
+      </note>`;
+  }
+  const step = event.pitch.slice(0, 1);
+  const octave = event.pitch.slice(1);
+  return `      <note>
+        <pitch>
+          <step>${step}</step>
+          <octave>${octave}</octave>
+        </pitch>
+        <duration>${duration.duration}</duration>
+        <voice>1</voice>
+        <type>${duration.type}</type>
+        <staff>1</staff>
+      </note>`;
+};
+
+const renderMusicXml = (project: LocalScoreProjectV1) => {
+  const part = project.document.parts[0];
+  const staff = part.staves[0];
+  const voice = staff.voices[0];
+  const clef = staff.clef === "treble"
+    ? { sign: "G", line: 2 }
+    : { sign: "F", line: 4 };
+  const [beats, beatType] = project.document.meter.split("/");
+  const measures = voice.measures.map((measure, measureIndex) => {
+    const attributes = measureIndex === 0
+      ? `      <attributes>
+        <divisions>2</divisions>
+        <key><fifths>${project.document.keySignature.fifths}</fifths></key>
+        <time><beats>${beats}</beats><beat-type>${beatType}</beat-type></time>
+        <staves>1</staves>
+        <clef><sign>${clef.sign}</sign><line>${clef.line}</line></clef>
+      </attributes>
+`
+      : "";
+    const events = measure.events.map(renderNote).join("\n");
+    return `    <measure number="${measure.measureNumber}">
+${attributes}${events}${events ? "\n" : ""}    </measure>`;
+  }).join("\n");
+
+  return `<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE score-partwise PUBLIC "-//Recordare//DTD MusicXML 4.0 Partwise//EN" "http://www.musicxml.org/dtds/partwise.dtd">
+<score-partwise version="4.0">
+  <work>
+    <work-title>${escapeXmlText(project.document.scoreCredits.title)}</work-title>
+  </work>
+  <part-list>
+    <score-part id="P1">
+      <part-name>${escapeXmlText(part.name)}</part-name>
+    </score-part>
+  </part-list>
+  <part id="P1">
+${measures}
+  </part>
+</score-partwise>
+`;
+};
+
+export const createLocalScoreProjectMusicXmlExportDraft = ({
+  project,
+}: {
+  project: LocalScoreProjectV1;
+}): LocalScoreProjectMusicXmlExportDraft => {
+  const parsedProject = parseLocalScoreProject(project);
+  const summary = {
+    partCount: parsedProject?.document.parts.length ?? 0,
+    staffCount: parsedProject?.document.parts.reduce(
+      (count, part) => count + part.staves.length,
+      0,
+    ) ?? 0,
+    voiceCount: parsedProject?.document.parts.reduce(
+      (count, part) => count + part.staves.reduce(
+        (staffCount, staff) => staffCount + staff.voices.length,
+        0,
+      ),
+      0,
+    ) ?? 0,
+    measureCount: parsedProject?.document.parts.reduce(
+      (count, part) => count + part.staves.reduce(
+        (staffCount, staff) => staffCount + staff.voices.reduce(
+          (voiceCount, voice) => voiceCount + voice.measures.length,
+          0,
+        ),
+        0,
+      ),
+      0,
+    ) ?? 0,
+    eventCount: parsedProject?.document.parts.reduce(
+      (count, part) => count + part.staves.reduce(
+        (staffCount, staff) => staffCount + staff.voices.reduce(
+          (voiceCount, voice) => voiceCount + voice.measures.reduce(
+            (measureCount, measure) => measureCount + measure.events.length,
+            0,
+          ),
+          0,
+        ),
+        0,
+      ),
+      0,
+    ) ?? 0,
+  };
+  const issues: LocalScoreProjectMusicXmlExportIssue[] = [];
+  if (!parsedProject) {
+    return {
+      status: "blocked",
+      sourceProjectId: project.projectId,
+      sourceRevision: project.document.revision,
+      sourceFingerprint: null,
+      issues: [blockingIssue(
+        "invalid-canonical-project",
+        "本机谱项目未通过当前 canonical 结构校验，不能导出。",
+      )],
+      summary,
+      xml: null,
+      fileNames: null,
+      byteSizes: null,
+    };
+  }
+
+  if (parsedProject.title !== parsedProject.document.scoreCredits.title) {
+    issues.push(blockingIssue(
+      "unsupported-distinct-score-title",
+      "当前导出要求项目名称与谱面标题一致，避免 round-trip 后静默丢失名称。",
+    ));
+  }
+  if (parsedProject.tempoBpm !== 90) {
+    issues.push(blockingIssue(
+      "unsupported-tempo",
+      "当前导出只支持 90 BPM；其他速度不会被静默丢失。",
+    ));
+  }
+  if (parsedProject.document.scoreCredits.subtitle !== null) {
+    issues.push(blockingIssue(
+      "unsupported-subtitle",
+      "当前导出不支持非空副标题。",
+    ));
+  }
+  if (parsedProject.document.scoreCredits.creators.length > 0) {
+    issues.push(blockingIssue(
+      "unsupported-creators",
+      "当前导出不支持作曲、作词或编曲署名。",
+    ));
+  }
+  if (parsedProject.document.scoreCredits.rightsNotice !== null) {
+    issues.push(blockingIssue(
+      "unsupported-rights-notice",
+      "当前导出不支持非空版权声明。",
+    ));
+  }
+  if (parsedProject.document.parts.length !== 1) {
+    issues.push(blockingIssue(
+      "unsupported-part-count",
+      `当前导出只支持一个 part；项目包含 ${parsedProject.document.parts.length} 个。`,
+    ));
+  }
+
+  parsedProject.document.parts.forEach((part, partIndex) => {
+    if (part.instrument.kind !== "unassigned") {
+      issues.push(blockingIssue(
+        "unsupported-instrument",
+        "当前导出只支持未指定乐器的声部组。",
+        { partIndex },
+      ));
+    }
+    if (part.staves.length !== 1) {
+      issues.push(blockingIssue(
+        "unsupported-staff-count",
+        `当前导出每个 part 只支持一个 staff；第 ${partIndex + 1} 个 part 包含 ${part.staves.length} 个。`,
+        { partIndex },
+      ));
+    }
+    part.staves.forEach((staff, staffIndex) => {
+      if (staff.voices.length !== 1) {
+        issues.push(blockingIssue(
+          "unsupported-voice-count",
+          `当前导出每个 staff 只支持一个 voice；当前 staff 包含 ${staff.voices.length} 个。`,
+          { partIndex, staffIndex },
+        ));
+      }
+      staff.voices.forEach((voice, voiceIndex) => {
+        let previousMeasureNumber = 0;
+        voice.measures.forEach((measure) => {
+          if (measure.measureNumber <= previousMeasureNumber) {
+            issues.push(blockingIssue(
+              "unordered-measures",
+              "当前导出要求小节编号严格递增。",
+              {
+                partIndex,
+                staffIndex,
+                voiceIndex,
+                measureNumber: measure.measureNumber,
+              },
+            ));
+          }
+          previousMeasureNumber = measure.measureNumber;
+          let occupiedBeats = 0;
+          measure.events.forEach((event) => {
+            addEventIssues({
+              event,
+              issues,
+              partIndex,
+              staffIndex,
+              voiceIndex,
+              measureNumber: measure.measureNumber,
+            });
+            occupiedBeats += durationToMusicXml[event.duration].beats;
+          });
+          const measureCapacity = Number(parsedProject.document.meter.split("/")[0]);
+          if (occupiedBeats > measureCapacity) {
+            issues.push(blockingIssue(
+              "overfull-measure",
+              `第 ${measure.measureNumber} 小节共 ${occupiedBeats} 拍，超过 ${parsedProject.document.meter} 容量。`,
+              { partIndex, staffIndex, voiceIndex, measureNumber: measure.measureNumber },
+            ));
+          }
+        });
+      });
+    });
+  });
+  if (summary.eventCount === 0) {
+    issues.push(blockingIssue(
+      "missing-events",
+      "项目没有可导出的音符或休止符。",
+    ));
+  }
+
+  const sourceFingerprint = getProjectFingerprint(parsedProject);
+  if (issues.length > 0) {
+    return {
+      status: "blocked",
+      sourceProjectId: parsedProject.projectId,
+      sourceRevision: parsedProject.document.revision,
+      sourceFingerprint,
+      issues,
+      summary,
+      xml: null,
+      fileNames: null,
+      byteSizes: null,
+    };
+  }
+
+  const xml = renderMusicXml(parsedProject);
+  const musicXmlByteSize = utf8Encoder.encode(xml).byteLength;
+  if (musicXmlByteSize > LOCAL_SCORE_PROJECT_MUSICXML_EXPORT_MAX_BYTES) {
+    return {
+      status: "blocked",
+      sourceProjectId: parsedProject.projectId,
+      sourceRevision: parsedProject.document.revision,
+      sourceFingerprint,
+      issues: [blockingIssue(
+        "musicxml-size-limit",
+        "生成的 MusicXML 超过 2 MiB，未生成导出候选。",
+      )],
+      summary,
+      xml: null,
+      fileNames: null,
+      byteSizes: null,
+    };
+  }
+  let mxl: Uint8Array;
+  try {
+    mxl = createMusicXmlMxlArchive(xml);
+  } catch {
+    return {
+      status: "blocked",
+      sourceProjectId: parsedProject.projectId,
+      sourceRevision: parsedProject.document.revision,
+      sourceFingerprint,
+      issues: [blockingIssue(
+        "mxl-generation-failed",
+        "无法在本机生成完整 MXL，未生成导出候选。",
+      )],
+      summary,
+      xml: null,
+      fileNames: null,
+      byteSizes: null,
+    };
+  }
+  if (mxl.byteLength > LOCAL_SCORE_PROJECT_MUSICXML_EXPORT_MAX_BYTES) {
+    return {
+      status: "blocked",
+      sourceProjectId: parsedProject.projectId,
+      sourceRevision: parsedProject.document.revision,
+      sourceFingerprint,
+      issues: [blockingIssue(
+        "mxl-size-limit",
+        "生成的 MXL 超过 2 MiB，未生成导出候选。",
+      )],
+      summary,
+      xml: null,
+      fileNames: null,
+      byteSizes: null,
+    };
+  }
+  const baseName = getSafeFileBaseName(parsedProject.title);
+  return {
+    status: "ready",
+    sourceProjectId: parsedProject.projectId,
+    sourceRevision: parsedProject.document.revision,
+    sourceFingerprint,
+    issues: [],
+    summary,
+    xml,
+    fileNames: {
+      musicxml: `${baseName}.musicxml`,
+      mxl: `${baseName}.mxl`,
+    },
+    byteSizes: {
+      musicxml: musicXmlByteSize,
+      mxl: mxl.byteLength,
+    },
+  };
+};
+
+export const confirmLocalScoreProjectMusicXmlExportDraft = ({
+  draft,
+  currentProject,
+  format,
+}: {
+  draft: LocalScoreProjectMusicXmlExportDraft;
+  currentProject: LocalScoreProjectV1;
+  format: LocalScoreProjectMusicXmlExportFormat;
+}): LocalScoreProjectMusicXmlExportPayload => {
+  if (
+    format !== "musicxml"
+    && format !== "mxl"
+  ) {
+    throw new Error("MusicXML 导出格式无效。");
+  }
+  if (
+    draft.status !== "ready"
+    || draft.issues.length > 0
+    || !draft.xml
+    || !draft.fileNames
+    || !draft.byteSizes
+    || !draft.sourceFingerprint
+  ) {
+    throw new Error("MusicXML 导出候选仍有阻断问题，不能确认。");
+  }
+  const currentDraft = createLocalScoreProjectMusicXmlExportDraft({
+    project: currentProject,
+  });
+  if (
+    currentDraft.status !== "ready"
+    || currentDraft.sourceProjectId !== draft.sourceProjectId
+    || currentDraft.sourceRevision !== draft.sourceRevision
+    || currentDraft.sourceFingerprint !== draft.sourceFingerprint
+  ) {
+    throw new Error("本机谱项目已变化，请重新生成并检查导出候选。");
+  }
+  if (
+    currentDraft.xml !== draft.xml
+    || JSON.stringify(currentDraft.fileNames) !== JSON.stringify(draft.fileNames)
+    || JSON.stringify(currentDraft.byteSizes) !== JSON.stringify(draft.byteSizes)
+    || JSON.stringify(currentDraft.summary) !== JSON.stringify(draft.summary)
+    || JSON.stringify(currentDraft.issues) !== JSON.stringify(draft.issues)
+  ) {
+    throw new Error("MusicXML 导出候选已变化，请重新生成并检查。");
+  }
+  if (format === "musicxml") {
+    return {
+      fileName: draft.fileNames.musicxml,
+      mimeType: MUSICXML_MIME_TYPE,
+      data: draft.xml,
+    };
+  }
+  let data: Uint8Array;
+  try {
+    data = createMusicXmlMxlArchive(draft.xml);
+  } catch {
+    throw new Error("无法在本机生成完整 MXL，未执行下载。");
+  }
+  if (data.byteLength > LOCAL_SCORE_PROJECT_MUSICXML_EXPORT_MAX_BYTES) {
+    throw new Error("生成的 MXL 超过 2 MiB，未执行下载。");
+  }
+  return {
+    fileName: draft.fileNames.mxl,
+    mimeType: MXL_MIME_TYPE,
+    data,
+  };
+};

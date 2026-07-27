@@ -9,6 +9,7 @@ import {
   addLocalScoreProjectStaff,
   addLocalScoreProjectVoice,
   applyLocalScoreProjectContent,
+  changeLocalScoreProjectEventSlur,
   changeLocalScoreProjectSettings,
   cloneLocalScoreProject,
   createLocalScoreProject,
@@ -192,6 +193,14 @@ function AutosaveTransportHarness({
 }
 
 let root: Root | null = null;
+const originalCreateObjectUrl = Object.getOwnPropertyDescriptor(
+  URL,
+  "createObjectURL",
+);
+const originalRevokeObjectUrl = Object.getOwnPropertyDescriptor(
+  URL,
+  "revokeObjectURL",
+);
 
 const flushReact = async () => {
   await act(async () => {
@@ -298,6 +307,9 @@ const supportedMusicXml = ({
   pitchOctave?: string;
 } = {}) => `<?xml version="1.0" encoding="UTF-8"?>
 <score-partwise version="4.0">
+  <part-list>
+    <score-part id="P1"><part-name>导入声部</part-name></score-part>
+  </part-list>
   <part id="P1">
     <measure number="1">
       <attributes>
@@ -360,6 +372,90 @@ const selectMusicXmlImportFile = async ({
   );
 };
 
+const createSupportedMusicXmlExportProject = ({
+  projectId = "supported-musicxml-export-project",
+  title = "受支持导出",
+}: {
+  projectId?: string;
+  title?: string;
+} = {}) => {
+  const base = createLocalScoreProject({
+    projectId,
+    title,
+    now: "2026-07-27T07:00:00.000Z",
+  });
+  return addLocalScoreProjectEvent({
+    project: base,
+    expectedRevision: base.document.revision,
+    location: {
+      partId: "part-1",
+      staffId: "staff-1",
+      voiceId: "voice-1",
+      measureNumber: 1,
+    },
+    eventId: `${projectId}-event-1`,
+    input: {
+      type: "note",
+      pitch: "C4",
+      duration: "quarter",
+      augmentationDots: 0,
+      tieToNext: false,
+      lyric: null,
+    },
+    now: "2026-07-27T07:00:01.000Z",
+  });
+};
+
+const installDownloadSpies = ({
+  createObjectUrlFailure = null,
+  revokeObjectUrlFailure = null,
+}: {
+  createObjectUrlFailure?: Error | null;
+  revokeObjectUrlFailure?: Error | null;
+} = {}) => {
+  const createObjectUrl = vi.fn((blob: Blob) => {
+    if (createObjectUrlFailure) throw createObjectUrlFailure;
+    expect(blob).toBeInstanceOf(Blob);
+    return "blob:local-score-project-export";
+  });
+  const revokeObjectUrl = vi.fn((_url: string) => {
+    if (revokeObjectUrlFailure) throw revokeObjectUrlFailure;
+  });
+  Object.defineProperty(URL, "createObjectURL", {
+    configurable: true,
+    value: createObjectUrl,
+  });
+  Object.defineProperty(URL, "revokeObjectURL", {
+    configurable: true,
+    value: revokeObjectUrl,
+  });
+  const anchorDownloads: Array<{ download: string; href: string }> = [];
+  const anchorClick = vi.spyOn(
+    HTMLAnchorElement.prototype,
+    "click",
+  ).mockImplementation(function (this: HTMLAnchorElement) {
+    anchorDownloads.push({ download: this.download, href: this.href });
+  });
+  return {
+    anchorClick,
+    anchorDownloads,
+    createObjectUrl,
+    revokeObjectUrl,
+  };
+};
+
+const expectProjectSnapshotUnchanged = ({
+  store,
+  projectId,
+  snapshot,
+}: {
+  store: MemoryProjectStore;
+  projectId: string;
+  snapshot: string;
+}) => {
+  expect(JSON.stringify(store.values.get(projectId))).toBe(snapshot);
+};
+
 const renderPanel = async (store: MemoryProjectStore) => {
   const container = document.createElement("div");
   document.body.append(container);
@@ -393,6 +489,17 @@ afterEach(async () => {
   if (root) {
     await act(async () => root?.unmount());
     root = null;
+  }
+  vi.restoreAllMocks();
+  if (originalCreateObjectUrl) {
+    Object.defineProperty(URL, "createObjectURL", originalCreateObjectUrl);
+  } else {
+    Reflect.deleteProperty(URL, "createObjectURL");
+  }
+  if (originalRevokeObjectUrl) {
+    Object.defineProperty(URL, "revokeObjectURL", originalRevokeObjectUrl);
+  } else {
+    Reflect.deleteProperty(URL, "revokeObjectURL");
   }
 });
 
@@ -551,6 +658,393 @@ describe("S1 本机谱项目面板", () => {
       expect(container.textContent).toContain(issueMessage);
       expect(findButton(container, "我已检查，确认新增并保存").disabled)
         .toBe(true);
+    },
+  );
+
+  it("检查 MusicXML 导出只生成内存候选，明确确认后才触发下载且不修改项目", async () => {
+    const store = new MemoryProjectStore();
+    const project = createSupportedMusicXmlExportProject();
+    await store.put(project, null);
+    store.putCalls = 0;
+    const snapshot = JSON.stringify(store.values.get(project.projectId));
+    const {
+      anchorClick,
+      anchorDownloads,
+      createObjectUrl,
+      revokeObjectUrl,
+    } =
+      installDownloadSpies();
+    const container = await renderPanel(store);
+    await click(findButton(container, "打开"));
+
+    await click(findButton(container, "检查 MusicXML/MXL 导出"));
+    await waitFor(
+      () => container.querySelector(
+        "[data-testid='local-score-project-musicxml-export-draft']",
+      ) !== null,
+      "生成内存 MusicXML 导出候选",
+    );
+
+    expect(container.textContent).toContain(
+      "导出候选已就绪：1 小节、1 个事件",
+    );
+    expect(container.textContent).toContain("受支持导出.musicxml");
+    expect(container.textContent).toMatch(
+      /MusicXML ·[^·]+\.musicxml · \d+ bytes/,
+    );
+    expect(container.textContent).toContain("生成内存候选");
+    expect(createObjectUrl).not.toHaveBeenCalled();
+    expect(anchorClick).not.toHaveBeenCalled();
+    expect(revokeObjectUrl).not.toHaveBeenCalled();
+    expect(store.putCalls).toBe(0);
+    expectProjectSnapshotUnchanged({
+      store,
+      projectId: project.projectId,
+      snapshot,
+    });
+
+    const confirm = findButton(container, "确认下载 .musicxml");
+    expect(confirm.disabled).toBe(false);
+    await click(confirm);
+    await waitFor(
+      () => anchorClick.mock.calls.length === 1,
+      "明确确认后触发 MusicXML 下载",
+    );
+
+    expect(createObjectUrl).toHaveBeenCalledTimes(1);
+    expect(createObjectUrl.mock.calls[0]?.[0].type).toBe(
+      "application/vnd.recordare.musicxml+xml",
+    );
+    expect(anchorDownloads[0]?.download).toBe(
+      "受支持导出.musicxml",
+    );
+    expect(anchorDownloads[0]?.href).toContain(
+      "blob:local-score-project-export",
+    );
+    expect(revokeObjectUrl).toHaveBeenCalledWith(
+      "blob:local-score-project-export",
+    );
+    expect(store.putCalls).toBe(0);
+    expectProjectSnapshotUnchanged({
+      store,
+      projectId: project.projectId,
+      snapshot,
+    });
+  });
+
+  it("选择 MXL 后仍先检查内存候选，确认才下载 .mxl 包且不修改项目", async () => {
+    const store = new MemoryProjectStore();
+    const project = createSupportedMusicXmlExportProject({
+      projectId: "supported-mxl-export-project",
+      title: "受支持 MXL 导出",
+    });
+    await store.put(project, null);
+    store.putCalls = 0;
+    const snapshot = JSON.stringify(store.values.get(project.projectId));
+    const {
+      anchorClick,
+      anchorDownloads,
+      createObjectUrl,
+      revokeObjectUrl,
+    } =
+      installDownloadSpies();
+    const container = await renderPanel(store);
+    await click(findButton(container, "打开"));
+    await change(findSelectExact(container, "导出格式"), "mxl");
+    await click(findButton(container, "检查 MusicXML/MXL 导出"));
+    await waitFor(
+      () => container.querySelector(
+        "[data-testid='local-score-project-musicxml-export-draft']",
+      ) !== null,
+      "生成内存 MXL 导出候选",
+    );
+    expect(container.textContent).toContain(
+      "导出候选已就绪：1 小节、1 个事件",
+    );
+    expect(container.textContent).toContain("受支持 MXL 导出.mxl");
+    expect(container.textContent).toMatch(/MXL ·[^·]+\.mxl · \d+ bytes/);
+    expect(createObjectUrl).not.toHaveBeenCalled();
+    expect(anchorClick).not.toHaveBeenCalled();
+    expect(revokeObjectUrl).not.toHaveBeenCalled();
+
+    const confirm = findButton(container, "确认下载 .mxl");
+    expect(confirm.disabled).toBe(false);
+    await click(confirm);
+    await waitFor(
+      () => anchorClick.mock.calls.length === 1,
+      "明确确认后触发 MXL 下载",
+    );
+
+    expect(createObjectUrl).toHaveBeenCalledTimes(1);
+    expect(createObjectUrl.mock.calls[0]?.[0].type).toBe(
+      "application/vnd.recordare.musicxml",
+    );
+    expect(anchorDownloads[0]?.download).toBe(
+      "受支持 MXL 导出.mxl",
+    );
+    expect(revokeObjectUrl).toHaveBeenCalledWith(
+      "blob:local-score-project-export",
+    );
+    expect(store.putCalls).toBe(0);
+    expectProjectSnapshotUnchanged({
+      store,
+      projectId: project.projectId,
+      snapshot,
+    });
+  });
+
+  it("名称自动保存 dirty 期间禁用导出检查，且不会创建下载资源", async () => {
+    const store = new MemoryProjectStore();
+    const project = createSupportedMusicXmlExportProject({
+      projectId: "dirty-export-project",
+      title: "导出前已保存",
+    });
+    await store.put(project, null);
+    store.putCalls = 0;
+    const snapshot = JSON.stringify(store.values.get(project.projectId));
+    const { anchorClick, createObjectUrl, revokeObjectUrl } =
+      installDownloadSpies();
+    const container = await renderPanel(store);
+    await click(findButton(container, "打开"));
+
+    await change(findInput(container, "项目名称"), "尚未保存的导出标题");
+    const inspect = findButton(container, "检查 MusicXML/MXL 导出");
+    expect(inspect.disabled).toBe(true);
+    await click(inspect);
+
+    expect(
+      container.querySelector(
+        "[data-testid='local-score-project-musicxml-export-draft']",
+      ),
+    ).toBeNull();
+    expect(createObjectUrl).not.toHaveBeenCalled();
+    expect(anchorClick).not.toHaveBeenCalled();
+    expect(revokeObjectUrl).not.toHaveBeenCalled();
+    expect(store.putCalls).toBe(0);
+    expectProjectSnapshotUnchanged({
+      store,
+      projectId: project.projectId,
+      snapshot,
+    });
+  });
+
+  it("存在恢复候选时禁用导出检查，不会把未确认恢复内容导出", async () => {
+    const store = new MemoryProjectStore();
+    const project = createSupportedMusicXmlExportProject({
+      projectId: "recovery-blocked-export-project",
+      title: "最后保存版本",
+    });
+    await store.put(project, null);
+    const proposed = changeLocalScoreProjectSettings({
+      project,
+      expectedRevision: project.document.revision,
+      title: "恢复候选标题",
+      tempoBpm: project.tempoBpm,
+      now: "2026-07-27T07:01:00.000Z",
+    });
+    await store.stageRecoveryCandidate(
+      createLocalScoreProjectRecoveryCandidate({
+        candidateId: project.projectId,
+        candidateSequence: 1,
+        capturedAt: "2026-07-27T07:01:01.000Z",
+        baseProject: project,
+        proposedProject: proposed,
+      }),
+      null,
+    );
+    store.putCalls = 0;
+    const snapshot = JSON.stringify(store.values.get(project.projectId));
+    const { anchorClick, createObjectUrl, revokeObjectUrl } =
+      installDownloadSpies();
+    const container = await renderPanel(store);
+    await click(findButton(container, "打开"));
+    await waitFor(
+      () => container.textContent?.includes(
+        "发现一份未完成的名称或速度修改",
+      ) ?? false,
+      "显示导出前恢复候选",
+    );
+
+    expect(findButton(container, "检查 MusicXML/MXL 导出").disabled)
+      .toBe(true);
+    expect(createObjectUrl).not.toHaveBeenCalled();
+    expect(anchorClick).not.toHaveBeenCalled();
+    expect(revokeObjectUrl).not.toHaveBeenCalled();
+    expect(store.candidates.size).toBe(1);
+    expect(store.putCalls).toBe(0);
+    expectProjectSnapshotUnchanged({
+      store,
+      projectId: project.projectId,
+      snapshot,
+    });
+  });
+
+  it.each([
+    ["圆滑线", "slur", "当前导出不支持圆滑线"],
+    ["多个 part", "multiple-parts", "当前导出只支持一个 part"],
+  ])(
+    "含%s的项目显示导出 blocking ledger 且下载保持禁用",
+    async (_caseName, fixtureKind, expectedIssue) => {
+      const store = new MemoryProjectStore();
+      let project = createSupportedMusicXmlExportProject({
+        projectId: `blocking-${fixtureKind}-export-project`,
+        title: `阻断 ${_caseName} 导出`,
+      });
+      if (fixtureKind === "slur") {
+        project = addLocalScoreProjectEvent({
+          project,
+          expectedRevision: project.document.revision,
+          location: {
+            partId: "part-1",
+            staffId: "staff-1",
+            voiceId: "voice-1",
+            measureNumber: 1,
+          },
+          eventId: "slur-export-event-2",
+          input: {
+            type: "note",
+            pitch: "D4",
+            duration: "quarter",
+            augmentationDots: 0,
+            tieToNext: false,
+            lyric: null,
+          },
+          now: "2026-07-27T07:02:00.000Z",
+        });
+        project = changeLocalScoreProjectEventSlur({
+          project,
+          expectedRevision: project.document.revision,
+          location: {
+            partId: "part-1",
+            staffId: "staff-1",
+            voiceId: "voice-1",
+            measureNumber: 1,
+          },
+          eventId: `${project.projectId}-event-1`,
+          slurToNext: true,
+          now: "2026-07-27T07:02:01.000Z",
+        });
+      } else {
+        project = addLocalScoreProjectPart({
+          project,
+          expectedRevision: project.document.revision,
+          partId: "part-2",
+          staffId: "staff-2",
+          voiceId: "voice-2",
+          clef: "treble",
+          now: "2026-07-27T07:02:02.000Z",
+        });
+      }
+      await store.put(project, null);
+      store.putCalls = 0;
+      const snapshot = JSON.stringify(store.values.get(project.projectId));
+      const { anchorClick, createObjectUrl, revokeObjectUrl } =
+        installDownloadSpies();
+      const container = await renderPanel(store);
+      await click(findButton(container, "打开"));
+      await click(findButton(container, "检查 MusicXML/MXL 导出"));
+      await waitFor(
+        () => container.querySelector(
+          "[data-testid='local-score-project-musicxml-export-draft']",
+        ) !== null,
+        `生成${_caseName}导出阻断 ledger`,
+      );
+
+      expect(container.textContent).toContain("已阻止导出");
+      expect(container.textContent).toContain("阻止导出");
+      expect(container.textContent).toContain(expectedIssue);
+      if (fixtureKind === "slur") {
+        expect(container.textContent).toContain(
+          "part 1 · staff 1 · voice 1 · measure 1",
+        );
+      }
+      expect(findButton(container, "确认下载 .musicxml").disabled).toBe(true);
+      expect(createObjectUrl).not.toHaveBeenCalled();
+      expect(anchorClick).not.toHaveBeenCalled();
+      expect(revokeObjectUrl).not.toHaveBeenCalled();
+      expect(store.putCalls).toBe(0);
+      expectProjectSnapshotUnchanged({
+        store,
+        projectId: project.projectId,
+        snapshot,
+      });
+    },
+  );
+
+  it.each([
+    [
+      "URL 创建",
+      new Error("无法创建导出下载 URL。"),
+      null,
+      0,
+    ],
+    [
+      "URL 回收",
+      null,
+      new Error("无法回收导出下载 URL。"),
+      1,
+    ],
+  ])(
+    "%s失败不会修改 store、revision 或 undo/redo",
+    async (
+      _failureName,
+      createObjectUrlFailure,
+      revokeObjectUrlFailure,
+      expectedAnchorClicks,
+    ) => {
+      const store = new MemoryProjectStore();
+      const project = createSupportedMusicXmlExportProject({
+        projectId: `url-failure-${_failureName}-project`,
+        title: "URL 失败导出",
+      });
+      await store.put(project, null);
+      store.putCalls = 0;
+      const snapshot = JSON.stringify(store.values.get(project.projectId));
+      const { anchorClick, createObjectUrl, revokeObjectUrl } =
+        installDownloadSpies({
+          createObjectUrlFailure,
+          revokeObjectUrlFailure,
+        });
+      const container = await renderPanel(store);
+      await click(findButton(container, "打开"));
+      await click(findButton(container, "检查 MusicXML/MXL 导出"));
+      await waitFor(
+        () => container.querySelector(
+          "[data-testid='local-score-project-musicxml-export-draft']",
+        ) !== null,
+        `${_failureName}测试生成导出候选`,
+      );
+
+      await click(findButton(container, "确认下载 .musicxml"));
+      await waitFor(
+        () => container.textContent?.includes(
+          createObjectUrlFailure?.message
+            ?? revokeObjectUrlFailure?.message
+            ?? "",
+        ) ?? false,
+        `${_failureName}失败关闭`,
+      );
+
+      expect(createObjectUrl).toHaveBeenCalledTimes(1);
+      expect(anchorClick).toHaveBeenCalledTimes(expectedAnchorClicks);
+      expect(revokeObjectUrl).toHaveBeenCalledTimes(
+        createObjectUrlFailure ? 0 : 1,
+      );
+      expect(store.putCalls).toBe(0);
+      expectProjectSnapshotUnchanged({
+        store,
+        projectId: project.projectId,
+        snapshot,
+      });
+      const stored = store.values.get(project.projectId);
+      expect(stored?.document.revision).toBe(project.document.revision);
+      expect(stored?.undoStack).toEqual(project.undoStack);
+      expect(stored?.redoStack).toEqual(project.redoStack);
+      expect(
+        container.querySelector(
+          "[data-testid='local-score-project-musicxml-export-draft']",
+        ),
+      ).not.toBeNull();
     },
   );
 
