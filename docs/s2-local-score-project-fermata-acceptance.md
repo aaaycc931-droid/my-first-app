@@ -20,6 +20,6 @@
 
 ## 验证
 
-`npm run test:local-score-project-fermata` 覆盖创建、note/rest、CAS、非法输入、复制粘贴、undo、serialization、两种谱面显示、播放等价性和 v10 读取回归；另已通过 typecheck。
+`npm run test:local-score-project-fermata` 覆盖创建、note/rest、CAS、非法输入、复制粘贴、undo、serialization、两种谱面显示、播放等价性和 v10 读取回归；受影响的旧迁移、存储、容量、恢复、播放测试及本地 lint、typecheck、Android 静态校验和 Web 构建均已通过。
 
 CI、Android 构建、浏览器手测、真机、教师审核和真实演奏证据不由本验收文档宣称。
