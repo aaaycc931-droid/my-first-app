@@ -93,14 +93,14 @@ const createSupportedProject = (): LocalScoreProjectV1 => {
                 measure: 1,
                 augmentationDots: 0,
                 tieToNext: false,
-                slurToNext: false,
+                slurToNext: true,
                 lyric: null,
                 fingering: null,
                 chordSymbol: null,
                 articulations: [],
                 dynamicMark: null,
                 damperPedalMark: null,
-                fermataMark: null,
+                fermataMark: "fermata",
               }],
             }, {
               measureNumber: 2,
@@ -108,6 +108,22 @@ const createSupportedProject = (): LocalScoreProjectV1 => {
                 id: "event-4",
                 type: "note",
                 pitch: "D4",
+                duration: "eighth",
+                measure: 2,
+                augmentationDots: 0,
+                tieToNext: false,
+                slurToNext: true,
+                lyric: null,
+                fingering: null,
+                chordSymbol: null,
+                articulations: [],
+                dynamicMark: null,
+                damperPedalMark: null,
+                fermataMark: "fermata",
+              }, {
+                id: "event-5",
+                type: "note",
+                pitch: "E4",
                 duration: "eighth",
                 measure: 2,
                 augmentationDots: 0,
@@ -149,6 +165,7 @@ const musicalProjection = (project: LocalScoreProjectV1) => ({
         duration: event.duration,
         measure: event.measure,
         fermataMark: event.fermataMark,
+        slurToNext: event.type === "note" ? event.slurToNext : null,
       })),
     }),
   ),
@@ -172,7 +189,7 @@ assert.deepEqual(ready.summary, {
   staffCount: 1,
   voiceCount: 1,
   measureCount: 2,
-  eventCount: 4,
+  eventCount: 5,
 });
 assert.match(ready.xml, /<work-title>基础 &amp; &lt;视唱&gt;<\/work-title>/);
 assert.match(ready.xml, /<part-name>旋律 &amp; &lt;主声部&gt;<\/part-name>/);
@@ -180,6 +197,21 @@ assert.equal(
   ready.xml.match(/<notations><fermata\/><\/notations>/g)?.length,
   2,
   "note and rest fermatas must be exported deterministically",
+);
+assert.match(
+  ready.xml,
+  /<notations><fermata\/><slur type="start"\/><\/notations>/,
+  "the cross-measure source must export fermata before slur start",
+);
+assert.match(
+  ready.xml,
+  /<notations><fermata\/><slur type="stop"\/><slur type="start"\/><\/notations>/,
+  "the chain midpoint must use one deterministic notations container",
+);
+assert.match(
+  ready.xml,
+  /<notations><slur type="stop"\/><\/notations>/,
+  "the chain target must export a matching slur stop",
 );
 assert.deepEqual(
   createLocalScoreProjectMusicXmlExportDraft({ project }),
@@ -225,6 +257,7 @@ assert.deepEqual(
     { pitch: "C4", duration: "quarter", measure: 1, beat: 1 },
     { pitch: "C5", duration: "half", measure: 1, beat: 3 },
     { pitch: "D4", duration: "eighth", measure: 2, beat: 1 },
+    { pitch: "E4", duration: "eighth", measure: 2, beat: 1.5 },
   ],
   "the independent legacy parser must read the exported note timeline",
 );
@@ -503,17 +536,6 @@ const blockedFixtures: readonly [
       id: "tied-event-2",
     }]),
     ["unsupported-tie"],
-  ],
-  [
-    withFirstMeasureEvents([{
-      ...sourceNote,
-      slurToNext: true,
-    }, {
-      ...sourceNote,
-      id: "slurred-event-2",
-      pitch: "D4",
-    }]),
-    ["unsupported-slur"],
   ],
   [
     withFirstMeasureEvents(Array.from({ length: 5 }, (_, index) => ({

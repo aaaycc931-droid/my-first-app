@@ -905,8 +905,80 @@ describe("S1 本机谱项目面板", () => {
     });
   });
 
+  it("canonical 圆滑线可生成导出候选并在明确确认后下载", async () => {
+    const store = new MemoryProjectStore();
+    let project = createSupportedMusicXmlExportProject({
+      projectId: "slur-export-project",
+      title: "圆滑线导出",
+    });
+    project = addLocalScoreProjectEvent({
+      project,
+      expectedRevision: project.document.revision,
+      location: {
+        partId: "part-1",
+        staffId: "staff-1",
+        voiceId: "voice-1",
+        measureNumber: 1,
+      },
+      eventId: "slur-export-event-2",
+      input: {
+        type: "note",
+        pitch: "D4",
+        duration: "quarter",
+        augmentationDots: 0,
+        tieToNext: false,
+        lyric: null,
+      },
+      now: "2026-07-27T07:02:00.000Z",
+    });
+    project = changeLocalScoreProjectEventSlur({
+      project,
+      expectedRevision: project.document.revision,
+      location: {
+        partId: "part-1",
+        staffId: "staff-1",
+        voiceId: "voice-1",
+        measureNumber: 1,
+      },
+      eventId: `${project.projectId}-event-1`,
+      slurToNext: true,
+      now: "2026-07-27T07:02:01.000Z",
+    });
+    await store.put(project, null);
+    store.putCalls = 0;
+    const snapshot = JSON.stringify(store.values.get(project.projectId));
+    const { anchorClick, createObjectUrl } = installDownloadSpies();
+    const container = await renderPanel(store);
+    await click(findButton(container, "打开"));
+    await click(findButton(container, "检查 MusicXML/MXL 导出"));
+    await waitFor(
+      () => container.querySelector(
+        "[data-testid='local-score-project-musicxml-export-draft']",
+      ) !== null,
+      "生成圆滑线导出候选",
+    );
+
+    expect(container.textContent).toContain("导出候选已就绪");
+    const confirm = findButton(container, "确认下载 .musicxml");
+    expect(confirm.disabled).toBe(false);
+    await click(confirm);
+    await waitFor(
+      () => anchorClick.mock.calls.length === 1,
+      "明确确认后下载圆滑线 MusicXML",
+    );
+    expect(createObjectUrl).toHaveBeenCalledTimes(1);
+    const downloadedXml = await createObjectUrl.mock.calls[0]?.[0].text();
+    expect(downloadedXml).toContain('<slur type="start"/>');
+    expect(downloadedXml).toContain('<slur type="stop"/>');
+    expect(store.putCalls).toBe(0);
+    expectProjectSnapshotUnchanged({
+      store,
+      projectId: project.projectId,
+      snapshot,
+    });
+  });
+
   it.each([
-    ["圆滑线", "slur", "当前导出不支持圆滑线"],
     ["多个 part", "multiple-parts", "当前导出只支持一个 part"],
   ])(
     "含%s的项目显示导出 blocking ledger 且下载保持禁用",
@@ -916,51 +988,15 @@ describe("S1 本机谱项目面板", () => {
         projectId: `blocking-${fixtureKind}-export-project`,
         title: `阻断 ${_caseName} 导出`,
       });
-      if (fixtureKind === "slur") {
-        project = addLocalScoreProjectEvent({
-          project,
-          expectedRevision: project.document.revision,
-          location: {
-            partId: "part-1",
-            staffId: "staff-1",
-            voiceId: "voice-1",
-            measureNumber: 1,
-          },
-          eventId: "slur-export-event-2",
-          input: {
-            type: "note",
-            pitch: "D4",
-            duration: "quarter",
-            augmentationDots: 0,
-            tieToNext: false,
-            lyric: null,
-          },
-          now: "2026-07-27T07:02:00.000Z",
-        });
-        project = changeLocalScoreProjectEventSlur({
-          project,
-          expectedRevision: project.document.revision,
-          location: {
-            partId: "part-1",
-            staffId: "staff-1",
-            voiceId: "voice-1",
-            measureNumber: 1,
-          },
-          eventId: `${project.projectId}-event-1`,
-          slurToNext: true,
-          now: "2026-07-27T07:02:01.000Z",
-        });
-      } else {
-        project = addLocalScoreProjectPart({
-          project,
-          expectedRevision: project.document.revision,
-          partId: "part-2",
-          staffId: "staff-2",
-          voiceId: "voice-2",
-          clef: "treble",
-          now: "2026-07-27T07:02:02.000Z",
-        });
-      }
+      project = addLocalScoreProjectPart({
+        project,
+        expectedRevision: project.document.revision,
+        partId: "part-2",
+        staffId: "staff-2",
+        voiceId: "voice-2",
+        clef: "treble",
+        now: "2026-07-27T07:02:02.000Z",
+      });
       await store.put(project, null);
       store.putCalls = 0;
       const snapshot = JSON.stringify(store.values.get(project.projectId));
@@ -979,11 +1015,6 @@ describe("S1 本机谱项目面板", () => {
       expect(container.textContent).toContain("已阻止导出");
       expect(container.textContent).toContain("阻止导出");
       expect(container.textContent).toContain(expectedIssue);
-      if (fixtureKind === "slur") {
-        expect(container.textContent).toContain(
-          "part 1 · staff 1 · voice 1 · measure 1",
-        );
-      }
       expect(findButton(container, "确认下载 .musicxml").disabled).toBe(true);
       expect(createObjectUrl).not.toHaveBeenCalled();
       expect(anchorClick).not.toHaveBeenCalled();

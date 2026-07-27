@@ -40,7 +40,12 @@ QA level recommendation：**strict**
   必须形成 blocking 项。
 - canonical note/rest 的 `fermataMark: "fermata"` 必须确定性写为其直接子级
   `<notations><fermata/></notations>`，并由当前 importer 无损重建。
-- 附点、延音线、圆滑线、歌词、指法、和弦标记、演奏法、力度、制音踏板及其他当前
+- canonical note 的 `slurToNext: true` 必须在源 note 写入
+  `<slur type="start"/>`，并在同声部紧邻且时间连续的目标 note 写入
+  `<slur type="stop"/>`；同小节、跨连续小节和链式关系必须由当前 importer 无损重建。
+- 同一 note 同时承载 fermata、前一圆滑线 stop 和后一圆滑线 start 时，必须只生成一个
+  `<notations>`，并按 fermata、stop、start 的固定顺序确定性输出。
+- 附点、延音线、歌词、指法、和弦标记、演奏法、力度、制音踏板及其他当前
   未映射的非中性 canonical 语义，必须逐类形成稳定 blocking 项。
 - 项目至少包含一个事件；任何超过当前拍号容量的小节必须 blocking。
 
@@ -99,7 +104,7 @@ QA level recommendation：**strict**
 
 1. 当前 canonical MusicXML importer 重新读取 `.musicxml`，以及从 `.mxl` 安全解包
    后的 XML，核对标题、part 名称、音高、时值、休止符、小节、调号、拍号和谱号等本
-   切片承诺的语义。
+   切片承诺的语义，以及 fermata 与 slur 的 canonical 映射。
 2. 既有 legacy `musicxmlParser` 作为独立代码路径，交叉核对其能够表达的音符音高、
    时值、小节和拍位。该 parser 不表达休止符、credits 或全部 canonical 字段，不能
    单独证明完整 round-trip。
@@ -118,6 +123,9 @@ QA level recommendation：**strict**
   语义等价；
 - note/rest 延长记号写为严格 `<notations><fermata/></notations>`，`.musicxml`
   与 `.mxl` re-import 后保持同一 canonical `fermataMark`；
+- canonical 圆滑线写为相邻时间连续 note 上严格配对的 slur start／stop；同小节、
+  跨小节、链式和 fermata 共存经 `.musicxml`／`.mxl` re-import 后保持同一
+  `slurToNext`；
 - legacy parser 对音符音高、时值、小节和拍位的交叉检查；
 - 非 `90 BPM`、已分配 instrument、非空副标题／creator／版权，以及每类未支持
   canonical 记谱字段分别形成 blocking ledger；
@@ -143,6 +151,9 @@ QA level recommendation：**strict**
 独立阅读器 QA 均为 `NOT_EXECUTED`；自动测试、DOM 行为测试或仓库内部 parser 不能
 替代这些证据。
 
+真实音频、教师审核、MIDI、OMR、完整 MusicXML、完整 S3 与正式版 V1 也均为
+`NOT_EXECUTED` 或未完成。
+
 ## 明确不做
 
 - 完整 MusicXML 标准、任意多 part／staff／voice 或当前未列出的记谱语义。
@@ -155,3 +166,6 @@ QA level recommendation：**strict**
 
 延长记号双向严格子集的独立验收边界见
 `docs/s3-local-score-project-musicxml-fermata-round-trip-acceptance.md`。
+
+圆滑线双向严格子集的独立验收边界见
+`docs/s3-local-score-project-musicxml-slur-round-trip-acceptance.md`。

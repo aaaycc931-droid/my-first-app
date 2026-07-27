@@ -12,11 +12,14 @@
 
 ## 严格导入边界
 
-- 每个 note/rest 最多一个直接 `<notations>`，且该容器只能包含一个 `<fermata/>`。
+- 本切片交付时，每个 note/rest 最多一个直接 `<notations>`，且该容器只包含一个
+  `<fermata/>`。
 - `<notations>` 与 `<fermata>` 均不得带属性或非空文本；`<fermata>` 不得包含子元素。
 - 重复 `<notations>`、重复 `<fermata>`、空容器、属性、文本、嵌套元素或错误层级必须
   形成 blocking ledger，不能静默忽略或降级。
-- slur、tie、articulation、ornament 等其他 notations 语义仍不属于本切片。
+- slur、tie、articulation、ornament 等其他 notations 语义不属于本切片；后续独立
+  slur 切片允许 fermata 与严格 slur marker 共用同一个 `<notations>`，不反向扩大
+  本切片当时的验收结论。
 
 ## 自动证据
 
@@ -36,3 +39,8 @@
 - 真实 fermata 播放时值、MIDI、真实音频和教师审核：`NOT_EXECUTED`。
 - 本切片不支持 fermata 类型、位置、形状等属性，不支持其他 notations，不代表完整
   MusicXML/MXL round-trip、S3 完成或正式版 V1 完成。
+
+后续圆滑线双向严格子集的独立验收边界见
+`docs/s3-local-score-project-musicxml-slur-round-trip-acceptance.md`。浏览器真实下载、
+Android WebView／真机、第三方独立阅读器、真实音频、教师审核、MIDI、OMR、完整
+MusicXML、S3 与正式版 V1 均仍为 `NOT_EXECUTED` 或未完成。

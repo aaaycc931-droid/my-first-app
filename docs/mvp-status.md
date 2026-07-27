@@ -116,7 +116,7 @@
 
 - PR #452 已合并：`score-document-v13` 与 `local-score-project-storage-v14` 的 canonical 圆滑线切片，音符以 `slurToNext` 表达到同声部相邻音符的圆滑线；休止符不得携带该字段。
 - 旧 storage/document 与 undo/redo 历史只读迁移为 `false`；复制单个事件清除跨事件关系；删除、移动或修改不得制造悬空圆滑线。
-- 五线谱与固定 C 简谱读取同一字段；playback/transport 仅兼容新版本，不改变真实 gate、duration 或连奏效果。main Quality run `30239260106` 的 `quality` 与 `android-local` 均成功；浏览器手测、真机、教师审核、真实连奏播放及 MusicXML/MIDI round-trip 仍未执行。
+- 五线谱与固定 C 简谱读取同一字段；playback/transport 仅兼容新版本，不改变真实 gate、duration 或连奏效果。main Quality run `30239260106` 的 `quality` 与 `android-local` 均成功；后续 S3 严格子集已补同声部相邻且时间连续 note 的 MusicXML/MXL 圆滑线 start／stop、跨小节和链式仓库内部 round-trip。浏览器手测、Android 真机、教师审核、真实连奏播放及 MIDI round-trip 仍为 `NOT_EXECUTED`。
 
 ## S3 标准格式接续
 
@@ -125,6 +125,6 @@
 - `.musicxml`／`.xml`／`.mxl` 输入、2 MiB 输入限制，以及 MXL 既有的 100 entries／4 MiB 解压保护必须保持 fail-closed；容量、quota、事务和迁移失败必须保留全部既有项目。
 - canonical 本机谱项目到 `.musicxml`／`.mxl` 的受控导出候选已经完成：只覆盖当前可无损重新导入的严格单 part／staff／voice 子集，先显示 blocking ledger 和摘要，用户明确确认后才触发一次本机下载。
 - 当前导出 round-trip 只接受默认 `90 BPM`、未分配 instrument 和没有副标题／creator／版权声明的项目；任何尚未映射的 canonical 记谱语义必须阻断，不能为了生成文件而静默丢弃。
-- 当前严格子集已把 note/rest 的 canonical `fermataMark` 双向映射为唯一、无属性且无文本的 `<notations><fermata/></notations>`；其他 notations 语义继续 blocking。
+- 当前严格子集已把 note/rest 的 canonical `fermataMark` 双向映射为无属性且无文本的 `<fermata/>`，并把 note 的 `slurToNext` 双向映射为相邻时间连续 note 上严格配对的 `<slur type="start"/>`／`<slur type="stop"/>`；同小节、跨小节、链式关系及与 fermata 共用同一个 `<notations>` 容器均保留。其他 notations 语义继续 blocking。
 - 自动证据由当前 importer re-import 与 legacy parser 音符交叉检查组成，均属于仓库内部验证。浏览器下载、Android WebView／真机及 MuseScore 等外部独立阅读器仍为 `NOT_EXECUTED`，不得宣称第三方兼容已经通过。
-- 导入边界见 `docs/s3-local-score-project-musicxml-import-acceptance.md`，导出边界见 `docs/s3-local-score-project-musicxml-export-acceptance.md`，fermata 双向边界见 `docs/s3-local-score-project-musicxml-fermata-round-trip-acceptance.md`。当前仍不宣称 MIDI、完整 MusicXML、第三方独立阅读器、OMR、教师审核或正式版 V1 完成。
+- 导入边界见 `docs/s3-local-score-project-musicxml-import-acceptance.md`，导出边界见 `docs/s3-local-score-project-musicxml-export-acceptance.md`，fermata 双向边界见 `docs/s3-local-score-project-musicxml-fermata-round-trip-acceptance.md`，圆滑线双向边界见 `docs/s3-local-score-project-musicxml-slur-round-trip-acceptance.md`。浏览器真实下载、Android WebView／真机、第三方独立阅读器、真实音频、教师审核、MIDI、OMR、完整 MusicXML、S3 与正式版 V1 均仍为 `NOT_EXECUTED` 或未完成。

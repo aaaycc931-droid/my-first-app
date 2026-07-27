@@ -46,9 +46,16 @@ QA level recommendation：**strict**
 - 根级、`work`、`part-list` 与 `score-part` 同样采用显式白名单；creator、rights、
   instrument、movement、credit 等未映射元数据必须 blocking，`score-part` 与 `part`
   的非空 ID 必须一致。
-- note 与 rest 各自最多允许一个直接 `<notations>`，且该容器必须只包含一个无属性、
-  无文本、无子元素的 `<fermata/>`；它无损映射为 canonical `fermataMark:
-  "fermata"`。重复容器、重复标记、属性、文本、嵌套元素或错误层级必须 blocking。
+- note 与 rest 各自最多允许一个直接、无属性且无非空文本的 `<notations>`。其中
+  `<fermata/>` 必须无属性、无文本、无子元素，并无损映射为 canonical
+  `fermataMark: "fermata"`。
+- pitched note 的 `<slur>` 只允许唯一的 `type="start"` 或 `type="stop"` 属性，必须
+  无文本、无子元素；start 必须由同声部紧邻且时间连续的下一个 pitched note 上的 stop
+  闭合。该关系无损映射为源 note 的 canonical `slurToNext: true`，并允许同小节、
+  跨连续小节和中间 note 同时 stop／start 的链式关系。
+- fermata、slur stop 与 slur start 可以共用同一个 `<notations>`；每种 marker 在同一
+  note 最多一个。重复容器／marker、孤立或错序 start／stop、休止符上的 slur、跨休止符
+  或空拍、额外属性、文本、嵌套元素及错误层级必须 blocking。
 - blocking 项应包含稳定 code、元素类型与原因，并在可用时包含 measure；无法定位到
   具体小节时也必须提供文件级原因。
 - 只要存在任意 blocking 项，“确认并保存”保持禁用，并显示简体中文 disabled reason。
@@ -57,8 +64,8 @@ QA level recommendation：**strict**
   使用 stale 候选。
 
 本切片不得为了增加成功率而静默跳过休止符、多 part／staff／voice、和弦时序、
-`backup`／`forward`、未知时值、谱号／调号／拍号、歌词、连线或严格 fermata
-结构以外的其他 canonical 语义。
+`backup`／`forward`、未知时值、谱号／调号／拍号、歌词、严格 fermata／slur
+结构以外的连线或其他 canonical 语义。
 不在本切片支持清单中的内容必须 blocking。
 
 ## 明确确认与原子保存
@@ -96,6 +103,9 @@ QA level recommendation：**strict**
 - 音符、休止符、小节边界及当前明确支持的谱号／调号／拍号无静默丢失；
 - note/rest 的严格 `<notations><fermata/></notations>` 映射为 canonical
   `fermataMark`；带属性、文本、重复、空容器或错误层级的变体全部失败关闭；
+- 相邻时间连续 note 的严格 slur start／stop 映射为 canonical `slurToNext`；同小节、
+  跨小节、链式及 fermata 共存保持不变，孤立、错序、重复、休止符、空拍、额外属性、
+  非 `start`／`stop` type、文本、嵌套和错误层级全部失败关闭；
 - 空文件、2 MiB 超限、非良构／损坏 XML／archive、根级未映射语义、part ID 不一致、
   100 entries 超限、4 MiB 解压超限、
   container/rootfile 异常和路径穿越全部失败关闭；
@@ -120,6 +130,9 @@ QA level recommendation：**strict**
 没有真实执行和记录时，上述浏览器、Android WebView 与真机证据必须保持
 `NOT_EXECUTED`。
 
+第三方独立阅读器、真实音频、教师审核、MIDI、OMR、完整 MusicXML、完整 S3 与正式版
+V1 也均为 `NOT_EXECUTED` 或未完成；仓库内部导入测试不能替代这些证据。
+
 ## 明确不做
 
 - 本导入切片自身不验收 MIDI 导入／导出、MusicXML／MXL 导出或格式 round-trip；
@@ -139,3 +152,6 @@ round-trip、OMR、教师审核、真机验收或正式版 V1 已完成。
 
 延长记号双向严格子集的独立验收边界见
 `docs/s3-local-score-project-musicxml-fermata-round-trip-acceptance.md`。
+
+圆滑线双向严格子集的独立验收边界见
+`docs/s3-local-score-project-musicxml-slur-round-trip-acceptance.md`。
