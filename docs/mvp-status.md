@@ -110,4 +110,4 @@
 
 - 当前本地分支候选升级为 `score-document-v12` 与 `local-score-project-storage-v13`，事件起点 `fermataMark` 支持 `fermata` 或 `null`，note/rest 均可承载。
 - 旧 storage/document 与 undo/redo 历史只读迁移为 `null`；五线谱与固定 C 简谱一致显示；playback/transport 只补兼容字段，不延长真实播放。
-- 本地 focused fermata、v10 内存读取回归和 typecheck 已通过；尚未创建 PR，远端 Actions、真机、教师审核、真实 fermata 播放及 MusicXML/MIDI round-trip 仍未执行。
+- 本地 focused fermata、旧迁移、存储／恢复、播放回归、lint、typecheck、Android 静态校验和 Web 构建已通过；尚未创建 PR，远端 Actions、真机、教师审核、真实 fermata 播放及 MusicXML/MIDI round-trip 仍未执行。
