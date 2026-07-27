@@ -40,9 +40,44 @@ assert.throws(
   "rootfile path traversal should be rejected.",
 );
 assert.throws(
+  () => extractMusicXMLFromMxl(mxl({ "../score.xml": scoreXml })),
+  /路径穿越|\.\./,
+  "fallback MusicXML path traversal should be rejected before extraction.",
+);
+assert.throws(
   () => extractMusicXMLFromMxl(mxl({ "META-INF/container.xml": containerXml, "score.xml": "<not-music />" })),
   /不像 MusicXML|score-partwise|score-timewise/,
   "non-MusicXML XML should be rejected.",
+);
+assert.throws(
+  () => extractMusicXMLFromMxl(mxl({
+    ...Object.fromEntries(Array.from({ length: 101 }, (_, index) => [`entry-${index}.txt`, "x"])),
+    "score.xml": scoreXml,
+  })),
+  /100 个 entry/,
+  "archives with more than 100 entries should be rejected before extraction.",
+);
+assert.throws(
+  () => extractMusicXMLFromMxl(mxl({
+    "score.xml": `<score-partwise>${" ".repeat(4 * 1024 * 1024)}</score-partwise>`,
+  })),
+  /4 MB/,
+  "oversized MusicXML should be rejected from ZIP metadata before inflation.",
+);
+for (const path of ["/score.xml", "C:/score.xml", "folder\\score.xml"]) {
+  assert.throws(
+    () => extractMusicXMLFromMxl(mxl({
+      "META-INF/container.xml": containerXml.replace("score.xml", path),
+      "score.xml": scoreXml,
+    })),
+    /绝对路径|反斜杠/,
+    `unsafe rootfile path should be rejected: ${path}`,
+  );
+}
+assert.throws(
+  () => extractMusicXMLFromMxl(new Uint8Array([1, 2, 3, 4])),
+  /invalid zip data|unexpected EOF|invalid/,
+  "damaged archives should fail closed.",
 );
 
 console.log("MXL import validation passed.");

@@ -112,8 +112,15 @@
 - 旧 storage/document 与 undo/redo 历史只读迁移为 `null`；五线谱与固定 C 简谱一致显示；playback/transport 只补兼容字段，不延长真实播放。
 - PR #451 Quality run `30234487273` 的 `quality` 与 `android-local` 均成功；真机、教师审核、真实 fermata 播放及 MusicXML/MIDI round-trip 仍未执行。
 
-### 圆滑线切片（当前独立候选）
+### 圆滑线切片
 
-- 当前候选升级为 `score-document-v13` 与 `local-score-project-storage-v14`，音符以 `slurToNext` 表达到同声部相邻音符的圆滑线；休止符不得携带该字段。
+- PR #452 已合并：`score-document-v13` 与 `local-score-project-storage-v14` 的 canonical 圆滑线切片，音符以 `slurToNext` 表达到同声部相邻音符的圆滑线；休止符不得携带该字段。
 - 旧 storage/document 与 undo/redo 历史只读迁移为 `false`；复制单个事件清除跨事件关系；删除、移动或修改不得制造悬空圆滑线。
-- 五线谱与固定 C 简谱读取同一字段；playback/transport 仅兼容新版本，不改变真实 gate、duration 或连奏效果。远端 Actions、浏览器手测、真机、教师审核、真实连奏播放及 MusicXML/MIDI round-trip 仍未执行。
+- 五线谱与固定 C 简谱读取同一字段；playback/transport 仅兼容新版本，不改变真实 gate、duration 或连奏效果。main Quality run `30239260106` 的 `quality` 与 `android-local` 均成功；浏览器手测、真机、教师审核、真实连奏播放及 MusicXML/MIDI round-trip 仍未执行。
+
+## S3 标准格式接续
+
+- S3 首个独立切片增加 MusicXML／MXL 到 canonical 本机谱项目的受控导入：本机内存候选 → 逐项 blocking ledger → 用户明确确认 → `persistNewLocalScoreProject` 原子保存 → 重开、双谱面与播放。
+- 本切片只接受当前明确支持且可无损映射的元素；所有不支持、会被忽略或会改变音乐语义的元素一律 blocking，不允许静默丢失。
+- `.musicxml`／`.xml`／`.mxl` 输入、2 MiB 输入限制，以及 MXL 既有的 100 entries／4 MiB 解压保护必须保持 fail-closed；容量、quota、事务和迁移失败必须保留全部既有项目。
+- 详细边界见 `docs/s3-local-score-project-musicxml-import-acceptance.md`。该切片不宣称 MIDI、导出、round-trip、OMR、教师审核或正式版 V1 完成。

@@ -48,7 +48,10 @@ function getRootfilePath(containerXml: string): string | undefined {
   return containerXml.match(/<rootfile\b[^>]*\bfull-path\s*=\s*["']([^"']+)["'][^>]*>/i)?.[1];
 }
 
-function extractFromContainer(entries: Record<string, Uint8Array>): string | undefined {
+function extractFromContainer(
+  entries: Record<string, Uint8Array>,
+  archive: Uint8Array,
+): string | undefined {
   const containerEntry = entries["META-INF/container.xml"];
 
   if (!containerEntry) return undefined;
@@ -60,7 +63,20 @@ function extractFromContainer(entries: Record<string, Uint8Array>): string | und
     throw new Error(".mxl 的 META-INF/container.xml 缺少 rootfile full-path。");
   }
 
-  const xml = readEntryAsText(entries, validateRootfilePath(rootfilePath));
+  const validatedPath = validateRootfilePath(rootfilePath);
+  let rootfileEntries = entries;
+  if (!entries[validatedPath]) {
+    rootfileEntries = unzipSync(archive, {
+      filter: (file) => {
+        if (file.name !== validatedPath) return false;
+        if (file.originalSize > MAX_EXTRACTED_MUSICXML_SIZE_BYTES) {
+          throw new Error(".mxl 内部 MusicXML 太大，解压后最大支持 4 MB。");
+        }
+        return true;
+      },
+    });
+  }
+  const xml = readEntryAsText(rootfileEntries, validatedPath);
 
   if (!looksLikeMusicXML(xml)) {
     throw new Error(".mxl container.xml 指向的文件不像 MusicXML，需包含 <score-partwise> 或 <score-timewise>。");
@@ -92,12 +108,30 @@ function extractByFallback(entries: Record<string, Uint8Array>): string {
 }
 
 export function extractMusicXMLFromMxl(data: Uint8Array): string {
-  const entries = unzipSync(data);
-  const entryCount = Object.keys(entries).length;
+  let entryCount = 0;
+  const entries = unzipSync(data, {
+    filter: (file) => {
+      entryCount += 1;
+      if (entryCount > MAX_MXL_ENTRY_COUNT) {
+        throw new Error(".mxl zip entry 过多，当前最多支持 100 个 entry。");
+      }
+      const lowerName = file.name.toLowerCase();
+      const shouldExtract =
+        lowerName === "meta-inf/container.xml"
+        || lowerName.endsWith(".xml")
+        || lowerName.endsWith(".musicxml");
+      if (shouldExtract && lowerName !== "meta-inf/container.xml") {
+        validateRootfilePath(file.name);
+      }
+      if (
+        shouldExtract
+        && file.originalSize > MAX_EXTRACTED_MUSICXML_SIZE_BYTES
+      ) {
+        throw new Error(".mxl 内部 MusicXML 太大，解压后最大支持 4 MB。");
+      }
+      return shouldExtract;
+    },
+  });
 
-  if (entryCount > MAX_MXL_ENTRY_COUNT) {
-    throw new Error(".mxl zip entry 过多，当前最多支持 100 个 entry。");
-  }
-
-  return extractFromContainer(entries) ?? extractByFallback(entries);
+  return extractFromContainer(entries, data) ?? extractByFallback(entries);
 }
