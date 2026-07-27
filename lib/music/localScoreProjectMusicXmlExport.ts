@@ -200,13 +200,6 @@ const addEventIssues = ({
       location,
     ));
   }
-  if (event.slurToNext) {
-    issues.push(blockingIssue(
-      "unsupported-slur",
-      "当前导出不支持圆滑线。",
-      location,
-    ));
-  }
   if (event.lyric !== null) {
     issues.push(blockingIssue(
       "unsupported-lyric",
@@ -230,10 +223,23 @@ const addEventIssues = ({
   }
 };
 
-const renderNote = (event: LocalScoreProjectEventV9) => {
+const renderNote = ({
+  event,
+  slurStop,
+}: {
+  event: LocalScoreProjectEventV9;
+  slurStop: boolean;
+}) => {
   const duration = durationToMusicXml[event.duration];
-  const fermata = event.fermataMark === "fermata"
-    ? "\n        <notations><fermata/></notations>"
+  const notationMarks = [
+    ...(event.fermataMark === "fermata" ? ["<fermata/>"] : []),
+    ...(slurStop ? ['<slur type="stop"/>'] : []),
+    ...(event.type === "note" && event.slurToNext
+      ? ['<slur type="start"/>']
+      : []),
+  ];
+  const notations = notationMarks.length > 0
+    ? `\n        <notations>${notationMarks.join("")}</notations>`
     : "";
   if (event.type === "rest") {
     return `      <note>
@@ -241,7 +247,7 @@ const renderNote = (event: LocalScoreProjectEventV9) => {
         <duration>${duration.duration}</duration>
         <voice>1</voice>
         <type>${duration.type}</type>
-        <staff>1</staff>${fermata}
+        <staff>1</staff>${notations}
       </note>`;
   }
   const step = event.pitch.slice(0, 1);
@@ -254,7 +260,7 @@ const renderNote = (event: LocalScoreProjectEventV9) => {
         <duration>${duration.duration}</duration>
         <voice>1</voice>
         <type>${duration.type}</type>
-        <staff>1</staff>${fermata}
+        <staff>1</staff>${notations}
       </note>`;
 };
 
@@ -266,6 +272,7 @@ const renderMusicXml = (project: LocalScoreProjectV1) => {
     ? { sign: "G", line: 2 }
     : { sign: "F", line: 4 };
   const [beats, beatType] = project.document.meter.split("/");
+  let previousEvent: LocalScoreProjectEventV9 | null = null;
   const measures = voice.measures.map((measure, measureIndex) => {
     const attributes = measureIndex === 0
       ? `      <attributes>
@@ -277,7 +284,13 @@ const renderMusicXml = (project: LocalScoreProjectV1) => {
       </attributes>
 `
       : "";
-    const events = measure.events.map(renderNote).join("\n");
+    const events = measure.events.map((event) => {
+      const slurStop = previousEvent?.type === "note"
+        && previousEvent.slurToNext;
+      const rendered = renderNote({ event, slurStop });
+      previousEvent = event;
+      return rendered;
+    }).join("\n");
     return `    <measure number="${measure.measureNumber}">
 ${attributes}${events}${events ? "\n" : ""}    </measure>`;
   }).join("\n");

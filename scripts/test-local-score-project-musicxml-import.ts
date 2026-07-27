@@ -92,6 +92,86 @@ assert.deepEqual(ready.project?.undoStack, []);
 assert.deepEqual(ready.project?.redoStack, []);
 assert.ok(parseLocalScoreProject(ready.project));
 
+const strictSlurXml = supportedXml
+  .replace(
+    "<type>half</type></note>",
+    '<type>half</type><notations><fermata/><slur type="start"/></notations></note>',
+  )
+  .replace(
+    "<type>eighth</type></note>",
+    '<type>eighth</type><notations><fermata/><slur type="stop"/><slur type="start"/></notations></note>',
+  )
+  .replace(
+    "<type>eighth</type></note>",
+    '<type>eighth</type><notations><slur type="stop"/></notations></note>',
+  );
+let slurEventSequence = 0;
+const strictSlurReady = createLocalScoreProjectMusicXmlImportDraft({
+  xml: strictSlurXml,
+  fileName: "跨小节圆滑线.musicxml",
+  sourceFormat: "musicxml",
+  projectId: "import-project-slur",
+  now: "2026-07-27T08:00:30.000Z",
+  createEventId: () => `slur-event-${++slurEventSequence}`,
+});
+assert.equal(strictSlurReady.status, "ready");
+assert.deepEqual(strictSlurReady.issues, []);
+assert.deepEqual(
+  strictSlurReady.project?.document.parts[0].staves[0].voices[0].measures
+    .map((measure) => ({
+      measureNumber: measure.measureNumber,
+      events: measure.events.map((event) => ({
+        type: event.type,
+        pitch: event.pitch,
+        fermataMark: event.fermataMark,
+        slurToNext: event.type === "note" ? event.slurToNext : null,
+      })),
+    })),
+  [
+    {
+      measureNumber: 1,
+      events: [
+        {
+          type: "note",
+          pitch: "C4",
+          fermataMark: "fermata",
+          slurToNext: false,
+        },
+        {
+          type: "rest",
+          pitch: null,
+          fermataMark: "fermata",
+          slurToNext: null,
+        },
+        {
+          type: "note",
+          pitch: "D4",
+          fermataMark: "fermata",
+          slurToNext: true,
+        },
+      ],
+    },
+    {
+      measureNumber: 2,
+      events: [
+        {
+          type: "note",
+          pitch: "E4",
+          fermataMark: "fermata",
+          slurToNext: true,
+        },
+        {
+          type: "note",
+          pitch: "F4",
+          fermataMark: null,
+          slurToNext: false,
+        },
+      ],
+    },
+  ],
+  "strict slur import must preserve cross-measure chains and fermata coexistence",
+);
+
 let metadataEventSequence = 0;
 const metadataReady = createLocalScoreProjectMusicXmlImportDraft({
   xml: supportedXml
@@ -263,7 +343,6 @@ assert.throws(
 
 for (const [element, code] of [
   ["<tie type=\"start\"/>", "unsupported-tie"],
-  ["<notations><slur type=\"start\"/></notations>", "unsupported-slur"],
   ["<lyric><text>la</text></lyric>", "unsupported-lyric"],
   ["<notations><technical><fingering>1</fingering></technical></notations>", "unsupported-fingering"],
   ["<notations><articulations><accent/></articulations></notations>", "unsupported-articulation"],
@@ -288,6 +367,172 @@ for (const [element, code] of [
     `canonical 语义不得静默丢失：${code}`,
   );
 }
+
+for (const [invalidSlurXml, expectedCode] of [
+  [
+    supportedXml.replace(
+      "<type>half</type></note>",
+      '<type>half</type><notations><slur type="start"/></notations></note>',
+    ),
+    "unsupported-slur-pair",
+  ],
+  [
+    supportedXml.replace(
+      "<type>eighth</type></note>",
+      '<type>eighth</type><notations><slur type="stop"/></notations></note>',
+    ),
+    "unsupported-slur-pair",
+  ],
+  [
+    supportedXml
+      .replace(
+        "<type>quarter</type><notations><fermata/></notations></note>",
+        '<type>quarter</type><notations><fermata/><slur type="start"/></notations></note>',
+      )
+      .replace(
+        "<type>half</type></note>",
+        '<type>half</type><notations><slur type="stop"/></notations></note>',
+      ),
+    "unsupported-slur-pair",
+  ],
+  [
+    supportedXml.replace(
+      "<note><rest/><duration>2</duration><voice>1</voice><type>quarter</type><notations><fermata/></notations></note>",
+      '<note><rest/><duration>2</duration><voice>1</voice><type>quarter</type><notations><fermata/><slur type="start"/></notations></note>',
+    ),
+    "unsupported-slur",
+  ],
+  [
+    supportedXml
+      .replace(
+        "<type>quarter</type><notations><fermata/></notations></note>",
+        '<type>quarter</type><notations><fermata/><slur type="start"/></notations></note>',
+      )
+      .replace(
+        "<note><rest/><duration>2</duration><voice>1</voice><type>quarter</type><notations><fermata/></notations></note>",
+        '<note><rest/><duration>2</duration><voice>1</voice><type>quarter</type><notations><fermata/><slur type="stop"/></notations></note>',
+      ),
+    "unsupported-slur",
+  ],
+  [
+    supportedXml.replace(
+      "<type>half</type></note>",
+      '<type>half</type><notations><slur type="continue"/></notations></note>',
+    ),
+    "unsupported-slur",
+  ],
+  [
+    supportedXml.replace(
+      "<type>half</type></note>",
+      '<type>half</type><notations><slur type="stop"/><slur type="stop"/></notations></note>',
+    ),
+    "unsupported-slur",
+  ],
+  [
+    supportedXml.replace(
+      "<type>half</type></note>",
+      '<type>half</type><notations><![CDATA[ignored-semantic-text]]><slur type="start"/></notations></note>',
+    ),
+    "unsupported-notations",
+  ],
+  [
+    supportedXml.replace(
+      "<type>half</type></note>",
+      '<type>half</type><notations><slur/></notations></note>',
+    ),
+    "unsupported-slur",
+  ],
+  [
+    supportedXml.replace(
+      "<type>half</type></note>",
+      '<type>half</type><notations><slur type="start">text</slur></notations></note>',
+    ),
+    "unsupported-slur",
+  ],
+  [
+    supportedXml.replace(
+      "<type>half</type></note>",
+      '<type>half</type><notations><slur type="start"><other/></slur></notations></note>',
+    ),
+    "unsupported-slur",
+  ],
+  [
+    supportedXml.replace(
+      "<type>half</type></note>",
+      '<type>half</type><notations><slur type="start" number="1"/></notations></note>',
+    ),
+    "unsupported-slur",
+  ],
+  [
+    supportedXml.replace(
+      "<type>half</type></note>",
+      '<type>half</type><notations><slur type="start"/><slur type="start"/></notations></note>',
+    ),
+    "unsupported-slur",
+  ],
+  [
+    supportedXml.replace(
+      "<type>half</type></note>",
+      '<type>half</type><notations><slur type="start"/></notations><notations><slur type="stop"/></notations></note>',
+    ),
+    "unsupported-notations",
+  ],
+  [
+    supportedXml.replace(
+      "<note><pitch>",
+      '<slur type="start"/><note><pitch>',
+    ),
+    "unsupported-slur",
+  ],
+  [
+    supportedXml
+      .replace(
+        "<duration>4</duration><voice>1</voice><type>half</type></note>",
+        '<duration>2</duration><voice>1</voice><type>quarter</type><notations><slur type="start"/></notations></note>',
+      )
+      .replace(
+        "<type>eighth</type></note>",
+        '<type>eighth</type><notations><slur type="stop"/></notations></note>',
+      ),
+    "unsupported-slur-continuity",
+  ],
+] as const) {
+  const invalidSlurDraft = createLocalScoreProjectMusicXmlImportDraft({
+    xml: invalidSlurXml,
+    fileName: "invalid-slur.musicxml",
+    sourceFormat: "musicxml",
+    projectId: "blocked-invalid-slur",
+    now: "2026-07-27T08:11:00.000Z",
+    createEventId: () => "unused-event",
+  });
+  assert.equal(invalidSlurDraft.status, "blocked");
+  assert.ok(
+    invalidSlurDraft.issues.some((issue) => issue.code === expectedCode),
+    `非严格 slur 结构必须失败关闭：${expectedCode}`,
+  );
+}
+
+let blockedSlurEventIdCalls = 0;
+const blockedSlurWithoutIds = createLocalScoreProjectMusicXmlImportDraft({
+  xml: supportedXml.replace(
+    "<type>half</type></note>",
+    '<type>half</type><notations><slur type="start"/></notations></note>',
+  ),
+  fileName: "blocked-slur-no-ids.musicxml",
+  sourceFormat: "musicxml",
+  projectId: "blocked-slur-no-ids",
+  now: "2026-07-27T08:11:30.000Z",
+  createEventId: () => {
+    blockedSlurEventIdCalls += 1;
+    return `unexpected-${blockedSlurEventIdCalls}`;
+  },
+});
+assert.equal(blockedSlurWithoutIds.status, "blocked");
+assert.equal(
+  blockedSlurEventIdCalls,
+  0,
+  "blocked slur input must not allocate canonical event ids",
+);
 
 for (const invalidFermata of [
   "<notations><fermata type=\"upright\"/></notations>",

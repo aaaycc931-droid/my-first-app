@@ -82,7 +82,6 @@ const forbiddenElementCodes = [
   ["grace", "unsupported-grace", "当前导入不支持倚音。"],
   ["tie", "unsupported-tie", "当前导入不支持延音线。"],
   ["tied", "unsupported-tie", "当前导入不支持延音线记谱。"],
-  ["slur", "unsupported-slur", "当前导入不支持圆滑线。"],
   ["lyric", "unsupported-lyric", "当前导入不支持歌词。"],
   ["fingering", "unsupported-fingering", "当前导入不支持指法。"],
   ["harmony", "unsupported-harmony", "当前导入不支持和弦标记。"],
@@ -121,6 +120,7 @@ const allowedMeasureElements = new Set([
   "staff",
   "notations",
   "fermata",
+  "slur",
 ]);
 const allowedRootElements = new Set(["work", "part-list", "part"]);
 const allowedWorkElements = new Set(["work-title"]);
@@ -200,7 +200,19 @@ const blockingIssue = (
   ...(measureNumber === undefined ? {} : { measureNumber }),
 });
 
-const readSupportedFermataMark = ({
+type SupportedNotationBundle = Readonly<{
+  fermataMark: "fermata" | null;
+  slurStart: boolean;
+  slurStop: boolean;
+}>;
+
+const EMPTY_NOTATION_BUNDLE: SupportedNotationBundle = {
+  fermataMark: null,
+  slurStart: false,
+  slurStop: false,
+};
+
+const readSupportedNotationBundle = ({
   noteElement,
   issues,
   measureNumber,
@@ -208,13 +220,15 @@ const readSupportedFermataMark = ({
   noteElement: Element | undefined;
   issues: LocalScoreProjectMusicXmlImportIssue[];
   measureNumber: number;
-}): "fermata" | null => {
-  if (!noteElement) return null;
+}): SupportedNotationBundle => {
+  if (!noteElement) return EMPTY_NOTATION_BUNDLE;
   const notationsElements = directChildElements(noteElement).filter(
     (element) => localElementName(element) === "notations",
   );
   const allFermatas = Array.from(noteElement.getElementsByTagName("*"))
     .filter((element) => localElementName(element) === "fermata");
+  const allSlurs = Array.from(noteElement.getElementsByTagName("*"))
+    .filter((element) => localElementName(element) === "slur");
   if (notationsElements.length === 0) {
     if (allFermatas.length > 0) {
       issues.push(blockingIssue(
@@ -223,7 +237,14 @@ const readSupportedFermataMark = ({
         measureNumber,
       ));
     }
-    return null;
+    if (allSlurs.length > 0) {
+      issues.push(blockingIssue(
+        "unsupported-slur",
+        "圆滑线必须是 note 下 notations 中的空 slur 元素。",
+        measureNumber,
+      ));
+    }
+    return EMPTY_NOTATION_BUNDLE;
   }
   if (notationsElements.length !== 1) {
     issues.push(blockingIssue(
@@ -231,37 +252,111 @@ const readSupportedFermataMark = ({
       "当前导入只支持每个音符或休止符一个 notations 容器。",
       measureNumber,
     ));
-    return null;
+    return EMPTY_NOTATION_BUNDLE;
   }
   const notations = notationsElements[0];
   const notationChildren = directChildElements(notations);
-  const fermata = notationChildren.length === 1
-    && localElementName(notationChildren[0]) === "fermata"
-      ? notationChildren[0]
-      : null;
+  const fermatas = notationChildren.filter(
+    (element) => localElementName(element) === "fermata",
+  );
+  const slurs = notationChildren.filter(
+    (element) => localElementName(element) === "slur",
+  );
+  const unsupportedChildren = notationChildren.filter((element) =>
+    localElementName(element) !== "fermata"
+    && localElementName(element) !== "slur"
+  );
   const hasNonWhitespaceText = Array.from(notations.childNodes).some(
-    (child) => child.nodeType === 3 && (child.textContent ?? "").trim() !== "",
+    (child) =>
+      (child.nodeType === 3 || child.nodeType === 4)
+      && (child.textContent ?? "").trim() !== "",
   );
   if (
     notations.attributes.length !== 0
-    || !fermata
-    || allFermatas.length !== 1
-    || fermata.attributes.length !== 0
-    || directChildElements(fermata).length !== 0
-    || (fermata.textContent ?? "").trim() !== ""
     || hasNonWhitespaceText
+    || notationChildren.length === 0
+    || unsupportedChildren.length > 0
   ) {
     issues.push(blockingIssue(
-      allFermatas.length > 0 ? "unsupported-fermata" : "unsupported-notations",
-      "当前只支持 notations 中唯一、无属性且无文本的 fermata 延长记号。",
+      "unsupported-notations",
+      "当前只支持无属性的 notations，且其中只能包含受控 fermata／slur 记号。",
       measureNumber,
     ));
-    return null;
   }
-  return "fermata";
+  let fermataMark: "fermata" | null = null;
+  if (fermatas.length > 1 || allFermatas.length !== fermatas.length) {
+    issues.push(blockingIssue(
+      "unsupported-fermata",
+      "当前每个 note 最多支持一个直接位于 notations 下的 fermata。",
+      measureNumber,
+    ));
+  } else if (fermatas.length === 1) {
+    const fermata = fermatas[0];
+    if (
+      fermata.attributes.length !== 0
+      || directChildElements(fermata).length !== 0
+      || (fermata.textContent ?? "").trim() !== ""
+    ) {
+      issues.push(blockingIssue(
+        "unsupported-fermata",
+        "当前只支持无属性且无文本的 fermata 延长记号。",
+        measureNumber,
+      ));
+    } else {
+      fermataMark = "fermata";
+    }
+  }
+
+  let slurStart = false;
+  let slurStop = false;
+  if (allSlurs.length !== slurs.length) {
+    issues.push(blockingIssue(
+      "unsupported-slur",
+      "slur 必须直接位于 note 的 notations 子元素中。",
+      measureNumber,
+    ));
+  }
+  slurs.forEach((slur) => {
+    const typeAttribute = slur.attributes.item(0);
+    const type = slur.getAttribute("type");
+    if (
+      slur.attributes.length !== 1
+      || typeAttribute?.name !== "type"
+      || (type !== "start" && type !== "stop")
+      || directChildElements(slur).length !== 0
+      || (slur.textContent ?? "").trim() !== ""
+    ) {
+      issues.push(blockingIssue(
+        "unsupported-slur",
+        "当前只支持仅含 type=\"start\" 或 type=\"stop\" 的空 slur 元素。",
+        measureNumber,
+      ));
+      return;
+    }
+    if (type === "start") {
+      if (slurStart) {
+        issues.push(blockingIssue(
+          "unsupported-slur",
+          "同一音符不能包含重复的 slur start。",
+          measureNumber,
+        ));
+      }
+      slurStart = true;
+      return;
+    }
+    if (slurStop) {
+      issues.push(blockingIssue(
+        "unsupported-slur",
+        "同一音符不能包含重复的 slur stop。",
+        measureNumber,
+      ));
+    }
+    slurStop = true;
+  });
+  return { fermataMark, slurStart, slurStop };
 };
 
-const validateFermataHierarchy = ({
+const validateNotationHierarchy = ({
   measureElement,
   issues,
   measureNumber,
@@ -297,7 +392,7 @@ const validateFermataHierarchy = ({
       ));
     }
     if (
-      elementName === "fermata"
+      (elementName === "fermata" || elementName === "slur")
       && (
         !element.parentElement
         || localElementName(element.parentElement) !== "notations"
@@ -306,8 +401,8 @@ const validateFermataHierarchy = ({
       )
     ) {
       issues.push(blockingIssue(
-        "unsupported-fermata",
-        "fermata 必须位于 note 的直接 notations 子元素中。",
+        elementName === "fermata" ? "unsupported-fermata" : "unsupported-slur",
+        `${elementName} 必须位于 note 的直接 notations 子元素中。`,
         measureNumber,
       ));
     }
@@ -345,12 +440,14 @@ const noteEvent = ({
   duration,
   measure,
   fermataMark,
+  slurToNext,
 }: {
   id: string;
   pitch: NotationPitch;
   duration: NotationDuration;
   measure: number;
   fermataMark: "fermata" | null;
+  slurToNext: boolean;
 }): LocalScoreProjectEventV9 => ({
   id,
   type: "note",
@@ -359,7 +456,7 @@ const noteEvent = ({
   measure,
   augmentationDots: 0,
   tieToNext: false,
-  slurToNext: false,
+  slurToNext,
   lyric: null,
   fingering: null,
   chordSymbol: null,
@@ -723,6 +820,10 @@ export const createLocalScoreProjectMusicXmlImportDraft = (
   const parsedMeasures: ParsedMeasure[] = [];
   let provisionalEventCount = 0;
   const usedMeasureNumbers = new Set<number>();
+  let pendingSlurStart: Readonly<{
+    endBeat: number;
+    measureNumber: number;
+  }> | null = null;
 
   measureMatches.forEach((measureMatch, measureIndex) => {
     const attributes = measureMatch[1];
@@ -803,14 +904,14 @@ export const createLocalScoreProjectMusicXmlImportDraft = (
         (element) => localElementName(element) === "note",
       )
       : [];
-    validateFermataHierarchy({
+    validateNotationHierarchy({
       measureElement: measureElements[measureIndex],
       issues,
       measureNumber,
     });
     getElementMatches(measureXml, "note").forEach((noteMatch, noteIndex) => {
       const noteXml = noteMatch[2];
-      const fermataMark = readSupportedFermataMark({
+      const notationBundle = readSupportedNotationBundle({
         noteElement: noteElements[noteIndex],
         issues,
         measureNumber,
@@ -844,9 +945,57 @@ export const createLocalScoreProjectMusicXmlImportDraft = (
           measureNumber,
         ));
       }
+      const onsetBeat = meter
+        ? (measureNumber - 1) * Number(meter.split("/")[0]) + occupiedBeats
+        : null;
+      const endBeat = duration && onsetBeat !== null
+        ? onsetBeat + durationBeats[duration]
+        : null;
       if (duration) occupiedBeats += durationBeats[duration];
 
-      if (hasElement(noteXml, "rest")) {
+      const isRest = hasElement(noteXml, "rest");
+      if (pendingSlurStart) {
+        if (!notationBundle.slurStop) {
+          issues.push(blockingIssue(
+            "unsupported-slur-pair",
+            "slur start 后必须由紧邻的下一个音符以 slur stop 闭合。",
+            pendingSlurStart.measureNumber,
+          ));
+        } else if (isRest || onsetBeat !== pendingSlurStart.endBeat) {
+          issues.push(blockingIssue(
+            "unsupported-slur-continuity",
+            "圆滑线只能连接时间连续的相邻音符，不能跨休止符或空拍。",
+            measureNumber,
+          ));
+        }
+      } else if (notationBundle.slurStop) {
+        issues.push(blockingIssue(
+          "unsupported-slur-pair",
+          "slur stop 前必须是带 slur start 的紧邻音符。",
+          measureNumber,
+        ));
+      }
+      pendingSlurStart = null;
+      if (notationBundle.slurStart) {
+        if (isRest || endBeat === null) {
+          issues.push(blockingIssue(
+            "unsupported-slur",
+            "休止符或无法确定时值的事件不能开始圆滑线。",
+            measureNumber,
+          ));
+        } else {
+          pendingSlurStart = { endBeat, measureNumber };
+        }
+      }
+
+      if (isRest) {
+        if (notationBundle.slurStop) {
+          issues.push(blockingIssue(
+            "unsupported-slur",
+            "休止符不能结束圆滑线。",
+            measureNumber,
+          ));
+        }
         if (duration && duration !== "quarter") {
           issues.push(blockingIssue(
             "unsupported-rest-duration",
@@ -858,9 +1007,9 @@ export const createLocalScoreProjectMusicXmlImportDraft = (
           provisionalEventCount += 1;
           if (!issues.some((issue) => issue.severity === "blocking")) {
             events.push(restEvent({
-              id: args.createEventId(),
+              id: `musicxml-import-provisional-${provisionalEventCount}`,
               measure: measureNumber,
-              fermataMark,
+              fermataMark: notationBundle.fermataMark,
             }));
           }
         }
@@ -892,11 +1041,12 @@ export const createLocalScoreProjectMusicXmlImportDraft = (
         provisionalEventCount += 1;
         if (!issues.some((issue) => issue.severity === "blocking")) {
           events.push(noteEvent({
-            id: args.createEventId(),
+            id: `musicxml-import-provisional-${provisionalEventCount}`,
             pitch: pitch as NotationPitch,
             duration,
             measure: measureNumber,
-            fermataMark,
+            fermataMark: notationBundle.fermataMark,
+            slurToNext: notationBundle.slurStart,
           }));
         }
       }
@@ -911,6 +1061,18 @@ export const createLocalScoreProjectMusicXmlImportDraft = (
     }
     parsedMeasures.push({ measureNumber, events });
   });
+
+  const unresolvedSlur = pendingSlurStart as Readonly<{
+    endBeat: number;
+    measureNumber: number;
+  }> | null;
+  if (unresolvedSlur) {
+    issues.push(blockingIssue(
+      "unsupported-slur-pair",
+      "乐谱结束前的 slur start 缺少紧邻音符上的 slur stop。",
+      unresolvedSlur.measureNumber,
+    ));
+  }
 
   if (measureMatches.length === 0) {
     issues.push(blockingIssue(
@@ -946,6 +1108,13 @@ export const createLocalScoreProjectMusicXmlImportDraft = (
     title: importedTitle ?? sourceTitle(args.fileName),
     now: args.now,
   });
+  const materializedMeasures = parsedMeasures.map((measure) => ({
+    ...measure,
+    events: measure.events.map((event) => ({
+      ...event,
+      id: args.createEventId(),
+    })),
+  }));
   const project: LocalScoreProjectV1 = {
     ...baseProject,
     document: {
@@ -962,7 +1131,7 @@ export const createLocalScoreProjectMusicXmlImportDraft = (
           clef,
           voices: [{
             voiceId: "voice-1",
-            measures: parsedMeasures,
+            measures: materializedMeasures,
           }],
         }],
       }],
