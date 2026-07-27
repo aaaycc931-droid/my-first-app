@@ -18,6 +18,7 @@ import type {
   LocalNotationProjectScoreDocumentV9,
   LocalNotationProjectScoreDocumentV10,
   LocalNotationProjectScoreDocumentV11,
+  LocalNotationProjectScoreDocumentV12,
   LocalScoreProjectEventV2,
   LocalScoreProjectEventV3,
   LocalScoreProjectEventV4,
@@ -90,7 +91,8 @@ type PlaybackDocument =
   | LocalNotationProjectScoreDocumentV8
   | LocalNotationProjectScoreDocumentV9
   | LocalNotationProjectScoreDocumentV10
-  | LocalNotationProjectScoreDocumentV11;
+  | LocalNotationProjectScoreDocumentV11
+  | LocalNotationProjectScoreDocumentV12;
 
 type PlaybackEvent =
   | ScoreDocumentEventV1
@@ -159,6 +161,7 @@ const isLegacyPlaybackContent = (document: Record<string, unknown>): boolean => 
                 articulations: [],
                 dynamicMark: null,
                 damperPedalMark: null,
+                fermataMark: null,
               }
               : {
                 ...event,
@@ -166,6 +169,7 @@ const isLegacyPlaybackContent = (document: Record<string, unknown>): boolean => 
                 chordSymbol: null,
                 dynamicMark: null,
                 damperPedalMark: null,
+                fermataMark: null,
               };
           });
           if (events.some((event) => event === null)) return null;
@@ -216,10 +220,7 @@ const isPreviousPlaybackContent = (
     keySignature: document.keySignature,
     parts: document.parts.map((part, index) => {
       if (!isRecord(part)) return part;
-      const staves = (
-        document.schemaVersion === "score-document-v10"
-        || document.schemaVersion === "score-document-v11"
-      )
+      const staves = document.schemaVersion === "score-document-v12"
         ? part.staves
         : Array.isArray(part.staves)
           ? part.staves.map((staff) =>
@@ -236,6 +237,20 @@ const isPreviousPlaybackContent = (
                             ...measure,
                             events: measure.events.map((event) => {
                               if (!isRecord(event)) return event;
+                              if (
+                                document.schemaVersion === "score-document-v10"
+                                || document.schemaVersion === "score-document-v11"
+                              ) {
+                                return {
+                                  ...event,
+                                  damperPedalMark:
+                                    document.schemaVersion === "score-document-v11"
+                                      && ("damperPedalMark" in event)
+                                      ? event.damperPedalMark
+                                      : null,
+                                  fermataMark: null,
+                                };
+                              }
                               const withChordSymbol =
                                 document.schemaVersion === "score-document-v8"
                                   || document.schemaVersion
@@ -264,6 +279,7 @@ const isPreviousPlaybackContent = (
                                 ...withArticulations,
                                 dynamicMark: null,
                                 damperPedalMark: null,
+                                fermataMark: null,
                               };
                             }),
                           }
@@ -302,6 +318,7 @@ const isPlaybackDocument = (
     || document.schemaVersion === "score-document-v9"
     || document.schemaVersion === "score-document-v10"
     || document.schemaVersion === "score-document-v11"
+    || document.schemaVersion === "score-document-v12"
   )
   && document.documentKind === "notation-project"
   && typeof document.documentId === "string"
@@ -341,6 +358,7 @@ const isPlaybackDocument = (
         || document.schemaVersion === "score-document-v9"
         || document.schemaVersion === "score-document-v10"
         || document.schemaVersion === "score-document-v11"
+        || document.schemaVersion === "score-document-v12"
       )
       && isPreviousPlaybackContent(document)
     )
