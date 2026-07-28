@@ -218,8 +218,11 @@ const containsUnsupportedLyricCharacter = (value: string) =>
       codePoint <= 0x1f
       || (codePoint >= 0x7f && codePoint <= 0x9f)
       || (codePoint >= 0xd800 && codePoint <= 0xdfff)
+      || codePoint === 0x2028
+      || codePoint === 0x2029
       || codePoint === 0xfffe
       || codePoint === 0xffff
+      || codePoint > 0xeffff
     );
   });
 

@@ -10,8 +10,9 @@ QA level recommendation：**strict**
   `<lyric><text>…</text></lyric>`；rest 不承载歌词。本切片不修改 canonical schema、
   storage 版本、歌词编辑或既有双谱面显示。
 - 非空歌词必须是已经规范化的单行文本：前后没有空白、最多 80 个 Unicode code
-  point，且不含 C0／C1 控制字符、孤立 surrogate 或 `U+FFFE`／`U+FFFF`。内部空格、
-  汉字、emoji 和普通标点可以保留。
+  point，且不含 C0／C1 控制字符、`U+2028`／`U+2029` 行段分隔符、孤立 surrogate、
+  `U+FFFE`／`U+FFFF` 或高于 XML 1.0 上限 `U+EFFFF` 的字符。内部空格、汉字、emoji
+  和普通标点可以保留。
 - 导出必须 XML escape `&`、`<`、`>`、双引号和单引号；重新导入后恢复的是解码后的
   exact canonical 文本，不能 trim、猜测、分词或改写。
 - 按 MusicXML 4.0 note 内容顺序，`<lyric>` 必须位于 `<staff>` 和可选
@@ -47,8 +48,8 @@ QA level recommendation：**strict**
   `<staff> → <notations> → <lyric>` 的确定性顺序。
 - 同一 canonical revision 重复生成 XML／MXL 字节一致；XML 与 MXL 解包 XML
   语义一致，canonical re-import projection 包含歌词。
-- 覆盖 80 个 Unicode code point 边界；81 个、控制字符、空文本、纯空白和前后
-  空白全部失败关闭。
+- 覆盖 80 个 Unicode code point 边界；81 个、控制字符、Unicode 行段分隔符、
+  XML 1.0 范围外字符、空文本、纯空白和前后空白全部失败关闭。
 - 覆盖 rest lyric、重复 lyric／text、lyric／text／note 属性、CDATA、comment、
   processing instruction、嵌套、错层级、错顺序、`syllabic`、`elision`、`extend`
   与多 verse 等结构，且 blocking 输入不得分配 canonical event id。

@@ -706,8 +706,11 @@ const invalidLyricCases = [
   ["c1-control", "la\u0085"],
   ["lone-high-surrogate", "la\ud800"],
   ["lone-low-surrogate", "la\udfff"],
+  ["unicode-line-separator", "la\u2028next"],
+  ["unicode-paragraph-separator", "la\u2029next"],
   ["unicode-fffe", "la\ufffe"],
   ["unicode-ffff", "la\uffff"],
+  ["above-xml-1.0-range", `la${String.fromCodePoint(0xf0000)}`],
 ] as const;
 for (const [label, lyric] of invalidLyricCases) {
   const invalidLyricProject = withFirstMeasureEvents([{

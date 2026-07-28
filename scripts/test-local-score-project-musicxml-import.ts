@@ -503,6 +503,18 @@ const invalidLyricXmls = [
   ),
   supportedXml.replace(
     lyricInsertionTarget,
+    "<type>half</type><lyric><text>坏\u2028词</text></lyric></note>",
+  ),
+  supportedXml.replace(
+    lyricInsertionTarget,
+    "<type>half</type><lyric><text>坏\u2029词</text></lyric></note>",
+  ),
+  supportedXml.replace(
+    lyricInsertionTarget,
+    `<type>half</type><lyric><text>坏${String.fromCodePoint(0xf0000)}词</text></lyric></note>`,
+  ),
+  supportedXml.replace(
+    lyricInsertionTarget,
     "<type>half</type><lyric>旁路<text>歌词</text></lyric></note>",
   ),
   supportedXml.replace(
