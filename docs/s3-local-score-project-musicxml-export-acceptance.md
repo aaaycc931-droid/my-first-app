@@ -57,7 +57,13 @@ QA level recommendation：**strict**
   marker 均使用固定、可复核的确定性顺序：direct tie 为 stop 后 start，notations
   为 fermata、tied stop、tied start、slur stop、slur start；不存在的 marker 跳过。
   不得创建第二个容器或只输出视觉／播放 marker 的一侧。
-- 多附点、歌词、指法、和弦标记、演奏法、力度、制音踏板及其他当前
+- pitched note 的规范化非空 canonical `lyric` 必须 XML escape 后确定性写为唯一
+  `<lyric><text>…</text></lyric>`，顺序位于 `<staff>` 和可选 `<notations>` 之后。
+  text 最多 80 个 Unicode code point、前后无空白且无 C0／C1 控制字符、孤立
+  surrogate 或 `U+FFFE`／`U+FFFF`；不得生成
+  `syllabic`、verse 属性、`elision`、`extend` 或其他 canonical 未表达的歌词语义。
+  非规范 canonical lyric 必须 blocking，不得在导出时 trim 或修正。
+- 多附点、指法、和弦标记、演奏法、力度、制音踏板及其他当前
   未映射的非中性 canonical 语义，必须逐类形成稳定 blocking 项。
 - 项目至少包含一个事件；任何超过当前拍号容量的小节必须 blocking。
 
@@ -116,10 +122,11 @@ QA level recommendation：**strict**
 
 1. 当前 canonical MusicXML importer 重新读取 `.musicxml`，以及从 `.mxl` 安全解包
    后的 XML，核对标题、part 名称、音高、时值、休止符、小节、调号、拍号和谱号等本
-   切片承诺的语义，以及单附点、fermata、slur 与 tie 的 canonical 映射。
+   切片承诺的语义，以及单附点、单段歌词、fermata、slur 与 tie 的 canonical 映射。
 2. 既有 legacy `musicxmlParser` 作为独立代码路径，交叉核对其能够表达的音符音高、
    基础时值、小节和拍位。该 parser 以 raw duration 推进附点后的拍位，但不表达 dot
-   identity、休止符、credits 或全部 canonical 字段，不能单独证明完整 round-trip。
+   identity、歌词、休止符、credits 或全部 canonical 字段，不能单独证明完整
+   round-trip。
 
 上述两个路径都是本仓库内部自动测试，不是 MuseScore、Dorico、Sibelius 或其他第三方
 独立阅读器证据。没有真实外部程序执行记录时，不得使用“独立阅读器已通过”或“第三方
@@ -136,6 +143,9 @@ QA level recommendation：**strict**
 - half／quarter／eighth note 单附点及 quarter rest 单附点确定性写为严格 `<dot/>`，
   `.musicxml`／`.mxl` re-import 后保持 `augmentationDots`，整数 duration、容量与
   后续拍位均按 `1.5×` 真实时值；
+- canonical 单段歌词按 `<staff> → <notations> → <lyric><text>` 确定性输出；中文、
+  内部空格、emoji 与 XML 特殊字符经 `.musicxml`／`.mxl` re-import 后保持 exact
+  `lyric`，无歌词 note 保持 `null`；
 - note/rest 延长记号写为严格 `<notations><fermata/></notations>`，`.musicxml`
   与 `.mxl` re-import 后保持同一 canonical `fermataMark`；
 - canonical 圆滑线写为相邻时间连续 note 上严格配对的 slur start／stop；同小节、
@@ -193,3 +203,6 @@ QA level recommendation：**strict**
 
 单附点双向严格子集的独立验收边界见
 `docs/s3-local-score-project-musicxml-augmentation-dot-round-trip-acceptance.md`。
+
+单段歌词双向严格子集的独立验收边界见
+`docs/s3-local-score-project-musicxml-lyric-round-trip-acceptance.md`。
