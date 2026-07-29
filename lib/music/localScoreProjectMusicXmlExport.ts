@@ -11,6 +11,9 @@ import {
   MUSICXML_MIME_TYPE,
   MXL_MIME_TYPE,
 } from "../musicxml/mxlWriter";
+import {
+  parseSupportedCanonicalChordSymbol,
+} from "./localScoreProjectMusicXmlChordSymbol";
 
 export const LOCAL_SCORE_PROJECT_MUSICXML_EXPORT_MAX_BYTES = 2 * 1024 * 1024;
 
@@ -248,10 +251,13 @@ const addEventIssues = ({
     measureNumber,
     eventId: event.id,
   });
-  if (event.chordSymbol !== null) {
+  if (
+    event.chordSymbol !== null
+    && parseSupportedCanonicalChordSymbol(event.chordSymbol) === null
+  ) {
     issues.push(blockingIssue(
       "unsupported-chord-symbol",
-      "当前导出不支持和弦标记。",
+      "当前导出只支持自然音根音的大三、小三、属七、大七和小七和弦标记。",
       location,
     ));
   }
@@ -282,6 +288,18 @@ const renderDamperPedalDirection = (event: LocalScoreProjectEventV9) => {
         <voice>1</voice>
         <staff>1</staff>
       </direction>
+`;
+};
+
+const renderChordHarmony = (event: LocalScoreProjectEventV9) => {
+  if (event.chordSymbol === null) return "";
+  const chord = parseSupportedCanonicalChordSymbol(event.chordSymbol);
+  if (!chord) return "";
+  return `      <harmony>
+        <root><root-step>${chord.rootStep}</root-step></root>
+        <kind>${chord.kind}</kind>
+        <staff>1</staff>
+      </harmony>
 `;
 };
 
@@ -385,7 +403,9 @@ const renderMusicXml = (project: LocalScoreProjectV1) => {
         && previousEvent.tieToNext;
       const slurStop = previousEvent?.type === "note"
         && previousEvent.slurToNext;
-      const rendered = `${renderDamperPedalDirection(event)}${
+      const rendered = `${renderChordHarmony(event)}${
+        renderDamperPedalDirection(event)
+      }${
         renderNote({ event, tieStop, slurStop })
       }`;
       previousEvent = event;

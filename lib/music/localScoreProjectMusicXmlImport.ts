@@ -17,6 +17,9 @@ import type {
   NotationPitch,
   NotationTimeSignature,
 } from "../practice/localNotationFragmentDraft";
+import {
+  createSupportedCanonicalChordSymbol,
+} from "./localScoreProjectMusicXmlChordSymbol";
 
 export type LocalScoreProjectMusicXmlImportIssue = Readonly<{
   code: string;
@@ -83,7 +86,6 @@ const forbiddenElementCodes = [
   ["tuplet", "unsupported-tuplet", "当前导入不支持连音符。"],
   ["time-modification", "unsupported-tuplet", "当前导入不支持连音符时值比例。"],
   ["grace", "unsupported-grace", "当前导入不支持倚音。"],
-  ["harmony", "unsupported-harmony", "当前导入不支持和弦标记。"],
   ["accidental", "unsupported-accidental", "当前导入只支持无临时升降号的自然音。"],
   ["transpose", "unsupported-transpose", "当前导入不支持移调声明。"],
   ["ornaments", "unsupported-ornament", "当前导入不支持装饰音。"],
@@ -134,6 +136,10 @@ const allowedMeasureElements = new Set([
   "mf",
   "f",
   "ff",
+  "harmony",
+  "root",
+  "root-step",
+  "kind",
   "lyric",
   "text",
 ]);
@@ -227,6 +233,7 @@ type SupportedNotationBundle = Readonly<{
 
 type TieMarkerType = "start" | "stop";
 type SupportedDamperPedalMark = "down" | "up";
+type SupportedChordSymbol = string;
 const articulationOrder: readonly LocalScoreProjectArticulationV1[] = [
   "accent",
   "staccato",
@@ -1057,6 +1064,51 @@ const isExactUnnamespacedElement = (
   && element.nodeName === expectedName
   && (element.namespaceURI === null || element.namespaceURI === "");
 
+const isExactPlainTextElement = (
+  element: Element | undefined,
+  expectedName: string,
+  expectedText?: string,
+) => {
+  if (!element || !isExactUnnamespacedElement(element, expectedName)) {
+    return false;
+  }
+  return (
+    element.attributes.length === 0
+    && directChildElements(element).length === 0
+    && Array.from(element.childNodes).every((child) => child.nodeType === 3)
+    && (expectedText === undefined || element.textContent === expectedText)
+  );
+};
+
+const isSupportedDamperPedalDirectionElement = (direction: Element) => {
+  const directionChildren = directChildElements(direction);
+  const [directionType, voice, staff] = directionChildren;
+  const directionTypeChildren = directionType
+    && localElementName(directionType) === "direction-type"
+    ? directChildElements(directionType)
+    : [];
+  const pedal = directionTypeChildren[0];
+  const pedalType = pedal?.getAttribute("type");
+  const pedalAttribute = pedal?.attributes.item(0);
+  return (
+    isExactUnnamespacedElement(direction, "direction")
+    && direction.attributes.length === 0
+    && !hasUnsupportedContainerNode(direction)
+    && directionChildren.length === 3
+    && isExactUnnamespacedElement(directionType, "direction-type")
+    && directionType.attributes.length === 0
+    && !hasUnsupportedContainerNode(directionType)
+    && directionTypeChildren.length === 1
+    && isExactUnnamespacedElement(pedal, "pedal")
+    && pedal.attributes.length === 1
+    && pedalAttribute?.name === "type"
+    && (pedalType === "start" || pedalType === "stop")
+    && pedal.childNodes.length === 0
+    && isExactPlainTextElement(voice, "voice", "1")
+    && isExactPlainTextElement(staff, "staff", "1")
+  );
+};
+
 const readSupportedDamperPedalMarks = ({
   measureElement,
   issues,
@@ -1111,39 +1163,12 @@ const readSupportedDamperPedalMarks = ({
       && isExactUnnamespacedElement(targetNote, "note")
       ? noteElements.indexOf(targetNote)
       : -1;
-    const directionChildren = directChildElements(direction);
-    const [directionType, voice, staff] = directionChildren;
-    const directionTypeChildren = directionType
-      && localElementName(directionType) === "direction-type"
-      ? directChildElements(directionType)
-      : [];
-    const pedal = directionTypeChildren[0];
+    const directionType = directChildElements(direction)[0];
+    const pedal = directionType
+      ? directChildElements(directionType)[0]
+      : undefined;
     const pedalType = pedal?.getAttribute("type");
-    const pedalAttribute = pedal?.attributes.item(0);
-    const validStructure =
-      isExactUnnamespacedElement(direction, "direction")
-      && direction.attributes.length === 0
-      && !hasUnsupportedContainerNode(direction)
-      && directionChildren.length === 3
-      && isExactUnnamespacedElement(directionType, "direction-type")
-      && directionType.attributes.length === 0
-      && !hasUnsupportedContainerNode(directionType)
-      && directionTypeChildren.length === 1
-      && isExactUnnamespacedElement(pedal, "pedal")
-      && pedal.attributes.length === 1
-      && pedalAttribute?.name === "type"
-      && (pedalType === "start" || pedalType === "stop")
-      && pedal.childNodes.length === 0
-      && isExactUnnamespacedElement(voice, "voice")
-      && voice.attributes.length === 0
-      && directChildElements(voice).length === 0
-      && Array.from(voice.childNodes).every((child) => child.nodeType === 3)
-      && voice.textContent === "1"
-      && isExactUnnamespacedElement(staff, "staff")
-      && staff.attributes.length === 0
-      && directChildElements(staff).length === 0
-      && Array.from(staff.childNodes).every((child) => child.nodeType === 3)
-      && staff.textContent === "1";
+    const validStructure = isSupportedDamperPedalDirectionElement(direction);
     if (!validStructure) {
       issues.push(blockingIssue(
         "unsupported-direction",
@@ -1199,6 +1224,157 @@ const readSupportedDamperPedalMarks = ({
       measureNumber,
     ));
   }
+  return result;
+};
+
+const readSupportedChordSymbols = ({
+  measureElement,
+  issues,
+  measureNumber,
+}: {
+  measureElement: Element | undefined;
+  issues: LocalScoreProjectMusicXmlImportIssue[];
+  measureNumber: number;
+}): readonly (SupportedChordSymbol | null)[] => {
+  if (!measureElement) return [];
+  const measureChildren = directChildElements(measureElement);
+  const noteElements = measureChildren.filter(
+    (element) => localElementName(element) === "note",
+  );
+  const result: (SupportedChordSymbol | null)[] = noteElements.map(() => null);
+  const directHarmonies = measureChildren.filter(
+    (element) => isExactUnnamespacedElement(element, "harmony"),
+  );
+  const allHarmonies = Array.from(measureElement.getElementsByTagName("*"))
+    .filter((element) => localElementName(element) === "harmony");
+  if (allHarmonies.length !== directHarmonies.length) {
+    issues.push(blockingIssue(
+      "unsupported-harmony-structure",
+      "和弦标记 harmony 必须是 measure 的直接、无命名空间子元素。",
+      measureNumber,
+    ));
+  }
+  const harmonyStructureElements = Array.from(
+    measureElement.getElementsByTagName("*"),
+  ).filter((element) =>
+    ["root", "root-step", "kind"].includes(localElementName(element))
+  );
+  if (harmonyStructureElements.some((element) => {
+    const name = localElementName(element);
+    if (name === "root") {
+      return (
+        !isExactUnnamespacedElement(element, "root")
+        || !element.parentElement
+        || !isExactUnnamespacedElement(element.parentElement, "harmony")
+        || element.parentElement.parentElement !== measureElement
+      );
+    }
+    if (name === "kind") {
+      return (
+        !isExactUnnamespacedElement(element, "kind")
+        || !element.parentElement
+        || !isExactUnnamespacedElement(element.parentElement, "harmony")
+        || element.parentElement.parentElement !== measureElement
+      );
+    }
+    return (
+      !isExactUnnamespacedElement(element, "root-step")
+      || !element.parentElement
+      || !isExactUnnamespacedElement(element.parentElement, "root")
+      || !element.parentElement.parentElement
+      || !isExactUnnamespacedElement(
+        element.parentElement.parentElement,
+        "harmony",
+      )
+      || element.parentElement.parentElement.parentElement !== measureElement
+    );
+  })) {
+    issues.push(blockingIssue(
+      "unsupported-harmony-structure",
+      "root、root-step 和 kind 必须只位于 measure／harmony 的严格层级中。",
+      measureNumber,
+    ));
+  }
+
+  directHarmonies.forEach((harmony) => {
+    const measureNodes = Array.from(measureElement.childNodes);
+    const harmonyIndex = measureNodes.indexOf(harmony);
+    let targetNote: Element | undefined;
+    let unsupportedGapNode = false;
+    let skippedPedalDirection = false;
+    for (
+      let nodeIndex = harmonyIndex + 1;
+      nodeIndex < measureNodes.length;
+      nodeIndex += 1
+    ) {
+      const node = measureNodes[nodeIndex];
+      if (node.nodeType === 3 && (node.textContent ?? "").trim() === "") {
+        continue;
+      }
+      if (
+        node.nodeType === 1
+        && !skippedPedalDirection
+        && isSupportedDamperPedalDirectionElement(node as Element)
+      ) {
+        skippedPedalDirection = true;
+        continue;
+      }
+      if (node.nodeType === 1) {
+        targetNote = node as Element;
+      } else {
+        unsupportedGapNode = true;
+      }
+      break;
+    }
+    const targetNoteIndex = targetNote
+      && isExactUnnamespacedElement(targetNote, "note")
+      ? noteElements.indexOf(targetNote)
+      : -1;
+    const harmonyChildren = directChildElements(harmony);
+    const [root, kind, staff] = harmonyChildren;
+    const rootChildren = root && localElementName(root) === "root"
+      ? directChildElements(root)
+      : [];
+    const rootStep = rootChildren[0];
+    const supported = createSupportedCanonicalChordSymbol({
+      rootStep: rootStep?.textContent ?? "",
+      kind: kind?.textContent ?? "",
+    });
+    const validStructure =
+      harmony.attributes.length === 0
+      && !hasUnsupportedContainerNode(harmony)
+      && harmonyChildren.length === 3
+      && isExactUnnamespacedElement(root, "root")
+      && root.attributes.length === 0
+      && !hasUnsupportedContainerNode(root)
+      && rootChildren.length === 1
+      && isExactPlainTextElement(rootStep, "root-step")
+      && isExactPlainTextElement(kind, "kind")
+      && isExactPlainTextElement(staff, "staff", "1")
+      && supported !== null;
+    if (!validStructure) {
+      issues.push(blockingIssue(
+        "unsupported-harmony-structure",
+        "当前只支持无属性、依次仅含自然音 root、受控 kind 和 staff 1 的严格 harmony。",
+        measureNumber,
+      ));
+    }
+    if (unsupportedGapNode || targetNoteIndex < 0) {
+      issues.push(blockingIssue(
+        "unsupported-harmony-anchor",
+        "harmony 必须紧邻目标 note 或 rest；中间只允许格式化空白和同一事件的严格踏板 direction。",
+        measureNumber,
+      ));
+    } else if (result[targetNoteIndex] !== null) {
+      issues.push(blockingIssue(
+        "unsupported-harmony-anchor",
+        "每个 note 或 rest 最多只能关联一个 harmony。",
+        measureNumber,
+      ));
+    } else if (validStructure && supported) {
+      result[targetNoteIndex] = supported.canonical;
+    }
+  });
   return result;
 };
 
@@ -1454,6 +1630,7 @@ const noteEvent = ({
   articulations,
   dynamicMark,
   damperPedalMark,
+  chordSymbol,
   measure,
   fermataMark,
   tieToNext,
@@ -1468,6 +1645,7 @@ const noteEvent = ({
   articulations: readonly LocalScoreProjectArticulationV1[];
   dynamicMark: LocalScoreProjectDynamicMarkV1 | null;
   damperPedalMark: SupportedDamperPedalMark | null;
+  chordSymbol: SupportedChordSymbol | null;
   measure: number;
   fermataMark: "fermata" | null;
   tieToNext: boolean;
@@ -1483,7 +1661,7 @@ const noteEvent = ({
   slurToNext,
   lyric,
   fingering,
-  chordSymbol: null,
+  chordSymbol,
   articulations,
   dynamicMark,
   damperPedalMark,
@@ -1495,6 +1673,7 @@ const restEvent = ({
   augmentationDots,
   dynamicMark,
   damperPedalMark,
+  chordSymbol,
   measure,
   fermataMark,
 }: {
@@ -1502,6 +1681,7 @@ const restEvent = ({
   augmentationDots: 0 | 1;
   dynamicMark: LocalScoreProjectDynamicMarkV1 | null;
   damperPedalMark: SupportedDamperPedalMark | null;
+  chordSymbol: SupportedChordSymbol | null;
   measure: number;
   fermataMark: "fermata" | null;
 }): LocalScoreProjectEventV9 => ({
@@ -1511,7 +1691,7 @@ const restEvent = ({
   duration: "quarter",
   measure,
   augmentationDots,
-  chordSymbol: null,
+  chordSymbol,
   dynamicMark,
   damperPedalMark,
   fermataMark,
@@ -1944,6 +2124,11 @@ export const createLocalScoreProjectMusicXmlImportDraft = (
       issues,
       measureNumber,
     });
+    const chordSymbols = readSupportedChordSymbols({
+      measureElement: measureElements[measureIndex],
+      issues,
+      measureNumber,
+    });
     validateNotationHierarchy({
       measureElement: measureElements[measureIndex],
       issues,
@@ -2181,6 +2366,7 @@ export const createLocalScoreProjectMusicXmlImportDraft = (
               augmentationDots,
               dynamicMark: notationBundle.dynamicMark,
               damperPedalMark: damperPedalMarks[noteIndex] ?? null,
+              chordSymbol: chordSymbols[noteIndex] ?? null,
               measure: measureNumber,
               fermataMark: notationBundle.fermataMark,
             }));
@@ -2209,6 +2395,7 @@ export const createLocalScoreProjectMusicXmlImportDraft = (
             articulations: notationBundle.articulations,
             dynamicMark: notationBundle.dynamicMark,
             damperPedalMark: damperPedalMarks[noteIndex] ?? null,
+            chordSymbol: chordSymbols[noteIndex] ?? null,
             measure: measureNumber,
             fermataMark: notationBundle.fermataMark,
             tieToNext: tieStart,
