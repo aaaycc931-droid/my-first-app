@@ -70,6 +70,11 @@ QA level recommendation：**strict**
   记号；它 exact 映射为 canonical `articulations`。空容器、rest、重复、错序、属性、
   文本、CDATA、comment、processing instruction、嵌套、错层级和其他演奏法必须
   blocking，不得重排、去重或静默丢弃。
+- note 与 rest 最多允许一个直接位于唯一 `<notations>` 下的无属性
+  `<dynamics>`，其中必须且只能包含一个无属性、无文本的 `pp`／`p`／`mp`／`mf`／
+  `f`／`ff` 空记号；它 exact 映射为 canonical `dynamicMark`。空容器、组合／其他
+  力度、属性、文本、CDATA、comment、processing instruction、嵌套、错层级、
+  measure-level direction 以及 note 的播放力度属性必须 blocking。
 - note 与 rest 各自最多允许一个直接、无属性且无非空文本的 `<notations>`。其中
   `<fermata/>` 必须无属性、无文本、无子元素，并无损映射为 canonical
   `fermataMark: "fermata"`。
@@ -97,7 +102,8 @@ QA level recommendation：**strict**
 
 本切片不得为了增加成功率而静默跳过休止符、多 part／staff／voice、和弦时序、
 `backup`／`forward`、未知时值、谱号／调号／拍号、严格单段歌词／单指法／单音演奏法／
-单附点／fermata／slur／tie 结构以外的歌词、指法、演奏法、连线或其他 canonical 语义。
+单事件力度记号／单附点／fermata／slur／tie 结构以外的歌词、指法、演奏法、力度、
+连线或其他 canonical 语义。
 不在本切片支持清单中的内容必须 blocking。
 
 ## 明确确认与原子保存
@@ -148,6 +154,9 @@ QA level recommendation：**strict**
 - pitched note 的唯一 `<articulations>` 按固定顺序 exact 映射 accent／staccato／
   tenuto 集合，并与既有严格语义共存；空容器、rest、重复、错序、属性、文本、CDATA、
   comment、processing instruction、嵌套、错层级和其他演奏法全部失败关闭；
+- note/rest 的唯一 `<dynamics>` exact 映射 `pp`／`p`／`mp`／`mf`／`f`／`ff`
+  单值并与既有严格语义共存；空容器、多值、其他力度、属性、文本、CDATA、comment、
+  processing instruction、嵌套、错层级、direction 和播放力度属性全部失败关闭；
 - note/rest 的严格 `<notations><fermata/></notations>` 映射为 canonical
   `fermataMark`；带属性、文本、重复、空容器或错误层级的变体全部失败关闭；
 - 相邻时间连续 note 的严格 slur start／stop 映射为 canonical `slurToNext`；同小节、
@@ -221,3 +230,6 @@ round-trip、OMR、教师审核、真机验收或正式版 V1 已完成。
 
 单音演奏法双向严格子集的独立验收边界见
 `docs/s3-local-score-project-musicxml-articulation-round-trip-acceptance.md`。
+
+单事件力度记号双向严格子集的独立验收边界见
+`docs/s3-local-score-project-musicxml-dynamic-mark-round-trip-acceptance.md`。

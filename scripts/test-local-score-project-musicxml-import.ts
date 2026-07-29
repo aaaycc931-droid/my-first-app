@@ -632,6 +632,247 @@ assert.ok(
   ),
 );
 
+const dynamicXml = supportedXml
+  .replace(
+    "<notations><fermata/></notations></note>",
+    "<notations><fermata/><dynamics><pp/></dynamics></notations></note>",
+  )
+  .replace(
+    "<note><rest/><duration>2</duration><voice>1</voice><type>quarter</type><notations><fermata/></notations></note>",
+    "<note><rest/><duration>2</duration><voice>1</voice><type>quarter</type><notations><fermata/><dynamics><p/></dynamics></notations></note>",
+  )
+  .replace(
+    "<type>half</type></note>",
+    "<type>half</type><notations><dynamics><mp/></dynamics></notations></note>",
+  )
+  .replace(
+    "<type>eighth</type></note>",
+    "<type>eighth</type><notations><dynamics><mf/></dynamics></notations></note>",
+  )
+  .replace(
+    "<type>eighth</type></note>",
+    "<type>eighth</type><notations><dynamics><f/></dynamics></notations></note>",
+  );
+let dynamicEventSequence = 0;
+const dynamicReady = createLocalScoreProjectMusicXmlImportDraft({
+  xml: dynamicXml,
+  fileName: "严格力度记号.musicxml",
+  sourceFormat: "musicxml",
+  projectId: "import-project-dynamic",
+  now: "2026-07-27T08:01:04.000Z",
+  createEventId: () => `dynamic-event-${++dynamicEventSequence}`,
+});
+assert.equal(dynamicReady.status, "ready");
+assert.deepEqual(dynamicReady.issues, []);
+assert.deepEqual(
+  dynamicReady.project?.document.parts[0].staves[0].voices[0].measures
+    .flatMap((measure) => measure.events)
+    .map((event) => event.dynamicMark),
+  ["pp", "p", "mp", "mf", "f"],
+  "note 与 rest 的受控力度记号必须精确映射到事件起点",
+);
+dynamicEventSequence = 0;
+const dynamicMxlEquivalent = createLocalScoreProjectMusicXmlImportDraft({
+  xml: dynamicXml,
+  fileName: "严格力度记号.mxl",
+  sourceFormat: "mxl",
+  projectId: "import-project-dynamic",
+  now: "2026-07-27T08:01:04.000Z",
+  createEventId: () => `dynamic-event-${++dynamicEventSequence}`,
+});
+assert.equal(dynamicMxlEquivalent.status, "ready");
+assert.deepEqual(
+  dynamicMxlEquivalent.project,
+  dynamicReady.project,
+  "相同力度记号 XML 经 MXL 解包路径必须生成等价 canonical",
+);
+
+for (const mark of ["pp", "p", "mp", "mf", "f", "ff"] as const) {
+  let markEventSequence = 0;
+  const markDraft = createLocalScoreProjectMusicXmlImportDraft({
+    xml: supportedXml.replace(
+      "<type>half</type></note>",
+      `<type>half</type><notations><dynamics><${mark}/></dynamics></notations></note>`,
+    ),
+    fileName: `严格力度-${mark}.musicxml`,
+    sourceFormat: "musicxml",
+    projectId: `import-project-dynamic-${mark}`,
+    now: "2026-07-27T08:01:05.000Z",
+    createEventId: () => `dynamic-${mark}-${++markEventSequence}`,
+  });
+  assert.equal(markDraft.status, "ready");
+  assert.equal(
+    markDraft.project?.document.parts[0].staves[0].voices[0].measures[0]
+      .events[2]?.dynamicMark,
+    mark,
+    `${mark} 必须精确映射到 canonical dynamicMark`,
+  );
+}
+
+const dynamicCoexistenceXml = articulationXml.replace(
+  "<articulations><accent/><staccato/><tenuto/></articulations>",
+  "<articulations><accent/><staccato/><tenuto/></articulations><dynamics><ff/></dynamics>",
+);
+let dynamicCoexistenceEventSequence = 0;
+const dynamicCoexistenceReady = createLocalScoreProjectMusicXmlImportDraft({
+  xml: dynamicCoexistenceXml,
+  fileName: "力度与既有记号共存.musicxml",
+  sourceFormat: "musicxml",
+  projectId: "import-project-dynamic-coexistence",
+  now: "2026-07-27T08:01:06.000Z",
+  createEventId: () =>
+    `dynamic-coexistence-${++dynamicCoexistenceEventSequence}`,
+});
+assert.equal(dynamicCoexistenceReady.status, "ready");
+const dynamicCoexistenceEvent =
+  dynamicCoexistenceReady.project?.document.parts[0].staves[0].voices[0]
+    .measures.flatMap((measure) => measure.events)
+    .find((event) => event.dynamicMark === "ff");
+assert.equal(dynamicCoexistenceEvent?.type, "note");
+if (dynamicCoexistenceEvent?.type === "note") {
+  assert.equal(dynamicCoexistenceEvent.fingering, 1);
+  assert.deepEqual(
+    dynamicCoexistenceEvent.articulations,
+    ["accent", "staccato", "tenuto"],
+  );
+  assert.equal(dynamicCoexistenceEvent.dynamicMark, "ff");
+}
+
+const invalidDynamicMarkups = [
+  "<notations><dynamics/></notations>",
+  '<notations><dynamics placement="below"><mf/></dynamics></notations>',
+  "<notations><dynamics><p/><f/></dynamics></notations>",
+  "<notations><dynamics><fff/></dynamics></notations>",
+  '<notations><dynamics><mf type="other"/></dynamics></notations>',
+  "<notations><dynamics><mf>text</mf></dynamics></notations>",
+  "<notations><dynamics><mf><unexpected/></mf></dynamics></notations>",
+  "<notations><dynamics><!--comment--><mf/></dynamics></notations>",
+  "<notations><dynamics><![CDATA[ ]]><mf/></dynamics></notations>",
+  "<notations><dynamics><?mark data?><mf/></dynamics></notations>",
+  "<notations><mf/></notations>",
+  "<dynamics><mf/></dynamics>",
+  "<notations><dynamics><p/></dynamics><dynamics><f/></dynamics></notations>",
+] as const;
+for (let index = 0; index < invalidDynamicMarkups.length; index += 1) {
+  let invalidDynamicIdCalls = 0;
+  const invalidDynamicDraft = createLocalScoreProjectMusicXmlImportDraft({
+    xml: supportedXml.replace(
+      "<type>half</type></note>",
+      `<type>half</type>${invalidDynamicMarkups[index]}</note>`,
+    ),
+    fileName: `invalid-dynamic-${index + 1}.musicxml`,
+    sourceFormat: "musicxml",
+    projectId: `blocked-invalid-dynamic-${index + 1}`,
+    now: "2026-07-27T08:01:07.000Z",
+    createEventId: () => {
+      invalidDynamicIdCalls += 1;
+      return `unused-invalid-dynamic-${invalidDynamicIdCalls}`;
+    },
+  });
+  assert.equal(invalidDynamicDraft.status, "blocked");
+  assert.equal(invalidDynamicIdCalls, 0);
+  assert.ok(
+    invalidDynamicDraft.issues.some(
+      (issue) => issue.code === "unsupported-dynamic",
+    ),
+    `力度记号结构 ${index + 1} 必须以稳定 ledger 失败关闭`,
+  );
+}
+
+const directionDynamicDraft = createLocalScoreProjectMusicXmlImportDraft({
+  xml: supportedXml.replace(
+    "<note><pitch><step>D</step>",
+    "<direction><direction-type><dynamics><mf/></dynamics></direction-type></direction><note><pitch><step>D</step>",
+  ),
+  fileName: "direction-dynamic.musicxml",
+  sourceFormat: "musicxml",
+  projectId: "blocked-direction-dynamic",
+  now: "2026-07-27T08:01:08.000Z",
+  createEventId: () => "unused-direction-dynamic",
+});
+assert.equal(directionDynamicDraft.status, "blocked");
+assert.ok(
+  directionDynamicDraft.issues.some(
+    (issue) => issue.code === "unsupported-dynamic",
+  ),
+);
+assert.ok(
+  directionDynamicDraft.issues.some(
+    (issue) => issue.code === "unsupported-direction",
+  ),
+);
+
+for (const attribute of ['dynamics="80"', 'end-dynamics="65"']) {
+  let playbackDynamicIdCalls = 0;
+  const attributedDynamicNoteDraft =
+    createLocalScoreProjectMusicXmlImportDraft({
+      xml: supportedXml.replace(
+        "<note><pitch><step>D</step>",
+        `<note ${attribute}><pitch><step>D</step>`,
+      ),
+      fileName: "playback-dynamic-attribute.musicxml",
+      sourceFormat: "musicxml",
+      projectId: "blocked-playback-dynamic-attribute",
+      now: "2026-07-27T08:01:09.000Z",
+      createEventId: () => {
+        playbackDynamicIdCalls += 1;
+        return "unused-playback-dynamic-attribute";
+      },
+    });
+  assert.equal(attributedDynamicNoteDraft.status, "blocked");
+  assert.equal(playbackDynamicIdCalls, 0);
+  assert.ok(
+    attributedDynamicNoteDraft.issues.some(
+      (issue) => issue.code === "unsupported-dynamic",
+    ),
+  );
+}
+
+let soundDynamicIdCalls = 0;
+const soundDynamicDraft = createLocalScoreProjectMusicXmlImportDraft({
+  xml: supportedXml.replace(
+    "<note><pitch><step>D</step>",
+    '<sound dynamics="80"/><note><pitch><step>D</step>',
+  ),
+  fileName: "sound-dynamic.musicxml",
+  sourceFormat: "musicxml",
+  projectId: "blocked-sound-dynamic",
+  now: "2026-07-27T08:01:09.500Z",
+  createEventId: () => {
+    soundDynamicIdCalls += 1;
+    return "unused-sound-dynamic";
+  },
+});
+assert.equal(soundDynamicDraft.status, "blocked");
+assert.equal(soundDynamicIdCalls, 0);
+assert.ok(
+  soundDynamicDraft.issues.some(
+    (issue) => issue.code === "unsupported-sound",
+  ),
+);
+
+const attributedSymbolicDynamicDraft =
+  createLocalScoreProjectMusicXmlImportDraft({
+    xml: supportedXml.replace(
+      "<note><pitch><step>D</step>",
+      '<note print-object="yes"><pitch><step>D</step>',
+    ).replace(
+      "<type>half</type></note>",
+      "<type>half</type><notations><dynamics><mf/></dynamics></notations></note>",
+    ),
+    fileName: "attributed-symbolic-dynamic.musicxml",
+    sourceFormat: "musicxml",
+    projectId: "blocked-attributed-symbolic-dynamic",
+    now: "2026-07-27T08:01:10.000Z",
+    createEventId: () => "unused-attributed-symbolic-dynamic",
+  });
+assert.equal(attributedSymbolicDynamicDraft.status, "blocked");
+assert.ok(
+  attributedSymbolicDynamicDraft.issues.some(
+    (issue) => issue.code === "unsupported-dynamic",
+  ),
+);
+
 const fingeringInsertionTarget = "<type>half</type></note>";
 const invalidFingeringFixtures = [
   {

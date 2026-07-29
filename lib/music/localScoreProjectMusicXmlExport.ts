@@ -245,13 +245,6 @@ const addEventIssues = ({
       location,
     ));
   }
-  if (event.dynamicMark !== null) {
-    issues.push(blockingIssue(
-      "unsupported-dynamic",
-      "当前导出不支持力度记号。",
-      location,
-    ));
-  }
   if (event.damperPedalMark !== null) {
     issues.push(blockingIssue(
       "unsupported-damper-pedal",
@@ -310,6 +303,9 @@ const renderNote = ({
           .map((articulation) => `<${articulation}/>`)
           .join("")}</articulations>`,
       ]
+      : []),
+    ...(event.dynamicMark !== null
+      ? [`<dynamics><${event.dynamicMark}/></dynamics>`]
       : []),
   ];
   const directTies = event.type === "note"

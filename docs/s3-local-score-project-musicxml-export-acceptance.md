@@ -70,7 +70,11 @@ QA level recommendation：**strict**
 - pitched note 的 canonical `articulations` 必须按 accent、staccato、tenuto 固定
   顺序写入唯一 `<articulations>`；空数组不生成 markup，rest 不承载演奏法。与其他
   notations 语义共存时位于 technical/fingering 之后、可选 lyric 之前。
-- 多附点、多个／替代指法、其他 technical、其他演奏法、和弦标记、力度、制音踏板及其他当前
+- note/rest 的 canonical `dynamicMark` 只允许 `pp`、`p`、`mp`、`mf`、`f` 或
+  `ff`，并确定性写入唯一 `<notations><dynamics>` 中的一个同名空记号；`null`
+  不生成 markup。与其他 notations 语义共存时位于 articulations 之后、可选 lyric
+  之前，不生成 measure-level direction 或播放力度属性。
+- 多附点、多个／替代指法、其他 technical、其他演奏法、组合／其他力度、和弦标记、制音踏板及其他当前
   未映射的非中性 canonical 语义，必须逐类形成稳定 blocking 项。
 - 项目至少包含一个事件；任何超过当前拍号容量的小节必须 blocking。
 
@@ -129,7 +133,8 @@ QA level recommendation：**strict**
 
 1. 当前 canonical MusicXML importer 重新读取 `.musicxml`，以及从 `.mxl` 安全解包
    后的 XML，核对标题、part 名称、音高、时值、休止符、小节、调号、拍号和谱号等本
-   切片承诺的语义，以及单附点、单段歌词、单指法、单音演奏法、fermata、slur 与 tie 的 canonical 映射。
+   切片承诺的语义，以及单附点、单段歌词、单指法、单音演奏法、单事件力度记号、
+   fermata、slur 与 tie 的 canonical 映射。
 2. 既有 legacy `musicxmlParser` 作为独立代码路径，交叉核对其能够表达的音符音高、
    基础时值、小节和拍位。该 parser 以 raw duration 推进附点后的拍位，但不表达 dot
    identity、歌词、休止符、credits 或全部 canonical 字段，不能单独证明完整
@@ -159,6 +164,9 @@ QA level recommendation：**strict**
   保持 exact `fingering`，无指法 note 保持 `null`；
 - canonical accent／staccato／tenuto 按固定顺序写入唯一 `<articulations>`，与既有
   严格语义共存并经 `.musicxml`／`.mxl` re-import 保持 exact canonical 集合；
+- canonical `pp`／`p`／`mp`／`mf`／`f`／`ff` 写入唯一 `<dynamics>`，note/rest
+  均可承载；与既有严格语义共存并经 `.musicxml`／`.mxl` re-import 保持 exact
+  `dynamicMark`；
 - note/rest 延长记号写为严格 `<notations><fermata/></notations>`，`.musicxml`
   与 `.mxl` re-import 后保持同一 canonical `fermataMark`；
 - canonical 圆滑线写为相邻时间连续 note 上严格配对的 slur start／stop；同小节、
@@ -225,3 +233,6 @@ QA level recommendation：**strict**
 
 单音演奏法双向严格子集的独立验收边界见
 `docs/s3-local-score-project-musicxml-articulation-round-trip-acceptance.md`。
+
+单事件力度记号双向严格子集的独立验收边界见
+`docs/s3-local-score-project-musicxml-dynamic-mark-round-trip-acceptance.md`。
