@@ -401,6 +401,10 @@ const renderMusicXml = (project: LocalScoreProjectV1) => {
       </attributes>
 `
       : "";
+    const tempo = measureIndex === 0
+      ? `      <sound tempo="${project.tempoBpm}"/>
+`
+      : "";
     const events = measure.events.map((event) => {
       const tieStop = previousEvent?.type === "note"
         && previousEvent.tieToNext;
@@ -415,7 +419,7 @@ const renderMusicXml = (project: LocalScoreProjectV1) => {
       return rendered;
     }).join("\n");
     return `    <measure number="${measure.measureNumber}">
-${attributes}${events}${events ? "\n" : ""}    </measure>`;
+${attributes}${tempo}${events}${events ? "\n" : ""}    </measure>`;
   }).join("\n");
 
   return `<?xml version="1.0" encoding="UTF-8" standalone="no"?>
@@ -517,12 +521,6 @@ export const createLocalScoreProjectMusicXmlExportDraft = ({
     issues.push(blockingIssue(
       "unsupported-score-title-text",
       "谱面标题包含 XML 1.0 无法无损表示的字符，不能导出。",
-    ));
-  }
-  if (parsedProject.tempoBpm !== 90) {
-    issues.push(blockingIssue(
-      "unsupported-tempo",
-      "当前导出只支持 90 BPM；其他速度不会被静默丢失。",
     ));
   }
   if (parsedProject.document.scoreCredits.subtitle !== null) {
