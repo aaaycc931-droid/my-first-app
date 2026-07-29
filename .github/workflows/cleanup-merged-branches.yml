@@ -1,0 +1,109 @@
+name: Cleanup merged branches
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+concurrency:
+  group: cleanup-merged-branches
+  cancel-in-progress: false
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout full history
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          fetch-depth: 0
+
+      - name: Delete fully merged work branches
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+
+          git fetch --prune origin '+refs/heads/*:refs/remotes/origin/*'
+
+          declare -A open_pr_heads=()
+          while IFS= read -r branch; do
+            if [ -n "$branch" ]; then
+              open_pr_heads["$branch"]=1
+            fi
+          done < <(
+            gh api --paginate \
+              "repos/${GITHUB_REPOSITORY}/pulls?state=open&per_page=100" \
+              --jq '.[].head.ref'
+          )
+
+          candidates=0
+          deleted=0
+          skipped_open=0
+          skipped_prefix=0
+          failures=0
+
+          while IFS= read -r remote_ref; do
+            branch="${remote_ref#origin/}"
+
+            if [ "$branch" = "main" ] || [ "$branch" = "HEAD" ]; then
+              continue
+            fi
+
+            case "$branch" in
+              agent/*|codex/*|docs/*|codex-*)
+                ;;
+              *)
+                skipped_prefix=$((skipped_prefix + 1))
+                echo "Skipping non-work branch prefix: $branch"
+                continue
+                ;;
+            esac
+
+            if [[ -v "open_pr_heads[$branch]" ]]; then
+              skipped_open=$((skipped_open + 1))
+              echo "Skipping branch with an open PR: $branch"
+              continue
+            fi
+
+            if ! git merge-base --is-ancestor "$remote_ref" "$GITHUB_SHA"; then
+              continue
+            fi
+
+            candidates=$((candidates + 1))
+            echo "Deleting fully merged branch: $branch"
+            if gh api \
+              --method DELETE \
+              "repos/${GITHUB_REPOSITORY}/git/refs/heads/${branch}" \
+              >/dev/null
+            then
+              deleted=$((deleted + 1))
+            else
+              failures=$((failures + 1))
+              echo "::error::Failed to delete fully merged branch: $branch"
+            fi
+          done < <(
+            git for-each-ref \
+              --format='%(refname:short)' \
+              refs/remotes/origin
+          )
+
+          {
+            echo "### Merged branch cleanup"
+            echo
+            echo "- Candidates: $candidates"
+            echo "- Deleted: $deleted"
+            echo "- Skipped because an open PR exists: $skipped_open"
+            echo "- Skipped because the prefix is not allowlisted: $skipped_prefix"
+            echo "- Failures: $failures"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          if [ "$failures" -ne 0 ] || [ "$deleted" -ne "$candidates" ]; then
+            exit 1
+          fi
