@@ -8,6 +8,7 @@ import {
 import type {
   LocalScoreProjectArticulationV1,
   LocalScoreProjectClefV3,
+  LocalScoreProjectDynamicMarkV1,
   LocalScoreProjectEventV9,
   LocalScoreProjectFingeringV1,
 } from "./scoreDocument";
@@ -83,7 +84,6 @@ const forbiddenElementCodes = [
   ["time-modification", "unsupported-tuplet", "当前导入不支持连音符时值比例。"],
   ["grace", "unsupported-grace", "当前导入不支持倚音。"],
   ["harmony", "unsupported-harmony", "当前导入不支持和弦标记。"],
-  ["dynamics", "unsupported-dynamic", "当前导入不支持力度记号。"],
   ["pedal", "unsupported-pedal", "当前导入不支持踏板记号。"],
   ["accidental", "unsupported-accidental", "当前导入只支持无临时升降号的自然音。"],
   ["transpose", "unsupported-transpose", "当前导入不支持移调声明。"],
@@ -126,6 +126,13 @@ const allowedMeasureElements = new Set([
   "accent",
   "staccato",
   "tenuto",
+  "dynamics",
+  "pp",
+  "p",
+  "mp",
+  "mf",
+  "f",
+  "ff",
   "lyric",
   "text",
 ]);
@@ -214,6 +221,7 @@ type SupportedNotationBundle = Readonly<{
   tiedTypes: readonly TieMarkerType[];
   fingering: LocalScoreProjectFingeringV1 | null;
   articulations: readonly LocalScoreProjectArticulationV1[];
+  dynamicMark: LocalScoreProjectDynamicMarkV1 | null;
 }>;
 
 type TieMarkerType = "start" | "stop";
@@ -221,6 +229,14 @@ const articulationOrder: readonly LocalScoreProjectArticulationV1[] = [
   "accent",
   "staccato",
   "tenuto",
+];
+const dynamicMarks: readonly LocalScoreProjectDynamicMarkV1[] = [
+  "pp",
+  "p",
+  "mp",
+  "mf",
+  "f",
+  "ff",
 ];
 
 const containsUnsupportedLyricCharacter = (value: string) =>
@@ -447,6 +463,7 @@ const EMPTY_NOTATION_BUNDLE: SupportedNotationBundle = {
   tiedTypes: [],
   fingering: null,
   articulations: [],
+  dynamicMark: null,
 };
 
 const readSupportedNotationBundle = ({
@@ -482,6 +499,26 @@ const readSupportedNotationBundle = ({
       localElementName(element) as LocalScoreProjectArticulationV1,
     )
   );
+  const allDynamicsContainers = Array.from(
+    noteElement.getElementsByTagName("*"),
+  ).filter((element) => localElementName(element) === "dynamics");
+  const allDynamicMarks = Array.from(
+    noteElement.getElementsByTagName("*"),
+  ).filter((element) =>
+    dynamicMarks.includes(
+      localElementName(element) as LocalScoreProjectDynamicMarkV1,
+    )
+  );
+  if (
+    noteElement.hasAttribute("dynamics")
+    || noteElement.hasAttribute("end-dynamics")
+  ) {
+    issues.push(blockingIssue(
+      "unsupported-dynamic",
+      "当前不支持 note 的 dynamics／end-dynamics 播放力度属性；只支持受控记谱力度记号。",
+      measureNumber,
+    ));
+  }
   if (notationsElements.length === 0) {
     if (allFermatas.length > 0) {
       issues.push(blockingIssue(
@@ -528,6 +565,13 @@ const readSupportedNotationBundle = ({
         measureNumber,
       ));
     }
+    if (allDynamicsContainers.length > 0 || allDynamicMarks.length > 0) {
+      issues.push(blockingIssue(
+        "unsupported-dynamic",
+        "力度记号必须位于 note／notations 下唯一的 dynamics 容器中。",
+        measureNumber,
+      ));
+    }
     return EMPTY_NOTATION_BUNDLE;
   }
   if (notationsElements.length !== 1) {
@@ -555,12 +599,16 @@ const readSupportedNotationBundle = ({
   const articulationContainers = notationChildren.filter(
     (element) => localElementName(element) === "articulations",
   );
+  const dynamicsContainers = notationChildren.filter(
+    (element) => localElementName(element) === "dynamics",
+  );
   const unsupportedChildren = notationChildren.filter((element) =>
     localElementName(element) !== "fermata"
     && localElementName(element) !== "slur"
     && localElementName(element) !== "tied"
     && localElementName(element) !== "technical"
     && localElementName(element) !== "articulations"
+    && localElementName(element) !== "dynamics"
   );
   const hasNonWhitespaceText = Array.from(notations.childNodes).some(
     (child) =>
@@ -575,7 +623,7 @@ const readSupportedNotationBundle = ({
   ) {
     issues.push(blockingIssue(
       "unsupported-notations",
-      "当前只支持无属性的 notations，且其中只能包含受控 fermata／slur／tied／technical／articulations 记号。",
+      "当前只支持无属性的 notations，且其中只能包含受控 fermata／slur／tied／technical／articulations／dynamics 记号。",
       measureNumber,
     ));
   }
@@ -851,6 +899,74 @@ const readSupportedNotationBundle = ({
       measureNumber,
     ));
   }
+  let dynamicMark: LocalScoreProjectDynamicMarkV1 | null = null;
+  if (
+    allDynamicsContainers.length !== dynamicsContainers.length
+    || dynamicsContainers.length > 1
+  ) {
+    issues.push(blockingIssue(
+      "unsupported-dynamic",
+      "当前每个 note 或 rest 最多支持一个直接位于 notations 下的 dynamics。",
+      measureNumber,
+    ));
+  }
+  if (dynamicsContainers.length === 1) {
+    const container = dynamicsContainers[0];
+    const children = directChildElements(container);
+    const mark = children[0];
+    const markName = mark
+      ? localElementName(mark) as LocalScoreProjectDynamicMarkV1
+      : null;
+    const hasInvalidContainerNode = Array.from(container.childNodes).some(
+      (child) =>
+        (child.nodeType === 3 && (child.textContent ?? "").trim() !== "")
+        || (child.nodeType !== 1 && child.nodeType !== 3),
+    );
+    const containerValid =
+      container.attributes.length === 0
+      && children.length === 1
+      && markName !== null
+      && dynamicMarks.includes(markName)
+      && allDynamicMarks.length === 1
+      && !hasInvalidContainerNode;
+    if (!containerValid) {
+      issues.push(blockingIssue(
+        "unsupported-dynamic",
+        "dynamics 必须无属性，且只能包含一个 pp／p／mp／mf／f／ff 空记号。",
+        measureNumber,
+      ));
+    }
+    const markerValid =
+      mark !== undefined
+      && mark.attributes.length === 0
+      && mark.childNodes.length === 0;
+    if (mark !== undefined && !markerValid) {
+      issues.push(blockingIssue(
+        "unsupported-dynamic",
+        `${localElementName(mark)} 必须是无属性、无文本且无子元素的空力度记号。`,
+        measureNumber,
+      ));
+    }
+    if (containerValid && markerValid && markName !== null) {
+      dynamicMark = markName;
+    }
+  } else if (allDynamicMarks.length > 0) {
+    issues.push(blockingIssue(
+      "unsupported-dynamic",
+      "pp／p／mp／mf／f／ff 必须直接位于唯一的 dynamics 容器中。",
+      measureNumber,
+    ));
+  }
+  if (
+    (allDynamicsContainers.length > 0 || allDynamicMarks.length > 0)
+    && noteElement.attributes.length !== 0
+  ) {
+    issues.push(blockingIssue(
+      "unsupported-dynamic",
+      "带力度记号的 note 不能包含当前无法保留的属性。",
+      measureNumber,
+    ));
+  }
   return {
     fermataMark,
     slurStart,
@@ -858,6 +974,7 @@ const readSupportedNotationBundle = ({
     tiedTypes,
     fingering,
     articulations,
+    dynamicMark,
   };
 };
 
@@ -1050,6 +1167,40 @@ const validateNotationHierarchy = ({
       ));
     }
     if (
+      elementName === "dynamics"
+      && (
+        !element.parentElement
+        || localElementName(element.parentElement) !== "notations"
+        || !element.parentElement.parentElement
+        || localElementName(element.parentElement.parentElement) !== "note"
+      )
+    ) {
+      issues.push(blockingIssue(
+        "unsupported-dynamic",
+        "dynamics 必须直接位于 note 的 notations 子元素中。",
+        measureNumber,
+      ));
+    }
+    if (
+      dynamicMarks.includes(elementName as LocalScoreProjectDynamicMarkV1)
+      && (
+        !element.parentElement
+        || localElementName(element.parentElement) !== "dynamics"
+        || !element.parentElement.parentElement
+        || localElementName(element.parentElement.parentElement) !== "notations"
+        || !element.parentElement.parentElement.parentElement
+        || localElementName(
+          element.parentElement.parentElement.parentElement,
+        ) !== "note"
+      )
+    ) {
+      issues.push(blockingIssue(
+        "unsupported-dynamic",
+        `${elementName} 必须直接位于 note／notations 下的 dynamics 中。`,
+        measureNumber,
+      ));
+    }
+    if (
       elementName === "tie"
       && (
         !element.parentElement
@@ -1139,6 +1290,7 @@ const noteEvent = ({
   lyric,
   fingering,
   articulations,
+  dynamicMark,
   measure,
   fermataMark,
   tieToNext,
@@ -1151,6 +1303,7 @@ const noteEvent = ({
   lyric: string | null;
   fingering: LocalScoreProjectFingeringV1 | null;
   articulations: readonly LocalScoreProjectArticulationV1[];
+  dynamicMark: LocalScoreProjectDynamicMarkV1 | null;
   measure: number;
   fermataMark: "fermata" | null;
   tieToNext: boolean;
@@ -1168,7 +1321,7 @@ const noteEvent = ({
   fingering,
   chordSymbol: null,
   articulations,
-  dynamicMark: null,
+  dynamicMark,
   damperPedalMark: null,
   fermataMark,
 });
@@ -1176,11 +1329,13 @@ const noteEvent = ({
 const restEvent = ({
   id,
   augmentationDots,
+  dynamicMark,
   measure,
   fermataMark,
 }: {
   id: string;
   augmentationDots: 0 | 1;
+  dynamicMark: LocalScoreProjectDynamicMarkV1 | null;
   measure: number;
   fermataMark: "fermata" | null;
 }): LocalScoreProjectEventV9 => ({
@@ -1191,7 +1346,7 @@ const restEvent = ({
   measure,
   augmentationDots,
   chordSymbol: null,
-  dynamicMark: null,
+  dynamicMark,
   damperPedalMark: null,
   fermataMark,
 });
@@ -1853,6 +2008,7 @@ export const createLocalScoreProjectMusicXmlImportDraft = (
             events.push(restEvent({
               id: `musicxml-import-provisional-${provisionalEventCount}`,
               augmentationDots,
+              dynamicMark: notationBundle.dynamicMark,
               measure: measureNumber,
               fermataMark: notationBundle.fermataMark,
             }));
@@ -1879,6 +2035,7 @@ export const createLocalScoreProjectMusicXmlImportDraft = (
             lyric,
             fingering: notationBundle.fingering,
             articulations: notationBundle.articulations,
+            dynamicMark: notationBundle.dynamicMark,
             measure: measureNumber,
             fermataMark: notationBundle.fermataMark,
             tieToNext: tieStart,

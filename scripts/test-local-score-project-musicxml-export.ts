@@ -16,7 +16,10 @@ import { parseMusicXML } from "../lib/musicxml/musicxmlParser";
 import {
   extractMusicXMLFromMxl,
 } from "../lib/musicxml/mxlExtractor";
-import type { LocalScoreProjectEventV9 } from "../lib/music/scoreDocument";
+import type {
+  LocalScoreProjectDynamicMarkV1,
+  LocalScoreProjectEventV9,
+} from "../lib/music/scoreDocument";
 import {
   createMusicXmlMxlArchive,
   MUSICXML_MIME_TYPE,
@@ -168,6 +171,7 @@ const musicalProjection = (project: LocalScoreProjectV1) => ({
         lyric: event.type === "note" ? event.lyric : null,
         fingering: event.type === "note" ? event.fingering : null,
         articulations: event.type === "note" ? event.articulations : [],
+        dynamicMark: event.dynamicMark,
         fermataMark: event.fermataMark,
         tieToNext: event.type === "note" ? event.tieToNext : null,
         slurToNext: event.type === "note" ? event.slurToNext : null,
@@ -329,6 +333,43 @@ const createArticulationSupportedProject = (): LocalScoreProjectV1 => {
   };
   const parsed = parseLocalScoreProject(candidate);
   assert.ok(parsed, "articulation export fixture must be canonical");
+  return parsed;
+};
+
+const createDynamicSupportedProject = (): LocalScoreProjectV1 => {
+  const base = createArticulationSupportedProject();
+  const measures = base.document.parts[0].staves[0].voices[0].measures;
+  const marks = new Map<string, LocalScoreProjectDynamicMarkV1>([
+    ["event-1", "pp"],
+    ["event-2", "p"],
+    ["event-3", "mp"],
+    ["event-4", "mf"],
+    ["event-5", "f"],
+  ] as const);
+  const candidate: LocalScoreProjectV1 = {
+    ...base,
+    document: {
+      ...base.document,
+      parts: [{
+        ...base.document.parts[0],
+        staves: [{
+          ...base.document.parts[0].staves[0],
+          voices: [{
+            ...base.document.parts[0].staves[0].voices[0],
+            measures: measures.map((measure) => ({
+              ...measure,
+              events: measure.events.map((event) => ({
+                ...event,
+                dynamicMark: marks.get(event.id) ?? null,
+              })),
+            })),
+          }],
+        }],
+      }],
+    },
+  };
+  const parsed = parseLocalScoreProject(candidate);
+  assert.ok(parsed, "dynamic mark export fixture must be canonical");
   return parsed;
 };
 
@@ -817,6 +858,111 @@ assert.deepEqual(
   "strict MXL re-import must preserve articulation sets",
 );
 
+const dynamicProject = createDynamicSupportedProject();
+const dynamicReady = createLocalScoreProjectMusicXmlExportDraft({
+  project: dynamicProject,
+});
+assert.equal(dynamicReady.status, "ready");
+assert.deepEqual(dynamicReady.issues, []);
+assert.ok(dynamicReady.xml);
+assert.match(
+  dynamicReady.xml,
+  /<rest\/>[\s\S]*?<notations><fermata\/><dynamics><p\/><\/dynamics><\/notations>/,
+  "rest dynamics must share the canonical notations container",
+);
+assert.match(
+  dynamicReady.xml,
+  /<technical><fingering>1<\/fingering><\/technical><articulations><accent\/><staccato\/><tenuto\/><\/articulations><dynamics><mf\/><\/dynamics><\/notations>\s*<lyric>/,
+  "note dynamics must follow articulations and precede lyric in the shared notations container",
+);
+assert.deepEqual(
+  createLocalScoreProjectMusicXmlExportDraft({ project: dynamicProject }),
+  dynamicReady,
+  "dynamic mark output must be deterministic",
+);
+const dynamicXmlPayload = confirmLocalScoreProjectMusicXmlExportDraft({
+  draft: dynamicReady,
+  currentProject: dynamicProject,
+  format: "musicxml",
+});
+const reopenedDynamicXml = createLocalScoreProjectMusicXmlImportDraft({
+  xml: String(dynamicXmlPayload.data),
+  fileName: dynamicXmlPayload.fileName,
+  sourceFormat: "musicxml",
+  projectId: dynamicProject.projectId,
+  now: dynamicProject.createdAt,
+  createEventId: () => `reopened-dynamic-event-${++importedEventIndex}`,
+});
+assert.equal(reopenedDynamicXml.status, "ready");
+assert.ok(reopenedDynamicXml.project);
+assert.deepEqual(
+  musicalProjection(reopenedDynamicXml.project),
+  musicalProjection(dynamicProject),
+  "strict MusicXML re-import must preserve note and rest dynamic marks",
+);
+const dynamicMxlPayload = confirmLocalScoreProjectMusicXmlExportDraft({
+  draft: dynamicReady,
+  currentProject: dynamicProject,
+  format: "mxl",
+});
+assert.deepEqual(
+  dynamicMxlPayload.data,
+  createMusicXmlMxlArchive(dynamicReady.xml),
+  "dynamic mark MXL generation must remain deterministic",
+);
+const reopenedDynamicMxl = createLocalScoreProjectMusicXmlImportDraft({
+  xml: extractMusicXMLFromMxl(dynamicMxlPayload.data as Uint8Array),
+  fileName: dynamicMxlPayload.fileName,
+  sourceFormat: "mxl",
+  projectId: dynamicProject.projectId,
+  now: dynamicProject.createdAt,
+  createEventId: () => `reopened-dynamic-mxl-event-${++importedEventIndex}`,
+});
+assert.equal(reopenedDynamicMxl.status, "ready");
+assert.ok(reopenedDynamicMxl.project);
+assert.deepEqual(
+  musicalProjection(reopenedDynamicMxl.project),
+  musicalProjection(dynamicProject),
+  "strict MXL re-import must preserve note and rest dynamic marks",
+);
+
+for (const mark of ["pp", "p", "mp", "mf", "f", "ff"] as const) {
+  const measures =
+    dynamicProject.document.parts[0].staves[0].voices[0].measures;
+  const singleMarkProject = parseLocalScoreProject({
+    ...dynamicProject,
+    document: {
+      ...dynamicProject.document,
+      parts: [{
+        ...dynamicProject.document.parts[0],
+        staves: [{
+          ...dynamicProject.document.parts[0].staves[0],
+          voices: [{
+            ...dynamicProject.document.parts[0].staves[0].voices[0],
+            measures: measures.map((measure) => ({
+              ...measure,
+              events: measure.events.map((event) => ({
+                ...event,
+                dynamicMark: event.id === "event-1" ? mark : null,
+              })),
+            })),
+          }],
+        }],
+      }],
+    },
+  });
+  assert.ok(singleMarkProject);
+  const markDraft = createLocalScoreProjectMusicXmlExportDraft({
+    project: singleMarkProject,
+  });
+  assert.equal(markDraft.status, "ready");
+  assert.match(
+    markDraft.xml ?? "",
+    new RegExp(`<dynamics><${mark}\\/><\\/dynamics>`),
+    `${mark} must use its exact canonical MusicXML element`,
+  );
+}
+
 const changedProject: LocalScoreProjectV1 = {
   ...project,
   document: {
@@ -1075,7 +1221,6 @@ const blockedFixtures: readonly [
     }]),
     [
       "unsupported-chord-symbol",
-      "unsupported-dynamic",
       "unsupported-damper-pedal",
     ],
   ],
