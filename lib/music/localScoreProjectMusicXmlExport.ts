@@ -106,6 +106,16 @@ const escapeXmlText = (value: string) => value
   .replaceAll("\"", "&quot;")
   .replaceAll("'", "&apos;");
 
+const isXml10Text = (value: string) => Array.from(value).every((character) => {
+  const codePoint = character.codePointAt(0) ?? 0;
+  return codePoint === 0x9
+    || codePoint === 0xa
+    || codePoint === 0xd
+    || (codePoint >= 0x20 && codePoint <= 0xd7ff)
+    || (codePoint >= 0xe000 && codePoint <= 0xfffd)
+    || (codePoint >= 0x10000 && codePoint <= 0x10ffff);
+});
+
 const getSafeFileBaseName = (title: string) => {
   const sanitized = title
     .replace(/[\u0000-\u001f\u007f<>:"/\\|?*]/g, "_")
@@ -468,10 +478,22 @@ export const createLocalScoreProjectMusicXmlExportDraft = ({
     };
   }
 
+  if (!isXml10Text(parsedProject.title)) {
+    issues.push(blockingIssue(
+      "unsupported-project-title-text",
+      "项目名称包含 XML 1.0 无法无损表示的字符，不能生成导出文件名。",
+    ));
+  }
   if (parsedProject.title !== parsedProject.document.scoreCredits.title) {
     issues.push(blockingIssue(
       "unsupported-distinct-score-title",
       "当前导出要求项目名称与谱面标题一致，避免 round-trip 后静默丢失名称。",
+    ));
+  }
+  if (!isXml10Text(parsedProject.document.scoreCredits.title)) {
+    issues.push(blockingIssue(
+      "unsupported-score-title-text",
+      "谱面标题包含 XML 1.0 无法无损表示的字符，不能导出。",
     ));
   }
   if (parsedProject.tempoBpm !== 90) {
@@ -506,6 +528,13 @@ export const createLocalScoreProjectMusicXmlExportDraft = ({
   }
 
   parsedProject.document.parts.forEach((part, partIndex) => {
+    if (!isXml10Text(part.name)) {
+      issues.push(blockingIssue(
+        "unsupported-part-name-text",
+        "声部组名称包含 XML 1.0 无法无损表示的字符，不能导出。",
+        { partIndex },
+      ));
+    }
     if (part.instrument.kind !== "unassigned") {
       issues.push(blockingIssue(
         "unsupported-instrument",

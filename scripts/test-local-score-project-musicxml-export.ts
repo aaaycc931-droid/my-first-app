@@ -1159,6 +1159,205 @@ const withFirstMeasureEvents = (
   },
 });
 const emptyMeasure = [{ measureNumber: 1, events: [] }] as const;
+const withScoreTitle = (title: string): LocalScoreProjectV1 => withChanges({
+  title,
+  document: {
+    ...project.document,
+    scoreCredits: {
+      ...project.document.scoreCredits,
+      title,
+    },
+  },
+});
+const invalidXmlTextCases = [
+  ["lone-high-surrogate", "\ud800"],
+  ["lone-low-surrogate", "\udfff"],
+  ["unicode-fffe", "\ufffe"],
+  ["unicode-ffff", "\uffff"],
+] as const;
+for (const [label, invalidCharacter] of invalidXmlTextCases) {
+  const invalidTitleProject = withScoreTitle(`标题${invalidCharacter}`);
+  assert.ok(
+    parseLocalScoreProject(invalidTitleProject),
+    `${label} title remains canonical and must be blocked at exchange time`,
+  );
+  const invalidTitleDraft = createLocalScoreProjectMusicXmlExportDraft({
+    project: invalidTitleProject,
+  });
+  assert.equal(invalidTitleDraft.status, "blocked", label);
+  assert.equal(invalidTitleDraft.xml, null, label);
+  assert.equal(invalidTitleDraft.fileNames, null, label);
+  assert.equal(invalidTitleDraft.byteSizes, null, label);
+  assert.ok(
+    invalidTitleDraft.issues.some(
+      (issue) => issue.code === "unsupported-score-title-text",
+    ),
+    `${label} title must produce the stable XML text blocker`,
+  );
+  for (const format of ["musicxml", "mxl"] as const) {
+    assert.throws(
+      () => confirmLocalScoreProjectMusicXmlExportDraft({
+        draft: invalidTitleDraft,
+        currentProject: invalidTitleProject,
+        format,
+      }),
+      /阻断问题/,
+      `${label} title must block ${format} confirmation`,
+    );
+  }
+
+  const invalidPartNameProject = withChanges({
+    document: {
+      ...project.document,
+      parts: [{
+        ...project.document.parts[0],
+        name: `声部${invalidCharacter}`,
+      }],
+    },
+  });
+  assert.ok(
+    parseLocalScoreProject(invalidPartNameProject),
+    `${label} part name remains canonical and must be blocked at exchange time`,
+  );
+  const invalidPartNameDraft = createLocalScoreProjectMusicXmlExportDraft({
+    project: invalidPartNameProject,
+  });
+  assert.equal(invalidPartNameDraft.status, "blocked", label);
+  assert.equal(invalidPartNameDraft.xml, null, label);
+  assert.equal(invalidPartNameDraft.fileNames, null, label);
+  assert.equal(invalidPartNameDraft.byteSizes, null, label);
+  assert.ok(
+    invalidPartNameDraft.issues.some(
+      (issue) => issue.code === "unsupported-part-name-text",
+    ),
+    `${label} part name must produce the stable XML text blocker`,
+  );
+  for (const format of ["musicxml", "mxl"] as const) {
+    assert.throws(
+      () => confirmLocalScoreProjectMusicXmlExportDraft({
+        draft: invalidPartNameDraft,
+        currentProject: invalidPartNameProject,
+        format,
+      }),
+      /阻断问题/,
+      `${label} part name must block ${format} confirmation`,
+    );
+  }
+
+  const invalidProjectTitleOnly = withChanges({
+    title: `项目${invalidCharacter}`,
+  });
+  assert.ok(
+    parseLocalScoreProject(invalidProjectTitleOnly),
+    `${label} project title remains canonical and must be blocked at exchange time`,
+  );
+  const invalidProjectTitleOnlyDraft =
+    createLocalScoreProjectMusicXmlExportDraft({
+      project: invalidProjectTitleOnly,
+    });
+  assert.equal(invalidProjectTitleOnlyDraft.status, "blocked", label);
+  assert.equal(invalidProjectTitleOnlyDraft.xml, null, label);
+  assert.equal(invalidProjectTitleOnlyDraft.fileNames, null, label);
+  assert.equal(invalidProjectTitleOnlyDraft.byteSizes, null, label);
+  assert.ok(
+    invalidProjectTitleOnlyDraft.issues.some(
+      (issue) => issue.code === "unsupported-project-title-text",
+    ),
+    `${label} project title must produce the stable filename blocker`,
+  );
+  for (const format of ["musicxml", "mxl"] as const) {
+    assert.throws(
+      () => confirmLocalScoreProjectMusicXmlExportDraft({
+        draft: invalidProjectTitleOnlyDraft,
+        currentProject: invalidProjectTitleOnly,
+        format,
+      }),
+      /阻断问题/,
+      `${label} project title must block ${format} confirmation`,
+    );
+  }
+}
+
+const supplementarySafeTitle = `${"谱".repeat(78)}🎵`;
+const supplementaryTitleProject = withScoreTitle(supplementarySafeTitle);
+const supplementarySafePartName = "声部🎵";
+const supplementarySafeProject: LocalScoreProjectV1 = {
+  ...supplementaryTitleProject,
+  document: {
+    ...supplementaryTitleProject.document,
+    parts: [{
+      ...supplementaryTitleProject.document.parts[0],
+      name: supplementarySafePartName,
+    }],
+  },
+};
+const supplementarySafeDraft = createLocalScoreProjectMusicXmlExportDraft({
+  project: supplementarySafeProject,
+});
+assert.equal(
+  supplementarySafeDraft.status,
+  "ready",
+  JSON.stringify(supplementarySafeDraft.issues),
+);
+assert.match(
+  supplementarySafeDraft.xml ?? "",
+  new RegExp(`<work-title>${supplementarySafeTitle}</work-title>`),
+);
+assert.match(
+  supplementarySafeDraft.xml ?? "",
+  new RegExp(`<part-name>${supplementarySafePartName}</part-name>`),
+);
+assert.equal(
+  supplementarySafeDraft.fileNames?.musicxml,
+  `${supplementarySafeTitle}.musicxml`,
+  "a supplementary-plane character at the canonical title boundary must be preserved",
+);
+assert.doesNotMatch(
+  supplementarySafeDraft.fileNames?.musicxml ?? "",
+  /\ufffd/,
+  "safe filenames must not contain a UTF-8 replacement character",
+);
+const supplementarySafeMxlPayload =
+  confirmLocalScoreProjectMusicXmlExportDraft({
+    draft: supplementarySafeDraft,
+    currentProject: supplementarySafeProject,
+    format: "mxl",
+  });
+assert.ok(supplementarySafeMxlPayload.data instanceof Uint8Array);
+const supplementarySafeMxlXml = extractMusicXMLFromMxl(
+  supplementarySafeMxlPayload.data as Uint8Array,
+);
+assert.equal(
+  supplementarySafeMxlXml,
+  supplementarySafeDraft.xml,
+  "MXL must preserve the exact supplementary-plane XML text",
+);
+assert.doesNotMatch(
+  supplementarySafeMxlXml,
+  /\ufffd/,
+  "MXL XML must not contain a UTF-8 replacement character",
+);
+let supplementarySafeEventIndex = 0;
+const reopenedSupplementarySafeMxl =
+  createLocalScoreProjectMusicXmlImportDraft({
+    xml: supplementarySafeMxlXml,
+    fileName: supplementarySafeMxlPayload.fileName,
+    sourceFormat: "mxl",
+    projectId: supplementarySafeProject.projectId,
+    now: supplementarySafeProject.createdAt,
+    createEventId: () =>
+      `reopened-supplementary-event-${++supplementarySafeEventIndex}`,
+  });
+assert.equal(reopenedSupplementarySafeMxl.status, "ready");
+assert.equal(
+  reopenedSupplementarySafeMxl.project?.document.scoreCredits.title,
+  supplementarySafeTitle,
+);
+assert.equal(
+  reopenedSupplementarySafeMxl.project?.document.parts[0]?.name,
+  supplementarySafePartName,
+);
+
 const maxLyricProject = withFirstMeasureEvents([{
   ...sourceNote,
   lyric: `${"歌".repeat(79)}🎵`,
