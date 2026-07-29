@@ -276,13 +276,6 @@ const addEventIssues = ({
       location,
     ));
   }
-  if (event.fingering !== null) {
-    issues.push(blockingIssue(
-      "unsupported-fingering",
-      "当前导出不支持指法。",
-      location,
-    ));
-  }
   if (event.articulations.length > 0) {
     issues.push(blockingIssue(
       "unsupported-articulation",
@@ -314,6 +307,9 @@ const renderNote = ({
     ...(slurStop ? ['<slur type="stop"/>'] : []),
     ...(event.type === "note" && event.slurToNext
       ? ['<slur type="start"/>']
+      : []),
+    ...(event.type === "note" && event.fingering !== null
+      ? [`<technical><fingering>${event.fingering}</fingering></technical>`]
       : []),
   ];
   const directTies = event.type === "note"

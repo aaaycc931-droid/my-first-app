@@ -415,6 +415,242 @@ assert.deepEqual(
   "相同歌词 XML 经 MXL 解包路径必须生成等价 canonical",
 );
 
+const fingeringXml = lyricXml
+  .replace(
+    '<notations><fermata/><tied type="start"/><slur type="start"/></notations>',
+    '<notations><fermata/><tied type="start"/><slur type="start"/><technical><fingering>1</fingering></technical></notations>',
+  )
+  .replace(
+    '<notations><fermata/><tied type="stop"/><slur type="stop"/></notations>',
+    '<notations><fermata/><tied type="stop"/><slur type="stop"/><technical><fingering>3</fingering></technical></notations>',
+  )
+  .replace(
+    "<type>eighth</type><dot/><staff>1</staff></note>",
+    "<type>eighth</type><dot/><staff>1</staff><notations><technical><fingering>5</fingering></technical></notations></note>",
+  );
+let fingeringEventSequence = 0;
+const fingeringReady = createLocalScoreProjectMusicXmlImportDraft({
+  xml: fingeringXml,
+  fileName: "严格指法.musicxml",
+  sourceFormat: "musicxml",
+  projectId: "import-project-fingering",
+  now: "2026-07-27T08:00:56.000Z",
+  createEventId: () => `fingering-event-${++fingeringEventSequence}`,
+});
+assert.equal(fingeringReady.status, "ready");
+assert.deepEqual(fingeringReady.issues, []);
+assert.deepEqual(
+  fingeringReady.project?.document.parts[0].staves[0].voices[0].measures
+    .flatMap((measure) => measure.events)
+    .map((event) => event.type === "note" ? event.fingering : null),
+  [null, 1, 3, 5, null],
+  "指法必须精确保留 1–5 边界，并且休止符保持无指法",
+);
+assert.deepEqual(
+  fingeringReady.project?.document.parts[0].staves[0].voices[0].measures[0]
+    .events[1],
+  {
+    ...lyricReady.project?.document.parts[0].staves[0].voices[0].measures[0]
+      .events[1],
+    id: "fingering-event-2",
+    fingering: 1,
+  },
+  "指法必须与 dot、fermata、tie、slur 和 lyric 在同一 canonical note 上共存",
+);
+
+for (const value of [1, 2, 3, 4, 5] as const) {
+  let valueEventSequence = 0;
+  const valueDraft = createLocalScoreProjectMusicXmlImportDraft({
+    xml: supportedXml.replace(
+      "<type>half</type></note>",
+      `<type>half</type><notations><technical><fingering>${value}</fingering></technical></notations></note>`,
+    ),
+    fileName: `fingering-${value}.musicxml`,
+    sourceFormat: "musicxml",
+    projectId: `import-project-fingering-${value}`,
+    now: "2026-07-27T08:00:56.000Z",
+    createEventId: () => `fingering-${value}-event-${++valueEventSequence}`,
+  });
+  assert.equal(valueDraft.status, "ready");
+  const valueEvent =
+    valueDraft.project?.document.parts[0].staves[0].voices[0].measures[0]
+      .events[2];
+  assert.equal(
+    valueEvent?.type === "note" ? valueEvent.fingering : null,
+    value,
+    `指法 ${value} 必须精确映射到 canonical`,
+  );
+}
+
+fingeringEventSequence = 0;
+const fingeringMxlEquivalent = createLocalScoreProjectMusicXmlImportDraft({
+  xml: fingeringXml,
+  fileName: "严格指法.mxl",
+  sourceFormat: "mxl",
+  projectId: "import-project-fingering",
+  now: "2026-07-27T08:00:56.000Z",
+  createEventId: () => `fingering-event-${++fingeringEventSequence}`,
+});
+assert.equal(fingeringMxlEquivalent.status, "ready");
+assert.deepEqual(
+  fingeringMxlEquivalent.project,
+  fingeringReady.project,
+  "相同指法 XML 经 MXL 解包路径必须生成等价 canonical",
+);
+
+const fingeringInsertionTarget = "<type>half</type></note>";
+const invalidFingeringFixtures = [
+  {
+    markup: "<notations><technical><fingering>0</fingering></technical></notations>",
+    codes: ["unsupported-fingering"],
+  },
+  {
+    markup: "<notations><technical><fingering>6</fingering></technical></notations>",
+    codes: ["unsupported-fingering"],
+  },
+  {
+    markup: "<notations><technical><fingering> 1</fingering></technical></notations>",
+    codes: ["unsupported-fingering"],
+  },
+  {
+    markup: "<notations><technical><fingering/></technical></notations>",
+    codes: ["unsupported-fingering"],
+  },
+  {
+    markup: '<notations><technical><fingering placement="above">1</fingering></technical></notations>',
+    codes: ["unsupported-fingering"],
+  },
+  {
+    markup: "<notations><technical><fingering><unexpected/></fingering></technical></notations>",
+    codes: ["unsupported-fingering"],
+  },
+  {
+    markup: "<notations><technical><fingering><![CDATA[1]]></fingering></technical></notations>",
+    codes: ["unsupported-fingering"],
+  },
+  {
+    markup: "<notations><technical><fingering><!--comment-->1</fingering></technical></notations>",
+    codes: ["unsupported-fingering"],
+  },
+  {
+    markup: "<notations><technical><fingering><?value 1?>1</fingering></technical></notations>",
+    codes: ["unsupported-fingering"],
+  },
+  {
+    markup: '<notations><technical type="left"><fingering>1</fingering></technical></notations>',
+    codes: ["unsupported-technical"],
+  },
+  {
+    markup: "<notations><technical><fingering>1</fingering><fingering>2</fingering></technical></notations>",
+    codes: ["unsupported-technical"],
+  },
+  {
+    markup: "<notations><technical><pluck>p</pluck></technical></notations>",
+    codes: ["unsupported-technical"],
+  },
+  {
+    markup: "<notations><technical/></notations>",
+    codes: ["unsupported-technical"],
+  },
+  {
+    markup: "<notations><technical><fingering>1</fingering></technical><technical><fingering>2</fingering></technical></notations>",
+    codes: ["unsupported-technical"],
+  },
+  {
+    markup: "<notations><fingering>1</fingering></notations>",
+    codes: ["unsupported-fingering"],
+  },
+  {
+    markup: "<technical><fingering>1</fingering></technical>",
+    codes: ["unsupported-technical", "unsupported-fingering"],
+  },
+  {
+    markup: "<notations><technical><!--comment--><fingering>1</fingering></technical></notations>",
+    codes: ["unsupported-technical"],
+  },
+] as const;
+for (
+  let index = 0;
+  index < invalidFingeringFixtures.length;
+  index += 1
+) {
+  const fixture = invalidFingeringFixtures[index];
+  let invalidFingeringIdCalls = 0;
+  const invalidFingeringDraft = createLocalScoreProjectMusicXmlImportDraft({
+    xml: supportedXml.replace(
+      fingeringInsertionTarget,
+      `<type>half</type>${fixture.markup}</note>`,
+    ),
+    fileName: `invalid-fingering-${index + 1}.musicxml`,
+    sourceFormat: "musicxml",
+    projectId: `blocked-invalid-fingering-${index + 1}`,
+    now: "2026-07-27T08:00:57.000Z",
+    createEventId: () => {
+      invalidFingeringIdCalls += 1;
+      return `unused-invalid-fingering-${invalidFingeringIdCalls}`;
+    },
+  });
+  assert.equal(invalidFingeringDraft.status, "blocked");
+  assert.equal(invalidFingeringIdCalls, 0);
+  for (const code of fixture.codes) {
+    assert.ok(
+      invalidFingeringDraft.issues.some((issue) => issue.code === code),
+      `指法结构 ${index + 1} 必须以稳定 ${code} ledger 失败关闭`,
+    );
+  }
+}
+
+let attributedFingeringIdCalls = 0;
+const attributedFingeringDraft = createLocalScoreProjectMusicXmlImportDraft({
+  xml: supportedXml.replace(
+    "<note><pitch><step>D</step>",
+    '<note print-object="yes"><pitch><step>D</step>',
+  ).replace(
+    fingeringInsertionTarget,
+    "<type>half</type><notations><technical><fingering>1</fingering></technical></notations></note>",
+  ),
+  fileName: "attributed-fingering.musicxml",
+  sourceFormat: "musicxml",
+  projectId: "blocked-attributed-fingering",
+  now: "2026-07-27T08:00:58.000Z",
+  createEventId: () => {
+    attributedFingeringIdCalls += 1;
+    return `unused-attributed-fingering-${attributedFingeringIdCalls}`;
+  },
+});
+assert.equal(attributedFingeringDraft.status, "blocked");
+assert.equal(attributedFingeringIdCalls, 0);
+assert.ok(
+  attributedFingeringDraft.issues.some(
+    (issue) => issue.code === "unsupported-fingering",
+  ),
+  "带指法的 note 属性必须失败关闭，避免 round-trip 静默丢失",
+);
+
+let restFingeringIdCalls = 0;
+const restFingeringDraft = createLocalScoreProjectMusicXmlImportDraft({
+  xml: supportedXml.replace(
+    "<note><rest/><duration>2</duration><voice>1</voice><type>quarter</type><notations><fermata/></notations></note>",
+    "<note><rest/><duration>2</duration><voice>1</voice><type>quarter</type><notations><fermata/><technical><fingering>2</fingering></technical></notations></note>",
+  ),
+  fileName: "rest-fingering.musicxml",
+  sourceFormat: "musicxml",
+  projectId: "blocked-rest-fingering",
+  now: "2026-07-27T08:00:59.000Z",
+  createEventId: () => {
+    restFingeringIdCalls += 1;
+    return `unused-rest-fingering-${restFingeringIdCalls}`;
+  },
+});
+assert.equal(restFingeringDraft.status, "blocked");
+assert.equal(restFingeringIdCalls, 0);
+assert.ok(
+  restFingeringDraft.issues.some(
+    (issue) => issue.code === "unsupported-fingering-on-rest",
+  ),
+  "休止符指法必须以稳定 ledger 失败关闭",
+);
+
 const maxLyric = `${"唱".repeat(79)}🎵`;
 let maxLyricEventSequence = 0;
 const maxLyricDraft = createLocalScoreProjectMusicXmlImportDraft({
@@ -879,7 +1115,6 @@ assert.throws(
 
 for (const [element, code] of [
   ["<lyric><syllabic>single</syllabic><text>la</text></lyric>", "unsupported-lyric"],
-  ["<notations><technical><fingering>1</fingering></technical></notations>", "unsupported-fingering"],
   ["<notations><articulations><accent/></articulations></notations>", "unsupported-articulation"],
   ["<accidental>sharp</accidental>", "unsupported-accidental"],
   ["<cue/>", "unsupported-element"],

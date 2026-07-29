@@ -166,6 +166,7 @@ const musicalProjection = (project: LocalScoreProjectV1) => ({
         measure: event.measure,
         augmentationDots: event.augmentationDots,
         lyric: event.type === "note" ? event.lyric : null,
+        fingering: event.type === "note" ? event.fingering : null,
         fermataMark: event.fermataMark,
         tieToNext: event.type === "note" ? event.tieToNext : null,
         slurToNext: event.type === "note" ? event.slurToNext : null,
@@ -256,6 +257,38 @@ const createLyricSupportedProject = (): LocalScoreProjectV1 => {
   };
   const parsed = parseLocalScoreProject(candidate);
   assert.ok(parsed, "lyric export fixture must be canonical");
+  return parsed;
+};
+
+const createFingeringSupportedProject = (): LocalScoreProjectV1 => {
+  const base = createLyricSupportedProject();
+  const measures = base.document.parts[0].staves[0].voices[0].measures;
+  const candidate: LocalScoreProjectV1 = {
+    ...base,
+    document: {
+      ...base.document,
+      parts: [{
+        ...base.document.parts[0],
+        staves: [{
+          ...base.document.parts[0].staves[0],
+          voices: [{
+            ...base.document.parts[0].staves[0].voices[0],
+            measures: measures.map((measure) => ({
+              ...measure,
+              events: measure.events.map((event) => {
+                if (event.type !== "note") return event;
+                if (event.id === "event-4") return { ...event, fingering: 1 };
+                if (event.id === "event-5") return { ...event, fingering: 5 };
+                return event;
+              }),
+            })),
+          }],
+        }],
+      }],
+    },
+  };
+  const parsed = parseLocalScoreProject(candidate);
+  assert.ok(parsed, "fingering export fixture must be canonical");
   return parsed;
 };
 
@@ -604,6 +637,88 @@ assert.deepEqual(
   "strict MXL re-import must preserve exact escaped lyric text",
 );
 
+const fingeringProject = createFingeringSupportedProject();
+const fingeringSnapshot = JSON.stringify(fingeringProject);
+const fingeringReady = createLocalScoreProjectMusicXmlExportDraft({
+  project: fingeringProject,
+});
+assert.equal(
+  JSON.stringify(fingeringProject),
+  fingeringSnapshot,
+  "fingering export draft must be pure",
+);
+assert.equal(fingeringReady.status, "ready");
+assert.deepEqual(fingeringReady.issues, []);
+assert.ok(fingeringReady.xml);
+assert.match(
+  fingeringReady.xml,
+  /<notations><fermata\/><tied type="stop"\/><tied type="start"\/><slur type="stop"\/><slur type="start"\/><technical><fingering>1<\/fingering><\/technical><\/notations>\s*<lyric><text>你好 😀 内部 空格 &amp; &lt; &gt; &quot; &apos;<\/text><\/lyric>/,
+  "fingering must share the deterministic notations container with all existing strict marks",
+);
+assert.match(
+  fingeringReady.xml,
+  /<notations><tied type="stop"\/><slur type="stop"\/><technical><fingering>5<\/fingering><\/technical><\/notations>/,
+  "the upper boundary fingering must coexist with tie and slur stops",
+);
+assert.deepEqual(
+  parseMusicXML(fingeringReady.xml),
+  parseMusicXML(lyricReady.xml),
+  "legacy parsing must ignore technical fingering without changing note timing",
+);
+assert.deepEqual(
+  createLocalScoreProjectMusicXmlExportDraft({ project: fingeringProject }),
+  fingeringReady,
+  "the same fingering canonical revision must produce a deterministic draft",
+);
+
+const fingeringXmlPayload = confirmLocalScoreProjectMusicXmlExportDraft({
+  draft: fingeringReady,
+  currentProject: fingeringProject,
+  format: "musicxml",
+});
+const reopenedFingeringXml = createLocalScoreProjectMusicXmlImportDraft({
+  xml: String(fingeringXmlPayload.data),
+  fileName: fingeringXmlPayload.fileName,
+  sourceFormat: "musicxml",
+  projectId: fingeringProject.projectId,
+  now: fingeringProject.createdAt,
+  createEventId: () => `reopened-fingering-event-${++importedEventIndex}`,
+});
+assert.equal(reopenedFingeringXml.status, "ready");
+assert.ok(reopenedFingeringXml.project);
+assert.deepEqual(
+  musicalProjection(reopenedFingeringXml.project),
+  musicalProjection(fingeringProject),
+  "strict MusicXML re-import must preserve fingering 1 and 5",
+);
+
+const fingeringMxlPayload = confirmLocalScoreProjectMusicXmlExportDraft({
+  draft: fingeringReady,
+  currentProject: fingeringProject,
+  format: "mxl",
+});
+assert.ok(fingeringMxlPayload.data instanceof Uint8Array);
+assert.deepEqual(
+  fingeringMxlPayload.data,
+  createMusicXmlMxlArchive(fingeringReady.xml),
+  "fingering MXL generation must remain deterministic",
+);
+const reopenedFingeringMxl = createLocalScoreProjectMusicXmlImportDraft({
+  xml: extractMusicXMLFromMxl(fingeringMxlPayload.data as Uint8Array),
+  fileName: fingeringMxlPayload.fileName,
+  sourceFormat: "mxl",
+  projectId: fingeringProject.projectId,
+  now: fingeringProject.createdAt,
+  createEventId: () => `reopened-fingering-mxl-event-${++importedEventIndex}`,
+});
+assert.equal(reopenedFingeringMxl.status, "ready");
+assert.ok(reopenedFingeringMxl.project);
+assert.deepEqual(
+  musicalProjection(reopenedFingeringMxl.project),
+  musicalProjection(fingeringProject),
+  "strict MXL re-import must preserve fingering 1 and 5",
+);
+
 const changedProject: LocalScoreProjectV1 = {
   ...project,
   document: {
@@ -864,7 +979,6 @@ const blockedFixtures: readonly [
       "unsupported-chord-symbol",
       "unsupported-dynamic",
       "unsupported-damper-pedal",
-      "unsupported-fingering",
       "unsupported-articulation",
     ],
   ],
