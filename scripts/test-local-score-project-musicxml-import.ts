@@ -851,6 +851,161 @@ assert.deepEqual(
   "MXL payload XML must use the same strict pedal mapping",
 );
 
+const strictHarmonyXml = supportedXml
+  .replace(
+    "<note><pitch><step>C</step>",
+    '<harmony><root><root-step>C</root-step></root><kind>major</kind><staff>1</staff></harmony><direction><direction-type><pedal type="start"/></direction-type><voice>1</voice><staff>1</staff></direction><note><pitch><step>C</step>',
+  )
+  .replace(
+    "<note><rest/>",
+    '<harmony><root><root-step>D</root-step></root><kind>minor</kind><staff>1</staff></harmony><note><rest/>',
+  )
+  .replace(
+    "<note><pitch><step>D</step>",
+    '<harmony><root><root-step>E</root-step></root><kind>dominant</kind><staff>1</staff></harmony><note><pitch><step>D</step>',
+  )
+  .replace(
+    "<note><pitch><step>E</step>",
+    '<harmony><root><root-step>F</root-step></root><kind>major-seventh</kind><staff>1</staff></harmony><note><pitch><step>E</step>',
+  )
+  .replace(
+    "<note><pitch><step>F</step>",
+    '<harmony><root><root-step>G</root-step></root><kind>minor-seventh</kind><staff>1</staff></harmony><note><pitch><step>F</step>',
+  );
+let harmonyEventSequence = 0;
+const strictHarmonyReady = createLocalScoreProjectMusicXmlImportDraft({
+  xml: strictHarmonyXml,
+  fileName: "严格和弦标记.musicxml",
+  sourceFormat: "musicxml",
+  projectId: "import-project-harmony",
+  now: "2026-07-27T08:01:08.650Z",
+  createEventId: () => `harmony-event-${++harmonyEventSequence}`,
+});
+assert.equal(strictHarmonyReady.status, "ready");
+assert.deepEqual(strictHarmonyReady.issues, []);
+assert.deepEqual(
+  strictHarmonyReady.project?.document.parts[0].staves[0].voices[0].measures
+    .flatMap((measure) => measure.events)
+    .map((event) => [event.chordSymbol, event.damperPedalMark]),
+  [
+    ["C", "down"],
+    ["Dm", null],
+    ["E7", null],
+    ["Fmaj7", null],
+    ["Gm7", null],
+  ],
+  "strict harmony must map to note/rest chord symbols and coexist with pedal",
+);
+let harmonyMxlEventSequence = 0;
+const strictHarmonyMxlReady = createLocalScoreProjectMusicXmlImportDraft({
+  xml: strictHarmonyXml,
+  fileName: "严格和弦标记.mxl",
+  sourceFormat: "mxl",
+  projectId: "import-project-harmony-mxl",
+  now: "2026-07-27T08:01:08.660Z",
+  createEventId: () => `harmony-mxl-event-${++harmonyMxlEventSequence}`,
+});
+assert.equal(strictHarmonyMxlReady.status, "ready");
+assert.deepEqual(
+  strictHarmonyMxlReady.project?.document.parts[0].staves[0].voices[0].measures
+    .flatMap((measure) => measure.events)
+    .map((event) => event.chordSymbol),
+  ["C", "Dm", "E7", "Fmaj7", "Gm7"],
+  "MXL payload XML must use the same strict harmony mapping",
+);
+
+const harmonyAnchor = "<note><pitch><step>D</step>";
+const invalidHarmonies = [
+  '<harmony><root><root-step>C</root-step></root><kind>augmented</kind><staff>1</staff></harmony>',
+  '<harmony placement="above"><root><root-step>C</root-step></root><kind>major</kind><staff>1</staff></harmony>',
+  '<harmony><root><root-step>C</root-step><root-alter>1</root-alter></root><kind>major</kind><staff>1</staff></harmony>',
+  '<harmony><root><root-step>C</root-step></root><kind text="maj">major</kind><staff>1</staff></harmony>',
+  '<harmony><root><root-step>H</root-step></root><kind>major</kind><staff>1</staff></harmony>',
+  '<harmony><root><root-step>C</root-step></root><kind>major</kind><staff>2</staff></harmony>',
+  '<harmony><kind>major</kind><root><root-step>C</root-step></root><staff>1</staff></harmony>',
+  '<harmony><root><root-step>C</root-step></root><kind>major</kind><staff>1</staff><degree/></harmony>',
+  '<harmony><root><!--comment--><root-step>C</root-step></root><kind>major</kind><staff>1</staff></harmony>',
+  '<harmony><root><root-step>C</root-step></root><kind>major</kind><staff>1</staff></harmony><!--gap-->',
+] as const;
+for (let index = 0; index < invalidHarmonies.length; index += 1) {
+  let invalidHarmonyIdCalls = 0;
+  const invalidHarmonyDraft = createLocalScoreProjectMusicXmlImportDraft({
+    xml: supportedXml.replace(
+      harmonyAnchor,
+      `${invalidHarmonies[index]}${harmonyAnchor}`,
+    ),
+    fileName: `invalid-harmony-${index + 1}.musicxml`,
+    sourceFormat: "musicxml",
+    projectId: `blocked-invalid-harmony-${index + 1}`,
+    now: "2026-07-27T08:01:08.670Z",
+    createEventId: () => {
+      invalidHarmonyIdCalls += 1;
+      return `unused-invalid-harmony-${invalidHarmonyIdCalls}`;
+    },
+  });
+  assert.equal(invalidHarmonyDraft.status, "blocked");
+  assert.equal(invalidHarmonyIdCalls, 0);
+  assert.ok(
+    invalidHarmonyDraft.issues.some(
+      (issue) =>
+        issue.code === "unsupported-harmony-structure"
+        || issue.code === "unsupported-harmony-anchor",
+    ),
+    `harmony structure ${index + 1} must fail closed with a stable ledger code`,
+  );
+}
+
+const duplicateHarmony = '<harmony><root><root-step>C</root-step></root><kind>major</kind><staff>1</staff></harmony>';
+const invalidHarmonyAnchors = [
+  supportedXml.replace(
+    harmonyAnchor,
+    `${duplicateHarmony}${duplicateHarmony}${harmonyAnchor}`,
+  ),
+  supportedXml.replace(
+    "</measure>",
+    `${duplicateHarmony}</measure>`,
+  ),
+] as const;
+for (let index = 0; index < invalidHarmonyAnchors.length; index += 1) {
+  const invalidHarmonyAnchorDraft =
+    createLocalScoreProjectMusicXmlImportDraft({
+      xml: invalidHarmonyAnchors[index],
+      fileName: `invalid-harmony-anchor-${index + 1}.musicxml`,
+      sourceFormat: "musicxml",
+      projectId: `blocked-invalid-harmony-anchor-${index + 1}`,
+      now: "2026-07-27T08:01:08.680Z",
+      createEventId: () => "unused-invalid-harmony-anchor",
+    });
+  assert.equal(invalidHarmonyAnchorDraft.status, "blocked");
+  assert.ok(
+    invalidHarmonyAnchorDraft.issues.some(
+      (issue) => issue.code === "unsupported-harmony-anchor",
+    ),
+  );
+}
+
+for (const [label, strayMarkup] of [
+  ["root", "<root><root-step>C</root-step></root>"],
+  ["root-step", "<root-step>C</root-step>"],
+  ["kind", "<kind>major</kind>"],
+] as const) {
+  const strayHarmonyElementDraft = createLocalScoreProjectMusicXmlImportDraft({
+    xml: supportedXml.replace(harmonyAnchor, `${strayMarkup}${harmonyAnchor}`),
+    fileName: `stray-harmony-${label}.musicxml`,
+    sourceFormat: "musicxml",
+    projectId: `blocked-stray-harmony-${label}`,
+    now: "2026-07-27T08:01:08.690Z",
+    createEventId: () => "unused-stray-harmony",
+  });
+  assert.equal(strayHarmonyElementDraft.status, "blocked");
+  assert.ok(
+    strayHarmonyElementDraft.issues.some(
+      (issue) => issue.code === "unsupported-harmony-structure",
+    ),
+    `stray ${label} must fail closed`,
+  );
+}
+
 const pedalAnchor = "<note><pitch><step>D</step>";
 const invalidPedalDirections = [
   '<direction><direction-type><pedal/></direction-type><voice>1</voice><staff>1</staff></direction>',

@@ -77,8 +77,13 @@ QA level recommendation：**strict**
 - note/rest 的 canonical `damperPedalMark` 只允许 `down`、`up` 或 `null`；
   `down`／`up` 分别在目标事件紧邻之前确定性写入只含 pedal `start`／`stop`、
   voice 1 和 staff 1 的严格 `<direction>`，`null` 不生成 direction。
-- 多附点、多个／替代指法、其他 technical、其他演奏法、组合／其他力度、和弦标记及
-  其他当前未映射的非中性 canonical 语义，必须逐类形成稳定 blocking 项。
+- note/rest 的 canonical `chordSymbol` 只接受自然音根音 `A–G` 的无后缀、`m`、
+  `7`、`maj7` 或 `m7` 形式，分别确定性写为 major、minor、dominant、
+  major-seventh 或 minor-seventh 的严格 `<harmony>`。和踏板共存时固定输出
+  harmony → pedal direction → note/rest；`null` 不生成 harmony。
+- 多附点、多个／替代指法、其他 technical、其他演奏法、组合／其他力度、升降根音、
+  slash chord、其他和弦类别及其他当前未映射的非中性 canonical 语义，必须逐类形成
+  稳定 blocking 项。
 - 项目至少包含一个事件；任何超过当前拍号容量的小节必须 blocking。
 
 项目 ID、document ID、event ID、创建／更新时间、revision 和 undo／redo 是本机项目
@@ -137,7 +142,7 @@ QA level recommendation：**strict**
 1. 当前 canonical MusicXML importer 重新读取 `.musicxml`，以及从 `.mxl` 安全解包
    后的 XML，核对标题、part 名称、音高、时值、休止符、小节、调号、拍号和谱号等本
    切片承诺的语义，以及单附点、单段歌词、单指法、单音演奏法、单事件力度记号、
-   单事件制音踏板记号、fermata、slur 与 tie 的 canonical 映射。
+   单事件制音踏板记号、受控和弦标记、fermata、slur 与 tie 的 canonical 映射。
 2. 既有 legacy `musicxmlParser` 作为独立代码路径，交叉核对其能够表达的音符音高、
    基础时值、小节和拍位。该 parser 以 raw duration 推进附点后的拍位，但不表达 dot
    identity、歌词、休止符、credits 或全部 canonical 字段，不能单独证明完整
@@ -247,6 +252,9 @@ QA level recommendation：**strict**
 
 单事件制音踏板记号双向严格子集的独立验收边界见
 `docs/s3-local-score-project-musicxml-damper-pedal-round-trip-acceptance.md`。
+
+受控和弦标记双向严格子集的独立验收边界见
+`docs/s3-local-score-project-musicxml-chord-symbol-round-trip-acceptance.md`。
 
 XML 1.0 文本与 Unicode 安全边界见
 `docs/s3-local-score-project-musicxml-xml-text-safety-acceptance.md`。

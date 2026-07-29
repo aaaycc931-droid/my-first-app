@@ -11,6 +11,10 @@ import {
   createLocalScoreProjectMusicXmlExportDraft,
   type LocalScoreProjectMusicXmlExportDraft,
 } from "../lib/music/localScoreProjectMusicXmlExport";
+import {
+  createSupportedCanonicalChordSymbol,
+  parseSupportedCanonicalChordSymbol,
+} from "../lib/music/localScoreProjectMusicXmlChordSymbol";
 import { createLocalScoreProjectMusicXmlImportDraft } from "../lib/music/localScoreProjectMusicXmlImport";
 import { parseMusicXML } from "../lib/musicxml/musicxmlParser";
 import {
@@ -170,6 +174,7 @@ const musicalProjection = (project: LocalScoreProjectV1) => ({
         augmentationDots: event.augmentationDots,
         lyric: event.type === "note" ? event.lyric : null,
         fingering: event.type === "note" ? event.fingering : null,
+        chordSymbol: event.chordSymbol,
         articulations: event.type === "note" ? event.articulations : [],
         dynamicMark: event.dynamicMark,
         damperPedalMark: event.damperPedalMark,
@@ -407,6 +412,76 @@ const createDamperPedalSupportedProject = (): LocalScoreProjectV1 => {
   assert.ok(parsed, "damper pedal export fixture must be canonical");
   return parsed;
 };
+
+const createChordSymbolSupportedProject = (): LocalScoreProjectV1 => {
+  const base = createDamperPedalSupportedProject();
+  const measures = base.document.parts[0].staves[0].voices[0].measures;
+  const symbols = new Map<string, string>([
+    ["event-1", "C"],
+    ["event-2", "Dm"],
+    ["event-3", "E7"],
+    ["event-4", "Fmaj7"],
+    ["event-5", "Gm7"],
+  ] as const);
+  const candidate: LocalScoreProjectV1 = {
+    ...base,
+    document: {
+      ...base.document,
+      parts: [{
+        ...base.document.parts[0],
+        staves: [{
+          ...base.document.parts[0].staves[0],
+          voices: [{
+            ...base.document.parts[0].staves[0].voices[0],
+            measures: measures.map((measure) => ({
+              ...measure,
+              events: measure.events.map((event) => ({
+                ...event,
+                chordSymbol: symbols.get(event.id) ?? null,
+              })),
+            })),
+          }],
+        }],
+      }],
+    },
+  };
+  const parsed = parseLocalScoreProject(candidate);
+  assert.ok(parsed, "chord symbol export fixture must be canonical");
+  return parsed;
+};
+
+for (const rootStep of ["A", "B", "C", "D", "E", "F", "G"] as const) {
+  for (const [suffix, kind] of [
+    ["", "major"],
+    ["m", "minor"],
+    ["7", "dominant"],
+    ["maj7", "major-seventh"],
+    ["m7", "minor-seventh"],
+  ] as const) {
+    const canonical = `${rootStep}${suffix}`;
+    assert.deepEqual(
+      parseSupportedCanonicalChordSymbol(canonical),
+      { canonical, rootStep, kind },
+    );
+    assert.deepEqual(
+      createSupportedCanonicalChordSymbol({ rootStep, kind }),
+      { canonical, rootStep, kind },
+    );
+  }
+}
+for (const unsupported of [
+  "C#",
+  "Bb",
+  "Caug",
+  "Cdim",
+  "Csus4",
+  "C/E",
+  "c",
+  " C",
+  "C ",
+]) {
+  assert.equal(parseSupportedCanonicalChordSymbol(unsupported), null);
+}
 
 const project = createSupportedProject();
 const sourceSnapshot = JSON.stringify(project);
@@ -1042,6 +1117,89 @@ assert.deepEqual(
   "legacy parsing must ignore pedal directions without changing note timing",
 );
 
+const chordSymbolProject = createChordSymbolSupportedProject();
+const chordSymbolReady = createLocalScoreProjectMusicXmlExportDraft({
+  project: chordSymbolProject,
+});
+assert.equal(chordSymbolReady.status, "ready");
+assert.deepEqual(chordSymbolReady.issues, []);
+assert.ok(chordSymbolReady.xml);
+for (const [rootStep, kind] of [
+  ["C", "major"],
+  ["D", "minor"],
+  ["E", "dominant"],
+  ["F", "major-seventh"],
+  ["G", "minor-seventh"],
+] as const) {
+  assert.match(
+    chordSymbolReady.xml,
+    new RegExp(
+      `<harmony>\\s*<root><root-step>${rootStep}</root-step></root>\\s*`
+      + `<kind>${kind}</kind>\\s*<staff>1</staff>\\s*</harmony>`,
+    ),
+  );
+}
+assert.match(
+  chordSymbolReady.xml,
+  /<harmony>\s*<root><root-step>C<\/root-step><\/root>\s*<kind>major<\/kind>\s*<staff>1<\/staff>\s*<\/harmony>\s*<direction>\s*<direction-type><pedal type="start"\/><\/direction-type>\s*<voice>1<\/voice>\s*<staff>1<\/staff>\s*<\/direction>\s*<note>/,
+  "harmony must precede a coexisting strict pedal direction and target note",
+);
+assert.deepEqual(
+  createLocalScoreProjectMusicXmlExportDraft({ project: chordSymbolProject }),
+  chordSymbolReady,
+  "chord symbol output must be deterministic",
+);
+const chordSymbolXmlPayload = confirmLocalScoreProjectMusicXmlExportDraft({
+  draft: chordSymbolReady,
+  currentProject: chordSymbolProject,
+  format: "musicxml",
+});
+const reopenedChordSymbolXml = createLocalScoreProjectMusicXmlImportDraft({
+  xml: String(chordSymbolXmlPayload.data),
+  fileName: chordSymbolXmlPayload.fileName,
+  sourceFormat: "musicxml",
+  projectId: chordSymbolProject.projectId,
+  now: chordSymbolProject.createdAt,
+  createEventId: () => `reopened-chord-event-${++importedEventIndex}`,
+});
+assert.equal(reopenedChordSymbolXml.status, "ready");
+assert.ok(reopenedChordSymbolXml.project);
+assert.deepEqual(
+  musicalProjection(reopenedChordSymbolXml.project),
+  musicalProjection(chordSymbolProject),
+  "strict MusicXML re-import must preserve note/rest chord symbols and existing marks",
+);
+const chordSymbolMxlPayload = confirmLocalScoreProjectMusicXmlExportDraft({
+  draft: chordSymbolReady,
+  currentProject: chordSymbolProject,
+  format: "mxl",
+});
+assert.deepEqual(
+  chordSymbolMxlPayload.data,
+  createMusicXmlMxlArchive(chordSymbolReady.xml),
+  "chord symbol MXL generation must remain deterministic",
+);
+const reopenedChordSymbolMxl = createLocalScoreProjectMusicXmlImportDraft({
+  xml: extractMusicXMLFromMxl(chordSymbolMxlPayload.data as Uint8Array),
+  fileName: chordSymbolMxlPayload.fileName,
+  sourceFormat: "mxl",
+  projectId: chordSymbolProject.projectId,
+  now: chordSymbolProject.createdAt,
+  createEventId: () => `reopened-chord-mxl-event-${++importedEventIndex}`,
+});
+assert.equal(reopenedChordSymbolMxl.status, "ready");
+assert.ok(reopenedChordSymbolMxl.project);
+assert.deepEqual(
+  musicalProjection(reopenedChordSymbolMxl.project),
+  musicalProjection(chordSymbolProject),
+  "strict MXL re-import must preserve note/rest chord symbols and existing marks",
+);
+assert.deepEqual(
+  parseMusicXML(chordSymbolReady.xml),
+  parseMusicXML(damperPedalReady.xml),
+  "legacy parsing must ignore harmony without changing note timing",
+);
+
 for (const mark of ["pp", "p", "mp", "mf", "f", "ff"] as const) {
   const measures =
     dynamicProject.document.parts[0].staves[0].voices[0].measures;
@@ -1522,21 +1680,12 @@ const blockedFixtures: readonly [
   [
     withFirstMeasureEvents([{
       ...sourceNote,
-      lyric: "la",
-      fingering: 1,
-      chordSymbol: "C",
-      articulations: ["accent"],
-      dynamicMark: "f",
-      damperPedalMark: "down",
+      chordSymbol: "C#maj7",
     }, {
       ...sourceRest,
-      chordSymbol: "Dm",
-      dynamicMark: "p",
-      damperPedalMark: "up",
+      chordSymbol: "Csus4",
     }]),
-    [
-      "unsupported-chord-symbol",
-    ],
+    ["unsupported-chord-symbol"],
   ],
   [
     withFirstMeasureEvents([{
