@@ -172,6 +172,7 @@ const musicalProjection = (project: LocalScoreProjectV1) => ({
         fingering: event.type === "note" ? event.fingering : null,
         articulations: event.type === "note" ? event.articulations : [],
         dynamicMark: event.dynamicMark,
+        damperPedalMark: event.damperPedalMark,
         fermataMark: event.fermataMark,
         tieToNext: event.type === "note" ? event.tieToNext : null,
         slurToNext: event.type === "note" ? event.slurToNext : null,
@@ -370,6 +371,40 @@ const createDynamicSupportedProject = (): LocalScoreProjectV1 => {
   };
   const parsed = parseLocalScoreProject(candidate);
   assert.ok(parsed, "dynamic mark export fixture must be canonical");
+  return parsed;
+};
+
+const createDamperPedalSupportedProject = (): LocalScoreProjectV1 => {
+  const base = createDynamicSupportedProject();
+  const measures = base.document.parts[0].staves[0].voices[0].measures;
+  const candidate: LocalScoreProjectV1 = {
+    ...base,
+    document: {
+      ...base.document,
+      parts: [{
+        ...base.document.parts[0],
+        staves: [{
+          ...base.document.parts[0].staves[0],
+          voices: [{
+            ...base.document.parts[0].staves[0].voices[0],
+            measures: measures.map((measure) => ({
+              ...measure,
+              events: measure.events.map((event) => ({
+                ...event,
+                damperPedalMark: event.id === "event-1"
+                  ? "down"
+                  : event.id === "event-2" || event.id === "event-5"
+                    ? "up"
+                    : null,
+              })),
+            })),
+          }],
+        }],
+      }],
+    },
+  };
+  const parsed = parseLocalScoreProject(candidate);
+  assert.ok(parsed, "damper pedal export fixture must be canonical");
   return parsed;
 };
 
@@ -926,6 +961,87 @@ assert.deepEqual(
   "strict MXL re-import must preserve note and rest dynamic marks",
 );
 
+const damperPedalProject = createDamperPedalSupportedProject();
+const damperPedalReady = createLocalScoreProjectMusicXmlExportDraft({
+  project: damperPedalProject,
+});
+assert.equal(damperPedalReady.status, "ready");
+assert.deepEqual(damperPedalReady.issues, []);
+assert.ok(damperPedalReady.xml);
+assert.equal(
+  damperPedalReady.xml.match(/<pedal type="start"\/>/g)?.length,
+  1,
+);
+assert.equal(
+  damperPedalReady.xml.match(/<pedal type="stop"\/>/g)?.length,
+  2,
+);
+assert.match(
+  damperPedalReady.xml,
+  /<direction>\s*<direction-type><pedal type="start"\/><\/direction-type>\s*<voice>1<\/voice>\s*<staff>1<\/staff>\s*<\/direction>\s*<note>/,
+  "down must emit one strict direction immediately before its note",
+);
+assert.match(
+  damperPedalReady.xml,
+  /<direction>\s*<direction-type><pedal type="stop"\/><\/direction-type>\s*<voice>1<\/voice>\s*<staff>1<\/staff>\s*<\/direction>\s*<note>\s*<rest\/>/,
+  "up must emit one strict direction immediately before its rest",
+);
+assert.deepEqual(
+  createLocalScoreProjectMusicXmlExportDraft({ project: damperPedalProject }),
+  damperPedalReady,
+  "damper pedal output must be deterministic",
+);
+const damperPedalXmlPayload = confirmLocalScoreProjectMusicXmlExportDraft({
+  draft: damperPedalReady,
+  currentProject: damperPedalProject,
+  format: "musicxml",
+});
+const reopenedDamperPedalXml = createLocalScoreProjectMusicXmlImportDraft({
+  xml: String(damperPedalXmlPayload.data),
+  fileName: damperPedalXmlPayload.fileName,
+  sourceFormat: "musicxml",
+  projectId: damperPedalProject.projectId,
+  now: damperPedalProject.createdAt,
+  createEventId: () => `reopened-pedal-event-${++importedEventIndex}`,
+});
+assert.equal(reopenedDamperPedalXml.status, "ready");
+assert.ok(reopenedDamperPedalXml.project);
+assert.deepEqual(
+  musicalProjection(reopenedDamperPedalXml.project),
+  musicalProjection(damperPedalProject),
+  "strict MusicXML re-import must preserve note and rest pedal marks",
+);
+const damperPedalMxlPayload = confirmLocalScoreProjectMusicXmlExportDraft({
+  draft: damperPedalReady,
+  currentProject: damperPedalProject,
+  format: "mxl",
+});
+assert.deepEqual(
+  damperPedalMxlPayload.data,
+  createMusicXmlMxlArchive(damperPedalReady.xml),
+  "damper pedal MXL generation must remain deterministic",
+);
+const reopenedDamperPedalMxl = createLocalScoreProjectMusicXmlImportDraft({
+  xml: extractMusicXMLFromMxl(damperPedalMxlPayload.data as Uint8Array),
+  fileName: damperPedalMxlPayload.fileName,
+  sourceFormat: "mxl",
+  projectId: damperPedalProject.projectId,
+  now: damperPedalProject.createdAt,
+  createEventId: () => `reopened-pedal-mxl-event-${++importedEventIndex}`,
+});
+assert.equal(reopenedDamperPedalMxl.status, "ready");
+assert.ok(reopenedDamperPedalMxl.project);
+assert.deepEqual(
+  musicalProjection(reopenedDamperPedalMxl.project),
+  musicalProjection(damperPedalProject),
+  "strict MXL re-import must preserve note and rest pedal marks",
+);
+assert.deepEqual(
+  parseMusicXML(damperPedalReady.xml),
+  parseMusicXML(dynamicReady.xml),
+  "legacy parsing must ignore pedal directions without changing note timing",
+);
+
 for (const mark of ["pp", "p", "mp", "mf", "f", "ff"] as const) {
   const measures =
     dynamicProject.document.parts[0].staves[0].voices[0].measures;
@@ -1221,7 +1337,6 @@ const blockedFixtures: readonly [
     }]),
     [
       "unsupported-chord-symbol",
-      "unsupported-damper-pedal",
     ],
   ],
   [
