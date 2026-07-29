@@ -167,6 +167,7 @@ const musicalProjection = (project: LocalScoreProjectV1) => ({
         augmentationDots: event.augmentationDots,
         lyric: event.type === "note" ? event.lyric : null,
         fingering: event.type === "note" ? event.fingering : null,
+        articulations: event.type === "note" ? event.articulations : [],
         fermataMark: event.fermataMark,
         tieToNext: event.type === "note" ? event.tieToNext : null,
         slurToNext: event.type === "note" ? event.slurToNext : null,
@@ -289,6 +290,45 @@ const createFingeringSupportedProject = (): LocalScoreProjectV1 => {
   };
   const parsed = parseLocalScoreProject(candidate);
   assert.ok(parsed, "fingering export fixture must be canonical");
+  return parsed;
+};
+
+const createArticulationSupportedProject = (): LocalScoreProjectV1 => {
+  const base = createFingeringSupportedProject();
+  const measures = base.document.parts[0].staves[0].voices[0].measures;
+  const candidate: LocalScoreProjectV1 = {
+    ...base,
+    document: {
+      ...base.document,
+      parts: [{
+        ...base.document.parts[0],
+        staves: [{
+          ...base.document.parts[0].staves[0],
+          voices: [{
+            ...base.document.parts[0].staves[0].voices[0],
+            measures: measures.map((measure) => ({
+              ...measure,
+              events: measure.events.map((event) => {
+                if (event.type !== "note") return event;
+                if (event.id === "event-4") {
+                  return {
+                    ...event,
+                    articulations: ["accent", "staccato", "tenuto"],
+                  };
+                }
+                if (event.id === "event-5") {
+                  return { ...event, articulations: ["staccato"] };
+                }
+                return event;
+              }),
+            })),
+          }],
+        }],
+      }],
+    },
+  };
+  const parsed = parseLocalScoreProject(candidate);
+  assert.ok(parsed, "articulation export fixture must be canonical");
   return parsed;
 };
 
@@ -719,6 +759,64 @@ assert.deepEqual(
   "strict MXL re-import must preserve fingering 1 and 5",
 );
 
+const articulationProject = createArticulationSupportedProject();
+const articulationReady = createLocalScoreProjectMusicXmlExportDraft({
+  project: articulationProject,
+});
+assert.equal(articulationReady.status, "ready");
+assert.deepEqual(articulationReady.issues, []);
+assert.ok(articulationReady.xml);
+assert.match(
+  articulationReady.xml,
+  /<technical><fingering>1<\/fingering><\/technical><articulations><accent\/><staccato\/><tenuto\/><\/articulations><\/notations>\s*<lyric>/,
+  "all articulations must follow fingering in canonical order inside one notations container",
+);
+assert.deepEqual(
+  createLocalScoreProjectMusicXmlExportDraft({ project: articulationProject }),
+  articulationReady,
+  "articulation output must be deterministic",
+);
+const articulationXmlPayload = confirmLocalScoreProjectMusicXmlExportDraft({
+  draft: articulationReady,
+  currentProject: articulationProject,
+  format: "musicxml",
+});
+const reopenedArticulationXml = createLocalScoreProjectMusicXmlImportDraft({
+  xml: String(articulationXmlPayload.data),
+  fileName: articulationXmlPayload.fileName,
+  sourceFormat: "musicxml",
+  projectId: articulationProject.projectId,
+  now: articulationProject.createdAt,
+  createEventId: () => `reopened-articulation-event-${++importedEventIndex}`,
+});
+assert.equal(reopenedArticulationXml.status, "ready");
+assert.ok(reopenedArticulationXml.project);
+assert.deepEqual(
+  musicalProjection(reopenedArticulationXml.project),
+  musicalProjection(articulationProject),
+  "strict MusicXML re-import must preserve articulation sets",
+);
+const articulationMxlPayload = confirmLocalScoreProjectMusicXmlExportDraft({
+  draft: articulationReady,
+  currentProject: articulationProject,
+  format: "mxl",
+});
+const reopenedArticulationMxl = createLocalScoreProjectMusicXmlImportDraft({
+  xml: extractMusicXMLFromMxl(articulationMxlPayload.data as Uint8Array),
+  fileName: articulationMxlPayload.fileName,
+  sourceFormat: "mxl",
+  projectId: articulationProject.projectId,
+  now: articulationProject.createdAt,
+  createEventId: () => `reopened-articulation-mxl-event-${++importedEventIndex}`,
+});
+assert.equal(reopenedArticulationMxl.status, "ready");
+assert.ok(reopenedArticulationMxl.project);
+assert.deepEqual(
+  musicalProjection(reopenedArticulationMxl.project),
+  musicalProjection(articulationProject),
+  "strict MXL re-import must preserve articulation sets",
+);
+
 const changedProject: LocalScoreProjectV1 = {
   ...project,
   document: {
@@ -979,7 +1077,6 @@ const blockedFixtures: readonly [
       "unsupported-chord-symbol",
       "unsupported-dynamic",
       "unsupported-damper-pedal",
-      "unsupported-articulation",
     ],
   ],
   [

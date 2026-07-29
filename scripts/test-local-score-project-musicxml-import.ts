@@ -498,6 +498,140 @@ assert.deepEqual(
   "相同指法 XML 经 MXL 解包路径必须生成等价 canonical",
 );
 
+const articulationXml = fingeringXml
+  .replace(
+    "<technical><fingering>1</fingering></technical>",
+    "<technical><fingering>1</fingering></technical><articulations><accent/><staccato/><tenuto/></articulations>",
+  )
+  .replace(
+    "<technical><fingering>3</fingering></technical>",
+    "<technical><fingering>3</fingering></technical><articulations><staccato/></articulations>",
+  )
+  .replace(
+    "<technical><fingering>5</fingering></technical>",
+    "<technical><fingering>5</fingering></technical><articulations><accent/><tenuto/></articulations>",
+  );
+let articulationEventSequence = 0;
+const articulationReady = createLocalScoreProjectMusicXmlImportDraft({
+  xml: articulationXml,
+  fileName: "严格演奏法.musicxml",
+  sourceFormat: "musicxml",
+  projectId: "import-project-articulation",
+  now: "2026-07-27T08:01:00.000Z",
+  createEventId: () => `articulation-event-${++articulationEventSequence}`,
+});
+assert.equal(articulationReady.status, "ready");
+assert.deepEqual(articulationReady.issues, []);
+assert.deepEqual(
+  articulationReady.project?.document.parts[0].staves[0].voices[0].measures
+    .flatMap((measure) => measure.events)
+    .map((event) => event.type === "note" ? event.articulations : []),
+  [
+    [],
+    ["accent", "staccato", "tenuto"],
+    ["staccato"],
+    ["accent", "tenuto"],
+    [],
+  ],
+  "演奏法组合必须按 canonical 固定顺序精确保留",
+);
+articulationEventSequence = 0;
+const articulationMxlEquivalent = createLocalScoreProjectMusicXmlImportDraft({
+  xml: articulationXml,
+  fileName: "严格演奏法.mxl",
+  sourceFormat: "mxl",
+  projectId: "import-project-articulation",
+  now: "2026-07-27T08:01:00.000Z",
+  createEventId: () => `articulation-event-${++articulationEventSequence}`,
+});
+assert.equal(articulationMxlEquivalent.status, "ready");
+assert.deepEqual(
+  articulationMxlEquivalent.project,
+  articulationReady.project,
+  "相同演奏法 XML 经 MXL 解包路径必须生成等价 canonical",
+);
+
+const invalidArticulationMarkups = [
+  "<notations><articulations/></notations>",
+  '<notations><articulations placement="above"><accent/></articulations></notations>',
+  "<notations><articulations><accent/><accent/></articulations></notations>",
+  "<notations><articulations><tenuto/><accent/></articulations></notations>",
+  "<notations><articulations><strong-accent/></articulations></notations>",
+  '<notations><articulations><accent type="up"/></articulations></notations>',
+  "<notations><articulations><accent>text</accent></articulations></notations>",
+  "<notations><articulations><accent><unexpected/></accent></articulations></notations>",
+  "<notations><articulations><!--comment--><accent/></articulations></notations>",
+  "<notations><articulations><![CDATA[ ]]><accent/></articulations></notations>",
+  "<notations><articulations><?mark data?><accent/></articulations></notations>",
+  "<notations><accent/></notations>",
+  "<articulations><accent/></articulations>",
+  "<notations><articulations><accent/></articulations><articulations><tenuto/></articulations></notations>",
+] as const;
+for (let index = 0; index < invalidArticulationMarkups.length; index += 1) {
+  let invalidArticulationIdCalls = 0;
+  const invalidArticulationDraft = createLocalScoreProjectMusicXmlImportDraft({
+    xml: supportedXml.replace(
+      "<type>half</type></note>",
+      `<type>half</type>${invalidArticulationMarkups[index]}</note>`,
+    ),
+    fileName: `invalid-articulation-${index + 1}.musicxml`,
+    sourceFormat: "musicxml",
+    projectId: `blocked-invalid-articulation-${index + 1}`,
+    now: "2026-07-27T08:01:01.000Z",
+    createEventId: () => {
+      invalidArticulationIdCalls += 1;
+      return `unused-invalid-articulation-${invalidArticulationIdCalls}`;
+    },
+  });
+  assert.equal(invalidArticulationDraft.status, "blocked");
+  assert.equal(invalidArticulationIdCalls, 0);
+  assert.ok(
+    invalidArticulationDraft.issues.some(
+      (issue) => issue.code === "unsupported-articulation",
+    ),
+    `演奏法结构 ${index + 1} 必须以稳定 ledger 失败关闭`,
+  );
+}
+
+const attributedArticulationDraft = createLocalScoreProjectMusicXmlImportDraft({
+  xml: supportedXml.replace(
+    "<note><pitch><step>D</step>",
+    '<note print-object="yes"><pitch><step>D</step>',
+  ).replace(
+    "<type>half</type></note>",
+    "<type>half</type><notations><articulations><accent/></articulations></notations></note>",
+  ),
+  fileName: "attributed-articulation.musicxml",
+  sourceFormat: "musicxml",
+  projectId: "blocked-attributed-articulation",
+  now: "2026-07-27T08:01:02.000Z",
+  createEventId: () => "unused-attributed-articulation",
+});
+assert.equal(attributedArticulationDraft.status, "blocked");
+assert.ok(
+  attributedArticulationDraft.issues.some(
+    (issue) => issue.code === "unsupported-articulation",
+  ),
+);
+
+const restArticulationDraft = createLocalScoreProjectMusicXmlImportDraft({
+  xml: supportedXml.replace(
+    "<note><rest/><duration>2</duration><voice>1</voice><type>quarter</type><notations><fermata/></notations></note>",
+    "<note><rest/><duration>2</duration><voice>1</voice><type>quarter</type><notations><fermata/><articulations><tenuto/></articulations></notations></note>",
+  ),
+  fileName: "rest-articulation.musicxml",
+  sourceFormat: "musicxml",
+  projectId: "blocked-rest-articulation",
+  now: "2026-07-27T08:01:03.000Z",
+  createEventId: () => "unused-rest-articulation",
+});
+assert.equal(restArticulationDraft.status, "blocked");
+assert.ok(
+  restArticulationDraft.issues.some(
+    (issue) => issue.code === "unsupported-articulation-on-rest",
+  ),
+);
+
 const fingeringInsertionTarget = "<type>half</type></note>";
 const invalidFingeringFixtures = [
   {
@@ -1115,7 +1249,6 @@ assert.throws(
 
 for (const [element, code] of [
   ["<lyric><syllabic>single</syllabic><text>la</text></lyric>", "unsupported-lyric"],
-  ["<notations><articulations><accent/></articulations></notations>", "unsupported-articulation"],
   ["<accidental>sharp</accidental>", "unsupported-accidental"],
   ["<cue/>", "unsupported-element"],
 ] as const) {

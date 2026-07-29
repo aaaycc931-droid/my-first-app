@@ -6,6 +6,7 @@ import {
   type LocalScoreProjectV1,
 } from "./localScoreProject";
 import type {
+  LocalScoreProjectArticulationV1,
   LocalScoreProjectClefV3,
   LocalScoreProjectEventV9,
   LocalScoreProjectFingeringV1,
@@ -82,7 +83,6 @@ const forbiddenElementCodes = [
   ["time-modification", "unsupported-tuplet", "当前导入不支持连音符时值比例。"],
   ["grace", "unsupported-grace", "当前导入不支持倚音。"],
   ["harmony", "unsupported-harmony", "当前导入不支持和弦标记。"],
-  ["articulations", "unsupported-articulation", "当前导入不支持演奏法。"],
   ["dynamics", "unsupported-dynamic", "当前导入不支持力度记号。"],
   ["pedal", "unsupported-pedal", "当前导入不支持踏板记号。"],
   ["accidental", "unsupported-accidental", "当前导入只支持无临时升降号的自然音。"],
@@ -122,6 +122,10 @@ const allowedMeasureElements = new Set([
   "tied",
   "technical",
   "fingering",
+  "articulations",
+  "accent",
+  "staccato",
+  "tenuto",
   "lyric",
   "text",
 ]);
@@ -209,9 +213,15 @@ type SupportedNotationBundle = Readonly<{
   slurStop: boolean;
   tiedTypes: readonly TieMarkerType[];
   fingering: LocalScoreProjectFingeringV1 | null;
+  articulations: readonly LocalScoreProjectArticulationV1[];
 }>;
 
 type TieMarkerType = "start" | "stop";
+const articulationOrder: readonly LocalScoreProjectArticulationV1[] = [
+  "accent",
+  "staccato",
+  "tenuto",
+];
 
 const containsUnsupportedLyricCharacter = (value: string) =>
   Array.from(value).some((character) => {
@@ -436,6 +446,7 @@ const EMPTY_NOTATION_BUNDLE: SupportedNotationBundle = {
   slurStop: false,
   tiedTypes: [],
   fingering: null,
+  articulations: [],
 };
 
 const readSupportedNotationBundle = ({
@@ -461,6 +472,16 @@ const readSupportedNotationBundle = ({
     .filter((element) => localElementName(element) === "technical");
   const allFingerings = Array.from(noteElement.getElementsByTagName("*"))
     .filter((element) => localElementName(element) === "fingering");
+  const allArticulationContainers = Array.from(
+    noteElement.getElementsByTagName("*"),
+  ).filter((element) => localElementName(element) === "articulations");
+  const allArticulationMarks = Array.from(
+    noteElement.getElementsByTagName("*"),
+  ).filter((element) =>
+    articulationOrder.includes(
+      localElementName(element) as LocalScoreProjectArticulationV1,
+    )
+  );
   if (notationsElements.length === 0) {
     if (allFermatas.length > 0) {
       issues.push(blockingIssue(
@@ -497,6 +518,16 @@ const readSupportedNotationBundle = ({
         measureNumber,
       ));
     }
+    if (
+      allArticulationContainers.length > 0
+      || allArticulationMarks.length > 0
+    ) {
+      issues.push(blockingIssue(
+        "unsupported-articulation",
+        "演奏法必须位于 note／notations 下唯一的 articulations 容器中。",
+        measureNumber,
+      ));
+    }
     return EMPTY_NOTATION_BUNDLE;
   }
   if (notationsElements.length !== 1) {
@@ -521,11 +552,15 @@ const readSupportedNotationBundle = ({
   const technicals = notationChildren.filter(
     (element) => localElementName(element) === "technical",
   );
+  const articulationContainers = notationChildren.filter(
+    (element) => localElementName(element) === "articulations",
+  );
   const unsupportedChildren = notationChildren.filter((element) =>
     localElementName(element) !== "fermata"
     && localElementName(element) !== "slur"
     && localElementName(element) !== "tied"
     && localElementName(element) !== "technical"
+    && localElementName(element) !== "articulations"
   );
   const hasNonWhitespaceText = Array.from(notations.childNodes).some(
     (child) =>
@@ -540,7 +575,7 @@ const readSupportedNotationBundle = ({
   ) {
     issues.push(blockingIssue(
       "unsupported-notations",
-      "当前只支持无属性的 notations，且其中只能包含受控 fermata／slur／tied／technical 记号。",
+      "当前只支持无属性的 notations，且其中只能包含受控 fermata／slur／tied／technical／articulations 记号。",
       measureNumber,
     ));
   }
@@ -730,12 +765,99 @@ const readSupportedNotationBundle = ({
       measureNumber,
     ));
   }
+
+  let articulations: LocalScoreProjectArticulationV1[] = [];
+  if (
+    allArticulationContainers.length !== articulationContainers.length
+    || articulationContainers.length > 1
+  ) {
+    issues.push(blockingIssue(
+      "unsupported-articulation",
+      "当前每个 note 最多支持一个直接位于 notations 下的 articulations。",
+      measureNumber,
+    ));
+  }
+  if (articulationContainers.length === 1) {
+    const container = articulationContainers[0];
+    const children = directChildElements(container);
+    const names = children.map((element) => localElementName(element));
+    const supportedNames = names.filter(
+      (name): name is LocalScoreProjectArticulationV1 =>
+        articulationOrder.includes(name as LocalScoreProjectArticulationV1),
+    );
+    const canonicalNames = articulationOrder.filter(
+      (name) => supportedNames.includes(name),
+    );
+    const hasInvalidContainerNode = Array.from(container.childNodes).some(
+      (child) =>
+        (child.nodeType === 3 && (child.textContent ?? "").trim() !== "")
+        || (child.nodeType !== 1 && child.nodeType !== 3),
+    );
+    const containerValid =
+      container.attributes.length === 0
+      && children.length > 0
+      && supportedNames.length === children.length
+      && allArticulationMarks.length === children.length
+      && new Set(supportedNames).size === supportedNames.length
+      && supportedNames.every(
+        (name, index) => name === canonicalNames[index],
+      )
+      && !hasInvalidContainerNode;
+    if (!containerValid) {
+      issues.push(blockingIssue(
+        "unsupported-articulation",
+        "articulations 必须无属性，并按 accent／staccato／tenuto 固定顺序包含一个或多个唯一空记号。",
+        measureNumber,
+      ));
+    }
+    let markersValid = true;
+    children.forEach((marker) => {
+      if (
+        marker.attributes.length !== 0
+        || marker.childNodes.length !== 0
+      ) {
+        markersValid = false;
+        issues.push(blockingIssue(
+          "unsupported-articulation",
+          `${localElementName(marker)} 必须是无属性、无文本且无子元素的空演奏法记号。`,
+          measureNumber,
+        ));
+      }
+    });
+    if (
+      containerValid
+      && markersValid
+      && supportedNames.length === canonicalNames.length
+    ) {
+      articulations = [...supportedNames];
+    }
+  } else if (allArticulationMarks.length > 0) {
+    issues.push(blockingIssue(
+      "unsupported-articulation",
+      "accent／staccato／tenuto 必须直接位于唯一的 articulations 容器中。",
+      measureNumber,
+    ));
+  }
+  if (
+    (
+      allArticulationContainers.length > 0
+      || allArticulationMarks.length > 0
+    )
+    && noteElement.attributes.length !== 0
+  ) {
+    issues.push(blockingIssue(
+      "unsupported-articulation",
+      "带演奏法的 note 不能包含当前无法保留的属性。",
+      measureNumber,
+    ));
+  }
   return {
     fermataMark,
     slurStart,
     slurStop,
     tiedTypes,
     fingering,
+    articulations,
   };
 };
 
@@ -894,6 +1016,40 @@ const validateNotationHierarchy = ({
       ));
     }
     if (
+      elementName === "articulations"
+      && (
+        !element.parentElement
+        || localElementName(element.parentElement) !== "notations"
+        || !element.parentElement.parentElement
+        || localElementName(element.parentElement.parentElement) !== "note"
+      )
+    ) {
+      issues.push(blockingIssue(
+        "unsupported-articulation",
+        "articulations 必须直接位于 note 的 notations 子元素中。",
+        measureNumber,
+      ));
+    }
+    if (
+      articulationOrder.includes(elementName as LocalScoreProjectArticulationV1)
+      && (
+        !element.parentElement
+        || localElementName(element.parentElement) !== "articulations"
+        || !element.parentElement.parentElement
+        || localElementName(element.parentElement.parentElement) !== "notations"
+        || !element.parentElement.parentElement.parentElement
+        || localElementName(
+          element.parentElement.parentElement.parentElement,
+        ) !== "note"
+      )
+    ) {
+      issues.push(blockingIssue(
+        "unsupported-articulation",
+        `${elementName} 必须直接位于 note／notations 下的 articulations 中。`,
+        measureNumber,
+      ));
+    }
+    if (
       elementName === "tie"
       && (
         !element.parentElement
@@ -982,6 +1138,7 @@ const noteEvent = ({
   augmentationDots,
   lyric,
   fingering,
+  articulations,
   measure,
   fermataMark,
   tieToNext,
@@ -993,6 +1150,7 @@ const noteEvent = ({
   augmentationDots: 0 | 1;
   lyric: string | null;
   fingering: LocalScoreProjectFingeringV1 | null;
+  articulations: readonly LocalScoreProjectArticulationV1[];
   measure: number;
   fermataMark: "fermata" | null;
   tieToNext: boolean;
@@ -1009,7 +1167,7 @@ const noteEvent = ({
   lyric,
   fingering,
   chordSymbol: null,
-  articulations: [],
+  articulations,
   dynamicMark: null,
   damperPedalMark: null,
   fermataMark,
@@ -1657,6 +1815,16 @@ export const createLocalScoreProjectMusicXmlImportDraft = (
             measureNumber,
           ));
         }
+        if (
+          notationBundle.articulations.length > 0
+          || hasElement(noteXml, "articulations")
+        ) {
+          issues.push(blockingIssue(
+            "unsupported-articulation-on-rest",
+            "休止符不能包含演奏法。",
+            measureNumber,
+          ));
+        }
         if (notationBundle.slurStop) {
           issues.push(blockingIssue(
             "unsupported-slur",
@@ -1710,6 +1878,7 @@ export const createLocalScoreProjectMusicXmlImportDraft = (
             augmentationDots,
             lyric,
             fingering: notationBundle.fingering,
+            articulations: notationBundle.articulations,
             measure: measureNumber,
             fermataMark: notationBundle.fermataMark,
             tieToNext: tieStart,

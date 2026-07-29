@@ -276,13 +276,6 @@ const addEventIssues = ({
       location,
     ));
   }
-  if (event.articulations.length > 0) {
-    issues.push(blockingIssue(
-      "unsupported-articulation",
-      "当前导出不支持演奏法。",
-      location,
-    ));
-  }
 };
 
 const renderNote = ({
@@ -310,6 +303,13 @@ const renderNote = ({
       : []),
     ...(event.type === "note" && event.fingering !== null
       ? [`<technical><fingering>${event.fingering}</fingering></technical>`]
+      : []),
+    ...(event.type === "note" && event.articulations.length > 0
+      ? [
+        `<articulations>${event.articulations
+          .map((articulation) => `<${articulation}/>`)
+          .join("")}</articulations>`,
+      ]
       : []),
   ];
   const directTies = event.type === "note"
