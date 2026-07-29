@@ -75,6 +75,13 @@ QA level recommendation：**strict**
   `f`／`ff` 空记号；它 exact 映射为 canonical `dynamicMark`。空容器、组合／其他
   力度、属性、文本、CDATA、comment、processing instruction、嵌套、错层级、
   measure-level direction 以及 note 的播放力度属性必须 blocking。
+- note 与 rest 最多允许一个紧邻其前的 measure-level `<direction>`，并依次且仅含
+  `<direction-type><pedal type="start|stop"/></direction-type>`、`<voice>1</voice>`
+  和 `<staff>1</staff>`；它 exact 映射为 canonical `damperPedalMark: down|up`。
+  direction 及 direction-type 必须无属性，pedal 必须为空且只能有唯一 type。
+  其他 pedal type、可选版式属性、重复／悬空／非紧邻、错误 voice/staff、文本、
+  CDATA、comment、processing instruction、offset、sound 和其他 direction 语义
+  必须 blocking。
 - note 与 rest 各自最多允许一个直接、无属性且无非空文本的 `<notations>`。其中
   `<fermata/>` 必须无属性、无文本、无子元素，并无损映射为 canonical
   `fermataMark: "fermata"`。
@@ -102,8 +109,8 @@ QA level recommendation：**strict**
 
 本切片不得为了增加成功率而静默跳过休止符、多 part／staff／voice、和弦时序、
 `backup`／`forward`、未知时值、谱号／调号／拍号、严格单段歌词／单指法／单音演奏法／
-单事件力度记号／单附点／fermata／slur／tie 结构以外的歌词、指法、演奏法、力度、
-连线或其他 canonical 语义。
+单事件力度记号／单事件制音踏板／单附点／fermata／slur／tie 结构以外的歌词、
+指法、演奏法、力度、踏板、连线或其他 canonical 语义。
 不在本切片支持清单中的内容必须 blocking。
 
 ## 明确确认与原子保存
@@ -157,6 +164,10 @@ QA level recommendation：**strict**
 - note/rest 的唯一 `<dynamics>` exact 映射 `pp`／`p`／`mp`／`mf`／`f`／`ff`
   单值并与既有严格语义共存；空容器、多值、其他力度、属性、文本、CDATA、comment、
   processing instruction、嵌套、错层级、direction 和播放力度属性全部失败关闭；
+- note/rest 紧邻之前的严格 pedal-only `<direction>` exact 映射 `start`／`stop`
+  为 canonical `down`／`up`；其他 type、属性、文本、CDATA、comment、processing
+  instruction、重复、悬空、非紧邻、错误 voice/staff、offset、sound 和其他
+  direction 全部失败关闭；
 - note/rest 的严格 `<notations><fermata/></notations>` 映射为 canonical
   `fermataMark`；带属性、文本、重复、空容器或错误层级的变体全部失败关闭；
 - 相邻时间连续 note 的严格 slur start／stop 映射为 canonical `slurToNext`；同小节、
@@ -233,3 +244,6 @@ round-trip、OMR、教师审核、真机验收或正式版 V1 已完成。
 
 单事件力度记号双向严格子集的独立验收边界见
 `docs/s3-local-score-project-musicxml-dynamic-mark-round-trip-acceptance.md`。
+
+单事件制音踏板记号双向严格子集的独立验收边界见
+`docs/s3-local-score-project-musicxml-damper-pedal-round-trip-acceptance.md`。

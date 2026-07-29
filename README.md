@@ -43,7 +43,7 @@ npm run android:build:debug
 - 已存在 MusicXML parser，可将受支持的 MusicXML 内容转换为当前识别结果使用的音符结构。
 - 已存在 dev-only MusicXML 导入 UI 和 dev API，用于上传 `.musicxml` / `.xml` / `.mxl` 文件并验证解析链路。
 - 本机谱项目已有首个正式受控导入入口：支持明确的单声部 MusicXML／MXL 子集，先生成内存候选和 blocking ledger，用户确认后才原子新增保存。
-- 本机谱项目已具备同一严格子集的 MusicXML／MXL 受控导出：先生成内存候选和 blocking ledger，用户明确确认后才下载；当前严格子集已覆盖 note/rest 单附点、延长记号和 `pp`–`ff` 受控力度记号，pitched note 的规范化单段歌词、`1–5` 单指法和 accent／staccato／tenuto 单音演奏法、同声部相邻且时间连续 note 的圆滑线，以及同音高 note 的延音线 start／stop、跨小节和链式关系的仓库内部双向 round-trip。re-import 与 legacy parser 交叉检查不等于第三方独立阅读器验收。
+- 本机谱项目已具备同一严格子集的 MusicXML／MXL 受控导出：先生成内存候选和 blocking ledger，用户明确确认后才下载；当前严格子集已覆盖 note/rest 单附点、延长记号、`pp`–`ff` 受控力度记号和 `down/up` 单事件制音踏板记号，pitched note 的规范化单段歌词、`1–5` 单指法和 accent／staccato／tenuto 单音演奏法、同声部相邻且时间连续 note 的圆滑线，以及同音高 note 的延音线 start／stop、跨小节和链式关系的仓库内部双向 round-trip。re-import 与 legacy parser 交叉检查不等于第三方独立阅读器验收。
 - 已存在 Audiveris 相关 dry-run / fixture 验证基础，但尚未成为默认识别链路。
 
 ## 早期 OMR 边界记录（历史）
@@ -62,7 +62,7 @@ npm run android:build:debug
 下一阶段继续围绕最小可用产品迭代，先完成标准格式的受控确认链，再进入更广格式和 OMR：
 
 1. 在真实浏览器、Android WebView／真机和 MuseScore 等外部独立阅读器中验证下载与重开；未执行前保持 `NOT_EXECUTED`。
-2. 继续以 fail-closed 小切片扩大经无损验证的 MusicXML 子集；当前单附点、单段歌词、单指法、单音演奏法、单事件力度记号、延长记号、严格圆滑线和严格延音线支持不代表完整 MusicXML。
+2. 继续以 fail-closed 小切片扩大经无损验证的 MusicXML 子集；当前单附点、单段歌词、单指法、单音演奏法、单事件力度记号、单事件制音踏板记号、延长记号、严格圆滑线和严格延音线支持不代表完整 MusicXML。
 3. 在 MusicXML 严格子集继续稳定后，再实现 MIDI 导入导出。
 4. 实现真实 OMR 流程，逐步替换当前 mock provider 返回的模拟音符数据。
 5. 评估 Audiveris 接入方式并优化手机拍照、裁剪和识别前处理体验。

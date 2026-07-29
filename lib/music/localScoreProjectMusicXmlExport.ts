@@ -245,13 +245,6 @@ const addEventIssues = ({
       location,
     ));
   }
-  if (event.damperPedalMark !== null) {
-    issues.push(blockingIssue(
-      "unsupported-damper-pedal",
-      "当前导出不支持制音踏板记号。",
-      location,
-    ));
-  }
   if (event.type === "rest") {
     if (event.duration !== "quarter") {
       issues.push(blockingIssue(
@@ -269,6 +262,17 @@ const addEventIssues = ({
       location,
     ));
   }
+};
+
+const renderDamperPedalDirection = (event: LocalScoreProjectEventV9) => {
+  if (event.damperPedalMark === null) return "";
+  const type = event.damperPedalMark === "down" ? "start" : "stop";
+  return `      <direction>
+        <direction-type><pedal type="${type}"/></direction-type>
+        <voice>1</voice>
+        <staff>1</staff>
+      </direction>
+`;
 };
 
 const renderNote = ({
@@ -371,7 +375,9 @@ const renderMusicXml = (project: LocalScoreProjectV1) => {
         && previousEvent.tieToNext;
       const slurStop = previousEvent?.type === "note"
         && previousEvent.slurToNext;
-      const rendered = renderNote({ event, tieStop, slurStop });
+      const rendered = `${renderDamperPedalDirection(event)}${
+        renderNote({ event, tieStop, slurStop })
+      }`;
       previousEvent = event;
       return rendered;
     }).join("\n");

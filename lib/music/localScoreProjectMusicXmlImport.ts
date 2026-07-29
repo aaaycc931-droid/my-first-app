@@ -84,11 +84,9 @@ const forbiddenElementCodes = [
   ["time-modification", "unsupported-tuplet", "当前导入不支持连音符时值比例。"],
   ["grace", "unsupported-grace", "当前导入不支持倚音。"],
   ["harmony", "unsupported-harmony", "当前导入不支持和弦标记。"],
-  ["pedal", "unsupported-pedal", "当前导入不支持踏板记号。"],
   ["accidental", "unsupported-accidental", "当前导入只支持无临时升降号的自然音。"],
   ["transpose", "unsupported-transpose", "当前导入不支持移调声明。"],
   ["ornaments", "unsupported-ornament", "当前导入不支持装饰音。"],
-  ["direction", "unsupported-direction", "当前导入不支持速度、文字或其他 direction。"],
   ["sound", "unsupported-sound", "当前导入不支持 sound 播放指令。"],
   ["barline", "unsupported-barline", "当前导入不支持反复、终止线等 barline 语义。"],
   ["figured-bass", "unsupported-figured-bass", "当前导入不支持 figured-bass。"],
@@ -115,6 +113,9 @@ const allowedMeasureElements = new Set([
   "dot",
   "rest",
   "staff",
+  "direction",
+  "direction-type",
+  "pedal",
   "notations",
   "fermata",
   "slur",
@@ -225,6 +226,7 @@ type SupportedNotationBundle = Readonly<{
 }>;
 
 type TieMarkerType = "start" | "stop";
+type SupportedDamperPedalMark = "down" | "up";
 const articulationOrder: readonly LocalScoreProjectArticulationV1[] = [
   "accent",
   "staccato",
@@ -1040,6 +1042,166 @@ const readSupportedDirectTieTypes = ({
   return tieTypes;
 };
 
+const hasUnsupportedContainerNode = (element: Element) =>
+  Array.from(element.childNodes).some((child) => {
+    if (child.nodeType === 1) return false;
+    if (child.nodeType === 3) return (child.textContent ?? "").trim() !== "";
+    return true;
+  });
+
+const isExactUnnamespacedElement = (
+  element: Element | undefined,
+  expectedName: string,
+) =>
+  element !== undefined
+  && element.nodeName === expectedName
+  && (element.namespaceURI === null || element.namespaceURI === "");
+
+const readSupportedDamperPedalMarks = ({
+  measureElement,
+  issues,
+  measureNumber,
+}: {
+  measureElement: Element | undefined;
+  issues: LocalScoreProjectMusicXmlImportIssue[];
+  measureNumber: number;
+}): readonly (SupportedDamperPedalMark | null)[] => {
+  if (!measureElement) return [];
+  const measureChildren = directChildElements(measureElement);
+  const noteElements = measureChildren.filter(
+    (element) => localElementName(element) === "note",
+  );
+  const result: (SupportedDamperPedalMark | null)[] =
+    noteElements.map(() => null);
+  const directDirections = measureChildren.filter(
+    (element) => isExactUnnamespacedElement(element, "direction"),
+  );
+  const allDirections = Array.from(measureElement.getElementsByTagName("*"))
+    .filter((element) => localElementName(element) === "direction");
+  if (allDirections.length !== directDirections.length) {
+    issues.push(blockingIssue(
+      "unsupported-pedal-direction",
+      "踏板 direction 必须是 measure 的直接子元素。",
+      measureNumber,
+    ));
+  }
+
+  directDirections.forEach((direction) => {
+    const measureNodes = Array.from(measureElement.childNodes);
+    const directionIndex = measureNodes.indexOf(direction);
+    let targetNote: Element | undefined;
+    let unsupportedGapNode = false;
+    for (
+      let nodeIndex = directionIndex + 1;
+      nodeIndex < measureNodes.length;
+      nodeIndex += 1
+    ) {
+      const node = measureNodes[nodeIndex];
+      if (node.nodeType === 3 && (node.textContent ?? "").trim() === "") {
+        continue;
+      }
+      if (node.nodeType === 1) {
+        targetNote = node as Element;
+      } else {
+        unsupportedGapNode = true;
+      }
+      break;
+    }
+    const targetNoteIndex = targetNote
+      && isExactUnnamespacedElement(targetNote, "note")
+      ? noteElements.indexOf(targetNote)
+      : -1;
+    const directionChildren = directChildElements(direction);
+    const [directionType, voice, staff] = directionChildren;
+    const directionTypeChildren = directionType
+      && localElementName(directionType) === "direction-type"
+      ? directChildElements(directionType)
+      : [];
+    const pedal = directionTypeChildren[0];
+    const pedalType = pedal?.getAttribute("type");
+    const pedalAttribute = pedal?.attributes.item(0);
+    const validStructure =
+      isExactUnnamespacedElement(direction, "direction")
+      && direction.attributes.length === 0
+      && !hasUnsupportedContainerNode(direction)
+      && directionChildren.length === 3
+      && isExactUnnamespacedElement(directionType, "direction-type")
+      && directionType.attributes.length === 0
+      && !hasUnsupportedContainerNode(directionType)
+      && directionTypeChildren.length === 1
+      && isExactUnnamespacedElement(pedal, "pedal")
+      && pedal.attributes.length === 1
+      && pedalAttribute?.name === "type"
+      && (pedalType === "start" || pedalType === "stop")
+      && pedal.childNodes.length === 0
+      && isExactUnnamespacedElement(voice, "voice")
+      && voice.attributes.length === 0
+      && directChildElements(voice).length === 0
+      && Array.from(voice.childNodes).every((child) => child.nodeType === 3)
+      && voice.textContent === "1"
+      && isExactUnnamespacedElement(staff, "staff")
+      && staff.attributes.length === 0
+      && directChildElements(staff).length === 0
+      && Array.from(staff.childNodes).every((child) => child.nodeType === 3)
+      && staff.textContent === "1";
+    if (!validStructure) {
+      issues.push(blockingIssue(
+        "unsupported-direction",
+        "当前导入不支持该 direction；只接受严格的单事件制音踏板结构。",
+        measureNumber,
+      ));
+      issues.push(blockingIssue(
+        "unsupported-pedal-direction",
+        "当前只支持无属性、依次仅含单一 pedal start／stop、voice 1 和 staff 1 的严格踏板 direction。",
+        measureNumber,
+      ));
+    }
+    if (unsupportedGapNode || targetNoteIndex < 0) {
+      issues.push(blockingIssue(
+        "unsupported-pedal-anchor",
+        "踏板 direction 与目标 note 或 rest 之间只允许格式化空白文本。",
+        measureNumber,
+      ));
+    } else if (result[targetNoteIndex] !== null) {
+      issues.push(blockingIssue(
+        "unsupported-pedal-anchor",
+        "每个 note 或 rest 最多只能关联一个踏板 direction。",
+        measureNumber,
+      ));
+    } else if (validStructure && (pedalType === "start" || pedalType === "stop")) {
+      result[targetNoteIndex] = pedalType === "start" ? "down" : "up";
+    }
+  });
+
+  const allPedals = Array.from(measureElement.getElementsByTagName("*"))
+    .filter((element) => localElementName(element) === "pedal");
+  const pedalsInDirectDirections = directDirections.flatMap((direction) =>
+    Array.from(direction.getElementsByTagName("*"))
+      .filter((element) => localElementName(element) === "pedal")
+  );
+  if (
+    allPedals.length !== pedalsInDirectDirections.length
+    || allPedals.some((pedal) =>
+      !pedal.parentElement
+      || !isExactUnnamespacedElement(pedal, "pedal")
+      || !isExactUnnamespacedElement(pedal.parentElement, "direction-type")
+      || !pedal.parentElement.parentElement
+      || !isExactUnnamespacedElement(
+        pedal.parentElement.parentElement,
+        "direction",
+      )
+      || pedal.parentElement.parentElement.parentElement !== measureElement
+    )
+  ) {
+    issues.push(blockingIssue(
+      "unsupported-pedal-direction",
+      "pedal 必须直接位于 measure／direction／direction-type 的严格层级中。",
+      measureNumber,
+    ));
+  }
+  return result;
+};
+
 const validateNotationHierarchy = ({
   measureElement,
   issues,
@@ -1291,6 +1453,7 @@ const noteEvent = ({
   fingering,
   articulations,
   dynamicMark,
+  damperPedalMark,
   measure,
   fermataMark,
   tieToNext,
@@ -1304,6 +1467,7 @@ const noteEvent = ({
   fingering: LocalScoreProjectFingeringV1 | null;
   articulations: readonly LocalScoreProjectArticulationV1[];
   dynamicMark: LocalScoreProjectDynamicMarkV1 | null;
+  damperPedalMark: SupportedDamperPedalMark | null;
   measure: number;
   fermataMark: "fermata" | null;
   tieToNext: boolean;
@@ -1322,7 +1486,7 @@ const noteEvent = ({
   chordSymbol: null,
   articulations,
   dynamicMark,
-  damperPedalMark: null,
+  damperPedalMark,
   fermataMark,
 });
 
@@ -1330,12 +1494,14 @@ const restEvent = ({
   id,
   augmentationDots,
   dynamicMark,
+  damperPedalMark,
   measure,
   fermataMark,
 }: {
   id: string;
   augmentationDots: 0 | 1;
   dynamicMark: LocalScoreProjectDynamicMarkV1 | null;
+  damperPedalMark: SupportedDamperPedalMark | null;
   measure: number;
   fermataMark: "fermata" | null;
 }): LocalScoreProjectEventV9 => ({
@@ -1347,7 +1513,7 @@ const restEvent = ({
   augmentationDots,
   chordSymbol: null,
   dynamicMark,
-  damperPedalMark: null,
+  damperPedalMark,
   fermataMark,
 });
 
@@ -1773,6 +1939,11 @@ export const createLocalScoreProjectMusicXmlImportDraft = (
         (element) => localElementName(element) === "note",
       )
       : [];
+    const damperPedalMarks = readSupportedDamperPedalMarks({
+      measureElement: measureElements[measureIndex],
+      issues,
+      measureNumber,
+    });
     validateNotationHierarchy({
       measureElement: measureElements[measureIndex],
       issues,
@@ -2009,6 +2180,7 @@ export const createLocalScoreProjectMusicXmlImportDraft = (
               id: `musicxml-import-provisional-${provisionalEventCount}`,
               augmentationDots,
               dynamicMark: notationBundle.dynamicMark,
+              damperPedalMark: damperPedalMarks[noteIndex] ?? null,
               measure: measureNumber,
               fermataMark: notationBundle.fermataMark,
             }));
@@ -2036,6 +2208,7 @@ export const createLocalScoreProjectMusicXmlImportDraft = (
             fingering: notationBundle.fingering,
             articulations: notationBundle.articulations,
             dynamicMark: notationBundle.dynamicMark,
+            damperPedalMark: damperPedalMarks[noteIndex] ?? null,
             measure: measureNumber,
             fermataMark: notationBundle.fermataMark,
             tieToNext: tieStart,

@@ -1,14 +1,14 @@
 # MVP / Android 私测当前状态
 
-最后更新：2026-07-23
+最后更新：2026-07-29
 
 本文件是当前可验证状态总账，不再作为逐次运行日志无限追加。历史细节保留在 Git 提交记录、PR 与 Actions 中。
 
 ## 当前基线
 
-- 最新已合并产品功能基线：P119b / PR #417，合并提交 `bd5c5af211a3a1b36f4fcfacebdfe89b65fbafc1`
+- 最新已合并产品功能基线：S3 MusicXML/MXL 单事件力度记号 / PR #463，合并提交 `089fa305712201471f37a1a8b84da4f52cd12ede`
 - 最新已合并证据准备基线：P119c / PR #419，合并提交 `de9ab7f9a6d050a951e70835fbe97cecc693b9f4`
-- 最近仓库维护：PR #406，P118a 本机进度保存／清除失败关闭修复，main 提交 `f0c0810acb6e4417329466bcc13decc607589c92`
+- 最近仓库维护：PR #464 清理 323 个已完全合并的远端工作分支；其余分支因未合并或仅能映射到 squash PR 而保留，不能仅凭祖先关系删除
 - 仓库当前提交以 GitHub 默认分支为权威；本文件不硬编码会因自身合并而立即过期的“当前 main SHA”
 - P115a–P115i 已合并；当前没有接续中的 P115 PR
 - 早期遗留 PR #217、#114、#113、#112、#69、#68 不属于当前路线，本轮不修改、不接续
@@ -104,7 +104,7 @@
 
 - PR #449 已合并：`score-document-v11` 与 `local-score-project-storage-v12` 的事件起点 `damperPedalMark` 支持 `down`、`up` 或 `null`，note/rest 均可承载。
 - 旧 storage v1–v11、document v1–v10 及 undo/redo 历史只读迁移为 `null`；当前严格校验。
-- 当前分支已接入 domain、迁移、复制粘贴、两种谱面显示、Mobile 编辑、playback/transport 类型兼容和专项测试；真实踏板播放、MIDI CC64、真机、教师审核与格式 round-trip 仍未执行。
+- 当前分支已接入 domain、迁移、复制粘贴、两种谱面显示、Mobile 编辑、playback/transport 类型兼容和专项测试；后续 S3 严格子集已补 note/rest 事件起点 `down/up` 与紧邻 pedal `start/stop` direction 的仓库内部 MusicXML/MXL 双向 round-trip。真实踏板播放、MIDI CC64、真机、教师审核和第三方阅读器验证仍为 `NOT_EXECUTED`。
 
 ### 延长记号切片
 
@@ -125,6 +125,6 @@
 - `.musicxml`／`.xml`／`.mxl` 输入、2 MiB 输入限制，以及 MXL 既有的 100 entries／4 MiB 解压保护必须保持 fail-closed；容量、quota、事务和迁移失败必须保留全部既有项目。
 - canonical 本机谱项目到 `.musicxml`／`.mxl` 的受控导出候选已经完成：只覆盖当前可无损重新导入的严格单 part／staff／voice 子集，先显示 blocking ledger 和摘要，用户明确确认后才触发一次本机下载。
 - 当前导出 round-trip 只接受默认 `90 BPM`、未分配 instrument 和没有副标题／creator／版权声明的项目；任何尚未映射的 canonical 记谱语义必须阻断，不能为了生成文件而静默丢弃。
-- 当前严格子集已把 note/rest 的 canonical 单附点双向映射为直接、唯一且结构为空的 `<dot/>`，把 note/rest 的 `pp`／`p`／`mp`／`mf`／`f`／`ff` 单事件力度记号双向映射为唯一 `<dynamics>` 中的一个空记号，把 pitched note 的规范化单行 `lyric` 双向映射为唯一 `<lyric><text>`，把 canonical `1–5` 单指法双向映射为唯一 `<technical><fingering>N</fingering></technical>`，把 accent／staccato／tenuto 单音演奏法按固定顺序双向映射为唯一 `<articulations>`，把 `fermataMark` 双向映射为无属性且无文本的 `<fermata/>`，把 note 的 `slurToNext` 双向映射为相邻时间连续 note 上严格配对的 `<slur type="start"/>`／`<slur type="stop"/>`，并把 `tieToNext` 双向映射为相邻、同音高且时间连续 note 上成对一致的 `<tie>`／`<tied>` start／stop；附点真实时值参与 duration、容量、拍位和关系连续性核对，歌词 XML escape 与 `<staff> → <notations> → <lyric>` 顺序保持确定，指法、演奏法、力度与其他记号复用唯一 `<notations>`，同小节、跨小节、链式关系及共存语义均保留。其他未列出的语义继续 blocking。
+- 当前严格子集已把 note/rest 的 canonical 单附点双向映射为直接、唯一且结构为空的 `<dot/>`，把 note/rest 的 `pp`／`p`／`mp`／`mf`／`f`／`ff` 单事件力度记号双向映射为唯一 `<dynamics>` 中的一个空记号，把 `damperPedalMark: down/up` 双向映射为紧邻事件之前、只含 pedal `start/stop`、voice 1 和 staff 1 的严格 `<direction>`，把 pitched note 的规范化单行 `lyric` 双向映射为唯一 `<lyric><text>`，把 canonical `1–5` 单指法双向映射为唯一 `<technical><fingering>N</fingering></technical>`，把 accent／staccato／tenuto 单音演奏法按固定顺序双向映射为唯一 `<articulations>`，把 `fermataMark` 双向映射为无属性且无文本的 `<fermata/>`，把 note 的 `slurToNext` 双向映射为相邻时间连续 note 上严格配对的 `<slur type="start"/>`／`<slur type="stop"/>`，并把 `tieToNext` 双向映射为相邻、同音高且时间连续 note 上成对一致的 `<tie>`／`<tied>` start／stop；附点真实时值参与 duration、容量、拍位和关系连续性核对，歌词 XML escape 与 `<staff> → <notations> → <lyric>` 顺序保持确定，指法、演奏法、力度与其他记号复用唯一 `<notations>`，踏板 direction 不推断持续区间或配对，同小节、跨小节、链式关系及共存语义均保留。其他未列出的语义继续 blocking。
 - 自动证据由当前 importer re-import 与 legacy parser 音符交叉检查组成，均属于仓库内部验证。浏览器下载、Android WebView／真机及 MuseScore 等外部独立阅读器仍为 `NOT_EXECUTED`，不得宣称第三方兼容已经通过。
-- 导入边界见 `docs/s3-local-score-project-musicxml-import-acceptance.md`，导出边界见 `docs/s3-local-score-project-musicxml-export-acceptance.md`；单附点、单段歌词、单指法、单音演奏法、单事件力度记号、fermata、圆滑线和延音线双向边界分别见对应的 S3 round-trip acceptance 文档，其中力度切片见 `docs/s3-local-score-project-musicxml-dynamic-mark-round-trip-acceptance.md`。浏览器真实导入／下载／重开、Android WebView／真机、第三方独立阅读器、力度记号显示／真实播放、演奏法显示／真实播放、指法显示／左右手／替代指法、歌词排版／多 verse／melisma、真实音频与歌唱对齐、教师审核、MIDI、OMR、完整 MusicXML、S3 与正式版 V1 均仍为 `NOT_EXECUTED` 或未完成。
+- 导入边界见 `docs/s3-local-score-project-musicxml-import-acceptance.md`，导出边界见 `docs/s3-local-score-project-musicxml-export-acceptance.md`；单附点、单段歌词、单指法、单音演奏法、单事件力度记号、单事件制音踏板记号、fermata、圆滑线和延音线双向边界分别见对应的 S3 round-trip acceptance 文档，其中踏板切片见 `docs/s3-local-score-project-musicxml-damper-pedal-round-trip-acceptance.md`。浏览器真实导入／下载／重开、Android WebView／真机、第三方独立阅读器、踏板／力度／演奏法／指法显示与真实播放、左右手／替代指法、歌词排版／多 verse／melisma、真实音频与歌唱对齐、教师审核、MIDI、OMR、完整 MusicXML、S3 与正式版 V1 均仍为 `NOT_EXECUTED` 或未完成。

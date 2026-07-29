@@ -802,6 +802,207 @@ assert.ok(
   ),
 );
 
+const strictPedalXml = supportedXml
+  .replace(
+    "<note><pitch><step>C</step>",
+    '<direction><direction-type><pedal type="start"/></direction-type><voice>1</voice><staff>1</staff></direction><note><pitch><step>C</step>',
+  )
+  .replace(
+    "<note><rest/>",
+    '<direction><direction-type><pedal type="stop"/></direction-type><voice>1</voice><staff>1</staff></direction><note><rest/>',
+  )
+  .replace(
+    "<note><pitch><step>F</step>",
+    '<direction><direction-type><pedal type="stop"/></direction-type><voice>1</voice><staff>1</staff></direction><note><pitch><step>F</step>',
+  );
+let pedalEventSequence = 0;
+const strictPedalReady = createLocalScoreProjectMusicXmlImportDraft({
+  xml: strictPedalXml,
+  fileName: "严格制音踏板.musicxml",
+  sourceFormat: "musicxml",
+  projectId: "import-project-pedal",
+  now: "2026-07-27T08:01:08.500Z",
+  createEventId: () => `pedal-event-${++pedalEventSequence}`,
+});
+assert.equal(strictPedalReady.status, "ready");
+assert.deepEqual(strictPedalReady.issues, []);
+assert.deepEqual(
+  strictPedalReady.project?.document.parts[0].staves[0].voices[0].measures
+    .flatMap((measure) => measure.events)
+    .map((event) => event.damperPedalMark),
+  ["down", "up", null, null, "up"],
+  "strict pedal directions must map exactly to their immediate note/rest",
+);
+let pedalMxlEventSequence = 0;
+const strictPedalMxlReady = createLocalScoreProjectMusicXmlImportDraft({
+  xml: strictPedalXml,
+  fileName: "严格制音踏板.mxl",
+  sourceFormat: "mxl",
+  projectId: "import-project-pedal-mxl",
+  now: "2026-07-27T08:01:08.600Z",
+  createEventId: () => `pedal-mxl-event-${++pedalMxlEventSequence}`,
+});
+assert.equal(strictPedalMxlReady.status, "ready");
+assert.deepEqual(
+  strictPedalMxlReady.project?.document.parts[0].staves[0].voices[0].measures
+    .flatMap((measure) => measure.events)
+    .map((event) => event.damperPedalMark),
+  ["down", "up", null, null, "up"],
+  "MXL payload XML must use the same strict pedal mapping",
+);
+
+const pedalAnchor = "<note><pitch><step>D</step>";
+const invalidPedalDirections = [
+  '<direction><direction-type><pedal/></direction-type><voice>1</voice><staff>1</staff></direction>',
+  '<direction><direction-type><pedal type="change"/></direction-type><voice>1</voice><staff>1</staff></direction>',
+  '<direction><direction-type><pedal type="start" line="yes"/></direction-type><voice>1</voice><staff>1</staff></direction>',
+  '<direction placement="below"><direction-type><pedal type="start"/></direction-type><voice>1</voice><staff>1</staff></direction>',
+  '<direction><direction-type id="pedal"><pedal type="start"/></direction-type><voice>1</voice><staff>1</staff></direction>',
+  '<direction><direction-type><pedal type="start">text</pedal></direction-type><voice>1</voice><staff>1</staff></direction>',
+  '<direction><direction-type><!--comment--><pedal type="start"/></direction-type><voice>1</voice><staff>1</staff></direction>',
+  '<direction><direction-type><![CDATA[ ]]><pedal type="start"/></direction-type><voice>1</voice><staff>1</staff></direction>',
+  '<direction><direction-type><?pedal data?><pedal type="start"/></direction-type><voice>1</voice><staff>1</staff></direction>',
+  '<direction><direction-type><pedal type="start"/><pedal type="stop"/></direction-type><voice>1</voice><staff>1</staff></direction>',
+  '<direction><direction-type><pedal type="start"/></direction-type><voice>2</voice><staff>1</staff></direction>',
+  '<direction><direction-type><pedal type="start"/></direction-type><voice>1</voice></direction>',
+] as const;
+for (let index = 0; index < invalidPedalDirections.length; index += 1) {
+  let invalidPedalIdCalls = 0;
+  const invalidPedalDraft = createLocalScoreProjectMusicXmlImportDraft({
+    xml: supportedXml.replace(
+      pedalAnchor,
+      `${invalidPedalDirections[index]}${pedalAnchor}`,
+    ),
+    fileName: `invalid-pedal-${index + 1}.musicxml`,
+    sourceFormat: "musicxml",
+    projectId: `blocked-invalid-pedal-${index + 1}`,
+    now: "2026-07-27T08:01:08.700Z",
+    createEventId: () => {
+      invalidPedalIdCalls += 1;
+      return `unused-invalid-pedal-${invalidPedalIdCalls}`;
+    },
+  });
+  assert.equal(invalidPedalDraft.status, "blocked");
+  assert.equal(invalidPedalIdCalls, 0);
+  assert.ok(
+    invalidPedalDraft.issues.some(
+      (issue) => issue.code === "unsupported-pedal-direction",
+    ),
+    `非严格 pedal direction ${index + 1} 必须失败关闭`,
+  );
+}
+
+for (const invalidPedalAnchorXml of [
+  supportedXml.replace(
+    pedalAnchor,
+    `<pedal type="start"/>${pedalAnchor}`,
+  ),
+  supportedXml.replace(
+    pedalAnchor,
+    `<direction><direction-type><pedal type="start"/></direction-type><voice>1</voice><staff>1</staff></direction><attributes></attributes>${pedalAnchor}`,
+  ),
+  supportedXml.replace(
+    "</measure>",
+    '<direction><direction-type><pedal type="stop"/></direction-type><voice>1</voice><staff>1</staff></direction></measure>',
+  ),
+]) {
+  let invalidAnchorIdCalls = 0;
+  const invalidAnchorDraft = createLocalScoreProjectMusicXmlImportDraft({
+    xml: invalidPedalAnchorXml,
+    fileName: "invalid-pedal-anchor.musicxml",
+    sourceFormat: "musicxml",
+    projectId: "blocked-invalid-pedal-anchor",
+    now: "2026-07-27T08:01:08.800Z",
+    createEventId: () => {
+      invalidAnchorIdCalls += 1;
+      return `unused-invalid-anchor-${invalidAnchorIdCalls}`;
+    },
+  });
+  assert.equal(invalidAnchorDraft.status, "blocked");
+  assert.equal(invalidAnchorIdCalls, 0);
+  assert.ok(
+    invalidAnchorDraft.issues.some(
+      (issue) =>
+        issue.code === "unsupported-pedal-anchor"
+        || issue.code === "unsupported-pedal-direction",
+    ),
+    "错层级、非紧邻或悬空 pedal 必须失败关闭",
+  );
+}
+
+const validPedalDirection =
+  '<direction><direction-type><pedal type="start"/></direction-type><voice>1</voice><staff>1</staff></direction>';
+for (const gap of [
+  "GARBAGE",
+  "<![CDATA[ ]]>",
+  "<!--gap-->",
+  "<?gap x?>",
+] as const) {
+  let gapIdCalls = 0;
+  const invalidGapDraft = createLocalScoreProjectMusicXmlImportDraft({
+    xml: supportedXml.replace(
+      pedalAnchor,
+      `${validPedalDirection}${gap}${pedalAnchor}`,
+    ),
+    fileName: "invalid-pedal-gap.musicxml",
+    sourceFormat: "musicxml",
+    projectId: "blocked-invalid-pedal-gap",
+    now: "2026-07-27T08:01:08.900Z",
+    createEventId: () => {
+      gapIdCalls += 1;
+      return `unused-invalid-gap-${gapIdCalls}`;
+    },
+  });
+  assert.equal(invalidGapDraft.status, "blocked");
+  assert.equal(gapIdCalls, 0);
+  assert.ok(
+    invalidGapDraft.issues.some(
+      (issue) => issue.code === "unsupported-pedal-anchor",
+    ),
+    "direction 与目标事件之间的文本、CDATA、comment 或 PI 必须失败关闭",
+  );
+}
+
+const wrongCaseDirection =
+  '<DIRECTION><DIRECTION-TYPE><PEDAL type="start"/></DIRECTION-TYPE><VOICE>1</VOICE><STAFF>1</STAFF></DIRECTION>';
+const foreignNamespaceXml = supportedXml
+  .replace(
+    '<score-partwise version="4.0">',
+    '<score-partwise version="4.0" xmlns:x="urn:not-musicxml">',
+  )
+  .replace(
+    pedalAnchor,
+    '<x:direction><x:direction-type><x:pedal type="start"/></x:direction-type><x:voice>1</x:voice><x:staff>1</x:staff></x:direction><note><pitch><step>D</step>',
+  );
+for (const invalidIdentityXml of [
+  supportedXml.replace(
+    pedalAnchor,
+    `${wrongCaseDirection}${pedalAnchor}`,
+  ),
+  foreignNamespaceXml,
+]) {
+  let identityIdCalls = 0;
+  const invalidIdentityDraft = createLocalScoreProjectMusicXmlImportDraft({
+    xml: invalidIdentityXml,
+    fileName: "invalid-pedal-identity.musicxml",
+    sourceFormat: "musicxml",
+    projectId: "blocked-invalid-pedal-identity",
+    now: "2026-07-27T08:01:09.000Z",
+    createEventId: () => {
+      identityIdCalls += 1;
+      return `unused-invalid-identity-${identityIdCalls}`;
+    },
+  });
+  assert.equal(invalidIdentityDraft.status, "blocked");
+  assert.equal(identityIdCalls, 0);
+  assert.ok(
+    invalidIdentityDraft.issues.some(
+      (issue) => issue.code === "unsupported-pedal-direction",
+    ),
+    "错大小写或外部 namespace 的 pedal direction 必须失败关闭",
+  );
+}
+
 for (const attribute of ['dynamics="80"', 'end-dynamics="65"']) {
   let playbackDynamicIdCalls = 0;
   const attributedDynamicNoteDraft =
