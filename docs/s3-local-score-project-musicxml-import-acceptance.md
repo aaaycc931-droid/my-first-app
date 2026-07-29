@@ -83,13 +83,13 @@ QA level recommendation：**strict**
   CDATA、comment、processing instruction、offset、sound 和其他 direction 语义
   必须 blocking。
 - note 与 rest 最多允许一个锚定其前的 measure-level `<harmony>`，依次且仅含
-  `<root><root-step>A–G</root-step></root>`、受控 `<kind>` 与
-  `<staff>1</staff>`；major/minor/dominant/major-seventh/minor-seventh exact
-  映射为 canonical 自然音根音的无后缀/`m`/`7`/`maj7`/`m7` 和弦标记。
-  harmony 与目标之间只允许格式化空白和同一事件的严格踏板 direction。属性、
-  root-alter、bass、inversion、degree、其他 kind、重复、悬空、错误 staff、
-  comment/CDATA/processing instruction、错误层级或其他 harmony 语义必须
-  blocking。
+  `<root><root-step>A–G</root-step>[<root-alter>±1</root-alter>]</root>`、
+  受控 `<kind>` 与 `<staff>1</staff>`；major/minor/dominant/major-seventh/
+  minor-seventh exact 映射为 canonical 根音可选单个 ASCII `#`／`b` 的无后缀/
+  `m`/`7`/`maj7`/`m7` 和弦标记。harmony 与目标之间只允许格式化空白和同一事件的
+  严格踏板 direction。属性、其他／非 exact／重复／错序 root-alter、bass、
+  inversion、degree、其他 kind、重复、悬空、错误 staff、comment/CDATA/
+  processing instruction、错误层级或其他 harmony 语义必须 blocking。
 - note 与 rest 各自最多允许一个直接、无属性且无非空文本的 `<notations>`。其中
   `<fermata/>` 必须无属性、无文本、无子元素，并无损映射为 canonical
   `fermataMark: "fermata"`。
@@ -176,11 +176,11 @@ QA level recommendation：**strict**
   为 canonical `down`／`up`；其他 type、属性、文本、CDATA、comment、processing
   instruction、重复、悬空、非紧邻、错误 voice/staff、offset、sound 和其他
   direction 全部失败关闭；
-- note/rest 之前的严格 `<harmony>` exact 映射自然音根音的 major/minor/
+- note/rest 之前的严格 `<harmony>` exact 映射自然／单升降根音的 major/minor/
   dominant/major-seventh/minor-seventh 为 canonical 无后缀/`m`/`7`/`maj7`/
-  `m7`；XML/MXL、与踏板及既有受控记号共存保持不变，其他根音/kind、属性、
-  root-alter、bass、inversion、degree、重复、悬空、错误 staff/层级与非空间隔
-  全部失败关闭；
+  `m7`；XML/MXL、与踏板及既有受控记号共存保持不变，其他根音/kind、属性、其他／
+  非 exact／重复／错序 root-alter、bass、inversion、degree、重复、悬空、错误
+  staff/层级与非空间隔全部失败关闭；
 - note/rest 的严格 `<notations><fermata/></notations>` 映射为 canonical
   `fermataMark`；带属性、文本、重复、空容器或错误层级的变体全部失败关闭；
 - 相邻时间连续 note 的严格 slur start／stop 映射为 canonical `slurToNext`；同小节、

@@ -417,10 +417,10 @@ const createChordSymbolSupportedProject = (): LocalScoreProjectV1 => {
   const base = createDamperPedalSupportedProject();
   const measures = base.document.parts[0].staves[0].voices[0].measures;
   const symbols = new Map<string, string>([
-    ["event-1", "C"],
-    ["event-2", "Dm"],
-    ["event-3", "E7"],
-    ["event-4", "Fmaj7"],
+    ["event-1", "C#"],
+    ["event-2", "Dbm"],
+    ["event-3", "E#7"],
+    ["event-4", "Fbmaj7"],
     ["event-5", "Gm7"],
   ] as const);
   const candidate: LocalScoreProjectV1 = {
@@ -461,17 +461,43 @@ for (const rootStep of ["A", "B", "C", "D", "E", "F", "G"] as const) {
     const canonical = `${rootStep}${suffix}`;
     assert.deepEqual(
       parseSupportedCanonicalChordSymbol(canonical),
-      { canonical, rootStep, kind },
+      { canonical, rootStep, rootAlter: 0, kind },
     );
     assert.deepEqual(
       createSupportedCanonicalChordSymbol({ rootStep, kind }),
-      { canonical, rootStep, kind },
+      { canonical, rootStep, rootAlter: 0, kind },
     );
   }
 }
+for (const rootStep of ["A", "B", "C", "D", "E", "F", "G"] as const) {
+  for (const [accidental, rootAlter] of [
+    ["#", 1],
+    ["b", -1],
+  ] as const) {
+    for (const [suffix, kind] of [
+      ["", "major"],
+      ["m", "minor"],
+      ["7", "dominant"],
+      ["maj7", "major-seventh"],
+      ["m7", "minor-seventh"],
+    ] as const) {
+      const canonical = `${rootStep}${accidental}${suffix}`;
+      assert.deepEqual(
+        parseSupportedCanonicalChordSymbol(canonical),
+        { canonical, rootStep, rootAlter, kind },
+      );
+      assert.deepEqual(
+        createSupportedCanonicalChordSymbol({ rootStep, rootAlter, kind }),
+        { canonical, rootStep, rootAlter, kind },
+      );
+    }
+  }
+}
 for (const unsupported of [
-  "C#",
-  "Bb",
+  "C##",
+  "Dbb",
+  "C♯",
+  "Db♭",
   "Caug",
   "Cdim",
   "Csus4",
@@ -481,6 +507,16 @@ for (const unsupported of [
   "C ",
 ]) {
   assert.equal(parseSupportedCanonicalChordSymbol(unsupported), null);
+}
+for (const rootAlter of [-2, -0.5, 0.5, 2, Number.NaN]) {
+  assert.equal(
+    createSupportedCanonicalChordSymbol({
+      rootStep: "C",
+      rootAlter,
+      kind: "major",
+    }),
+    null,
+  );
 }
 
 const project = createSupportedProject();
@@ -1124,24 +1160,28 @@ const chordSymbolReady = createLocalScoreProjectMusicXmlExportDraft({
 assert.equal(chordSymbolReady.status, "ready");
 assert.deepEqual(chordSymbolReady.issues, []);
 assert.ok(chordSymbolReady.xml);
-for (const [rootStep, kind] of [
-  ["C", "major"],
-  ["D", "minor"],
-  ["E", "dominant"],
-  ["F", "major-seventh"],
-  ["G", "minor-seventh"],
+for (const [rootStep, rootAlter, kind] of [
+  ["C", "1", "major"],
+  ["D", "-1", "minor"],
+  ["E", "1", "dominant"],
+  ["F", "-1", "major-seventh"],
+  ["G", null, "minor-seventh"],
 ] as const) {
+  const alterMarkup = rootAlter === null
+    ? ""
+    : `<root-alter>${rootAlter}</root-alter>`;
   assert.match(
     chordSymbolReady.xml,
     new RegExp(
-      `<harmony>\\s*<root><root-step>${rootStep}</root-step></root>\\s*`
+      `<harmony>\\s*<root><root-step>${rootStep}</root-step>`
+      + `${alterMarkup}</root>\\s*`
       + `<kind>${kind}</kind>\\s*<staff>1</staff>\\s*</harmony>`,
     ),
   );
 }
 assert.match(
   chordSymbolReady.xml,
-  /<harmony>\s*<root><root-step>C<\/root-step><\/root>\s*<kind>major<\/kind>\s*<staff>1<\/staff>\s*<\/harmony>\s*<direction>\s*<direction-type><pedal type="start"\/><\/direction-type>\s*<voice>1<\/voice>\s*<staff>1<\/staff>\s*<\/direction>\s*<note>/,
+  /<harmony>\s*<root><root-step>C<\/root-step><root-alter>1<\/root-alter><\/root>\s*<kind>major<\/kind>\s*<staff>1<\/staff>\s*<\/harmony>\s*<direction>\s*<direction-type><pedal type="start"\/><\/direction-type>\s*<voice>1<\/voice>\s*<staff>1<\/staff>\s*<\/direction>\s*<note>/,
   "harmony must precede a coexisting strict pedal direction and target note",
 );
 assert.deepEqual(

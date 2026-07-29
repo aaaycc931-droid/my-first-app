@@ -257,7 +257,7 @@ const addEventIssues = ({
   ) {
     issues.push(blockingIssue(
       "unsupported-chord-symbol",
-      "当前导出只支持自然音根音的大三、小三、属七、大七和小七和弦标记。",
+      "当前导出只支持自然音或单升降根音的大三、小三、属七、大七和小七和弦标记。",
       location,
     ));
   }
@@ -295,8 +295,11 @@ const renderChordHarmony = (event: LocalScoreProjectEventV9) => {
   if (event.chordSymbol === null) return "";
   const chord = parseSupportedCanonicalChordSymbol(event.chordSymbol);
   if (!chord) return "";
+  const rootAlter = chord.rootAlter === 0
+    ? ""
+    : `<root-alter>${chord.rootAlter}</root-alter>`;
   return `      <harmony>
-        <root><root-step>${chord.rootStep}</root-step></root>
+        <root><root-step>${chord.rootStep}</root-step>${rootAlter}</root>
         <kind>${chord.kind}</kind>
         <staff>1</staff>
       </harmony>
