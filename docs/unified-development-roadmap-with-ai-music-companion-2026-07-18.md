@@ -10,9 +10,10 @@
 
 ## 1. 当前事实与本次决策
 
-当前执行检查点已推进到 PR #468 的 S3 MusicXML/MXL 自然音根音五类受控和弦标记
-严格 round-trip；PR #466 已完成 XML 1.0 文本 fail-closed 加固，PR #465 已完成
-单事件制音踏板严格 round-trip。仓库默认分支实时状态仍以 GitHub 为准：
+当前执行检查点已推进到 PR #470 的 S3 MusicXML/MXL 自然／单升降根音五类受控
+和弦标记严格 round-trip；PR #468 已完成自然音根音子集，PR #466 已完成 XML 1.0
+文本 fail-closed 加固，PR #465 已完成单事件制音踏板严格 round-trip。仓库默认分支
+实时状态仍以 GitHub 为准：
 
 - P106–P112 已合并；
 - P113 已通过 PR #365 squash merge，merge commit 为 `2a786f1b66fee095224214430d12e96f78a5057e`；
