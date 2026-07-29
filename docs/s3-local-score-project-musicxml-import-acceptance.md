@@ -65,6 +65,11 @@ QA level recommendation：**strict**
   `<fingering>`；它无损映射为 canonical `fingering`。rest、重复容器／值、空值、
   前后空白、属性、CDATA、comment、processing instruction、嵌套、错层级和其他
   technical 内容必须 blocking，不得 trim、取整、选择第一项或猜测左右手。
+- pitched note 最多允许一个直接位于唯一 `<notations>` 下的无属性
+  `<articulations>`，并按 accent／staccato／tenuto 固定顺序包含一个或多个唯一空
+  记号；它 exact 映射为 canonical `articulations`。空容器、rest、重复、错序、属性、
+  文本、CDATA、comment、processing instruction、嵌套、错层级和其他演奏法必须
+  blocking，不得重排、去重或静默丢弃。
 - note 与 rest 各自最多允许一个直接、无属性且无非空文本的 `<notations>`。其中
   `<fermata/>` 必须无属性、无文本、无子元素，并无损映射为 canonical
   `fermataMark: "fermata"`。
@@ -91,8 +96,8 @@ QA level recommendation：**strict**
   使用 stale 候选。
 
 本切片不得为了增加成功率而静默跳过休止符、多 part／staff／voice、和弦时序、
-`backup`／`forward`、未知时值、谱号／调号／拍号、严格单段歌词／单指法／单附点／
-fermata／slur／tie 结构以外的歌词、指法、连线或其他 canonical 语义。
+`backup`／`forward`、未知时值、谱号／调号／拍号、严格单段歌词／单指法／单音演奏法／
+单附点／fermata／slur／tie 结构以外的歌词、指法、演奏法、连线或其他 canonical 语义。
 不在本切片支持清单中的内容必须 blocking。
 
 ## 明确确认与原子保存
@@ -140,6 +145,9 @@ fermata／slur／tie 结构以外的歌词、指法、连线或其他 canonical 
   全部合法值 exact 映射为 canonical `fingering`，并与 dot／fermata／slur／tie／
   lyric 共存；rest、`0`／`6`、空白、属性、CDATA、comment、processing instruction、
   子元素、重复、错层级及其他 technical 内容全部失败关闭；
+- pitched note 的唯一 `<articulations>` 按固定顺序 exact 映射 accent／staccato／
+  tenuto 集合，并与既有严格语义共存；空容器、rest、重复、错序、属性、文本、CDATA、
+  comment、processing instruction、嵌套、错层级和其他演奏法全部失败关闭；
 - note/rest 的严格 `<notations><fermata/></notations>` 映射为 canonical
   `fermataMark`；带属性、文本、重复、空容器或错误层级的变体全部失败关闭；
 - 相邻时间连续 note 的严格 slur start／stop 映射为 canonical `slurToNext`；同小节、
@@ -210,3 +218,6 @@ round-trip、OMR、教师审核、真机验收或正式版 V1 已完成。
 
 单指法双向严格子集的独立验收边界见
 `docs/s3-local-score-project-musicxml-fingering-round-trip-acceptance.md`。
+
+单音演奏法双向严格子集的独立验收边界见
+`docs/s3-local-score-project-musicxml-articulation-round-trip-acceptance.md`。

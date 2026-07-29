@@ -53,8 +53,8 @@ QA level recommendation：**strict**
 - 覆盖 rest lyric、重复 lyric／text、lyric／text／note 属性、CDATA、comment、
   processing instruction、嵌套、错层级、错顺序、`syllabic`、`elision`、`extend`
   与多 verse 等结构，且 blocking 输入不得分配 canonical event id。
-- 单指法由后续独立严格切片处理；多个／替代指法、其他 technical、articulation、
-  和弦、力度、制音踏板和其他未映射语义仍保持稳定 blocker。
+- 单指法和单音演奏法由后续独立严格切片处理；多个／替代指法、其他 technical／
+  articulation、和弦、力度、制音踏板和其他未映射语义仍保持稳定 blocker。
 - focused import／export tests、lint、typecheck、完整 `check`、Android 本地校验／
   构建和 `git diff --check` 必须通过。
 
