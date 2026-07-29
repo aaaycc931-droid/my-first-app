@@ -530,6 +530,16 @@ assert.ok(ready.fileNames);
 assert.ok(ready.byteSizes);
 assert.match(ready.xml, /<divisions>4<\/divisions>/);
 assert.equal(
+  ready.xml.match(/<sound tempo="90"\/>/g)?.length,
+  1,
+  "the default canonical tempo must emit one explicit strict sound declaration",
+);
+assert.match(
+  ready.xml,
+  /<\/attributes>\s*<sound tempo="90"\/>\s*<note>/,
+  "tempo must be the first music-data element after first-measure attributes",
+);
+assert.equal(
   ready.byteSizes?.musicxml,
   new TextEncoder().encode(ready.xml ?? "").byteLength,
 );
@@ -681,6 +691,109 @@ assert.deepEqual(
   musicalProjection(project),
   "MXL extraction plus the strict importer must preserve supported semantics",
 );
+
+for (const tempoBpm of [30, 90, 240] as const) {
+  const tempoProject: LocalScoreProjectV1 = {
+    ...project,
+    tempoBpm,
+  };
+  const tempoProjectSnapshot = JSON.stringify(tempoProject);
+  const tempoDraft = createLocalScoreProjectMusicXmlExportDraft({
+    project: tempoProject,
+  });
+  assert.equal(
+    JSON.stringify(tempoProject),
+    tempoProjectSnapshot,
+    `${tempoBpm} BPM export draft generation must be pure`,
+  );
+  assert.equal(
+    tempoDraft.status,
+    "ready",
+    `${tempoBpm} BPM must be exportable`,
+  );
+  assert.deepEqual(tempoDraft.issues, []);
+  assert.ok(tempoDraft.xml);
+  assert.equal(
+    tempoDraft.xml.match(
+      new RegExp(`<sound tempo="${tempoBpm}"\\/>`, "g"),
+    )?.length,
+    1,
+    `${tempoBpm} BPM must emit exactly one sound tempo declaration`,
+  );
+  assert.match(
+    tempoDraft.xml,
+    new RegExp(
+      `<\\/attributes>\\s*<sound tempo="${tempoBpm}"\\/>\\s*<note>`,
+    ),
+    `${tempoBpm} BPM must be emitted immediately after first-measure attributes`,
+  );
+  assert.deepEqual(
+    createLocalScoreProjectMusicXmlExportDraft({ project: tempoProject }),
+    tempoDraft,
+    `${tempoBpm} BPM MusicXML/MXL candidate generation must be deterministic`,
+  );
+
+  const tempoXmlPayload = confirmLocalScoreProjectMusicXmlExportDraft({
+    draft: tempoDraft,
+    currentProject: tempoProject,
+    format: "musicxml",
+  });
+  assert.equal(tempoXmlPayload.mimeType, MUSICXML_MIME_TYPE);
+  assert.equal(tempoXmlPayload.data, tempoDraft.xml);
+  let tempoImportedEventIndex = 0;
+  const tempoReopenedXml = createLocalScoreProjectMusicXmlImportDraft({
+    xml: String(tempoXmlPayload.data),
+    fileName: tempoXmlPayload.fileName,
+    sourceFormat: "musicxml",
+    projectId: `tempo-xml-${tempoBpm}`,
+    now: tempoProject.createdAt,
+    createEventId: () =>
+      `tempo-${tempoBpm}-xml-event-${++tempoImportedEventIndex}`,
+  });
+  assert.equal(tempoReopenedXml.status, "ready");
+  assert.ok(tempoReopenedXml.project);
+  assert.deepEqual(
+    musicalProjection(tempoReopenedXml.project),
+    musicalProjection(tempoProject),
+    `${tempoBpm} BPM MusicXML must reopen with exact canonical semantics`,
+  );
+
+  const tempoMxlPayload = confirmLocalScoreProjectMusicXmlExportDraft({
+    draft: tempoDraft,
+    currentProject: tempoProject,
+    format: "mxl",
+  });
+  assert.equal(tempoMxlPayload.mimeType, MXL_MIME_TYPE);
+  assert.ok(tempoMxlPayload.data instanceof Uint8Array);
+  const tempoMxlData = tempoMxlPayload.data as Uint8Array;
+  assert.deepEqual(
+    tempoMxlData,
+    createMusicXmlMxlArchive(tempoDraft.xml),
+    `${tempoBpm} BPM MXL confirmation must be deterministic`,
+  );
+  const tempoExtractedXml = extractMusicXMLFromMxl(tempoMxlData);
+  assert.equal(
+    tempoExtractedXml,
+    tempoDraft.xml,
+    `${tempoBpm} BPM MXL must contain the exact MusicXML candidate`,
+  );
+  const tempoReopenedMxl = createLocalScoreProjectMusicXmlImportDraft({
+    xml: tempoExtractedXml,
+    fileName: tempoMxlPayload.fileName,
+    sourceFormat: "mxl",
+    projectId: `tempo-mxl-${tempoBpm}`,
+    now: tempoProject.createdAt,
+    createEventId: () =>
+      `tempo-${tempoBpm}-mxl-event-${++tempoImportedEventIndex}`,
+  });
+  assert.equal(tempoReopenedMxl.status, "ready");
+  assert.ok(tempoReopenedMxl.project);
+  assert.deepEqual(
+    musicalProjection(tempoReopenedMxl.project),
+    musicalProjection(tempoProject),
+    `${tempoBpm} BPM MXL must reopen with exact canonical semantics`,
+  );
+}
 
 const dottedProject = createDottedSupportedProject();
 const dottedSnapshot = JSON.stringify(dottedProject);
@@ -1184,6 +1297,42 @@ assert.match(
   /<harmony>\s*<root><root-step>C<\/root-step><root-alter>1<\/root-alter><\/root>\s*<kind>major<\/kind>\s*<staff>1<\/staff>\s*<\/harmony>\s*<direction>\s*<direction-type><pedal type="start"\/><\/direction-type>\s*<voice>1<\/voice>\s*<staff>1<\/staff>\s*<\/direction>\s*<note>/,
   "harmony must precede a coexisting strict pedal direction and target note",
 );
+const tempoChordSymbolProject: LocalScoreProjectV1 = {
+  ...chordSymbolProject,
+  tempoBpm: 120,
+};
+const tempoChordSymbolReady = createLocalScoreProjectMusicXmlExportDraft({
+  project: tempoChordSymbolProject,
+});
+assert.equal(tempoChordSymbolReady.status, "ready");
+assert.deepEqual(tempoChordSymbolReady.issues, []);
+assert.ok(tempoChordSymbolReady.xml);
+assert.match(
+  tempoChordSymbolReady.xml,
+  /<\/attributes>\s*<sound tempo="120"\/>\s*<harmony>\s*<root><root-step>C<\/root-step><root-alter>1<\/root-alter><\/root>\s*<kind>major<\/kind>\s*<staff>1<\/staff>\s*<\/harmony>\s*<direction>\s*<direction-type><pedal type="start"\/><\/direction-type>\s*<voice>1<\/voice>\s*<staff>1<\/staff>\s*<\/direction>\s*<note>/,
+  "combined export must keep attributes, sound, harmony, pedal, then note",
+);
+const tempoChordSymbolPayload = confirmLocalScoreProjectMusicXmlExportDraft({
+  draft: tempoChordSymbolReady,
+  currentProject: tempoChordSymbolProject,
+  format: "musicxml",
+});
+const reopenedTempoChordSymbol = createLocalScoreProjectMusicXmlImportDraft({
+  xml: String(tempoChordSymbolPayload.data),
+  fileName: tempoChordSymbolPayload.fileName,
+  sourceFormat: "musicxml",
+  projectId: tempoChordSymbolProject.projectId,
+  now: tempoChordSymbolProject.createdAt,
+  createEventId: () =>
+    `reopened-tempo-chord-event-${++importedEventIndex}`,
+});
+assert.equal(reopenedTempoChordSymbol.status, "ready");
+assert.ok(reopenedTempoChordSymbol.project);
+assert.deepEqual(
+  musicalProjection(reopenedTempoChordSymbol.project),
+  musicalProjection(tempoChordSymbolProject),
+  "the full strict tempo, harmony, and pedal combination must reopen exactly",
+);
 assert.deepEqual(
   createLocalScoreProjectMusicXmlExportDraft({ project: chordSymbolProject }),
   chordSymbolReady,
@@ -1613,10 +1762,6 @@ const blockedFixtures: readonly [
   LocalScoreProjectV1,
   readonly string[],
 ][] = [
-  [
-    withChanges({ tempoBpm: 120 }),
-    ["unsupported-tempo"],
-  ],
   [
     withChanges({ title: "另一个项目名称" }),
     ["unsupported-distinct-score-title"],

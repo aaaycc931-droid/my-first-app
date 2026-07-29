@@ -1,7 +1,10 @@
 import {
   cloneLocalScoreProject,
   createLocalScoreProject,
+  LOCAL_SCORE_PROJECT_DEFAULT_TEMPO_BPM,
   LOCAL_SCORE_PROJECT_MAX_LYRIC_CODE_POINTS,
+  LOCAL_SCORE_PROJECT_MAX_TEMPO_BPM,
+  LOCAL_SCORE_PROJECT_MIN_TEMPO_BPM,
   parseLocalScoreProject,
   type LocalScoreProjectV1,
 } from "./localScoreProject";
@@ -89,7 +92,6 @@ const forbiddenElementCodes = [
   ["accidental", "unsupported-accidental", "当前导入只支持无临时升降号的自然音。"],
   ["transpose", "unsupported-transpose", "当前导入不支持移调声明。"],
   ["ornaments", "unsupported-ornament", "当前导入不支持装饰音。"],
-  ["sound", "unsupported-sound", "当前导入不支持 sound 播放指令。"],
   ["barline", "unsupported-barline", "当前导入不支持反复、终止线等 barline 语义。"],
   ["figured-bass", "unsupported-figured-bass", "当前导入不支持 figured-bass。"],
 ] as const;
@@ -141,6 +143,7 @@ const allowedMeasureElements = new Set([
   "root-step",
   "root-alter",
   "kind",
+  "sound",
   "lyric",
   "text",
 ]);
@@ -210,6 +213,80 @@ const getElementNames = (xml: string) => Array.from(
     .matchAll(/<(?![!?/])(?:[A-Za-z_][\w.-]*:)?([A-Za-z_][\w.-]*)\b[^>]*>/g),
   (match) => match[1].toLowerCase(),
 );
+
+type XmlStartTag = Readonly<{
+  end: number;
+  localName: string;
+  markup: string;
+}>;
+
+const findXmlMarkupEnd = (
+  xml: string,
+  start: number,
+  terminator: string,
+) => {
+  const end = xml.indexOf(terminator, start);
+  return end === -1 ? xml.length : end + terminator.length;
+};
+
+const findXmlTagEnd = (xml: string, start: number) => {
+  let quote: '"' | "'" | null = null;
+  let declarationSubsetDepth = 0;
+  for (let index = start + 1; index < xml.length; index += 1) {
+    const character = xml[index];
+    if (quote) {
+      if (character === quote) quote = null;
+      continue;
+    }
+    if (character === '"' || character === "'") {
+      quote = character;
+      continue;
+    }
+    if (character === "[") declarationSubsetDepth += 1;
+    if (character === "]" && declarationSubsetDepth > 0) {
+      declarationSubsetDepth -= 1;
+    }
+    if (character === ">" && declarationSubsetDepth === 0) return index + 1;
+  }
+  return xml.length;
+};
+
+const getXmlStartTags = (xml: string): readonly XmlStartTag[] => {
+  const result: XmlStartTag[] = [];
+  let cursor = 0;
+  while (cursor < xml.length) {
+    const start = xml.indexOf("<", cursor);
+    if (start === -1) break;
+    if (xml.startsWith("<!--", start)) {
+      cursor = findXmlMarkupEnd(xml, start + 4, "-->");
+      continue;
+    }
+    if (xml.startsWith("<![CDATA[", start)) {
+      cursor = findXmlMarkupEnd(xml, start + 9, "]]>");
+      continue;
+    }
+    if (xml.startsWith("<?", start)) {
+      cursor = findXmlMarkupEnd(xml, start + 2, "?>");
+      continue;
+    }
+    const end = findXmlTagEnd(xml, start);
+    const markup = xml.slice(start, end);
+    cursor = end;
+    if (markup.startsWith("</") || markup.startsWith("<!")) continue;
+    const qualifiedName = markup.match(
+      /^<([A-Za-z_][\w.-]*(?::[A-Za-z_][\w.-]*)?)(?=[\s/>])/,
+    )?.[1];
+    if (!qualifiedName) continue;
+    result.push({
+      end,
+      localName: (
+        qualifiedName.split(":").at(-1) ?? qualifiedName
+      ).toLowerCase(),
+      markup,
+    });
+  }
+  return result;
+};
 
 const blockingIssue = (
   code: string,
@@ -1401,6 +1478,121 @@ const readSupportedChordSymbols = ({
   return result;
 };
 
+const readSupportedGlobalTempo = ({
+  xmlDocument,
+  measureElements,
+  issues,
+  xml,
+}: {
+  xmlDocument: XMLDocument | null;
+  measureElements: readonly Element[];
+  issues: LocalScoreProjectMusicXmlImportIssue[];
+  xml: string;
+}) => {
+  const sounds = xmlDocument
+    ? Array.from(xmlDocument.getElementsByTagName("*"))
+      .filter((element) => localElementName(element) === "sound")
+    : [];
+  const lexicalSounds = getXmlStartTags(xml)
+    .filter((tag) => tag.localName === "sound");
+  if (sounds.length === 0 && lexicalSounds.length === 0) {
+    return LOCAL_SCORE_PROJECT_DEFAULT_TEMPO_BPM;
+  }
+  if (sounds.length !== 1 || lexicalSounds.length !== 1) {
+    issues.push(blockingIssue(
+      "unsupported-tempo",
+      "当前只支持全谱唯一一个起始速度声明，不能导入重复或中途变速的 sound。",
+    ));
+  }
+
+  const element = sounds[0];
+  if (!element) return LOCAL_SCORE_PROJECT_DEFAULT_TEMPO_BPM;
+  const measureIndex = measureElements.findIndex(
+    (measureElement) => measureElement === element.parentElement,
+  );
+  const measureElement = measureElements[measureIndex] ?? null;
+  const measureNumber = Number(measureElement?.getAttribute("number")) || 1;
+  const lexicalSound = lexicalSounds[0] ?? null;
+  const lexicalTempo = lexicalSound?.markup.match(
+    /^<sound\s+tempo\s*=\s*(["'])(\d+)\1\s*(?:\/>|>)$/,
+  )?.[2] ?? null;
+  const measureChildren = measureElement
+    ? directChildElements(measureElement)
+    : [];
+  const soundIndex = measureChildren.indexOf(element);
+  const attributesElements = measureChildren.filter(
+    (child) => localElementName(child) === "attributes",
+  );
+  const attributes = attributesElements.length === 1
+    && isExactUnnamespacedElement(attributesElements[0], "attributes")
+    ? attributesElements[0]
+    : undefined;
+  const attributesIndex = attributes
+    ? measureChildren.indexOf(attributes)
+    : -1;
+  const measureNodes = measureElement
+    ? Array.from(measureElement.childNodes)
+    : [];
+  const attributesNodeIndex = attributes
+    ? measureNodes.indexOf(attributes)
+    : -1;
+  const soundNodeIndex = measureNodes.indexOf(element);
+  const onlyFormattingWhitespaceBetween =
+    attributesNodeIndex >= 0
+    && soundNodeIndex > attributesNodeIndex
+    && measureNodes
+      .slice(attributesNodeIndex + 1, soundNodeIndex)
+      .every((node) =>
+        node.nodeType === 3 && (node.textContent ?? "").trim() === ""
+      );
+  const attribute = element.attributes.item(0);
+  const rawTempo = element.getAttribute("tempo");
+  const parsedTempo = rawTempo !== null && /^\d+$/.test(rawTempo)
+    ? Number(rawTempo)
+    : Number.NaN;
+  const validTempo =
+    Number.isSafeInteger(parsedTempo)
+    && parsedTempo >= LOCAL_SCORE_PROJECT_MIN_TEMPO_BPM
+    && parsedTempo <= LOCAL_SCORE_PROJECT_MAX_TEMPO_BPM
+    && String(parsedTempo) === rawTempo;
+  const validStructure =
+    sounds.length === 1
+    && measureIndex === 0
+    && isExactUnnamespacedElement(element, "sound")
+    && measureElement !== null
+    && attributesElements.length === 1
+    && soundIndex === attributesIndex + 1
+    && onlyFormattingWhitespaceBetween
+    && element.attributes.length === 1
+    && attribute?.name === "tempo"
+    && (
+      attribute.namespaceURI === null
+      || attribute.namespaceURI === undefined
+      || attribute.namespaceURI === ""
+    )
+    && element.childNodes.length === 0
+    && validTempo;
+  const validLexicalStructure =
+    lexicalSounds.length === 1
+    && lexicalTempo === rawTempo
+    && (
+      lexicalSound?.markup.trimEnd().endsWith("/>")
+      || (
+        lexicalSound !== null
+        && xml.startsWith("</sound>", lexicalSound.end)
+      )
+    );
+  if (!validStructure || !validLexicalStructure) {
+    issues.push(blockingIssue(
+      "unsupported-tempo",
+      "速度必须是首小节 attributes 后唯一、空且只含 tempo=\"30–240 整数\" 的无命名空间 sound。",
+      measureNumber,
+    ));
+    return LOCAL_SCORE_PROJECT_DEFAULT_TEMPO_BPM;
+  }
+  return parsedTempo;
+};
+
 const validateNotationHierarchy = ({
   measureElement,
   issues,
@@ -1932,6 +2124,12 @@ export const createLocalScoreProjectMusicXmlImportDraft = (
       (element) => localElementName(element) === "measure",
     )
     : [];
+  const tempoBpm = readSupportedGlobalTempo({
+    xmlDocument,
+    measureElements,
+    issues,
+    xml,
+  });
 
   const timeMatches = getElementMatches(partXml, "time");
   const timeXml = timeMatches[0]?.[2];
@@ -2505,6 +2703,7 @@ export const createLocalScoreProjectMusicXmlImportDraft = (
   }));
   const project: LocalScoreProjectV1 = {
     ...baseProject,
+    tempoBpm,
     document: {
       ...baseProject.document,
       meter,

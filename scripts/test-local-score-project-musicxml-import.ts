@@ -67,6 +67,11 @@ assert.equal(ready.fileName, "我的练习.musicxml");
 assert.equal(ready.project?.schemaVersion, LOCAL_SCORE_PROJECT_SCHEMA_VERSION);
 assert.equal(ready.project?.document.schemaVersion, "score-document-v13");
 assert.equal(ready.project?.document.revision, 1);
+assert.equal(
+  ready.project?.tempoBpm,
+  90,
+  "MusicXML without a sound tempo declaration must keep the canonical 90 BPM default",
+);
 assert.equal(ready.project?.document.meter, "4/4");
 assert.deepEqual(ready.project?.document.keySignature, { fifths: 1 });
 assert.equal(ready.project?.document.parts[0]?.staves[0]?.clef, "treble");
@@ -91,6 +96,297 @@ assert.deepEqual(
 assert.deepEqual(ready.project?.undoStack, []);
 assert.deepEqual(ready.project?.redoStack, []);
 assert.ok(parseLocalScoreProject(ready.project));
+
+const withFirstMeasureTempo = (tempo: string) =>
+  supportedXml.replace(
+    "      </attributes>",
+    `      </attributes>
+      <sound tempo="${tempo}"/>`,
+  );
+
+for (const tempoBpm of [30, 90, 240] as const) {
+  let tempoEventSequence = 0;
+  const tempoReady = createLocalScoreProjectMusicXmlImportDraft({
+    xml: withFirstMeasureTempo(String(tempoBpm)),
+    fileName: `速度-${tempoBpm}.musicxml`,
+    sourceFormat: "musicxml",
+    projectId: `import-project-tempo-${tempoBpm}`,
+    now: "2026-07-27T08:00:05.000Z",
+    createEventId: () =>
+      `tempo-${tempoBpm}-event-${++tempoEventSequence}`,
+  });
+  assert.equal(tempoReady.status, "ready", `${tempoBpm} BPM must import`);
+  assert.deepEqual(tempoReady.issues, []);
+  assert.equal(tempoReady.project?.tempoBpm, tempoBpm);
+  assert.equal(
+    tempoEventSequence,
+    5,
+    "a valid tempo declaration must not change canonical event materialization",
+  );
+
+  let tempoMxlEventSequence = 0;
+  const tempoMxlReady = createLocalScoreProjectMusicXmlImportDraft({
+    xml: withFirstMeasureTempo(String(tempoBpm)),
+    fileName: `速度-${tempoBpm}.mxl`,
+    sourceFormat: "mxl",
+    projectId: `import-project-tempo-mxl-${tempoBpm}`,
+    now: "2026-07-27T08:00:06.000Z",
+    createEventId: () =>
+      `tempo-mxl-${tempoBpm}-event-${++tempoMxlEventSequence}`,
+  });
+  assert.equal(
+    tempoMxlReady.status,
+    "ready",
+    `${tempoBpm} BPM from an extracted MXL payload must import`,
+  );
+  assert.equal(tempoMxlReady.project?.tempoBpm, tempoBpm);
+  assert.deepEqual(
+    tempoMxlReady.project?.document.parts[0].staves[0].voices[0].measures
+      .map((measure) => measure.events.map((event) => [
+        event.type,
+        event.pitch,
+        event.duration,
+      ])),
+    tempoReady.project?.document.parts[0].staves[0].voices[0].measures
+      .map((measure) => measure.events.map((event) => [
+        event.type,
+        event.pitch,
+        event.duration,
+      ])),
+    "MusicXML and extracted MXL XML must preserve the same tempo and event semantics",
+  );
+}
+
+const invalidTempoSounds = [
+  [
+    "duplicate",
+    withFirstMeasureTempo("120").replace(
+      '<sound tempo="120"/>',
+      '<sound tempo="120"/><sound tempo="120"/>',
+    ),
+  ],
+  [
+    "later-measure",
+    supportedXml.replace(
+      '    <measure number="2">',
+      `    <measure number="2">
+      <sound tempo="120"/>`,
+    ),
+  ],
+  [
+    "before-attributes",
+    supportedXml.replace(
+      "      <attributes>",
+      `      <sound tempo="120"/>
+      <attributes>`,
+    ),
+  ],
+  [
+    "duplicate-attributes-before-sound",
+    withFirstMeasureTempo("120").replace(
+      '      <sound tempo="120"/>',
+      `      <attributes/>
+      <sound tempo="120"/>`,
+    ),
+  ],
+  [
+    "duplicate-attributes-after-sound",
+    withFirstMeasureTempo("120").replace(
+      '      <sound tempo="120"/>',
+      `      <sound tempo="120"/>
+      <attributes/>`,
+    ),
+  ],
+  [
+    "namespaced-attributes-duplicate",
+    withFirstMeasureTempo("120").replace(
+      '      <sound tempo="120"/>',
+      `      <sound tempo="120"/>
+      <x:attributes xmlns:x="urn:external"/>`,
+    ),
+  ],
+  [
+    "wrong-case-attributes-duplicate",
+    withFirstMeasureTempo("120").replace(
+      '      <sound tempo="120"/>',
+      `      <sound tempo="120"/>
+      <Attributes/>`,
+    ),
+  ],
+  [
+    "after-first-note",
+    supportedXml.replace(
+      "</notations></note>",
+      `</notations></note>
+      <sound tempo="120"/>`,
+    ),
+  ],
+  [
+    "nested-in-attributes",
+    supportedXml.replace(
+      "        <divisions>2</divisions>",
+      `        <divisions>2</divisions>
+        <sound tempo="120"/>`,
+    ),
+  ],
+  ["extra-attribute", withFirstMeasureTempo("120").replace(
+    '<sound tempo="120"/>',
+    '<sound tempo="120" dynamics="80"/>',
+  )],
+  ["decimal-integral", withFirstMeasureTempo("120.0")],
+  ["decimal-fractional", withFirstMeasureTempo("120.5")],
+  ["scientific", withFirstMeasureTempo("1.2e2")],
+  ["explicit-plus", withFirstMeasureTempo("+120")],
+  ["leading-zero", withFirstMeasureTempo("0120")],
+  ["leading-whitespace", withFirstMeasureTempo(" 120")],
+  ["trailing-whitespace", withFirstMeasureTempo("120 ")],
+  ["below-minimum", withFirstMeasureTempo("29")],
+  ["above-maximum", withFirstMeasureTempo("241")],
+  ["zero", withFirstMeasureTempo("0")],
+  ["negative", withFirstMeasureTempo("-120")],
+  ["missing-tempo", withFirstMeasureTempo("120").replace(
+    '<sound tempo="120"/>',
+    "<sound/>",
+  )],
+  ["wrong-attribute", withFirstMeasureTempo("120").replace(
+    '<sound tempo="120"/>',
+    '<sound dynamics="120"/>',
+  )],
+  ["namespace", withFirstMeasureTempo("120").replace(
+    '<sound tempo="120"/>',
+    '<x:sound xmlns:x="urn:external" tempo="120"/>',
+  )],
+  ["wrong-case", withFirstMeasureTempo("120").replace(
+    '<sound tempo="120"/>',
+    '<Sound tempo="120"/>',
+  )],
+  ["wrong-attribute-case", withFirstMeasureTempo("120").replace(
+    '<sound tempo="120"/>',
+    '<sound Tempo="120"/>',
+  )],
+  ["namespaced-tempo-attribute", withFirstMeasureTempo("120").replace(
+    '<sound tempo="120"/>',
+    '<sound xmlns:x="urn:external" x:tempo="120"/>',
+  )],
+  ["text", withFirstMeasureTempo("120").replace(
+    '<sound tempo="120"/>',
+    '<sound tempo="120">tempo</sound>',
+  )],
+  ["ordinary-child", withFirstMeasureTempo("120").replace(
+    '<sound tempo="120"/>',
+    '<sound tempo="120"><other/></sound>',
+  )],
+  ["comment", withFirstMeasureTempo("120").replace(
+    '<sound tempo="120"/>',
+    '<sound tempo="120"><!--tempo--></sound>',
+  )],
+  ["cdata", withFirstMeasureTempo("120").replace(
+    '<sound tempo="120"/>',
+    '<sound tempo="120"><![CDATA[ ]]></sound>',
+  )],
+  ["processing-instruction", withFirstMeasureTempo("120").replace(
+    '<sound tempo="120"/>',
+    '<sound tempo="120"><?tempo value?></sound>',
+  )],
+  ["gap-text", withFirstMeasureTempo("120").replace(
+    `      </attributes>
+      <sound tempo="120"/>`,
+    `      </attributes>tempo
+      <sound tempo="120"/>`,
+  )],
+  ["gap-comment", withFirstMeasureTempo("120").replace(
+    `      </attributes>
+      <sound tempo="120"/>`,
+    `      </attributes><!--tempo-->
+      <sound tempo="120"/>`,
+  )],
+  ["gap-cdata", withFirstMeasureTempo("120").replace(
+    `      </attributes>
+      <sound tempo="120"/>`,
+    `      </attributes><![CDATA[ ]]>
+      <sound tempo="120"/>`,
+  )],
+  ["gap-processing-instruction", withFirstMeasureTempo("120").replace(
+    `      </attributes>
+      <sound tempo="120"/>`,
+    `      </attributes><?tempo value?>
+      <sound tempo="120"/>`,
+  )],
+  [
+    "nested-in-direction",
+    supportedXml.replace(
+      "<note><pitch><step>C</step>",
+      '<direction><sound tempo="120"/></direction><note><pitch><step>C</step>',
+    ),
+  ],
+  [
+    "outside-measure",
+    supportedXml.replace(
+      "<part-list>",
+      '<sound tempo="120"/><part-list>',
+    ),
+  ],
+  [
+    "entity-with-comment-decoy",
+    withFirstMeasureTempo("&#49;&#50;&#48;").replace(
+      "<part-list>",
+      '<!-- lexical decoy: <sound tempo="120"/> --><part-list>',
+    ),
+  ],
+] as const;
+
+for (const [label, xml] of invalidTempoSounds) {
+  let invalidTempoEventIdCalls = 0;
+  const invalidTempoDraft = createLocalScoreProjectMusicXmlImportDraft({
+    xml,
+    fileName: `invalid-tempo-${label}.musicxml`,
+    sourceFormat: "musicxml",
+    projectId: `blocked-tempo-${label}`,
+    now: "2026-07-27T08:00:07.000Z",
+    createEventId: () => {
+      invalidTempoEventIdCalls += 1;
+      return `unused-tempo-${label}-${invalidTempoEventIdCalls}`;
+    },
+  });
+  assert.equal(
+    invalidTempoDraft.status,
+    "blocked",
+    `non-canonical tempo sound ${label} must fail closed`,
+  );
+  assert.equal(
+    invalidTempoEventIdCalls,
+    0,
+    `blocked tempo sound ${label} must not allocate canonical event ids`,
+  );
+  assert.ok(
+    invalidTempoDraft.issues.some(
+      (issue) => issue.code === "unsupported-tempo",
+    ),
+    `non-canonical tempo sound ${label} must produce the stable tempo ledger`,
+  );
+}
+
+const literalCommentTempoReady = createLocalScoreProjectMusicXmlImportDraft({
+  xml: withFirstMeasureTempo("120").replace(
+    "<part-list>",
+    '<!-- unrelated literal: <sound tempo="999"/> --><part-list>',
+  ),
+  fileName: "合法速度与无关注释.musicxml",
+  sourceFormat: "musicxml",
+  projectId: "import-project-tempo-unrelated-comment",
+  now: "2026-07-27T08:00:08.000Z",
+  createEventId: (() => {
+    let sequence = 0;
+    return () => `tempo-comment-event-${++sequence}`;
+  })(),
+});
+assert.equal(
+  literalCommentTempoReady.status,
+  "ready",
+  "a comment containing an unrelated sound literal must not block a valid tempo element",
+);
+assert.deepEqual(literalCommentTempoReady.issues, []);
+assert.equal(literalCommentTempoReady.project?.tempoBpm, 120);
 
 const strictSlurXml = supportedXml
   .replace(
@@ -851,7 +1147,7 @@ assert.deepEqual(
   "MXL payload XML must use the same strict pedal mapping",
 );
 
-const strictHarmonyXml = supportedXml
+const strictHarmonyXml = withFirstMeasureTempo("120")
   .replace(
     "<note><pitch><step>C</step>",
     '<harmony><root><root-step>C</root-step><root-alter>1</root-alter></root><kind>major</kind><staff>1</staff></harmony><direction><direction-type><pedal type="start"/></direction-type><voice>1</voice><staff>1</staff></direction><note><pitch><step>C</step>',
@@ -883,6 +1179,12 @@ const strictHarmonyReady = createLocalScoreProjectMusicXmlImportDraft({
 });
 assert.equal(strictHarmonyReady.status, "ready");
 assert.deepEqual(strictHarmonyReady.issues, []);
+assert.equal(strictHarmonyReady.project?.tempoBpm, 120);
+assert.match(
+  strictHarmonyXml,
+  /<\/attributes>\s*<sound tempo="120"\/>\s*<harmony>[\s\S]*?<\/harmony><direction><direction-type><pedal type="start"\/><\/direction-type><voice>1<\/voice><staff>1<\/staff><\/direction><note>/,
+  "the full strict combination must remain attributes, sound, harmony, pedal, then note",
+);
 assert.deepEqual(
   strictHarmonyReady.project?.document.parts[0].staves[0].voices[0].measures
     .flatMap((measure) => measure.events)
@@ -1208,8 +1510,9 @@ assert.equal(soundDynamicDraft.status, "blocked");
 assert.equal(soundDynamicIdCalls, 0);
 assert.ok(
   soundDynamicDraft.issues.some(
-    (issue) => issue.code === "unsupported-sound",
+    (issue) => issue.code === "unsupported-tempo",
   ),
+  "sound attributes outside the strict global tempo subset must fail closed",
 );
 
 const attributedSymbolicDynamicDraft =

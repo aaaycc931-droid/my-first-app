@@ -46,6 +46,15 @@ QA level recommendation：**strict**
 - 根级、`work`、`part-list` 与 `score-part` 同样采用显式白名单；creator、rights、
   instrument、movement、credit 等未映射元数据必须 blocking，`score-part` 与 `part`
   的非空 ID 必须一致。
+- 整份文件最多允许一个大小写精确、无 namespace 的空 `<sound tempo="N"/>`，且只能
+  作为第一小节直接 `<attributes>` 之后的下一个元素。`N` 必须是无符号、无小数、
+  无指数、无前导零和首尾空白的 canonical 十进制整数 `30–240`，并 exact 映射为
+  项目全局 `tempoBpm`；完全没有 sound 时使用既有默认 `90 BPM`。
+- 重复 sound、第二小节或中途 sound、错误位置、namespace／大小写变体、缺失或额外
+  属性、越界或非 canonical 整数、文本、子元素、CDATA、comment、processing
+  instruction，以及嵌套在 direction 或其他元素中的 sound 必须 blocking。不得
+  trim、取整、限制范围、移动位置、选择第一项或从 metronome／words／事件密度猜测
+  速度。
 - note/rest 最多允许一个直接子级 `<dot/>`，且不得包含属性、非空文本、CDATA 或子元素；它无损映射
   为 canonical `augmentationDots: 1`。note 基础时值只限 half／quarter／eighth，
   rest 基础时值仍只限 quarter；MusicXML `duration / divisions`、小节容量、拍位以及
@@ -117,8 +126,8 @@ QA level recommendation：**strict**
 
 本切片不得为了增加成功率而静默跳过休止符、多 part／staff／voice、和弦时序、
 `backup`／`forward`、未知时值、谱号／调号／拍号、严格单段歌词／单指法／单音演奏法／
-单事件力度记号／单事件制音踏板／受控和弦标记／单附点／fermata／slur／tie 结构
-以外的歌词、指法、演奏法、力度、踏板、和弦、连线或其他 canonical 语义。
+单事件力度记号／单事件制音踏板／受控和弦标记／全局速度／单附点／fermata／slur／
+tie 结构以外的歌词、指法、演奏法、力度、踏板、和弦、速度、连线或其他 canonical 语义。
 不在本切片支持清单中的内容必须 blocking。
 
 ## 明确确认与原子保存
@@ -154,6 +163,9 @@ QA level recommendation：**strict**
 - `.musicxml` 与 `.xml` 的受支持最小 fixture 生成等价 canonical；
 - 同一内容的 `.mxl` 与未压缩 XML 生成等价候选；
 - 音符、休止符、小节边界及当前明确支持的谱号／调号／拍号无静默丢失；
+- 首小节 attributes 后唯一空 `<sound tempo="N"/>` 将 canonical 整数
+  `30–240` exact 映射为全局 `tempoBpm`；无 sound 默认 `90`，而重复、中途、错位、
+  属性／内容、namespace／大小写或非 canonical 数值变体全部失败关闭；
 - note 的 half／quarter／eighth 单附点及 quarter rest 单附点映射为 canonical
   `augmentationDots: 1`；XML／MXL、容量、拍位和关系连续性使用 `1.5×` 真实时值，
   重复、属性、文本、子元素、错层级与 duration 不一致全部失败关闭；
@@ -260,3 +272,6 @@ round-trip、OMR、教师审核、真机验收或正式版 V1 已完成。
 
 单事件制音踏板记号双向严格子集的独立验收边界见
 `docs/s3-local-score-project-musicxml-damper-pedal-round-trip-acceptance.md`。
+
+全局整数速度双向严格子集的独立验收边界见
+`docs/s3-local-score-project-musicxml-tempo-round-trip-acceptance.md`。

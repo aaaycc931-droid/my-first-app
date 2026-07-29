@@ -30,8 +30,9 @@ QA level recommendation：**strict**
 - 拍号只支持 `2/4`、`3/4`、`4/4`，调号 fifths 只支持 `-1`、`0`、`1`，谱号只支持
   G2 高音谱号或 F4 低音谱号。
 - 音符只支持自然音 C4–C5，以及二分、四分、八分时值；休止符只支持四分休止符。
-- 当前 round-trip 不承诺应用速度语义，因此只有默认 `90 BPM` 可以进入导出候选；
-  其他速度必须形成 blocking 项。
+- canonical 全局 `tempoBpm` 只接受整数 `30–240`，并确定性写为第一小节直接
+  `<attributes>` 之后唯一、空的 `<sound tempo="N"/>`；包括默认 `90 BPM` 在内均
+  显式输出。当前 importer 重新导入后必须 exact 恢复相同速度。
 - 当前 round-trip 不承诺乐器语义，因此 part instrument 必须为 `unassigned`；
   任意 GM1 program 必须形成 blocking 项。
 - 项目列表标题必须与 `scoreCredits.title` 一致；谱面主标题和单 part 名称属于本切片
@@ -83,6 +84,9 @@ QA level recommendation：**strict**
   `<harmony>`；`#`／`b` 分别写为 exact `<root-alter>1</root-alter>`／
   `<root-alter>-1</root-alter>`，自然音省略 root-alter。和踏板共存时固定输出
   harmony → pedal direction → note/rest；`null` 不生成 harmony。
+- 第一小节首事件同时包含和弦和踏板时，确定性 measure 子元素顺序为
+  attributes → sound → harmony → pedal direction → event；sound 不锚定事件，也
+  不进入 pedal direction。
 - 多附点、多个／替代指法、其他 technical、其他演奏法、组合／其他力度、双升降／
   Unicode 升降号、slash chord、其他和弦类别及其他当前未映射的非中性 canonical
   语义，必须逐类形成稳定 blocking 项。
@@ -123,8 +127,8 @@ QA level recommendation：**strict**
 ## MusicXML 与 MXL 结构
 
 - `.musicxml` 输出为确定性的 UTF-8 `score-partwise` MusicXML，明确写出 divisions、
-  调号、拍号、谱号、staff、voice、顺序小节和每个事件的 pitch／rest、duration、
-  type 与受控单附点。
+  调号、拍号、谱号、全局速度、staff、voice、顺序小节和每个事件的 pitch／rest、
+  duration、type 与受控单附点。
 - 文本必须进行 XML escape；不得通过拼接未经转义的项目标题或 part 名称生成无效 XML。
 - `.mxl` 必须把未压缩的标准 `mimetype`
   `application/vnd.recordare.musicxml` 作为首项，并包含
@@ -144,7 +148,8 @@ QA level recommendation：**strict**
 1. 当前 canonical MusicXML importer 重新读取 `.musicxml`，以及从 `.mxl` 安全解包
    后的 XML，核对标题、part 名称、音高、时值、休止符、小节、调号、拍号和谱号等本
    切片承诺的语义，以及单附点、单段歌词、单指法、单音演奏法、单事件力度记号、
-   单事件制音踏板记号、受控和弦标记、fermata、slur 与 tie 的 canonical 映射。
+   单事件制音踏板记号、受控和弦标记、全局速度、fermata、slur 与 tie 的 canonical
+   映射。
 2. 既有 legacy `musicxmlParser` 作为独立代码路径，交叉核对其能够表达的音符音高、
    基础时值、小节和拍位。该 parser 以 raw duration 推进附点后的拍位，但不表达 dot
    identity、歌词、休止符、credits 或全部 canonical 字段，不能单独证明完整
@@ -164,6 +169,9 @@ QA level recommendation：**strict**
   形成稳定 blocker，canonical 范围内的 supplementary-plane 字符保持无损；
 - 音符、四分休止符、小节、调号、拍号、谱号、主标题和 part 名称的内部 re-import
   语义等价；
+- canonical `tempoBpm` 的 `30`、`90`、`240` 及范围内代表值均写为首小节
+  attributes 后唯一空 `<sound tempo="N"/>`；`.musicxml`／`.mxl` re-import 后保持
+  exact 速度，并覆盖与首事件 harmony／pedal 共存的固定顺序；
 - half／quarter／eighth note 单附点及 quarter rest 单附点确定性写为严格 `<dot/>`，
   `.musicxml`／`.mxl` re-import 后保持 `augmentationDots`，整数 duration、容量与
   后续拍位均按 `1.5×` 真实时值；
@@ -191,8 +199,8 @@ QA level recommendation：**strict**
   同小节、跨小节、链式及 fermata／slur 共存经 `.musicxml`／`.mxl` re-import 后
   保持同一 `tieToNext`；
 - legacy parser 对音符音高、时值、小节和拍位的交叉检查；
-- 非 `90 BPM`、已分配 instrument、非空副标题／creator／版权，以及每类未支持
-  canonical 记谱字段分别形成 blocking ledger；
+- 已分配 instrument、非空副标题／creator／版权，以及每类未支持 canonical 记谱字段
+  分别形成 blocking ledger；
 - 多 part／staff／voice、非法 canonical、空事件、输出超限和压缩失败全部失败关闭；
 - 未确认、stale、fingerprint 不一致和候选被修改时不能下载；
 - 候选、blocking、确认和下载失败均不修改项目、revision、undo／redo、IndexedDB、
@@ -260,3 +268,6 @@ QA level recommendation：**strict**
 
 XML 1.0 文本与 Unicode 安全边界见
 `docs/s3-local-score-project-musicxml-xml-text-safety-acceptance.md`。
+
+全局整数速度双向严格子集的独立验收边界见
+`docs/s3-local-score-project-musicxml-tempo-round-trip-acceptance.md`。
