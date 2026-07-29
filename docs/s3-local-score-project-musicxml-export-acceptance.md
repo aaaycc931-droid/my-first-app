@@ -153,6 +153,8 @@ QA level recommendation：**strict**
 
 - 同一受支持项目的 `.musicxml` 与 `.mxl` 解包 XML 语义等价；
 - XML escaping、确定性输出、安全文件名、标准 MXL container 和 rootfile；
+- 谱面标题与 part 名称仅在全部 code point 属于 XML 1.0 `Char` 时输出；非法字符
+  形成稳定 blocker，canonical 范围内的 supplementary-plane 字符保持无损；
 - 音符、四分休止符、小节、调号、拍号、谱号、主标题和 part 名称的内部 re-import
   语义等价；
 - half／quarter／eighth note 单附点及 quarter rest 单附点确定性写为严格 `<dot/>`，
@@ -245,3 +247,6 @@ QA level recommendation：**strict**
 
 单事件制音踏板记号双向严格子集的独立验收边界见
 `docs/s3-local-score-project-musicxml-damper-pedal-round-trip-acceptance.md`。
+
+XML 1.0 文本与 Unicode 安全边界见
+`docs/s3-local-score-project-musicxml-xml-text-safety-acceptance.md`。
