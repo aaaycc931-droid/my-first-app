@@ -8,6 +8,7 @@ import {
 import type {
   LocalScoreProjectClefV3,
   LocalScoreProjectEventV9,
+  LocalScoreProjectFingeringV1,
 } from "./scoreDocument";
 import type {
   NotationDuration,
@@ -80,14 +81,12 @@ const forbiddenElementCodes = [
   ["tuplet", "unsupported-tuplet", "当前导入不支持连音符。"],
   ["time-modification", "unsupported-tuplet", "当前导入不支持连音符时值比例。"],
   ["grace", "unsupported-grace", "当前导入不支持倚音。"],
-  ["fingering", "unsupported-fingering", "当前导入不支持指法。"],
   ["harmony", "unsupported-harmony", "当前导入不支持和弦标记。"],
   ["articulations", "unsupported-articulation", "当前导入不支持演奏法。"],
   ["dynamics", "unsupported-dynamic", "当前导入不支持力度记号。"],
   ["pedal", "unsupported-pedal", "当前导入不支持踏板记号。"],
   ["accidental", "unsupported-accidental", "当前导入只支持无临时升降号的自然音。"],
   ["transpose", "unsupported-transpose", "当前导入不支持移调声明。"],
-  ["technical", "unsupported-technical", "当前导入不支持其他 technical 演奏语义。"],
   ["ornaments", "unsupported-ornament", "当前导入不支持装饰音。"],
   ["direction", "unsupported-direction", "当前导入不支持速度、文字或其他 direction。"],
   ["sound", "unsupported-sound", "当前导入不支持 sound 播放指令。"],
@@ -121,6 +120,8 @@ const allowedMeasureElements = new Set([
   "slur",
   "tie",
   "tied",
+  "technical",
+  "fingering",
   "lyric",
   "text",
 ]);
@@ -207,6 +208,7 @@ type SupportedNotationBundle = Readonly<{
   slurStart: boolean;
   slurStop: boolean;
   tiedTypes: readonly TieMarkerType[];
+  fingering: LocalScoreProjectFingeringV1 | null;
 }>;
 
 type TieMarkerType = "start" | "stop";
@@ -433,6 +435,7 @@ const EMPTY_NOTATION_BUNDLE: SupportedNotationBundle = {
   slurStart: false,
   slurStop: false,
   tiedTypes: [],
+  fingering: null,
 };
 
 const readSupportedNotationBundle = ({
@@ -454,6 +457,10 @@ const readSupportedNotationBundle = ({
     .filter((element) => localElementName(element) === "slur");
   const allTieds = Array.from(noteElement.getElementsByTagName("*"))
     .filter((element) => localElementName(element) === "tied");
+  const allTechnicals = Array.from(noteElement.getElementsByTagName("*"))
+    .filter((element) => localElementName(element) === "technical");
+  const allFingerings = Array.from(noteElement.getElementsByTagName("*"))
+    .filter((element) => localElementName(element) === "fingering");
   if (notationsElements.length === 0) {
     if (allFermatas.length > 0) {
       issues.push(blockingIssue(
@@ -473,6 +480,20 @@ const readSupportedNotationBundle = ({
       issues.push(blockingIssue(
         "unsupported-tie",
         "记谱延音线 tied 必须直接位于 note 的 notations 子元素中。",
+        measureNumber,
+      ));
+    }
+    if (allTechnicals.length > 0) {
+      issues.push(blockingIssue(
+        "unsupported-technical",
+        "technical 必须直接位于 note 的 notations 子元素中。",
+        measureNumber,
+      ));
+    }
+    if (allFingerings.length > 0) {
+      issues.push(blockingIssue(
+        "unsupported-fingering",
+        "指法 fingering 必须是 note／notations／technical 下唯一的直接文本子元素。",
         measureNumber,
       ));
     }
@@ -497,10 +518,14 @@ const readSupportedNotationBundle = ({
   const tieds = notationChildren.filter(
     (element) => localElementName(element) === "tied",
   );
+  const technicals = notationChildren.filter(
+    (element) => localElementName(element) === "technical",
+  );
   const unsupportedChildren = notationChildren.filter((element) =>
     localElementName(element) !== "fermata"
     && localElementName(element) !== "slur"
     && localElementName(element) !== "tied"
+    && localElementName(element) !== "technical"
   );
   const hasNonWhitespaceText = Array.from(notations.childNodes).some(
     (child) =>
@@ -515,7 +540,7 @@ const readSupportedNotationBundle = ({
   ) {
     issues.push(blockingIssue(
       "unsupported-notations",
-      "当前只支持无属性的 notations，且其中只能包含受控 fermata／slur／tied 记号。",
+      "当前只支持无属性的 notations，且其中只能包含受控 fermata／slur／tied／technical 记号。",
       measureNumber,
     ));
   }
@@ -634,7 +659,84 @@ const readSupportedNotationBundle = ({
       measureNumber,
     ));
   }
-  return { fermataMark, slurStart, slurStop, tiedTypes };
+
+  let fingering: LocalScoreProjectFingeringV1 | null = null;
+  if (allTechnicals.length !== technicals.length || technicals.length > 1) {
+    issues.push(blockingIssue(
+      "unsupported-technical",
+      "当前每个 note 最多支持一个直接位于 notations 下的 technical。",
+      measureNumber,
+    ));
+  }
+  if (technicals.length === 1) {
+    const technical = technicals[0];
+    const technicalChildren = directChildElements(technical);
+    const fingerings = technicalChildren.filter(
+      (element) => localElementName(element) === "fingering",
+    );
+    const hasInvalidTechnicalNode = Array.from(technical.childNodes).some(
+      (child) =>
+        (child.nodeType === 1
+          && localElementName(child as Element) !== "fingering")
+        || (child.nodeType === 3
+          && (child.textContent ?? "").trim() !== "")
+        || (child.nodeType !== 1 && child.nodeType !== 3),
+    );
+    if (
+      technical.attributes.length !== 0
+      || technicalChildren.length !== 1
+      || fingerings.length !== 1
+      || allFingerings.length !== fingerings.length
+      || hasInvalidTechnicalNode
+    ) {
+      issues.push(blockingIssue(
+        "unsupported-technical",
+        "当前 technical 必须无属性，且只能包含一个直接 fingering 子元素。",
+        measureNumber,
+      ));
+    }
+    if (fingerings.length === 1) {
+      const fingeringElement = fingerings[0];
+      const value = fingeringElement.textContent ?? "";
+      const hasSingleTextNode =
+        fingeringElement.childNodes.length === 1
+        && fingeringElement.childNodes[0]?.nodeType === 3;
+      if (
+        fingeringElement.attributes.length !== 0
+        || directChildElements(fingeringElement).length !== 0
+        || !hasSingleTextNode
+        || !/^[1-5]$/.test(value)
+      ) {
+        issues.push(blockingIssue(
+          "unsupported-fingering",
+          "指法 fingering 必须无属性、无子元素，并且只包含一个 1–5 的文本值。",
+          measureNumber,
+        ));
+      } else {
+        fingering = Number(value) as LocalScoreProjectFingeringV1;
+      }
+    }
+  } else if (allFingerings.length > 0) {
+    issues.push(blockingIssue(
+      "unsupported-fingering",
+      "指法 fingering 必须直接位于唯一的 technical 子元素中。",
+      measureNumber,
+    ));
+  }
+  if (allFingerings.length > 0 && noteElement.attributes.length !== 0) {
+    issues.push(blockingIssue(
+      "unsupported-fingering",
+      "带指法的 note 不能包含当前无法保留的属性。",
+      measureNumber,
+    ));
+  }
+  return {
+    fermataMark,
+    slurStart,
+    slurStop,
+    tiedTypes,
+    fingering,
+  };
 };
 
 const readSupportedDirectTieTypes = ({
@@ -758,6 +860,40 @@ const validateNotationHierarchy = ({
       ));
     }
     if (
+      elementName === "technical"
+      && (
+        !element.parentElement
+        || localElementName(element.parentElement) !== "notations"
+        || !element.parentElement.parentElement
+        || localElementName(element.parentElement.parentElement) !== "note"
+      )
+    ) {
+      issues.push(blockingIssue(
+        "unsupported-technical",
+        "technical 必须直接位于 note 的 notations 子元素中。",
+        measureNumber,
+      ));
+    }
+    if (
+      elementName === "fingering"
+      && (
+        !element.parentElement
+        || localElementName(element.parentElement) !== "technical"
+        || !element.parentElement.parentElement
+        || localElementName(element.parentElement.parentElement) !== "notations"
+        || !element.parentElement.parentElement.parentElement
+        || localElementName(
+          element.parentElement.parentElement.parentElement,
+        ) !== "note"
+      )
+    ) {
+      issues.push(blockingIssue(
+        "unsupported-fingering",
+        "fingering 必须直接位于 note／notations 下的 technical 中。",
+        measureNumber,
+      ));
+    }
+    if (
       elementName === "tie"
       && (
         !element.parentElement
@@ -845,6 +981,7 @@ const noteEvent = ({
   duration,
   augmentationDots,
   lyric,
+  fingering,
   measure,
   fermataMark,
   tieToNext,
@@ -855,6 +992,7 @@ const noteEvent = ({
   duration: NotationDuration;
   augmentationDots: 0 | 1;
   lyric: string | null;
+  fingering: LocalScoreProjectFingeringV1 | null;
   measure: number;
   fermataMark: "fermata" | null;
   tieToNext: boolean;
@@ -869,7 +1007,7 @@ const noteEvent = ({
   tieToNext,
   slurToNext,
   lyric,
-  fingering: null,
+  fingering,
   chordSymbol: null,
   articulations: [],
   dynamicMark: null,
@@ -1509,6 +1647,16 @@ export const createLocalScoreProjectMusicXmlImportDraft = (
             measureNumber,
           ));
         }
+        if (
+          notationBundle.fingering !== null
+          || hasElement(noteXml, "fingering")
+        ) {
+          issues.push(blockingIssue(
+            "unsupported-fingering-on-rest",
+            "休止符不能包含指法。",
+            measureNumber,
+          ));
+        }
         if (notationBundle.slurStop) {
           issues.push(blockingIssue(
             "unsupported-slur",
@@ -1561,6 +1709,7 @@ export const createLocalScoreProjectMusicXmlImportDraft = (
             duration,
             augmentationDots,
             lyric,
+            fingering: notationBundle.fingering,
             measure: measureNumber,
             fermataMark: notationBundle.fermataMark,
             tieToNext: tieStart,

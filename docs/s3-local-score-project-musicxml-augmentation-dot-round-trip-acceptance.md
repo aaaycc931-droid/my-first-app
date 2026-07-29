@@ -28,8 +28,9 @@ QA level recommendation：**strict**
   quarter rest 的零或一个附点。
 - 无 dot 却提供附点 duration，或有 dot 却只提供基础 duration，均为 duration
   mismatch；不得自动修复。
-- 歌词、指法、articulation、和弦、力度、制音踏板和其他未映射 MusicXML/canonical
-  语义继续使用既有稳定 blocker。
+- 单段歌词和单指法由后续独立严格切片处理；多个／替代指法、其他 technical、
+  articulation、和弦、力度、制音踏板和其他未映射 MusicXML/canonical 语义继续
+  使用稳定 blocker。
 
 ## 自动验收
 

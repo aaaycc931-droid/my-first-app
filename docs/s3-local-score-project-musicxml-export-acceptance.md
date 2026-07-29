@@ -63,7 +63,11 @@ QA level recommendation：**strict**
   surrogate 或 `U+FFFE`／`U+FFFF`；不得生成
   `syllabic`、verse 属性、`elision`、`extend` 或其他 canonical 未表达的歌词语义。
   非规范 canonical lyric 必须 blocking，不得在导出时 trim 或修正。
-- 多附点、指法、和弦标记、演奏法、力度、制音踏板及其他当前
+- pitched note 的 canonical `fingering: 1–5` 必须确定性写入唯一 `<notations>`
+  中的 `<technical><fingering>N</fingering></technical>`；与 fermata、tied 和 slur
+  共存时顺序固定在这些 marker 之后，可选 lyric 仍位于整个 `<notations>` 之后。
+  `null` 不生成指法 markup，rest 不承载指法。
+- 多附点、多个／替代指法、其他 technical、和弦标记、演奏法、力度、制音踏板及其他当前
   未映射的非中性 canonical 语义，必须逐类形成稳定 blocking 项。
 - 项目至少包含一个事件；任何超过当前拍号容量的小节必须 blocking。
 
@@ -122,7 +126,7 @@ QA level recommendation：**strict**
 
 1. 当前 canonical MusicXML importer 重新读取 `.musicxml`，以及从 `.mxl` 安全解包
    后的 XML，核对标题、part 名称、音高、时值、休止符、小节、调号、拍号和谱号等本
-   切片承诺的语义，以及单附点、单段歌词、fermata、slur 与 tie 的 canonical 映射。
+   切片承诺的语义，以及单附点、单段歌词、单指法、fermata、slur 与 tie 的 canonical 映射。
 2. 既有 legacy `musicxmlParser` 作为独立代码路径，交叉核对其能够表达的音符音高、
    基础时值、小节和拍位。该 parser 以 raw duration 推进附点后的拍位，但不表达 dot
    identity、歌词、休止符、credits 或全部 canonical 字段，不能单独证明完整
@@ -146,6 +150,10 @@ QA level recommendation：**strict**
 - canonical 单段歌词按 `<staff> → <notations> → <lyric><text>` 确定性输出；中文、
   内部空格、emoji 与 XML 特殊字符经 `.musicxml`／`.mxl` re-import 后保持 exact
   `lyric`，无歌词 note 保持 `null`；
+- canonical `1–5` 单指法按唯一
+  `<technical><fingering>N</fingering></technical>` 确定性输出，与单附点、
+  fermata、tie／tied、slur 和 lyric 共存时经 `.musicxml`／`.mxl` re-import
+  保持 exact `fingering`，无指法 note 保持 `null`；
 - note/rest 延长记号写为严格 `<notations><fermata/></notations>`，`.musicxml`
   与 `.mxl` re-import 后保持同一 canonical `fermataMark`；
 - canonical 圆滑线写为相邻时间连续 note 上严格配对的 slur start／stop；同小节、
@@ -206,3 +214,6 @@ QA level recommendation：**strict**
 
 单段歌词双向严格子集的独立验收边界见
 `docs/s3-local-score-project-musicxml-lyric-round-trip-acceptance.md`。
+
+单指法双向严格子集的独立验收边界见
+`docs/s3-local-score-project-musicxml-fingering-round-trip-acceptance.md`。
