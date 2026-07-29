@@ -139,6 +139,7 @@ const allowedMeasureElements = new Set([
   "harmony",
   "root",
   "root-step",
+  "root-alter",
   "kind",
   "lyric",
   "text",
@@ -1257,7 +1258,9 @@ const readSupportedChordSymbols = ({
   const harmonyStructureElements = Array.from(
     measureElement.getElementsByTagName("*"),
   ).filter((element) =>
-    ["root", "root-step", "kind"].includes(localElementName(element))
+    ["root", "root-step", "root-alter", "kind"].includes(
+      localElementName(element),
+    )
   );
   if (harmonyStructureElements.some((element) => {
     const name = localElementName(element);
@@ -1278,7 +1281,11 @@ const readSupportedChordSymbols = ({
       );
     }
     return (
-      !isExactUnnamespacedElement(element, "root-step")
+      (
+        name !== "root-step"
+        && name !== "root-alter"
+      )
+      || !isExactUnnamespacedElement(element, name)
       || !element.parentElement
       || !isExactUnnamespacedElement(element.parentElement, "root")
       || !element.parentElement.parentElement
@@ -1291,7 +1298,7 @@ const readSupportedChordSymbols = ({
   })) {
     issues.push(blockingIssue(
       "unsupported-harmony-structure",
-      "root、root-step 和 kind 必须只位于 measure／harmony 的严格层级中。",
+      "root、root-step、root-alter 和 kind 必须只位于 measure／harmony 的严格层级中。",
       measureNumber,
     ));
   }
@@ -1336,8 +1343,17 @@ const readSupportedChordSymbols = ({
       ? directChildElements(root)
       : [];
     const rootStep = rootChildren[0];
+    const rootAlter = rootChildren[1];
+    const rootAlterValue = rootAlter?.textContent === "1"
+      ? 1
+      : rootAlter?.textContent === "-1"
+        ? -1
+        : rootAlter === undefined
+          ? 0
+          : Number.NaN;
     const supported = createSupportedCanonicalChordSymbol({
       rootStep: rootStep?.textContent ?? "",
+      rootAlter: rootAlterValue,
       kind: kind?.textContent ?? "",
     });
     const validStructure =
@@ -1347,15 +1363,22 @@ const readSupportedChordSymbols = ({
       && isExactUnnamespacedElement(root, "root")
       && root.attributes.length === 0
       && !hasUnsupportedContainerNode(root)
-      && rootChildren.length === 1
+      && (rootChildren.length === 1 || rootChildren.length === 2)
       && isExactPlainTextElement(rootStep, "root-step")
+      && (
+        rootAlter === undefined
+        || (
+          isExactPlainTextElement(rootAlter, "root-alter")
+          && (rootAlter.textContent === "1" || rootAlter.textContent === "-1")
+        )
+      )
       && isExactPlainTextElement(kind, "kind")
       && isExactPlainTextElement(staff, "staff", "1")
       && supported !== null;
     if (!validStructure) {
       issues.push(blockingIssue(
         "unsupported-harmony-structure",
-        "当前只支持无属性、依次仅含自然音 root、受控 kind 和 staff 1 的严格 harmony。",
+        "当前只支持无属性、依次仅含自然音或单升降 root、受控 kind 和 staff 1 的严格 harmony。",
         measureNumber,
       ));
     }

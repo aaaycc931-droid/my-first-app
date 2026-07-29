@@ -77,13 +77,15 @@ QA level recommendation：**strict**
 - note/rest 的 canonical `damperPedalMark` 只允许 `down`、`up` 或 `null`；
   `down`／`up` 分别在目标事件紧邻之前确定性写入只含 pedal `start`／`stop`、
   voice 1 和 staff 1 的严格 `<direction>`，`null` 不生成 direction。
-- note/rest 的 canonical `chordSymbol` 只接受自然音根音 `A–G` 的无后缀、`m`、
-  `7`、`maj7` 或 `m7` 形式，分别确定性写为 major、minor、dominant、
-  major-seventh 或 minor-seventh 的严格 `<harmony>`。和踏板共存时固定输出
+- note/rest 的 canonical `chordSymbol` 只接受根音 `A–G` 后可选单个 ASCII
+  `#`／`b` 的无后缀、`m`、`7`、`maj7` 或 `m7` 形式，分别确定性写为
+  major、minor、dominant、major-seventh 或 minor-seventh 的严格
+  `<harmony>`；`#`／`b` 分别写为 exact `<root-alter>1</root-alter>`／
+  `<root-alter>-1</root-alter>`，自然音省略 root-alter。和踏板共存时固定输出
   harmony → pedal direction → note/rest；`null` 不生成 harmony。
-- 多附点、多个／替代指法、其他 technical、其他演奏法、组合／其他力度、升降根音、
-  slash chord、其他和弦类别及其他当前未映射的非中性 canonical 语义，必须逐类形成
-  稳定 blocking 项。
+- 多附点、多个／替代指法、其他 technical、其他演奏法、组合／其他力度、双升降／
+  Unicode 升降号、slash chord、其他和弦类别及其他当前未映射的非中性 canonical
+  语义，必须逐类形成稳定 blocking 项。
 - 项目至少包含一个事件；任何超过当前拍号容量的小节必须 blocking。
 
 项目 ID、document ID、event ID、创建／更新时间、revision 和 undo／redo 是本机项目

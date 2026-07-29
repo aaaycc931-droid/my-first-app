@@ -854,19 +854,19 @@ assert.deepEqual(
 const strictHarmonyXml = supportedXml
   .replace(
     "<note><pitch><step>C</step>",
-    '<harmony><root><root-step>C</root-step></root><kind>major</kind><staff>1</staff></harmony><direction><direction-type><pedal type="start"/></direction-type><voice>1</voice><staff>1</staff></direction><note><pitch><step>C</step>',
+    '<harmony><root><root-step>C</root-step><root-alter>1</root-alter></root><kind>major</kind><staff>1</staff></harmony><direction><direction-type><pedal type="start"/></direction-type><voice>1</voice><staff>1</staff></direction><note><pitch><step>C</step>',
   )
   .replace(
     "<note><rest/>",
-    '<harmony><root><root-step>D</root-step></root><kind>minor</kind><staff>1</staff></harmony><note><rest/>',
+    '<harmony><root><root-step>D</root-step><root-alter>-1</root-alter></root><kind>minor</kind><staff>1</staff></harmony><note><rest/>',
   )
   .replace(
     "<note><pitch><step>D</step>",
-    '<harmony><root><root-step>E</root-step></root><kind>dominant</kind><staff>1</staff></harmony><note><pitch><step>D</step>',
+    '<harmony><root><root-step>E</root-step><root-alter>1</root-alter></root><kind>dominant</kind><staff>1</staff></harmony><note><pitch><step>D</step>',
   )
   .replace(
     "<note><pitch><step>E</step>",
-    '<harmony><root><root-step>F</root-step></root><kind>major-seventh</kind><staff>1</staff></harmony><note><pitch><step>E</step>',
+    '<harmony><root><root-step>F</root-step><root-alter>-1</root-alter></root><kind>major-seventh</kind><staff>1</staff></harmony><note><pitch><step>E</step>',
   )
   .replace(
     "<note><pitch><step>F</step>",
@@ -888,10 +888,10 @@ assert.deepEqual(
     .flatMap((measure) => measure.events)
     .map((event) => [event.chordSymbol, event.damperPedalMark]),
   [
-    ["C", "down"],
-    ["Dm", null],
-    ["E7", null],
-    ["Fmaj7", null],
+    ["C#", "down"],
+    ["Dbm", null],
+    ["E#7", null],
+    ["Fbmaj7", null],
     ["Gm7", null],
   ],
   "strict harmony must map to note/rest chord symbols and coexist with pedal",
@@ -910,7 +910,7 @@ assert.deepEqual(
   strictHarmonyMxlReady.project?.document.parts[0].staves[0].voices[0].measures
     .flatMap((measure) => measure.events)
     .map((event) => event.chordSymbol),
-  ["C", "Dm", "E7", "Fmaj7", "Gm7"],
+  ["C#", "Dbm", "E#7", "Fbmaj7", "Gm7"],
   "MXL payload XML must use the same strict harmony mapping",
 );
 
@@ -918,7 +918,11 @@ const harmonyAnchor = "<note><pitch><step>D</step>";
 const invalidHarmonies = [
   '<harmony><root><root-step>C</root-step></root><kind>augmented</kind><staff>1</staff></harmony>',
   '<harmony placement="above"><root><root-step>C</root-step></root><kind>major</kind><staff>1</staff></harmony>',
-  '<harmony><root><root-step>C</root-step><root-alter>1</root-alter></root><kind>major</kind><staff>1</staff></harmony>',
+  '<harmony><root><root-step>C</root-step><root-alter>2</root-alter></root><kind>major</kind><staff>1</staff></harmony>',
+  '<harmony><root><root-step>C</root-step><root-alter>1.0</root-alter></root><kind>major</kind><staff>1</staff></harmony>',
+  '<harmony><root><root-step>C</root-step><root-alter>1</root-alter><root-alter>-1</root-alter></root><kind>major</kind><staff>1</staff></harmony>',
+  '<harmony><root><root-alter>1</root-alter><root-step>C</root-step></root><kind>major</kind><staff>1</staff></harmony>',
+  '<harmony><root><root-step>C</root-step><root-alter print-object="no">1</root-alter></root><kind>major</kind><staff>1</staff></harmony>',
   '<harmony><root><root-step>C</root-step></root><kind text="maj">major</kind><staff>1</staff></harmony>',
   '<harmony><root><root-step>H</root-step></root><kind>major</kind><staff>1</staff></harmony>',
   '<harmony><root><root-step>C</root-step></root><kind>major</kind><staff>2</staff></harmony>',
@@ -987,6 +991,7 @@ for (let index = 0; index < invalidHarmonyAnchors.length; index += 1) {
 for (const [label, strayMarkup] of [
   ["root", "<root><root-step>C</root-step></root>"],
   ["root-step", "<root-step>C</root-step>"],
+  ["root-alter", "<root-alter>1</root-alter>"],
   ["kind", "<kind>major</kind>"],
 ] as const) {
   const strayHarmonyElementDraft = createLocalScoreProjectMusicXmlImportDraft({
