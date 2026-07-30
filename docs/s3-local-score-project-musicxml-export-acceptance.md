@@ -294,3 +294,6 @@ GM1 乐器归属双向严格子集的独立验收边界见
 
 导入侧 part identity fail-closed 硬化的独立验收边界见
 `docs/s3-local-score-project-musicxml-part-identity-hardening-acceptance.md`。
+
+导入侧 note 容器 fail-closed 硬化的独立验收边界见
+`docs/s3-local-score-project-musicxml-note-container-hardening-acceptance.md`。

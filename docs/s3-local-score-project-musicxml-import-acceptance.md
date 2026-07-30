@@ -69,6 +69,10 @@ QA level recommendation：**strict**
   instruction，以及嵌套在 direction 或其他元素中的 sound 必须 blocking。不得
   trim、取整、限制范围、移动位置、选择第一项或从 metronome／words／事件密度猜测
   速度。
+- 每个 pitched note 或 rest 的外层容器必须是大小写精确、无 namespace 且无属性的
+  `<note>`。`print-object`、`pizzicato`、`attack`、`release`、布局／未知／namespace
+  属性，以及 `<NOTE>` 或 `<m:note>` 等身份变体必须在 event ID 分配前 blocking，
+  不得因事件未携带 lyric、fingering、articulation 或 dynamics 而绕过检查。
 - note/rest 最多允许一个直接子级 `<dot/>`，且不得包含属性、非空文本、CDATA 或子元素；它无损映射
   为 canonical `augmentationDots: 1`。note 基础时值只限 half／quarter／eighth，
   rest 基础时值仍只限 quarter；MusicXML `duration / divisions`、小节容量、拍位以及
@@ -303,3 +307,6 @@ part identity fail-closed 硬化的独立验收边界见
 
 增三／减三和弦新增严格边界见
 `docs/s3-local-score-project-musicxml-augmented-diminished-triad-round-trip-acceptance.md`。
+
+note 容器名称、namespace 与属性的 fail-closed 边界见
+`docs/s3-local-score-project-musicxml-note-container-hardening-acceptance.md`。
