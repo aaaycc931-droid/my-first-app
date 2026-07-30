@@ -6,8 +6,8 @@
 
 ## 当前基线
 
-- 最新已合并产品功能基线：S3 MusicXML/MXL GM1 program 严格 round-trip / PR #474，合并提交 `897e38d2bba91a7ee6145abab96ce1da696c189f`
-- 最新已合并交换安全加固：MusicXML/MXL XML 1.0 文本 fail-closed / PR #466，合并提交 `e6d4cf3c77219dbd5ad883b23c1602a72beab624`
+- 最新已合并产品功能基线：S3 MusicXML/MXL 增三／减三和弦严格 round-trip / PR #476，合并提交 `6e76f2ea8b57eb899e91b1e873df42e768ce41e7`
+- 最新已合并交换安全加固：MusicXML/MXL part identity fail-closed / PR #475，合并提交 `fdb0a1e3561b3d93a8519def8aa6fc833cb317cf`
 - 最新已合并证据准备基线：P119c / PR #419，合并提交 `de9ab7f9a6d050a951e70835fbe97cecc693b9f4`
 - 最近仓库维护：PR #464 清理 323 个已完全合并的远端工作分支；其余分支因未合并或仅能映射到 squash PR 而保留，不能仅凭祖先关系删除
 - 仓库当前提交以 GitHub 默认分支为权威；本文件不硬编码会因自身合并而立即过期的“当前 main SHA”
@@ -148,5 +148,8 @@
   `part` 大小写精确且无 namespace；part ID 不做 trim 并 exact 配对，part-name 不做
   trim、截断或节点拼接。额外属性、comment、CDATA、processing instruction、非法 ID
   或非规范文本均在 event ID 分配前 blocking；该切片不改 schema、storage 或迁移链。
+- 当前 note 容器硬化要求每个 pitched note/rest 的外层 `<note>` 大小写精确、无
+  namespace 且无属性；显示、播放、时间、布局、未知或 namespace 属性及身份变体均在
+  event ID 分配前 blocking。该切片同样不改 schema、storage 或迁移链。
 - 自动证据由当前 importer re-import 与 legacy parser 音符交叉检查组成，均属于仓库内部验证。浏览器下载、Android WebView／真机及 MuseScore 等外部独立阅读器仍为 `NOT_EXECUTED`，不得宣称第三方兼容已经通过。
-- 导入边界见 `docs/s3-local-score-project-musicxml-import-acceptance.md`，导出边界见 `docs/s3-local-score-project-musicxml-export-acceptance.md`，part identity 硬化见 `docs/s3-local-score-project-musicxml-part-identity-hardening-acceptance.md`，谱面标题、署名与版权双向边界见 `docs/s3-local-score-project-musicxml-score-credits-round-trip-acceptance.md`；全局整数速度边界见 `docs/s3-local-score-project-musicxml-tempo-round-trip-acceptance.md`，单附点、单段歌词、单指法、单音演奏法、单事件力度记号、单事件制音踏板记号、受控和弦标记、fermata、圆滑线和延音线双向边界分别见对应的 S3 round-trip acceptance 文档，其中和弦切片见 `docs/s3-local-score-project-musicxml-chord-symbol-round-trip-acceptance.md`，新增增三／减三边界见 `docs/s3-local-score-project-musicxml-augmented-diminished-triad-round-trip-acceptance.md`。浏览器真实导入／下载／重开、Android WebView／真机、第三方独立阅读器、速度／和弦／踏板／力度／演奏法／指法／标题与署名显示及真实播放、tempo map／中途变速、双升降／Unicode 升降号／转位／其他和弦类别、左右手／替代指法、歌词排版／多 verse／melisma、真实音频与歌唱对齐、教师审核、MIDI、OMR、完整 MusicXML、完整 S3 与正式版 V1 均仍为 `NOT_EXECUTED` 或未完成。
+- 导入边界见 `docs/s3-local-score-project-musicxml-import-acceptance.md`，导出边界见 `docs/s3-local-score-project-musicxml-export-acceptance.md`，part identity 硬化见 `docs/s3-local-score-project-musicxml-part-identity-hardening-acceptance.md`，note 容器硬化见 `docs/s3-local-score-project-musicxml-note-container-hardening-acceptance.md`，谱面标题、署名与版权双向边界见 `docs/s3-local-score-project-musicxml-score-credits-round-trip-acceptance.md`；全局整数速度边界见 `docs/s3-local-score-project-musicxml-tempo-round-trip-acceptance.md`，单附点、单段歌词、单指法、单音演奏法、单事件力度记号、单事件制音踏板记号、受控和弦标记、fermata、圆滑线和延音线双向边界分别见对应的 S3 round-trip acceptance 文档，其中和弦切片见 `docs/s3-local-score-project-musicxml-chord-symbol-round-trip-acceptance.md`，新增增三／减三边界见 `docs/s3-local-score-project-musicxml-augmented-diminished-triad-round-trip-acceptance.md`。浏览器真实导入／下载／重开、Android WebView／真机、第三方独立阅读器、速度／和弦／踏板／力度／演奏法／指法／标题与署名显示及真实播放、tempo map／中途变速、双升降／Unicode 升降号／转位／其他和弦类别、左右手／替代指法、歌词排版／多 verse／melisma、真实音频与歌唱对齐、教师审核、MIDI、OMR、完整 MusicXML、完整 S3 与正式版 V1 均仍为 `NOT_EXECUTED` 或未完成。

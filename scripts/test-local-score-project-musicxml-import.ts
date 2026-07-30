@@ -1727,6 +1727,106 @@ for (const attribute of ['dynamics="80"', 'end-dynamics="65"']) {
   );
 }
 
+const noteContainerBlockingCases = [
+  {
+    label: "pitched-print-object",
+    xml: supportedXml.replace(
+      "<note><pitch><step>D</step>",
+      '<note print-object="no"><pitch><step>D</step>',
+    ),
+  },
+  {
+    label: "pitched-pizzicato",
+    xml: supportedXml.replace(
+      "<note><pitch><step>D</step>",
+      '<note pizzicato="yes"><pitch><step>D</step>',
+    ),
+  },
+  {
+    label: "pitched-attack",
+    xml: supportedXml.replace(
+      "<note><pitch><step>D</step>",
+      '<note attack="1"><pitch><step>D</step>',
+    ),
+  },
+  {
+    label: "rest-release",
+    xml: supportedXml.replace(
+      "<note><rest/>",
+      '<note release="1"><rest/>',
+    ),
+  },
+  {
+    label: "layout-attribute",
+    xml: supportedXml.replace(
+      "<note><pitch><step>D</step>",
+      '<note default-x="12"><pitch><step>D</step>',
+    ),
+  },
+  {
+    label: "namespaced-attribute",
+    xml: supportedXml.replace(
+      "<note><pitch><step>D</step>",
+      '<note xmlns:x="urn:external" x:display="hidden"><pitch><step>D</step>',
+    ),
+  },
+  {
+    label: "wrong-case",
+    xml: supportedXml
+      .replace("<note><pitch><step>D</step>", "<NOTE><pitch><step>D</step>")
+      .replace(
+        "<type>half</type></note>",
+        "<type>half</type></NOTE>",
+      ),
+  },
+  {
+    label: "foreign-namespace",
+    xml: supportedXml
+      .replace(
+        "<note><pitch><step>D</step>",
+        '<m:note xmlns:m="urn:external"><pitch><step>D</step>',
+      )
+      .replace(
+        "<type>half</type></note>",
+        "<type>half</type></m:note>",
+      ),
+  },
+] as const;
+
+for (const sourceFormat of ["musicxml", "mxl"] as const) {
+  for (const noteContainerCase of noteContainerBlockingCases) {
+    let noteContainerEventIds = 0;
+    const blockedNoteContainerDraft =
+      createLocalScoreProjectMusicXmlImportDraft({
+        xml: noteContainerCase.xml,
+        fileName: `${noteContainerCase.label}.${sourceFormat}`,
+        sourceFormat,
+        projectId: `blocked-note-container-${sourceFormat}-${noteContainerCase.label}`,
+        now: "2026-07-30T09:10:00.000Z",
+        createEventId: () => {
+          noteContainerEventIds += 1;
+          return `unexpected-note-container-${noteContainerEventIds}`;
+        },
+      });
+    assert.equal(
+      blockedNoteContainerDraft.status,
+      "blocked",
+      `${sourceFormat}/${noteContainerCase.label}`,
+    );
+    assert.ok(
+      blockedNoteContainerDraft.issues.some(
+        (issue) => issue.code === "unsupported-note-container",
+      ),
+      `${sourceFormat}/${noteContainerCase.label} must block the note container`,
+    );
+    assert.equal(
+      noteContainerEventIds,
+      0,
+      `${sourceFormat}/${noteContainerCase.label} must not allocate event IDs`,
+    );
+  }
+}
+
 let soundDynamicIdCalls = 0;
 const soundDynamicDraft = createLocalScoreProjectMusicXmlImportDraft({
   xml: supportedXml.replace(

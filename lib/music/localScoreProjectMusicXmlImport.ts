@@ -2794,6 +2794,18 @@ export const createLocalScoreProjectMusicXmlImportDraft = (
         (element) => localElementName(element) === "note",
       )
       : [];
+    noteElements.forEach((noteElement) => {
+      if (
+        !isExactUnnamespacedElement(noteElement, "note")
+        || noteElement.attributes.length !== 0
+      ) {
+        issues.push(blockingIssue(
+          "unsupported-note-container",
+          "note 必须是无 namespace、无属性且大小写精确的容器。",
+          measureNumber,
+        ));
+      }
+    });
     const damperPedalMarks = readSupportedDamperPedalMarks({
       measureElement: measureElements[measureIndex],
       issues,
