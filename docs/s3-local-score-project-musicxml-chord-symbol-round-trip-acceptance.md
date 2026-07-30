@@ -8,9 +8,10 @@ QA level recommendation：**strict**
 
 - 复用当前 canonical note/rest 事件起点的 `chordSymbol: string | null`，不修改
   canonical schema、storage 版本、编辑器、谱面显示或播放语义。
-- 本切片只接受根音 `A–G`，以及可选的单个 ASCII `#`／`b`，与五种无转位和弦：
+- 本切片只接受根音 `A–G`，以及可选的单个 ASCII `#`／`b`，与七种无转位和弦：
   `C`（major）、`Cm`（minor）、`C7`（dominant）、
-  `Cmaj7`（major-seventh）、`Cm7`（minor-seventh）；`C` 可替换为任一
+  `Cmaj7`（major-seventh）、`Cm7`（minor-seventh）、
+  `Caug`（augmented）、`Cdim`（diminished）；`C` 可替换为任一
   `A–G`、`A#–G#` 或 `Ab–Gb`。
 - canonical 和弦标记确定性写为目标 note/rest 之前的 measure-level
   `<harmony>`；`.musicxml` 与 `.mxl` 必须由当前 importer 无损重建原始
@@ -47,14 +48,14 @@ MusicXML 4.0 使用 measure-level `<harmony>` 表达流行音乐和弦标记，`
   `degree`、`numeral`、`function`、`offset`、`frame`、样式／位置属性、其他
   kind、重复、悬空、错误 staff、错误层级、非空间隔或其他 harmony 内容必须
   blocking。
-- canonical 中包含双升降、Unicode 升降号、slash chord、增减和弦、sus、add、
-  扩展音、自由文本或任何本轮未列出的值时，导出必须以
+- canonical 中包含双升降、Unicode 升降号、slash chord、增减和弦别名或七和弦、
+  sus、add、扩展音、自由文本或任何本轮未列出的值时，导出必须以
   `unsupported-chord-symbol` 阻断，不得降级为 major、截断、等音替换或静默丢失。
 
 ## 自动验收
 
-- canonical parser/renderer 纯映射覆盖五种 kind、全部 7 个自然根音及其单升／
-  单降形式（105 个组合）；XML 与 MXL 以 note/rest 上的升降根音代表组合验证
+- canonical parser/renderer 纯映射覆盖七种 kind、全部 7 个自然根音及其单升／
+  单降形式（147 个组合）；XML 与 MXL 以 note/rest 上的升降根音代表组合验证
   `null` 及与 dot、fermata、tie/tied、slur、lyric、fingering、
   articulations、dynamic 和 damper pedal 共存。
 - 同一 canonical revision 重复生成的 XML/MXL 字节一致；解包 XML 一致，
@@ -78,3 +79,6 @@ MuseScore/Dorico/Sibelius 等第三方独立阅读器中的和弦符号显示、
 双升降／Unicode 升降号、转位与 slash chord、其他和弦类别、持续区间、真实显示/
 播放、MIDI、OMR、完整 MusicXML/MXL、完整 S3 与正式版 V1 仍未完成或为
 `NOT_EXECUTED`；本切片不得描述为完整和弦系统、完整格式往返或正式发布完成。
+
+增三／减三和弦新增严格边界见
+`docs/s3-local-score-project-musicxml-augmented-diminished-triad-round-trip-acceptance.md`。

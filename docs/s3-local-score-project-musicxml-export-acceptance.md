@@ -86,8 +86,9 @@ QA level recommendation：**strict**
   `down`／`up` 分别在目标事件紧邻之前确定性写入只含 pedal `start`／`stop`、
   voice 1 和 staff 1 的严格 `<direction>`，`null` 不生成 direction。
 - note/rest 的 canonical `chordSymbol` 只接受根音 `A–G` 后可选单个 ASCII
-  `#`／`b` 的无后缀、`m`、`7`、`maj7` 或 `m7` 形式，分别确定性写为
-  major、minor、dominant、major-seventh 或 minor-seventh 的严格
+  `#`／`b` 的无后缀、`m`、`7`、`maj7`、`m7`、`aug` 或 `dim` 形式，分别确定性
+  写为 major、minor、dominant、major-seventh、minor-seventh、augmented 或
+  diminished 的严格
   `<harmony>`；`#`／`b` 分别写为 exact `<root-alter>1</root-alter>`／
   `<root-alter>-1</root-alter>`，自然音省略 root-alter。和踏板共存时固定输出
   harmony → pedal direction → note/rest；`null` 不生成 harmony。
@@ -278,6 +279,9 @@ QA level recommendation：**strict**
 
 受控和弦标记双向严格子集的独立验收边界见
 `docs/s3-local-score-project-musicxml-chord-symbol-round-trip-acceptance.md`。
+
+增三／减三和弦新增严格边界见
+`docs/s3-local-score-project-musicxml-augmented-diminished-triad-round-trip-acceptance.md`。
 
 XML 1.0 文本与 Unicode 安全边界见
 `docs/s3-local-score-project-musicxml-xml-text-safety-acceptance.md`。

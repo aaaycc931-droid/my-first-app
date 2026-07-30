@@ -419,8 +419,8 @@ const createChordSymbolSupportedProject = (): LocalScoreProjectV1 => {
   const base = createDamperPedalSupportedProject();
   const measures = base.document.parts[0].staves[0].voices[0].measures;
   const symbols = new Map<string, string>([
-    ["event-1", "C#"],
-    ["event-2", "Dbm"],
+    ["event-1", "C#aug"],
+    ["event-2", "Dbdim"],
     ["event-3", "E#7"],
     ["event-4", "Fbmaj7"],
     ["event-5", "Gm7"],
@@ -459,6 +459,8 @@ for (const rootStep of ["A", "B", "C", "D", "E", "F", "G"] as const) {
     ["7", "dominant"],
     ["maj7", "major-seventh"],
     ["m7", "minor-seventh"],
+    ["aug", "augmented"],
+    ["dim", "diminished"],
   ] as const) {
     const canonical = `${rootStep}${suffix}`;
     assert.deepEqual(
@@ -482,6 +484,8 @@ for (const rootStep of ["A", "B", "C", "D", "E", "F", "G"] as const) {
       ["7", "dominant"],
       ["maj7", "major-seventh"],
       ["m7", "minor-seventh"],
+      ["aug", "augmented"],
+      ["dim", "diminished"],
     ] as const) {
       const canonical = `${rootStep}${accidental}${suffix}`;
       assert.deepEqual(
@@ -500,8 +504,11 @@ for (const unsupported of [
   "Dbb",
   "C♯",
   "Db♭",
-  "Caug",
-  "Cdim",
+  "C+",
+  "C°",
+  "Caug7",
+  "Cdim7",
+  "Cø7",
   "Csus4",
   "C/E",
   "c",
@@ -1412,8 +1419,8 @@ assert.equal(chordSymbolReady.status, "ready");
 assert.deepEqual(chordSymbolReady.issues, []);
 assert.ok(chordSymbolReady.xml);
 for (const [rootStep, rootAlter, kind] of [
-  ["C", "1", "major"],
-  ["D", "-1", "minor"],
+  ["C", "1", "augmented"],
+  ["D", "-1", "diminished"],
   ["E", "1", "dominant"],
   ["F", "-1", "major-seventh"],
   ["G", null, "minor-seventh"],
@@ -1432,7 +1439,7 @@ for (const [rootStep, rootAlter, kind] of [
 }
 assert.match(
   chordSymbolReady.xml,
-  /<harmony>\s*<root><root-step>C<\/root-step><root-alter>1<\/root-alter><\/root>\s*<kind>major<\/kind>\s*<staff>1<\/staff>\s*<\/harmony>\s*<direction>\s*<direction-type><pedal type="start"\/><\/direction-type>\s*<voice>1<\/voice>\s*<staff>1<\/staff>\s*<\/direction>\s*<note>/,
+  /<harmony>\s*<root><root-step>C<\/root-step><root-alter>1<\/root-alter><\/root>\s*<kind>augmented<\/kind>\s*<staff>1<\/staff>\s*<\/harmony>\s*<direction>\s*<direction-type><pedal type="start"\/><\/direction-type>\s*<voice>1<\/voice>\s*<staff>1<\/staff>\s*<\/direction>\s*<note>/,
   "harmony must precede a coexisting strict pedal direction and target note",
 );
 const tempoChordSymbolProject: LocalScoreProjectV1 = {
@@ -1447,7 +1454,7 @@ assert.deepEqual(tempoChordSymbolReady.issues, []);
 assert.ok(tempoChordSymbolReady.xml);
 assert.match(
   tempoChordSymbolReady.xml,
-  /<\/attributes>\s*<sound tempo="120"\/>\s*<harmony>\s*<root><root-step>C<\/root-step><root-alter>1<\/root-alter><\/root>\s*<kind>major<\/kind>\s*<staff>1<\/staff>\s*<\/harmony>\s*<direction>\s*<direction-type><pedal type="start"\/><\/direction-type>\s*<voice>1<\/voice>\s*<staff>1<\/staff>\s*<\/direction>\s*<note>/,
+  /<\/attributes>\s*<sound tempo="120"\/>\s*<harmony>\s*<root><root-step>C<\/root-step><root-alter>1<\/root-alter><\/root>\s*<kind>augmented<\/kind>\s*<staff>1<\/staff>\s*<\/harmony>\s*<direction>\s*<direction-type><pedal type="start"\/><\/direction-type>\s*<voice>1<\/voice>\s*<staff>1<\/staff>\s*<\/direction>\s*<note>/,
   "combined export must keep attributes, sound, harmony, pedal, then note",
 );
 const tempoChordSymbolPayload = confirmLocalScoreProjectMusicXmlExportDraft({

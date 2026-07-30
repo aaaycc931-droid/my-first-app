@@ -1419,9 +1419,42 @@ assert.deepEqual(
   "MXL payload XML must use the same strict harmony mapping",
 );
 
+const strictAugmentedDiminishedHarmonyXml = supportedXml
+  .replace(
+    "<note><pitch><step>C</step>",
+    '<harmony><root><root-step>C</root-step><root-alter>1</root-alter></root><kind>augmented</kind><staff>1</staff></harmony><note><pitch><step>C</step>',
+  )
+  .replace(
+    "<note><rest/>",
+    '<harmony><root><root-step>D</root-step><root-alter>-1</root-alter></root><kind>diminished</kind><staff>1</staff></harmony><note><rest/>',
+  );
+for (const sourceFormat of ["musicxml", "mxl"] as const) {
+  let strictTriadEventIds = 0;
+  const strictTriadDraft = createLocalScoreProjectMusicXmlImportDraft({
+    xml: strictAugmentedDiminishedHarmonyXml,
+    fileName: `严格增减三和弦.${sourceFormat}`,
+    sourceFormat,
+    projectId: `import-project-strict-triads-${sourceFormat}`,
+    now: "2026-07-30T08:35:00.000Z",
+    createEventId: () =>
+      `strict-triad-${sourceFormat}-${++strictTriadEventIds}`,
+  });
+  assert.equal(strictTriadDraft.status, "ready");
+  assert.deepEqual(strictTriadDraft.issues, []);
+  assert.deepEqual(
+    strictTriadDraft.project?.document.parts[0].staves[0].voices[0].measures
+      .flatMap((measure) => measure.events)
+      .map((event) => event.chordSymbol),
+    ["C#aug", "Dbdim", null, null, null],
+    `${sourceFormat} must preserve augmented and diminished triad symbols`,
+  );
+  assert.equal(strictTriadEventIds, 5);
+}
+
 const harmonyAnchor = "<note><pitch><step>D</step>";
 const invalidHarmonies = [
-  '<harmony><root><root-step>C</root-step></root><kind>augmented</kind><staff>1</staff></harmony>',
+  '<harmony><root><root-step>C</root-step></root><kind>half-diminished</kind><staff>1</staff></harmony>',
+  '<harmony><root><root-step>C</root-step></root><kind>diminished-seventh</kind><staff>1</staff></harmony>',
   '<harmony placement="above"><root><root-step>C</root-step></root><kind>major</kind><staff>1</staff></harmony>',
   '<harmony><root><root-step>C</root-step><root-alter>2</root-alter></root><kind>major</kind><staff>1</staff></harmony>',
   '<harmony><root><root-step>C</root-step><root-alter>1.0</root-alter></root><kind>major</kind><staff>1</staff></harmony>',
