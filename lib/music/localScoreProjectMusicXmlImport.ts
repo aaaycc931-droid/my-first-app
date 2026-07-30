@@ -1994,8 +1994,12 @@ export const createLocalScoreProjectMusicXmlImportDraft = (
     ));
   }
   workElements.forEach((work) => {
+    const workTitles = directChildElements(work).filter(
+      (element) => localElementName(element) === "work-title",
+    );
     if (
       work.attributes.length > 0
+      || workTitles.length !== 1
       || !Array.from(work.childNodes).every((child) =>
         child.nodeType === 1 || (
           child.nodeType === 3 && (child.textContent ?? "").trim() === ""
@@ -2004,7 +2008,7 @@ export const createLocalScoreProjectMusicXmlImportDraft = (
     ) {
       issues.push(blockingIssue(
         "unsupported-work",
-        "当前导入只支持无属性且仅含受控 work-title 的 work。",
+        "当前导入只支持无属性且只含一个受控 work-title 的 work。",
       ));
     }
     directChildElements(work).forEach((element) => {
@@ -2054,7 +2058,11 @@ export const createLocalScoreProjectMusicXmlImportDraft = (
           || (child.textContent ?? "").trim() !== ""
         ),
     );
-    if (identification.attributes.length > 0 || hasUnsupportedNode) {
+    if (
+      identification.attributes.length > 0
+      || directChildElements(identification).length === 0
+      || hasUnsupportedNode
+    ) {
       issues.push(blockingIssue(
         "unsupported-identification",
         "identification 必须无属性且只包含纯文本 creator／rights 子元素。",

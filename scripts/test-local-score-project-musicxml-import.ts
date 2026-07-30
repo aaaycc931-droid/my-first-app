@@ -1927,6 +1927,22 @@ const creditInvalidCases = [
     code: "unsupported-movement-title",
   },
   {
+    label: "empty-work",
+    xml: supportedXml.replace(
+      "<part-list>",
+      "<work/><part-list>",
+    ),
+    code: "unsupported-work",
+  },
+  {
+    label: "empty-identification",
+    xml: supportedXml.replace(
+      "<part-list>",
+      "<identification/><part-list>",
+    ),
+    code: "unsupported-identification",
+  },
+  {
     label: "subtitle-cdata",
     xml: supportedXml.replace(
       "<part-list>",
