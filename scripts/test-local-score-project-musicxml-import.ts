@@ -2949,6 +2949,262 @@ assert.ok(
   ),
 );
 
+const canonicalPartIdXml = supportedXml
+  .replace('score-part id="P1"', 'score-part id="Part_1.alpha-2"')
+  .replace('part id="P1"', 'part id="Part_1.alpha-2"');
+let canonicalPartIdEventIds = 0;
+const canonicalPartIdDraft = createLocalScoreProjectMusicXmlImportDraft({
+  xml: canonicalPartIdXml,
+  fileName: "canonical-part-id.musicxml",
+  sourceFormat: "musicxml",
+  projectId: "canonical-part-id",
+  now: "2026-07-27T08:16:00.000Z",
+  createEventId: () => `canonical-part-id-${++canonicalPartIdEventIds}`,
+});
+assert.equal(canonicalPartIdDraft.status, "ready");
+assert.equal(canonicalPartIdEventIds, 5);
+assert.equal(canonicalPartIdDraft.project?.document.parts[0]?.name, "练习");
+
+const partIdentityBlockingCases = [
+  {
+    label: "part-list-attribute",
+    xml: supportedXml.replace("<part-list>", '<part-list type="score">'),
+    code: "unsupported-part-list",
+  },
+  {
+    label: "part-list-comment",
+    xml: supportedXml.replace("<part-list>", "<part-list><!--comment-->"),
+    code: "unsupported-part-list",
+  },
+  {
+    label: "part-list-processing-instruction",
+    xml: supportedXml.replace("<part-list>", "<part-list><?identity value?>"),
+    code: "unsupported-part-list",
+  },
+  {
+    label: "part-list-cdata",
+    xml: supportedXml.replace("<part-list>", "<part-list><![CDATA[identity]]>"),
+    code: "unsupported-part-list",
+  },
+  {
+    label: "score-part-extra-attribute",
+    xml: supportedXml.replace(
+      '<score-part id="P1">',
+      '<score-part id="P1" print-object="yes">',
+    ),
+    code: "unsupported-score-part",
+  },
+  {
+    label: "score-part-missing-id",
+    xml: supportedXml.replace('<score-part id="P1">', "<score-part>"),
+    code: "unsupported-score-part",
+  },
+  {
+    label: "score-part-empty-id",
+    xml: supportedXml.replace('score-part id="P1"', 'score-part id=""'),
+    code: "unsupported-score-part",
+  },
+  {
+    label: "score-part-trimmed-id",
+    xml: supportedXml.replace('score-part id="P1"', 'score-part id=" P1 "'),
+    code: "unsupported-score-part",
+  },
+  {
+    label: "part-trimmed-id",
+    xml: supportedXml.replace('<part id="P1"', '<part id=" P1 "'),
+    code: "unsupported-part",
+  },
+  {
+    label: "score-part-id-too-long",
+    xml: supportedXml.replace(
+      'score-part id="P1"',
+      `score-part id="${`P${"1".repeat(128)}`}"`,
+    ),
+    code: "unsupported-score-part",
+  },
+  {
+    label: "part-id-mismatch",
+    xml: supportedXml.replace('<part id="P1">', '<part id="P2">'),
+    code: "invalid-part-reference",
+  },
+  {
+    label: "score-part-namespace",
+    xml: supportedXml
+      .replace(
+        '<score-part id="P1">',
+        '<x:score-part xmlns:x="urn:external" id="P1">',
+      )
+      .replace("</score-part>", "</x:score-part>"),
+    code: "unsupported-part-list-element",
+  },
+  {
+    label: "score-part-case",
+    xml: supportedXml
+      .replace('<score-part id="P1">', '<Score-Part id="P1">')
+      .replace("</score-part>", "</Score-Part>"),
+    code: "unsupported-part-list-element",
+  },
+  {
+    label: "part-extra-attribute",
+    xml: supportedXml.replace('<part id="P1">', '<part id="P1" foo="bar">'),
+    code: "unsupported-part",
+  },
+  {
+    label: "part-namespace",
+    xml: supportedXml
+      .replace('<part id="P1">', '<x:part xmlns:x="urn:external" id="P1">')
+      .replace("</part>", "</x:part>"),
+    code: "unsupported-part",
+  },
+  {
+    label: "part-case",
+    xml: supportedXml
+      .replace('<part id="P1">', '<Part id="P1">')
+      .replace("</part>", "</Part>"),
+    code: "unsupported-part",
+  },
+  {
+    label: "part-comment",
+    xml: supportedXml.replace('<part id="P1">', '<part id="P1"><!--comment-->'),
+    code: "unsupported-part",
+  },
+  {
+    label: "part-name-attribute",
+    xml: supportedXml.replace(
+      "<part-name>练习</part-name>",
+      '<part-name print-object="yes">练习</part-name>',
+    ),
+    code: "unsupported-part-name",
+  },
+  {
+    label: "part-name-leading-space",
+    xml: supportedXml.replace(
+      "<part-name>练习</part-name>",
+      "<part-name> 练习</part-name>",
+    ),
+    code: "invalid-part-name",
+  },
+  {
+    label: "part-name-trailing-space",
+    xml: supportedXml.replace(
+      "<part-name>练习</part-name>",
+      "<part-name>练习 </part-name>",
+    ),
+    code: "invalid-part-name",
+  },
+  {
+    label: "part-name-empty",
+    xml: supportedXml.replace(
+      "<part-name>练习</part-name>",
+      "<part-name></part-name>",
+    ),
+    code: "invalid-part-name",
+  },
+  {
+    label: "part-name-too-long",
+    xml: supportedXml.replace(
+      "<part-name>练习</part-name>",
+      `<part-name>${"声".repeat(41)}</part-name>`,
+    ),
+    code: "unsupported-part-name-length",
+  },
+  {
+    label: "part-name-control-character",
+    xml: supportedXml.replace(
+      "<part-name>练习</part-name>",
+      "<part-name>练\n习</part-name>",
+    ),
+    code: "invalid-part-name",
+  },
+  {
+    label: "part-name-child",
+    xml: supportedXml.replace(
+      "<part-name>练习</part-name>",
+      "<part-name><display-text>练习</display-text></part-name>",
+    ),
+    code: "unsupported-part-name",
+  },
+  {
+    label: "part-name-comment",
+    xml: supportedXml.replace(
+      "<part-name>练习</part-name>",
+      "<part-name>练<!--comment-->习</part-name>",
+    ),
+    code: "unsupported-part-name",
+  },
+  {
+    label: "part-name-cdata",
+    xml: supportedXml.replace(
+      "<part-name>练习</part-name>",
+      "<part-name><![CDATA[练习]]></part-name>",
+    ),
+    code: "unsupported-part-name",
+  },
+  {
+    label: "part-name-processing-instruction",
+    xml: supportedXml.replace(
+      "<part-name>练习</part-name>",
+      "<part-name>练<?identity value?>习</part-name>",
+    ),
+    code: "unsupported-part-name",
+  },
+  {
+    label: "part-name-namespace",
+    xml: supportedXml.replace(
+      "<part-name>练习</part-name>",
+      '<x:part-name xmlns:x="urn:external">练习</x:part-name>',
+    ),
+    code: "unsupported-part-name",
+  },
+  {
+    label: "part-name-case",
+    xml: supportedXml.replace(
+      "<part-name>练习</part-name>",
+      "<Part-Name>练习</Part-Name>",
+    ),
+    code: "unsupported-part-name",
+  },
+  {
+    label: "part-name-duplicate",
+    xml: supportedXml.replace(
+      "<part-name>练习</part-name>",
+      "<part-name>练习</part-name><part-name>重复</part-name>",
+    ),
+    code: "unsupported-part-name-count",
+  },
+] as const;
+
+for (const partIdentityCase of partIdentityBlockingCases) {
+  let blockedPartIdentityEventIds = 0;
+  const blockedPartIdentityDraft = createLocalScoreProjectMusicXmlImportDraft({
+    xml: partIdentityCase.xml,
+    fileName: `${partIdentityCase.label}.musicxml`,
+    sourceFormat: "musicxml",
+    projectId: `blocked-${partIdentityCase.label}`,
+    now: "2026-07-27T08:17:00.000Z",
+    createEventId: () => {
+      blockedPartIdentityEventIds += 1;
+      return `unexpected-part-identity-${blockedPartIdentityEventIds}`;
+    },
+  });
+  assert.equal(
+    blockedPartIdentityDraft.status,
+    "blocked",
+    partIdentityCase.label,
+  );
+  assert.ok(
+    blockedPartIdentityDraft.issues.some(
+      (issue) => issue.code === partIdentityCase.code,
+    ),
+    `${partIdentityCase.label} must produce ${partIdentityCase.code}`,
+  );
+  assert.equal(
+    blockedPartIdentityEventIds,
+    0,
+    `${partIdentityCase.label} must not allocate event IDs`,
+  );
+}
+
 for (const malformedXml of [
   supportedXml.replace("<part-name>练习</part-name>", "<part-name>A & B</part-name>"),
   supportedXml.replace("</part-name>", "</part-name-broken>"),
