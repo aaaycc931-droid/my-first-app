@@ -15,7 +15,8 @@ QA level recommendation：**strict**
 
 ## Fail-closed 边界
 
-- `C°7` 不得归一化为 `Cdim7`；`Cø7`、`half-diminished` 不得混同减七和弦。
+- `C°7` 不得归一化为 `Cdim7`；受控 `Cm7b5`／`half-diminished` 与 `Cø7` alias
+  均不得混同减七和弦。
 - `Caug7`／`augmented-seventh`、其他七和弦、sus／add／扩展音继续 blocking。
 - slash chord、bass／inversion、双升降与 Unicode 升降号继续 blocking。
 - kind、root、root-alter、staff 的属性、错序、重复、未知值、错误层级、CDATA、
@@ -35,5 +36,8 @@ QA level recommendation：**strict**
 真实桌面浏览器导入、下载与重开，Android WebView／真机，
 MuseScore／Dorico／Sibelius 等第三方独立阅读器中的显示、布局、播放及重开均为
 `NOT_EXECUTED`。教师审核、目标用户验证和教育有效性也为 `NOT_EXECUTED`。
+
+半减七和弦的独立严格边界见
+`docs/s3-local-score-project-musicxml-half-diminished-seventh-round-trip-acceptance.md`。
 
 本切片不证明完整和弦系统、完整 MusicXML/MXL、第三方兼容、完整 S3 或正式版 V1。
