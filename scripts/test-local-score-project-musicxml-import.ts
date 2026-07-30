@@ -1515,10 +1515,42 @@ for (const sourceFormat of ["musicxml", "mxl"] as const) {
   assert.equal(halfDiminishedEventIds, 5);
 }
 
+const strictAugmentedSeventhHarmonyXml = supportedXml
+  .replace(
+    "<note><pitch><step>C</step>",
+    '<harmony><root><root-step>C</root-step><root-alter>1</root-alter></root><kind>augmented-seventh</kind><staff>1</staff></harmony><note><pitch><step>C</step>',
+  )
+  .replace(
+    "<note><rest/>",
+    '<harmony><root><root-step>D</root-step><root-alter>-1</root-alter></root><kind>augmented-seventh</kind><staff>1</staff></harmony><note><rest/>',
+  );
+for (const sourceFormat of ["musicxml", "mxl"] as const) {
+  let augmentedSeventhEventIds = 0;
+  const augmentedSeventhDraft = createLocalScoreProjectMusicXmlImportDraft({
+    xml: strictAugmentedSeventhHarmonyXml,
+    fileName: `严格增七和弦.${sourceFormat}`,
+    sourceFormat,
+    projectId: `import-project-augmented-seventh-${sourceFormat}`,
+    now: "2026-07-30T12:20:00.000Z",
+    createEventId: () =>
+      `augmented-seventh-${sourceFormat}-${++augmentedSeventhEventIds}`,
+  });
+  assert.equal(augmentedSeventhDraft.status, "ready");
+  assert.deepEqual(augmentedSeventhDraft.issues, []);
+  assert.deepEqual(
+    augmentedSeventhDraft.project?.document.parts[0].staves[0].voices[0]
+      .measures.flatMap((measure) => measure.events)
+      .map((event) => event.chordSymbol),
+    ["C#aug7", "Dbaug7", null, null, null],
+    `${sourceFormat} must preserve augmented-seventh symbols`,
+  );
+  assert.equal(augmentedSeventhEventIds, 5);
+}
+
 const harmonyAnchor = "<note><pitch><step>D</step>";
 const invalidHarmonies = [
-  '<harmony><root><root-step>C</root-step></root><kind>augmented-seventh</kind><staff>1</staff></harmony>',
   '<harmony><root><root-step>C</root-step></root><kind>major-sixth</kind><staff>1</staff></harmony>',
+  '<harmony><root><root-step>C</root-step></root><kind>minor-sixth</kind><staff>1</staff></harmony>',
   '<harmony placement="above"><root><root-step>C</root-step></root><kind>major</kind><staff>1</staff></harmony>',
   '<harmony><root><root-step>C</root-step><root-alter>2</root-alter></root><kind>major</kind><staff>1</staff></harmony>',
   '<harmony><root><root-step>C</root-step><root-alter>1.0</root-alter></root><kind>major</kind><staff>1</staff></harmony>',

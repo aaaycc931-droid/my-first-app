@@ -17,7 +17,8 @@ QA level recommendation：**strict**
 
 - `C°7` 不得归一化为 `Cdim7`；受控 `Cm7b5`／`half-diminished` 与 `Cø7` alias
   均不得混同减七和弦。
-- `Caug7`／`augmented-seventh`、其他七和弦、sus／add／扩展音继续 blocking。
+- 受控 `Caug7`／`augmented-seventh` 不得混同减七；其他七和弦、sus／add／扩展音
+  继续 blocking。
 - slash chord、bass／inversion、双升降与 Unicode 升降号继续 blocking。
 - kind、root、root-alter、staff 的属性、错序、重复、未知值、错误层级、CDATA、
   comment 或 processing instruction 继续按既有严格规则 blocking。
@@ -29,7 +30,8 @@ QA level recommendation：**strict**
 - XML 与 MXL 都以 pitched note 上的 `C#dim7`、rest 上的 `Dbdim7` 验证 exact
   re-import，并验证合法输入仅分配预期 event ID。
 - 导出覆盖新增 kind，并与既有七类和弦、tempo、pedal 及受控记号共存。
-- alias、half-diminished、augmented-seventh、结构变体和所有既有 blocker 保持失败关闭。
+- alias、half-diminished、与 augmented-seventh 混同、结构变体和所有既有
+  blocker 保持失败关闭。
 
 ## 人工与外部 QA
 
@@ -39,5 +41,8 @@ MuseScore／Dorico／Sibelius 等第三方独立阅读器中的显示、布局�
 
 半减七和弦的独立严格边界见
 `docs/s3-local-score-project-musicxml-half-diminished-seventh-round-trip-acceptance.md`。
+
+增七和弦的独立严格边界见
+`docs/s3-local-score-project-musicxml-augmented-seventh-round-trip-acceptance.md`。
 
 本切片不证明完整和弦系统、完整 MusicXML/MXL、第三方兼容、完整 S3 或正式版 V1。
