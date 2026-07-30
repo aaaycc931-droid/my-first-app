@@ -45,3 +45,6 @@ MuseScore／Dorico／Sibelius 等第三方独立阅读器中的显示、布局�
 
 减七和弦的独立严格边界见
 `docs/s3-local-score-project-musicxml-diminished-seventh-round-trip-acceptance.md`。
+
+半减七和弦的独立严格边界见
+`docs/s3-local-score-project-musicxml-half-diminished-seventh-round-trip-acceptance.md`。
