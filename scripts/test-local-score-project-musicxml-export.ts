@@ -421,7 +421,7 @@ const createChordSymbolSupportedProject = (): LocalScoreProjectV1 => {
   const symbols = new Map<string, string>([
     ["event-1", "C#aug"],
     ["event-2", "Dbdim"],
-    ["event-3", "E#7"],
+    ["event-3", "E#dim7"],
     ["event-4", "Fbmaj7"],
     ["event-5", "Gm7"],
   ] as const);
@@ -461,6 +461,7 @@ for (const rootStep of ["A", "B", "C", "D", "E", "F", "G"] as const) {
     ["m7", "minor-seventh"],
     ["aug", "augmented"],
     ["dim", "diminished"],
+    ["dim7", "diminished-seventh"],
   ] as const) {
     const canonical = `${rootStep}${suffix}`;
     assert.deepEqual(
@@ -486,6 +487,7 @@ for (const rootStep of ["A", "B", "C", "D", "E", "F", "G"] as const) {
       ["m7", "minor-seventh"],
       ["aug", "augmented"],
       ["dim", "diminished"],
+      ["dim7", "diminished-seventh"],
     ] as const) {
       const canonical = `${rootStep}${accidental}${suffix}`;
       assert.deepEqual(
@@ -507,7 +509,7 @@ for (const unsupported of [
   "C+",
   "C°",
   "Caug7",
-  "Cdim7",
+  "C°7",
   "Cø7",
   "Csus4",
   "C/E",
@@ -1421,7 +1423,7 @@ assert.ok(chordSymbolReady.xml);
 for (const [rootStep, rootAlter, kind] of [
   ["C", "1", "augmented"],
   ["D", "-1", "diminished"],
-  ["E", "1", "dominant"],
+  ["E", "1", "diminished-seventh"],
   ["F", "-1", "major-seventh"],
   ["G", null, "minor-seventh"],
 ] as const) {

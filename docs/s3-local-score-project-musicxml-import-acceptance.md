@@ -112,8 +112,9 @@ QA level recommendation：**strict**
 - note 与 rest 最多允许一个锚定其前的 measure-level `<harmony>`，依次且仅含
   `<root><root-step>A–G</root-step>[<root-alter>±1</root-alter>]</root>`、
   受控 `<kind>` 与 `<staff>1</staff>`；major/minor/dominant/major-seventh/
-  minor-seventh/augmented/diminished exact 映射为 canonical 根音可选单个 ASCII
-  `#`／`b` 的无后缀/`m`/`7`/`maj7`/`m7`/`aug`/`dim` 和弦标记。harmony 与目标之间
+  minor-seventh/augmented/diminished/diminished-seventh exact 映射为 canonical
+  根音可选单个 ASCII `#`／`b` 的无后缀/`m`/`7`/`maj7`/`m7`/`aug`/`dim`/`dim7`
+  和弦标记。harmony 与目标之间
   只允许格式化空白和同一事件的
   严格踏板 direction。属性、其他／非 exact／重复／错序 root-alter、bass、
   inversion、degree、其他 kind、重复、悬空、错误 staff、comment/CDATA/
@@ -211,8 +212,9 @@ tie 结构以外的歌词、指法、演奏法、力度、踏板、和弦、速�
   instruction、重复、悬空、非紧邻、错误 voice/staff、offset、sound 和其他
   direction 全部失败关闭；
 - note/rest 之前的严格 `<harmony>` exact 映射自然／单升降根音的 major/minor/
-  dominant/major-seventh/minor-seventh/augmented/diminished 为 canonical
-  无后缀/`m`/`7`/`maj7`/`m7`/`aug`/`dim`；XML/MXL、与踏板及既有受控记号共存
+  dominant/major-seventh/minor-seventh/augmented/diminished/
+  diminished-seventh 为 canonical 无后缀/`m`/`7`/`maj7`/`m7`/`aug`/`dim`/`dim7`；
+  XML/MXL、与踏板及既有受控记号共存
   保持不变，其他根音/kind、属性、其他／
   非 exact／重复／错序 root-alter、bass、inversion、degree、重复、悬空、错误
   staff/层级与非空间隔全部失败关闭；
@@ -307,6 +309,9 @@ part identity fail-closed 硬化的独立验收边界见
 
 增三／减三和弦新增严格边界见
 `docs/s3-local-score-project-musicxml-augmented-diminished-triad-round-trip-acceptance.md`。
+
+减七和弦新增严格边界见
+`docs/s3-local-score-project-musicxml-diminished-seventh-round-trip-acceptance.md`。
 
 note 容器名称、namespace 与属性的 fail-closed 边界见
 `docs/s3-local-score-project-musicxml-note-container-hardening-acceptance.md`。
