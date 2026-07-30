@@ -17,8 +17,8 @@ QA level recommendation：**strict**
 
 ## Fail-closed 边界
 
-- `C+`、`C°` 等别名不得归一化；`Caug7`、`Cø7`、
-  `half-diminished` 不得退化为三和弦。受控 `Cdim7` 由独立 acceptance 描述。
+- `C+`、`C°` 等别名不得归一化；受控 `Caug7`、`Cdim7`、`Cm7b5` 不得退化为
+  三和弦，各自由独立 acceptance 描述。
 - slash chord、bass／inversion、sus／add、扩展音、双升降和 Unicode 升降号继续
   blocking，不得静默丢失或改变音乐语义。
 - kind、root、root-alter、staff 的属性、错序、重复、未知值、错误层级、CDATA、
@@ -48,3 +48,6 @@ MuseScore／Dorico／Sibelius 等第三方独立阅读器中的显示、布局�
 
 半减七和弦的独立严格边界见
 `docs/s3-local-score-project-musicxml-half-diminished-seventh-round-trip-acceptance.md`。
+
+增七和弦的独立严格边界见
+`docs/s3-local-score-project-musicxml-augmented-seventh-round-trip-acceptance.md`。
