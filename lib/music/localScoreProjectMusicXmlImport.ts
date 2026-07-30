@@ -5,6 +5,7 @@ import {
   LOCAL_SCORE_PROJECT_MAX_CREATORS,
   LOCAL_SCORE_PROJECT_MAX_CREATOR_NAME_CODE_POINTS,
   LOCAL_SCORE_PROJECT_MAX_LYRIC_CODE_POINTS,
+  LOCAL_SCORE_PROJECT_MAX_PART_NAME_CODE_POINTS,
   LOCAL_SCORE_PROJECT_MAX_RIGHTS_NOTICE_CODE_POINTS,
   LOCAL_SCORE_PROJECT_MAX_SCORE_SUBTITLE_CODE_POINTS,
   LOCAL_SCORE_PROJECT_MAX_TITLE_LENGTH,
@@ -1169,7 +1170,11 @@ const isExactUnnamespacedElement = (
 ) =>
   element !== undefined
   && element.nodeName === expectedName
-  && (element.namespaceURI === null || element.namespaceURI === "");
+  && (
+    element.namespaceURI === null
+    || element.namespaceURI === undefined
+    || element.namespaceURI === ""
+  );
 
 const isExactPlainTextElement = (
   element: Element | undefined,
@@ -1184,6 +1189,26 @@ const isExactPlainTextElement = (
     && directChildElements(element).length === 0
     && Array.from(element.childNodes).every((child) => child.nodeType === 3)
     && (expectedText === undefined || element.textContent === expectedText)
+  );
+};
+
+const isCanonicalMusicXmlPartId = (value: string) =>
+  /^[A-Za-z_][A-Za-z0-9_.-]{0,127}$/.test(value);
+
+const hasExactCanonicalIdAttribute = (element: Element | undefined) => {
+  if (!element || element.attributes.length !== 1) return false;
+  const attribute = element.attributes.item(0);
+  return (
+    (
+      attribute?.nodeName === "id"
+      || (attribute?.nodeName === "" && attribute.localName === "id")
+    )
+    && (
+      attribute.namespaceURI === null
+      || attribute.namespaceURI === undefined
+      || attribute.namespaceURI === ""
+    )
+    && isCanonicalMusicXmlPartId(attribute.value)
   );
 };
 
@@ -2126,9 +2151,22 @@ export const createLocalScoreProjectMusicXmlImportDraft = (
     ));
   }
   partListElements.forEach((partList) => {
+    if (
+      !isExactUnnamespacedElement(partList, "part-list")
+      || partList.attributes.length !== 0
+      || hasUnsupportedContainerNode(partList)
+    ) {
+      issues.push(blockingIssue(
+        "unsupported-part-list",
+        "part-list 必须是无 namespace、无属性且只含格式空白和受控 score-part 的容器。",
+      ));
+    }
     directChildElements(partList).forEach((element) => {
       const elementName = localElementName(element);
-      if (!allowedPartListElements.has(elementName)) {
+      if (
+        !allowedPartListElements.has(elementName)
+        || !isExactUnnamespacedElement(element, "score-part")
+      ) {
         issues.push(blockingIssue(
           "unsupported-part-list-element",
           `当前导入不支持 part-list 元素 <${elementName}>，不能静默忽略。`,
@@ -2142,9 +2180,22 @@ export const createLocalScoreProjectMusicXmlImportDraft = (
     )
   );
   scorePartElements.forEach((scorePart) => {
+    if (
+      !isExactUnnamespacedElement(scorePart, "score-part")
+      || !hasExactCanonicalIdAttribute(scorePart)
+      || hasUnsupportedContainerNode(scorePart)
+    ) {
+      issues.push(blockingIssue(
+        "unsupported-score-part",
+        "score-part 必须无 namespace、只含一个 canonical id 属性，并且只含格式空白和受控子元素。",
+      ));
+    }
     directChildElements(scorePart).forEach((element) => {
       const elementName = localElementName(element);
-      if (!allowedScorePartElements.has(elementName)) {
+      if (
+        !allowedScorePartElements.has(elementName)
+        || !isExactUnnamespacedElement(element, elementName)
+      ) {
         issues.push(blockingIssue(
           "unsupported-score-part-element",
           `当前导入不支持 score-part 元素 <${elementName}>，不能静默忽略。`,
@@ -2290,24 +2341,38 @@ export const createLocalScoreProjectMusicXmlImportDraft = (
   const partNameText = scorePartMatches[0]
     ? getElementText(scorePartMatches[0][2], "part-name")
     : undefined;
-  const importedPartName = scorePartElements[0]
-    ? directChildElements(scorePartElements[0])
-      .find((element) => localElementName(element) === "part-name")
-      ?.textContent?.trim() ?? null
-    : partNameText === undefined ? null : partNameText.trim();
-  if (importedPartName !== null && importedPartName.length === 0) {
+  const partNameElement = partNameElements[0];
+  const importedPartName = partNameElement?.textContent
+    ?? (partNameText === undefined ? null : partNameText);
+  if (
+    partNameElement
+    && !isExactPlainTextElement(partNameElement, "part-name")
+  ) {
     issues.push(blockingIssue(
-      "invalid-part-name",
-      "MusicXML part-name 不能为空。",
+      "unsupported-part-name",
+      "part-name 必须是无 namespace、无属性、无子元素的纯文本。",
     ));
   }
   if (
     importedPartName !== null
-    && Array.from(importedPartName).length > 40
+    && !isCanonicalCreditText(
+      importedPartName,
+      LOCAL_SCORE_PROJECT_MAX_PART_NAME_CODE_POINTS,
+    )
+  ) {
+    issues.push(blockingIssue(
+      "invalid-part-name",
+      `MusicXML part-name 必须是未修剪、无控制字符且最多 ${LOCAL_SCORE_PROJECT_MAX_PART_NAME_CODE_POINTS} 个字符的非空规范文本。`,
+    ));
+  }
+  if (
+    importedPartName !== null
+    && Array.from(importedPartName).length
+      > LOCAL_SCORE_PROJECT_MAX_PART_NAME_CODE_POINTS
   ) {
     issues.push(blockingIssue(
       "unsupported-part-name-length",
-      "MusicXML part-name 超过当前声部组 40 字符上限。",
+      `MusicXML part-name 超过当前声部组 ${LOCAL_SCORE_PROJECT_MAX_PART_NAME_CODE_POINTS} 字符上限。`,
     ));
   }
   const scoreInstrumentElements = scorePartElements[0]
@@ -2467,9 +2532,22 @@ export const createLocalScoreProjectMusicXmlImportDraft = (
     (element) => localElementName(element) === "part",
   );
   partElements.forEach((part) => {
+    if (
+      !isExactUnnamespacedElement(part, "part")
+      || !hasExactCanonicalIdAttribute(part)
+      || hasUnsupportedContainerNode(part)
+    ) {
+      issues.push(blockingIssue(
+        "unsupported-part",
+        "part 必须无 namespace、只含一个 canonical id 属性，并且只含格式空白和 measure 子元素。",
+      ));
+    }
     directChildElements(part).forEach((element) => {
       const elementName = localElementName(element);
-      if (!allowedPartElements.has(elementName)) {
+      if (
+        !allowedPartElements.has(elementName)
+        || !isExactUnnamespacedElement(element, "measure")
+      ) {
         issues.push(blockingIssue(
           "unsupported-part-element",
           `当前导入不支持 part 元素 <${elementName}>，不能静默忽略。`,
@@ -2477,14 +2555,14 @@ export const createLocalScoreProjectMusicXmlImportDraft = (
       }
     });
   });
-  const declaredPartId = scorePartElements[0]?.getAttribute("id")?.trim() ?? "";
-  const contentPartId = partElements[0]?.getAttribute("id")?.trim() ?? "";
+  const declaredPartId = scorePartElements[0]?.getAttribute("id") ?? "";
+  const contentPartId = partElements[0]?.getAttribute("id") ?? "";
   if (
     scorePartElements.length === 1
     && partElements.length === 1
     && (
-      declaredPartId.length === 0
-      || contentPartId.length === 0
+      !isCanonicalMusicXmlPartId(declaredPartId)
+      || !isCanonicalMusicXmlPartId(contentPartId)
       || declaredPartId !== contentPartId
     )
   ) {

@@ -211,8 +211,9 @@ QA level recommendation：**strict**
   同小节、跨小节、链式及 fermata／slur 共存经 `.musicxml`／`.mxl` re-import 后
   保持同一 `tieToNext`；
 - legacy parser 对音符音高、时值、小节和拍位的交叉检查；
-- 已分配 instrument、非法 credits 文本／重复 creator／错序 rights，以及每类未支持
-  canonical 记谱字段分别形成 blocking ledger；
+- 非法 instrument、非法 credits 文本／重复 creator／错序 rights，以及每类未支持
+  canonical 记谱字段分别形成 blocking ledger；受控 GM1 program 已按独立 acceptance
+  映射，不再作为“已分配即 blocking”的能力；
 - 多 part／staff／voice、非法 canonical、空事件、输出超限和压缩失败全部失败关闭；
 - 未确认、stale、fingerprint 不一致和候选被修改时不能下载；
 - 候选、blocking、确认和下载失败均不修改项目、revision、undo／redo、IndexedDB、
@@ -286,3 +287,6 @@ XML 1.0 文本与 Unicode 安全边界见
 
 GM1 乐器归属双向严格子集的独立验收边界见
 `docs/s3-local-score-project-musicxml-gm1-program-round-trip-acceptance.md`。
+
+导入侧 part identity fail-closed 硬化的独立验收边界见
+`docs/s3-local-score-project-musicxml-part-identity-hardening-acceptance.md`。

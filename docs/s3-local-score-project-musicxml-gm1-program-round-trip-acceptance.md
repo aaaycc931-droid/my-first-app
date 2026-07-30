@@ -13,7 +13,8 @@ QA level recommendation：**strict**
 - 有 GM1 归属时，`score-part` 固定依次包含 `part-name`、唯一
   `score-instrument`、唯一 `midi-instrument`；
 - `score-instrument/instrument-name` 必须与 canonical part name 完全一致；
-- 两个 instrument 容器必须用同一非空 ID 关联。
+- 两个 instrument 容器必须用同一非空 ID 关联；外层 `score-part`、内容 `part` 和
+  `part-name` 还必须通过独立 part identity fail-closed 门禁。
 
 MusicXML 官方使用 1–128 表达 MIDI 1.0 program，canonical 继续使用既有 0–127；
 转换只做精确 `+1/-1`，不得截断、限制范围、取整或猜测。
@@ -50,3 +51,6 @@ MusicXML 官方使用 1–128 表达 MIDI 1.0 program，canonical 继续使用�
 
 本切片不支持多乐器、多 part／staff／voice、program change、bank／channel、打击乐、
 自定义音色或完整 MusicXML/MXL，也不宣称完成 S3、正式 V1 或最终 APK。
+
+外层 part identity 的严格属性、ID、namespace 与纯文本边界见
+`docs/s3-local-score-project-musicxml-part-identity-hardening-acceptance.md`。

@@ -49,7 +49,11 @@ QA level recommendation：**strict**
   title fallback。movement-title，以及 identification 内按 canonical 数组顺序的
   composer／lyricist／arranger creator 和末尾唯一 rights 可 exact 映射到 scoreCredits；
   重复／空／带属性／错层级、未知 role、重复 creator、rights 错序或非法文本必须
-  blocking，`score-part` 与 `part` 的非空 ID 必须一致。
+  blocking。`part-list`、`score-part` 与内容 `part` 必须大小写精确、无 namespace，
+  受控容器不得含额外属性、comment、CDATA、processing instruction 或非空散落文本；
+  `score-part` 与 `part` 只能各含一个 canonical、无 namespace 的 ID 属性，ID 不做
+  trim 且必须 exact 一致。唯一 `part-name` 必须无属性、无 namespace、只含普通 text
+  node，文本非空、已 trim、无控制字符且最多 40 code point。
 - `score-part` 可在唯一 `part-name` 后依次提供唯一、相同非空 ID 的
   `score-instrument` 与 `midi-instrument`。前者必须只含 exact 等于 part-name 的
   `instrument-name`，后者必须只含 canonical 十进制 `midi-program 1–128`；它 exact
@@ -291,3 +295,6 @@ round-trip、OMR、教师审核、真机验收或正式版 V1 已完成。
 
 GM1 乐器归属双向严格子集的独立验收边界见
 `docs/s3-local-score-project-musicxml-gm1-program-round-trip-acceptance.md`。
+
+part identity fail-closed 硬化的独立验收边界见
+`docs/s3-local-score-project-musicxml-part-identity-hardening-acceptance.md`。
