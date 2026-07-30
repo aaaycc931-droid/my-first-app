@@ -402,6 +402,15 @@ const renderMusicXml = (project: LocalScoreProjectV1) => {
       ? ""
       : `    <rights>${escapeXmlText(scoreCredits.rightsNotice)}</rights>`
   }\n  </identification>\n`;
+  const instrumentDefinition = part.instrument.kind === "unassigned"
+    ? ""
+    : `
+      <score-instrument id="P1-I1">
+        <instrument-name>${escapeXmlText(part.name)}</instrument-name>
+      </score-instrument>
+      <midi-instrument id="P1-I1">
+        <midi-program>${part.instrument.program + 1}</midi-program>
+      </midi-instrument>`;
   let previousEvent: LocalScoreProjectEventV9 | null = null;
   const measures = voice.measures.map((measure, measureIndex) => {
     const attributes = measureIndex === 0
@@ -444,7 +453,7 @@ ${attributes}${tempo}${events}${events ? "\n" : ""}    </measure>`;
 ${movementTitle}${identification}
   <part-list>
     <score-part id="P1">
-      <part-name>${escapeXmlText(part.name)}</part-name>
+      <part-name>${escapeXmlText(part.name)}</part-name>${instrumentDefinition}
     </score-part>
   </part-list>
   <part id="P1">
@@ -570,13 +579,6 @@ export const createLocalScoreProjectMusicXmlExportDraft = ({
       issues.push(blockingIssue(
         "unsupported-part-name-text",
         "声部组名称包含 XML 1.0 无法无损表示的字符，不能导出。",
-        { partIndex },
-      ));
-    }
-    if (part.instrument.kind !== "unassigned") {
-      issues.push(blockingIssue(
-        "unsupported-instrument",
-        "当前导出只支持未指定乐器的声部组。",
         { partIndex },
       ));
     }

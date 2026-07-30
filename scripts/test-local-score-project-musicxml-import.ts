@@ -76,6 +76,10 @@ assert.equal(ready.project?.document.meter, "4/4");
 assert.deepEqual(ready.project?.document.keySignature, { fifths: 1 });
 assert.equal(ready.project?.document.parts[0]?.staves[0]?.clef, "treble");
 assert.deepEqual(
+  ready.project?.document.parts[0]?.instrument,
+  { kind: "unassigned" },
+);
+assert.deepEqual(
   ready.project?.document.parts[0]?.staves[0]?.voices[0]?.measures
     .flatMap((measure) => measure.events)
     .map((event) => [
@@ -96,6 +100,205 @@ assert.deepEqual(
 assert.deepEqual(ready.project?.undoStack, []);
 assert.deepEqual(ready.project?.redoStack, []);
 assert.ok(parseLocalScoreProject(ready.project));
+
+const withStrictGm1Program = (midiProgram: string) => supportedXml.replace(
+  "<part-name>练习</part-name>",
+  `<part-name>练习</part-name>
+      <score-instrument id="P1-I1"><instrument-name>练习</instrument-name></score-instrument>
+      <midi-instrument id="P1-I1"><midi-program>${midiProgram}</midi-program></midi-instrument>`,
+);
+
+for (const [midiProgram, canonicalProgram] of [[1, 0], [128, 127]] as const) {
+  let gm1EventSequence = 0;
+  const gm1Ready = createLocalScoreProjectMusicXmlImportDraft({
+    xml: withStrictGm1Program(String(midiProgram)),
+    fileName: `gm1-${midiProgram}.musicxml`,
+    sourceFormat: "musicxml",
+    projectId: `import-project-gm1-${midiProgram}`,
+    now: "2026-07-27T08:00:02.000Z",
+    createEventId: () => `gm1-${midiProgram}-event-${++gm1EventSequence}`,
+  });
+  assert.equal(gm1Ready.status, "ready");
+  assert.deepEqual(gm1Ready.issues, []);
+  assert.deepEqual(
+    gm1Ready.project?.document.parts[0]?.instrument,
+    { kind: "gm1-program", program: canonicalProgram },
+    "MusicXML's one-based midi-program must map exactly to canonical zero-based GM1",
+  );
+  assert.equal(gm1EventSequence, 5);
+}
+
+const invalidGm1Structures = [
+  [
+    "missing-midi-instrument",
+    withStrictGm1Program("1").replace(
+      /<midi-instrument[\s\S]*?<\/midi-instrument>/,
+      "",
+    ),
+  ],
+  [
+    "missing-score-instrument",
+    withStrictGm1Program("1").replace(
+      /<score-instrument[\s\S]*?<\/score-instrument>/,
+      "",
+    ),
+  ],
+  [
+    "duplicate-score-instrument",
+    withStrictGm1Program("1").replace(
+      "</score-instrument>",
+      `</score-instrument>
+      <score-instrument id="P1-I1">
+        <instrument-name>练习</instrument-name>
+      </score-instrument>`,
+    ),
+  ],
+  [
+    "duplicate-midi-instrument",
+    withStrictGm1Program("1").replace(
+      "</midi-instrument>",
+      `</midi-instrument>
+      <midi-instrument id="P1-I1">
+        <midi-program>1</midi-program>
+      </midi-instrument>`,
+    ),
+  ],
+  [
+    "mismatched-id",
+    withStrictGm1Program("1").replace(
+      '<midi-instrument id="P1-I1">',
+      '<midi-instrument id="P1-I2">',
+    ),
+  ],
+  [
+    "instrument-name-loss",
+    withStrictGm1Program("1").replace(
+      "<instrument-name>练习</instrument-name>",
+      "<instrument-name>钢琴</instrument-name>",
+    ),
+  ],
+  [
+    "wrong-order",
+    withStrictGm1Program("1").replace(
+      /(<score-instrument[\s\S]*?<\/score-instrument>)\s*(<midi-instrument[\s\S]*?<\/midi-instrument>)/,
+      "$2$1",
+    ),
+  ],
+  [
+    "score-extra-attribute",
+    withStrictGm1Program("1").replace(
+      '<score-instrument id="P1-I1">',
+      '<score-instrument id="P1-I1" print-object="yes">',
+    ),
+  ],
+  [
+    "midi-extra-attribute",
+    withStrictGm1Program("1").replace(
+      '<midi-instrument id="P1-I1">',
+      '<midi-instrument id="P1-I1" port="1">',
+    ),
+  ],
+  [
+    "instrument-name-attribute",
+    withStrictGm1Program("1").replace(
+      "<instrument-name>",
+      '<instrument-name lang="zh">',
+    ),
+  ],
+  [
+    "midi-program-attribute",
+    withStrictGm1Program("1").replace(
+      "<midi-program>",
+      '<midi-program value="1">',
+    ),
+  ],
+  [
+    "extra-midi-channel",
+    withStrictGm1Program("1").replace(
+      "<midi-program>1</midi-program>",
+      "<midi-channel>1</midi-channel><midi-program>1</midi-program>",
+    ),
+  ],
+  [
+    "extra-instrument-sound",
+    withStrictGm1Program("1").replace(
+      "</instrument-name>",
+      "</instrument-name><instrument-sound>keyboard.piano</instrument-sound>",
+    ),
+  ],
+  [
+    "comment",
+    withStrictGm1Program("1").replace(
+      "<midi-program>1</midi-program>",
+      "<!-- hidden --><midi-program>1</midi-program>",
+    ),
+  ],
+  [
+    "cdata",
+    withStrictGm1Program("1").replace(
+      "<midi-program>1</midi-program>",
+      "<midi-program><![CDATA[1]]></midi-program>",
+    ),
+  ],
+  [
+    "processing-instruction",
+    withStrictGm1Program("1").replace(
+      "<midi-program>1</midi-program>",
+      "<?instrument hidden?><midi-program>1</midi-program>",
+    ),
+  ],
+  [
+    "wrong-case",
+    withStrictGm1Program("1").replaceAll(
+      "midi-instrument",
+      "Midi-Instrument",
+    ),
+  ],
+  [
+    "namespace",
+    withStrictGm1Program("1")
+      .replace(
+        '<midi-instrument id="P1-I1">',
+        '<x:midi-instrument xmlns:x="urn:external" id="P1-I1">',
+      )
+      .replace("</midi-instrument>", "</x:midi-instrument>"),
+  ],
+  ...["0", "129", "+1", "01", "1.0", " 1", "1 "].map((value) => [
+    `program-${JSON.stringify(value)}`,
+    withStrictGm1Program(value),
+  ]),
+] as const;
+
+for (const [label, xml] of invalidGm1Structures) {
+  let blockedInstrumentEventIds = 0;
+  const invalidGm1Draft = createLocalScoreProjectMusicXmlImportDraft({
+    xml,
+    fileName: `${label}.musicxml`,
+    sourceFormat: "musicxml",
+    projectId: `blocked-${label}`,
+    now: "2026-07-27T08:00:03.000Z",
+    createEventId: () => {
+      blockedInstrumentEventIds += 1;
+      return `unexpected-instrument-${blockedInstrumentEventIds}`;
+    },
+  });
+  assert.equal(invalidGm1Draft.status, "blocked", label);
+  assert.ok(
+    invalidGm1Draft.issues.some((issue) =>
+      issue.code === "unsupported-instrument-pair"
+      || issue.code === "unsupported-instrument-order"
+      || issue.code === "unsupported-score-instrument"
+      || issue.code === "unsupported-midi-instrument"
+      || issue.code === "unsupported-score-part-element"
+    ),
+    `${label} must produce a stable GM1 blocker`,
+  );
+  assert.equal(
+    blockedInstrumentEventIds,
+    0,
+    `${label} must not allocate event IDs`,
+  );
+}
 
 const withFirstMeasureTempo = (tempo: string) =>
   supportedXml.replace(
@@ -2777,7 +2980,7 @@ for (const [unsupportedXml, code] of [
   [
     supportedXml.replace(
       "</part-name>",
-      "</part-name><score-instrument id=\"P1-I1\"><instrument-name>Piano</instrument-name></score-instrument>",
+      "</part-name><part-abbreviation>Pr.</part-abbreviation>",
     ),
     "unsupported-score-part-element",
   ],

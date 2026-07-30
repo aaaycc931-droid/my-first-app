@@ -162,7 +162,11 @@ const allowedRootElements = new Set([
 const allowedWorkElements = new Set(["work-title"]);
 const allowedIdentificationElements = new Set(["creator", "rights"]);
 const allowedPartListElements = new Set(["score-part"]);
-const allowedScorePartElements = new Set(["part-name"]);
+const allowedScorePartElements = new Set([
+  "part-name",
+  "score-instrument",
+  "midi-instrument",
+]);
 const allowedPartElements = new Set(["measure"]);
 
 const hasOnlyPlainTextNodes = (element: Element) =>
@@ -2306,6 +2310,152 @@ export const createLocalScoreProjectMusicXmlImportDraft = (
       "MusicXML part-name 超过当前声部组 40 字符上限。",
     ));
   }
+  const scoreInstrumentElements = scorePartElements[0]
+    ? directChildElements(scorePartElements[0]).filter(
+      (element) => localElementName(element) === "score-instrument",
+    )
+    : [];
+  const midiInstrumentElements = scorePartElements[0]
+    ? directChildElements(scorePartElements[0]).filter(
+      (element) => localElementName(element) === "midi-instrument",
+    )
+    : [];
+  let importedInstrument: LocalScoreProjectV1["document"]["parts"][number]["instrument"] = {
+    kind: "unassigned",
+  };
+  if (
+    scoreInstrumentElements.length > 0
+    || midiInstrumentElements.length > 0
+  ) {
+    if (
+      scoreInstrumentElements.length !== 1
+      || midiInstrumentElements.length !== 1
+    ) {
+      issues.push(blockingIssue(
+        "unsupported-instrument-pair",
+        "GM1 乐器归属必须由唯一 score-instrument 与唯一 midi-instrument 成对声明。",
+      ));
+    }
+    const scoreInstrument = scoreInstrumentElements[0];
+    const midiInstrument = midiInstrumentElements[0];
+    const scorePartChildren = scorePartElements[0]
+      ? directChildElements(scorePartElements[0])
+      : [];
+    if (
+      scoreInstrument
+      && midiInstrument
+      && (
+        scorePartChildren.indexOf(scoreInstrument)
+          !== scorePartChildren.indexOf(partNameElements[0]!) + 1
+        || scorePartChildren.indexOf(midiInstrument)
+          !== scorePartChildren.indexOf(scoreInstrument) + 1
+      )
+    ) {
+      issues.push(blockingIssue(
+        "unsupported-instrument-order",
+        "当前导入要求 part-name、score-instrument、midi-instrument 使用固定相邻顺序。",
+      ));
+    }
+    const instrumentNameElements = scoreInstrument
+      ? directChildElements(scoreInstrument).filter(
+        (element) => localElementName(element) === "instrument-name",
+      )
+      : [];
+    const midiProgramElements = midiInstrument
+      ? directChildElements(midiInstrument).filter(
+        (element) => localElementName(element) === "midi-program",
+      )
+      : [];
+    const scoreInstrumentId = scoreInstrument?.getAttribute("id") ?? "";
+    const midiInstrumentId = midiInstrument?.getAttribute("id") ?? "";
+    const instrumentName = instrumentNameElements[0]?.textContent ?? "";
+    const midiProgramText = midiProgramElements[0]?.textContent ?? "";
+    const midiProgram = /^(?:[1-9]|[1-9]\d|1[01]\d|12[0-8])$/.test(
+      midiProgramText,
+    )
+      ? Number(midiProgramText)
+      : null;
+    const scoreInstrumentHasOnlyFormattingWhitespace = scoreInstrument
+      ? Array.from(scoreInstrument.childNodes).every((child) =>
+        child.nodeType === 1 || (
+          child.nodeType === 3 && (child.textContent ?? "").trim() === ""
+        )
+      )
+      : false;
+    const midiInstrumentHasOnlyFormattingWhitespace = midiInstrument
+      ? Array.from(midiInstrument.childNodes).every((child) =>
+        child.nodeType === 1 || (
+          child.nodeType === 3 && (child.textContent ?? "").trim() === ""
+        )
+      )
+      : false;
+    if (
+      !scoreInstrument
+      || scoreInstrument.nodeName !== "score-instrument"
+      || scoreInstrument.attributes.length !== 1
+      || scoreInstrumentId.length === 0
+      || scoreInstrumentId.length > 128
+      || instrumentNameElements.length !== 1
+      || directChildElements(scoreInstrument).length !== 1
+      || instrumentNameElements[0]?.nodeName !== "instrument-name"
+      || instrumentNameElements[0].attributes.length !== 0
+      || !hasOnlyPlainTextNodes(instrumentNameElements[0])
+      || instrumentName !== importedPartName
+      || !scoreInstrumentHasOnlyFormattingWhitespace
+    ) {
+      issues.push(blockingIssue(
+        "unsupported-score-instrument",
+        "score-instrument 必须只含与 part-name 完全一致的纯文本 instrument-name，并只声明唯一非空 id。",
+      ));
+    }
+    if (
+      !midiInstrument
+      || midiInstrument.nodeName !== "midi-instrument"
+      || midiInstrument.attributes.length !== 1
+      || midiInstrumentId !== scoreInstrumentId
+      || midiProgramElements.length !== 1
+      || directChildElements(midiInstrument).length !== 1
+      || midiProgramElements[0]?.nodeName !== "midi-program"
+      || midiProgramElements[0].attributes.length !== 0
+      || !hasOnlyPlainTextNodes(midiProgramElements[0])
+      || midiProgram === null
+      || !midiInstrumentHasOnlyFormattingWhitespace
+    ) {
+      issues.push(blockingIssue(
+        "unsupported-midi-instrument",
+        "midi-instrument 必须引用同一 id，且只含 canonical 十进制 1–128 的 midi-program。",
+      ));
+    }
+    if (
+      scoreInstrument
+      && midiInstrument
+      && midiProgram !== null
+      && instrumentName === importedPartName
+      && scoreInstrument.nodeName === "score-instrument"
+      && midiInstrument.nodeName === "midi-instrument"
+      && scoreInstrument.attributes.length === 1
+      && midiInstrument.attributes.length === 1
+      && scoreInstrumentId.length > 0
+      && scoreInstrumentId === midiInstrumentId
+      && instrumentNameElements.length === 1
+      && midiProgramElements.length === 1
+      && directChildElements(scoreInstrument).length === 1
+      && directChildElements(midiInstrument).length === 1
+      && instrumentNameElements[0]?.nodeName === "instrument-name"
+      && midiProgramElements[0]?.nodeName === "midi-program"
+      && instrumentNameElements[0].attributes.length === 0
+      && midiProgramElements[0].attributes.length === 0
+      && hasOnlyPlainTextNodes(instrumentNameElements[0])
+      && hasOnlyPlainTextNodes(midiProgramElements[0])
+      && scoreInstrumentHasOnlyFormattingWhitespace
+      && midiInstrumentHasOnlyFormattingWhitespace
+    ) {
+      importedInstrument = {
+        kind: "gm1-program",
+        program: midiProgram - 1,
+      };
+    }
+  }
   const parts = getElementMatches(scoreXml, "part");
   if (parts.length !== 1) {
     issues.push(blockingIssue(
@@ -2946,7 +3096,7 @@ export const createLocalScoreProjectMusicXmlImportDraft = (
       parts: [{
         partId: "part-1",
         name: importedPartName ?? "导入声部",
-        instrument: { kind: "unassigned" },
+        instrument: importedInstrument,
         staves: [{
           staffId: "staff-1",
           staffKind: "pitched",

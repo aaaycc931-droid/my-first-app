@@ -163,6 +163,7 @@ const musicalProjection = (project: LocalScoreProjectV1) => ({
   meter: project.document.meter,
   fifths: project.document.keySignature.fifths,
   partName: project.document.parts[0].name,
+  instrument: project.document.parts[0].instrument,
   clef: project.document.parts[0].staves[0].clef,
   measures: project.document.parts[0].staves[0].voices[0].measures.map(
     (measure) => ({
@@ -553,6 +554,80 @@ assert.deepEqual(ready.summary, {
 });
 assert.match(ready.xml, /<work-title>基础 &amp; &lt;视唱&gt;<\/work-title>/);
 assert.match(ready.xml, /<part-name>旋律 &amp; &lt;主声部&gt;<\/part-name>/);
+assert.doesNotMatch(
+  ready.xml,
+  /<(?:score-instrument|midi-instrument|midi-program)\b/,
+  "unassigned canonical parts must not invent instrument semantics",
+);
+for (const program of [0, 1, 127] as const) {
+  const gm1Project = parseLocalScoreProject({
+    ...project,
+    document: {
+      ...project.document,
+      parts: [{
+        ...project.document.parts[0],
+        instrument: { kind: "gm1-program", program },
+      }],
+    },
+  });
+  assert.ok(gm1Project, `GM1 program ${program} fixture must be canonical`);
+  const gm1Draft = createLocalScoreProjectMusicXmlExportDraft({
+    project: gm1Project,
+  });
+  assert.equal(
+    gm1Draft.status,
+    "ready",
+    `GM1 program ${program} must be exportable`,
+  );
+  assert.deepEqual(gm1Draft.issues, []);
+  assert.match(
+    gm1Draft.xml ?? "",
+    new RegExp(
+      `<part-name>旋律 &amp; &lt;主声部&gt;</part-name>\\s*`
+      + `<score-instrument id="P1-I1">\\s*`
+      + `<instrument-name>旋律 &amp; &lt;主声部&gt;</instrument-name>\\s*`
+      + `</score-instrument>\\s*`
+      + `<midi-instrument id="P1-I1">\\s*`
+      + `<midi-program>${program + 1}</midi-program>\\s*`
+      + "</midi-instrument>",
+    ),
+    "GM1 assignment must use the deterministic strict score-part order",
+  );
+  let gm1EventIndex = 0;
+  const reopenedGm1Xml = createLocalScoreProjectMusicXmlImportDraft({
+    xml: gm1Draft.xml ?? "",
+    fileName: `gm1-${program}.musicxml`,
+    sourceFormat: "musicxml",
+    projectId: gm1Project.projectId,
+    now: gm1Project.createdAt,
+    createEventId: () => `gm1-${program}-event-${++gm1EventIndex}`,
+  });
+  assert.equal(reopenedGm1Xml.status, "ready");
+  assert.deepEqual(
+    musicalProjection(reopenedGm1Xml.project as LocalScoreProjectV1),
+    musicalProjection(gm1Project),
+    `MusicXML must preserve zero-based canonical GM1 program ${program}`,
+  );
+  const gm1MxlPayload = confirmLocalScoreProjectMusicXmlExportDraft({
+    draft: gm1Draft,
+    currentProject: gm1Project,
+    format: "mxl",
+  });
+  const reopenedGm1Mxl = createLocalScoreProjectMusicXmlImportDraft({
+    xml: extractMusicXMLFromMxl(gm1MxlPayload.data as Uint8Array),
+    fileName: gm1MxlPayload.fileName,
+    sourceFormat: "mxl",
+    projectId: gm1Project.projectId,
+    now: gm1Project.createdAt,
+    createEventId: () => `gm1-${program}-mxl-event-${++gm1EventIndex}`,
+  });
+  assert.equal(reopenedGm1Mxl.status, "ready");
+  assert.deepEqual(
+    musicalProjection(reopenedGm1Mxl.project as LocalScoreProjectV1),
+    musicalProjection(gm1Project),
+    `MXL must preserve zero-based canonical GM1 program ${program}`,
+  );
+}
 const creditedProject = parseLocalScoreProject({
   ...project,
   document: {
@@ -1828,18 +1903,6 @@ const blockedFixtures: readonly [
   [
     withChanges({ title: "另一个项目名称" }),
     ["unsupported-distinct-score-title"],
-  ],
-  [
-    withChanges({
-      document: {
-        ...project.document,
-        parts: [{
-          ...project.document.parts[0],
-          instrument: { kind: "gm1-program", program: 1 },
-        }],
-      },
-    }),
-    ["unsupported-instrument"],
   ],
   [
     withChanges({

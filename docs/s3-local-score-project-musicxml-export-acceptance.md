@@ -33,8 +33,12 @@ QA level recommendation：**strict**
 - canonical 全局 `tempoBpm` 只接受整数 `30–240`，并确定性写为第一小节直接
   `<attributes>` 之后唯一、空的 `<sound tempo="N"/>`；包括默认 `90 BPM` 在内均
   显式输出。当前 importer 重新导入后必须 exact 恢复相同速度。
-- 当前 round-trip 不承诺乐器语义，因此 part instrument 必须为 `unassigned`；
-  任意 GM1 program 必须形成 blocking 项。
+- part instrument 可以为 `unassigned` 或 canonical `gm1-program: 0–127`。
+  `unassigned` 不生成乐器声明；GM1 program 必须在 `part-name` 后确定性写入唯一
+  `<score-instrument id="P1-I1"><instrument-name>…</instrument-name></score-instrument>`
+  与相同 ID 的 `<midi-instrument id="P1-I1"><midi-program>N</midi-program>
+  </midi-instrument>`，其中 MusicXML 一基 `N = canonical program + 1`。
+  channel、bank、program change、真实音色选择和其他乐器结构不在当前子集。
 - 项目列表标题必须与 `scoreCredits.title` 一致；导出总是把该主标题写为唯一、无属性的
   root-level `<work><work-title>…</work-title></work>`，并在重新导入后 exact 恢复。
   谱面主标题和单 part 名称属于本切片明确核对的文本，XML 特殊字符必须正确转义，重新
@@ -279,3 +283,6 @@ XML 1.0 文本与 Unicode 安全边界见
 
 全局整数速度双向严格子集的独立验收边界见
 `docs/s3-local-score-project-musicxml-tempo-round-trip-acceptance.md`。
+
+GM1 乐器归属双向严格子集的独立验收边界见
+`docs/s3-local-score-project-musicxml-gm1-program-round-trip-acceptance.md`。
