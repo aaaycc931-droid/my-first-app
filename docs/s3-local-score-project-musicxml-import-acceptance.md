@@ -43,9 +43,13 @@ QA level recommendation：**strict**
   进入候选。
 - 所有不支持、无法确定、值域非法、会被忽略、会被截断或会改变音乐语义的元素，一律
   记录为 **blocking**；不得自动丢弃、默认修复、降级为非阻塞 warning 或宣称导入成功。
-- 根级、`work`、`part-list` 与 `score-part` 同样采用显式白名单；creator、rights、
-  instrument、movement、credit 等未映射元数据必须 blocking，`score-part` 与 `part`
-  的非空 ID 必须一致。
+- 根级、`work`、`identification`、`part-list` 与 `score-part` 同样采用显式白名单；
+  唯一、无属性的根级 `<work><work-title>…</work-title></work>` 可 exact 映射为
+  `scoreCredits.title`；为保持既有兼容，完全缺省 work-title 时继续使用既有确定性
+  title fallback。movement-title，以及 identification 内按 canonical 数组顺序的
+  composer／lyricist／arranger creator 和末尾唯一 rights 可 exact 映射到 scoreCredits；
+  重复／空／带属性／错层级、未知 role、重复 creator、rights 错序或非法文本必须
+  blocking，`score-part` 与 `part` 的非空 ID 必须一致。
 - 整份文件最多允许一个大小写精确、无 namespace 的空 `<sound tempo="N"/>`，且只能
   作为第一小节直接 `<attributes>` 之后的下一个元素。`N` 必须是无符号、无小数、
   无指数、无前导零和首尾空白的 canonical 十进制整数 `30–240`，并 exact 映射为
@@ -162,6 +166,9 @@ tie 结构以外的歌词、指法、演奏法、力度、踏板、和弦、速�
 
 - `.musicxml` 与 `.xml` 的受支持最小 fixture 生成等价 canonical；
 - 同一内容的 `.mxl` 与未压缩 XML 生成等价候选；
+- 唯一严格 root-level `work/work-title` exact 映射为 `scoreCredits.title`；完全缺省时
+  保留既有 title fallback，重复、空、属性、额外内容、错层级和其他 title-like metadata
+  均失败关闭；
 - 音符、休止符、小节边界及当前明确支持的谱号／调号／拍号无静默丢失；
 - 首小节 attributes 后唯一空 `<sound tempo="N"/>` 将 canonical 整数
   `30–240` exact 映射为全局 `tempoBpm`；无 sound 默认 `90`，而重复、中途、错位、

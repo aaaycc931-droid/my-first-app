@@ -2,7 +2,12 @@ import {
   cloneLocalScoreProject,
   createLocalScoreProject,
   LOCAL_SCORE_PROJECT_DEFAULT_TEMPO_BPM,
+  LOCAL_SCORE_PROJECT_MAX_CREATORS,
+  LOCAL_SCORE_PROJECT_MAX_CREATOR_NAME_CODE_POINTS,
   LOCAL_SCORE_PROJECT_MAX_LYRIC_CODE_POINTS,
+  LOCAL_SCORE_PROJECT_MAX_RIGHTS_NOTICE_CODE_POINTS,
+  LOCAL_SCORE_PROJECT_MAX_SCORE_SUBTITLE_CODE_POINTS,
+  LOCAL_SCORE_PROJECT_MAX_TITLE_LENGTH,
   LOCAL_SCORE_PROJECT_MAX_TEMPO_BPM,
   LOCAL_SCORE_PROJECT_MIN_TEMPO_BPM,
   parseLocalScoreProject,
@@ -147,11 +152,31 @@ const allowedMeasureElements = new Set([
   "lyric",
   "text",
 ]);
-const allowedRootElements = new Set(["work", "part-list", "part"]);
+const allowedRootElements = new Set([
+  "work",
+  "movement-title",
+  "identification",
+  "part-list",
+  "part",
+]);
 const allowedWorkElements = new Set(["work-title"]);
+const allowedIdentificationElements = new Set(["creator", "rights"]);
 const allowedPartListElements = new Set(["score-part"]);
 const allowedScorePartElements = new Set(["part-name"]);
 const allowedPartElements = new Set(["measure"]);
+
+const hasOnlyPlainTextNodes = (element: Element) =>
+  directChildElements(element).length === 0
+  && Array.from(element.childNodes).every((child) => child.nodeType === 3);
+
+const isCanonicalCreditText = (value: string, maxCodePoints: number) =>
+  value.length > 0
+  && value === value.trim()
+  && Array.from(value).length <= maxCodePoints
+  && !Array.from(value).some((character) => {
+    const codePoint = character.codePointAt(0) ?? 0;
+    return codePoint <= 0x1f || (codePoint >= 0x7f && codePoint <= 0x9f);
+  });
 
 const directChildElements = (node: Node) => Array.from(node.childNodes)
   .filter((child): child is Element => child.nodeType === 1);
@@ -1969,6 +1994,23 @@ export const createLocalScoreProjectMusicXmlImportDraft = (
     ));
   }
   workElements.forEach((work) => {
+    const workTitles = directChildElements(work).filter(
+      (element) => localElementName(element) === "work-title",
+    );
+    if (
+      work.attributes.length > 0
+      || workTitles.length !== 1
+      || !Array.from(work.childNodes).every((child) =>
+        child.nodeType === 1 || (
+          child.nodeType === 3 && (child.textContent ?? "").trim() === ""
+        )
+      )
+    ) {
+      issues.push(blockingIssue(
+        "unsupported-work",
+        "当前导入只支持无属性且只含一个受控 work-title 的 work。",
+      ));
+    }
     directChildElements(work).forEach((element) => {
       const elementName = localElementName(element);
       if (!allowedWorkElements.has(elementName)) {
@@ -1977,7 +2019,98 @@ export const createLocalScoreProjectMusicXmlImportDraft = (
           `当前导入不支持 work 元素 <${elementName}>，不能静默忽略。`,
         ));
       }
+      if (
+        element.attributes.length > 0
+        || element.nodeName !== "work-title"
+        || !hasOnlyPlainTextNodes(element)
+      ) {
+        issues.push(blockingIssue(
+          "unsupported-work-title",
+          "work-title 必须是无属性、无子元素的纯文本。",
+        ));
+      }
     });
+  });
+  const movementTitleElements = rootChildren.filter(
+    (element) => localElementName(element) === "movement-title",
+  );
+  if (movementTitleElements.length > 1) {
+    issues.push(blockingIssue(
+      "unsupported-movement-title-count",
+      "当前导入只支持一个 movement-title。",
+    ));
+  }
+  const identificationElements = rootChildren.filter(
+    (element) => localElementName(element) === "identification",
+  );
+  if (identificationElements.length > 1) {
+    issues.push(blockingIssue(
+      "unsupported-identification-count",
+      "当前导入只支持一个 identification 元素。",
+    ));
+  }
+  identificationElements.forEach((identification) => {
+    const hasUnsupportedNode = Array.from(identification.childNodes).some(
+      (child) =>
+        child.nodeType !== 1
+        && (
+          child.nodeType !== 3
+          || (child.textContent ?? "").trim() !== ""
+        ),
+    );
+    if (
+      identification.attributes.length > 0
+      || directChildElements(identification).length === 0
+      || hasUnsupportedNode
+    ) {
+      issues.push(blockingIssue(
+        "unsupported-identification",
+        "identification 必须无属性且只包含纯文本 creator／rights 子元素。",
+      ));
+    }
+    directChildElements(identification).forEach((element) => {
+      const elementName = localElementName(element);
+      if (!allowedIdentificationElements.has(elementName)) {
+        issues.push(blockingIssue(
+          "unsupported-identification-element",
+          `当前导入不支持 identification 元素 <${elementName}>，不能静默忽略。`,
+        ));
+      }
+      if (elementName === "rights" && element.attributes.length > 0) {
+        issues.push(blockingIssue(
+          "unsupported-rights-attributes",
+          "当前导入不支持 rights 上的属性，不能静默忽略。",
+        ));
+      }
+    });
+  });
+  movementTitleElements.forEach((movementTitle) => {
+    if (
+      movementTitle.attributes.length > 0
+      || movementTitle.nodeName !== "movement-title"
+      || !hasOnlyPlainTextNodes(movementTitle)
+      || !isCanonicalCreditText(
+        movementTitle.textContent ?? "",
+        LOCAL_SCORE_PROJECT_MAX_SCORE_SUBTITLE_CODE_POINTS,
+      )
+    ) {
+      issues.push(blockingIssue(
+        "unsupported-movement-title",
+        "movement-title 必须是无属性、无子元素的单行规范文本。",
+      ));
+    }
+  });
+  const rootOrder = ["work", "movement-title", "identification", "part-list", "part"];
+  let previousRootOrder = -1;
+  rootChildren.forEach((element) => {
+    const order = rootOrder.indexOf(localElementName(element));
+    if (order < previousRootOrder) {
+      issues.push(blockingIssue(
+        "unsupported-root-order",
+        "当前导入要求根级 MusicXML 元素使用可 round-trip 的固定顺序。",
+      ));
+    }
+    previousRootOrder = Math.max(previousRootOrder, order);
   });
   const partListElements = rootChildren.filter(
     (element) => localElementName(element) === "part-list",
@@ -2022,21 +2155,114 @@ export const createLocalScoreProjectMusicXmlImportDraft = (
       "当前导入只支持一个 work-title。",
     ));
   }
-  const importedTitle = workElements[0]
+  const workTitleElement = workElements[0]
     ? directChildElements(workElements[0])
       .find((element) => localElementName(element) === "work-title")
-      ?.textContent?.trim() ?? null
-    : null;
-  if (importedTitle !== null && importedTitle.length === 0) {
+    : undefined;
+  const importedTitle = workTitleElement?.textContent ?? null;
+  if (
+    workTitleElement
+    && (
+      workTitleElement.nodeName !== "work-title"
+      || !hasOnlyPlainTextNodes(workTitleElement)
+      || !isCanonicalCreditText(importedTitle ?? "", LOCAL_SCORE_PROJECT_MAX_TITLE_LENGTH)
+    )
+  ) {
     issues.push(blockingIssue(
       "invalid-title",
-      "MusicXML work-title 不能为空。",
+      `MusicXML work-title 必须是最多 ${LOCAL_SCORE_PROJECT_MAX_TITLE_LENGTH} 个字符的非空单行规范文本。`,
     ));
   }
-  if (importedTitle !== null && Array.from(importedTitle).length > 80) {
+  const importedSubtitle = movementTitleElements[0]?.textContent ?? null;
+  const importedCreators = identificationElements.flatMap((identification) =>
+    directChildElements(identification)
+      .filter((element) => localElementName(element) === "creator")
+      .map((element) => ({
+        role: element.getAttribute("type") ?? "",
+        name: element.textContent ?? "",
+        attributeCount: element.attributes.length,
+      }))
+  );
+  const creatorIdentities = new Set<string>();
+  if (importedCreators.length > LOCAL_SCORE_PROJECT_MAX_CREATORS) {
     issues.push(blockingIssue(
-      "unsupported-title-length",
-      "MusicXML work-title 超过当前本机项目 80 字符上限。",
+      "unsupported-creator-count",
+      `当前最多支持 ${LOCAL_SCORE_PROJECT_MAX_CREATORS} 个 creator。`,
+    ));
+  }
+  importedCreators.forEach((creator) => {
+    const creatorElement = identificationElements
+      .flatMap((identification) => directChildElements(identification))
+      .find((element) =>
+        localElementName(element) === "creator"
+        && (element.getAttribute("type") ?? "") === creator.role
+        && (element.textContent ?? "") === creator.name
+      );
+    if (
+      !["composer", "lyricist", "arranger"].includes(creator.role)
+      || creator.attributeCount !== 1
+      || creatorElement?.nodeName !== "creator"
+      || !creatorElement
+      || !hasOnlyPlainTextNodes(creatorElement)
+      || !isCanonicalCreditText(
+        creator.name,
+        LOCAL_SCORE_PROJECT_MAX_CREATOR_NAME_CODE_POINTS,
+      )
+    ) {
+      issues.push(blockingIssue(
+        "unsupported-creator",
+        "当前导入只支持带一个 type 属性的 composer、lyricist 或 arranger 署名。",
+      ));
+    }
+    const identity = `${creator.role}\u0000${creator.name}`;
+    if (creatorIdentities.has(identity)) {
+      issues.push(blockingIssue(
+        "duplicate-creator",
+        "同一角色和姓名的 creator 不得重复。",
+      ));
+    }
+    creatorIdentities.add(identity);
+  });
+  const rightsElements = identificationElements.flatMap((identification) =>
+    directChildElements(identification).filter(
+      (element) => localElementName(element) === "rights",
+    )
+  );
+  if (rightsElements.length > 1) {
+    issues.push(blockingIssue(
+      "unsupported-rights-count",
+      "当前导入只支持一个 rights 元素。",
+    ));
+  }
+  const importedRightsNotice = rightsElements[0]?.textContent ?? null;
+  if (
+    rightsElements[0]
+    && (
+      rightsElements[0].nodeName !== "rights"
+      || !hasOnlyPlainTextNodes(rightsElements[0])
+      || !isCanonicalCreditText(
+        importedRightsNotice ?? "",
+        LOCAL_SCORE_PROJECT_MAX_RIGHTS_NOTICE_CODE_POINTS,
+      )
+    )
+  ) {
+    issues.push(blockingIssue(
+      "unsupported-rights",
+      "rights 必须是无属性、无子元素的单行规范文本。",
+    ));
+  }
+  const firstRightsIndex = identificationElements[0]
+    ? directChildElements(identificationElements[0]).findIndex(
+      (element) => localElementName(element) === "rights",
+    )
+    : -1;
+  if (
+    firstRightsIndex >= 0
+    && firstRightsIndex !== directChildElements(identificationElements[0]!).length - 1
+  ) {
+    issues.push(blockingIssue(
+      "unsupported-identification-order",
+      "rights 必须位于所有 creator 之后并作为 identification 的最后一个子元素。",
     ));
   }
   const scorePartMatches = getElementMatches(scoreXml, "score-part");
@@ -2706,6 +2932,15 @@ export const createLocalScoreProjectMusicXmlImportDraft = (
     tempoBpm,
     document: {
       ...baseProject.document,
+      scoreCredits: {
+        title: importedTitle ?? sourceTitle(args.fileName),
+        subtitle: importedSubtitle,
+        creators: importedCreators.map((creator) => ({
+          role: creator.role as "composer" | "lyricist" | "arranger",
+          name: creator.name,
+        })),
+        rightsNotice: importedRightsNotice,
+      },
       meter,
       keySignature: { fifths },
       parts: [{
