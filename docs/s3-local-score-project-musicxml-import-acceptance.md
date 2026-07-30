@@ -50,6 +50,12 @@ QA level recommendation：**strict**
   composer／lyricist／arranger creator 和末尾唯一 rights 可 exact 映射到 scoreCredits；
   重复／空／带属性／错层级、未知 role、重复 creator、rights 错序或非法文本必须
   blocking，`score-part` 与 `part` 的非空 ID 必须一致。
+- `score-part` 可在唯一 `part-name` 后依次提供唯一、相同非空 ID 的
+  `score-instrument` 与 `midi-instrument`。前者必须只含 exact 等于 part-name 的
+  `instrument-name`，后者必须只含 canonical 十进制 `midi-program 1–128`；它 exact
+  映射为 canonical `gm1-program 0–127`。缺失配对、重复、错序、ID 不一致、额外
+  属性／子元素、comment／CDATA／processing instruction、非 canonical program，
+  以及 channel、bank、program change 或其他乐器语义必须 blocking。
 - 整份文件最多允许一个大小写精确、无 namespace 的空 `<sound tempo="N"/>`，且只能
   作为第一小节直接 `<attributes>` 之后的下一个元素。`N` 必须是无符号、无小数、
   无指数、无前导零和首尾空白的 canonical 十进制整数 `30–240`，并 exact 映射为
@@ -282,3 +288,6 @@ round-trip、OMR、教师审核、真机验收或正式版 V1 已完成。
 
 全局整数速度双向严格子集的独立验收边界见
 `docs/s3-local-score-project-musicxml-tempo-round-trip-acceptance.md`。
+
+GM1 乐器归属双向严格子集的独立验收边界见
+`docs/s3-local-score-project-musicxml-gm1-program-round-trip-acceptance.md`。
