@@ -158,6 +158,7 @@ const createSupportedProject = (): LocalScoreProjectV1 => {
 const musicalProjection = (project: LocalScoreProjectV1) => ({
   title: project.title,
   scoreTitle: project.document.scoreCredits.title,
+  scoreCredits: project.document.scoreCredits,
   tempoBpm: project.tempoBpm,
   meter: project.document.meter,
   fifths: project.document.keySignature.fifths,
@@ -552,6 +553,68 @@ assert.deepEqual(ready.summary, {
 });
 assert.match(ready.xml, /<work-title>基础 &amp; &lt;视唱&gt;<\/work-title>/);
 assert.match(ready.xml, /<part-name>旋律 &amp; &lt;主声部&gt;<\/part-name>/);
+const creditedProject = parseLocalScoreProject({
+  ...project,
+  document: {
+    ...project.document,
+    scoreCredits: {
+      ...project.document.scoreCredits,
+      subtitle: "副标题 & <段落>",
+      creators: [
+        { role: "composer", name: "作曲者 & <甲>" },
+        { role: "lyricist", name: "作词者" },
+        { role: "arranger", name: "编曲者" },
+      ],
+      rightsNotice: "© 权利 & 保留",
+    },
+  },
+});
+assert.ok(creditedProject, "credited fixture must be canonical");
+const creditedDraft = createLocalScoreProjectMusicXmlExportDraft({
+  project: creditedProject,
+});
+assert.equal(creditedDraft.status, "ready", JSON.stringify(creditedDraft.issues));
+assert.match(
+  creditedDraft.xml ?? "",
+  /<work>[\s\S]*<\/work>\s*<movement-title>副标题 &amp; &lt;段落&gt;<\/movement-title>\s*<identification>[\s\S]*<creator type="composer">作曲者 &amp; &lt;甲&gt;<\/creator>[\s\S]*<creator type="lyricist">作词者<\/creator>[\s\S]*<creator type="arranger">编曲者<\/creator>[\s\S]*<rights>© 权利 &amp; 保留<\/rights>[\s\S]*<\/identification>\s*<part-list>/,
+  "credits must use the deterministic root order and escape XML text",
+);
+let creditedEventIndex = 0;
+const reopenedCredited = createLocalScoreProjectMusicXmlImportDraft({
+  xml: creditedDraft.xml ?? "",
+  fileName: "credits.musicxml",
+  sourceFormat: "musicxml",
+  projectId: creditedProject.projectId,
+  now: creditedProject.createdAt,
+  createEventId: () => `credited-event-${++creditedEventIndex}`,
+});
+assert.equal(reopenedCredited.status, "ready");
+assert.deepEqual(
+  musicalProjection(reopenedCredited.project as LocalScoreProjectV1),
+  musicalProjection(creditedProject),
+  "MusicXML credits must round-trip without changing canonical score credits or tempo",
+);
+const creditedMxlPayload = confirmLocalScoreProjectMusicXmlExportDraft({
+  draft: creditedDraft,
+  currentProject: creditedProject,
+  format: "mxl",
+});
+assert.ok(creditedMxlPayload.data instanceof Uint8Array);
+let creditedMxlEventIndex = 0;
+const reopenedCreditedMxl = createLocalScoreProjectMusicXmlImportDraft({
+  xml: extractMusicXMLFromMxl(creditedMxlPayload.data as Uint8Array),
+  fileName: creditedMxlPayload.fileName,
+  sourceFormat: "mxl",
+  projectId: creditedProject.projectId,
+  now: creditedProject.createdAt,
+  createEventId: () => `credited-mxl-event-${++creditedMxlEventIndex}`,
+});
+assert.equal(reopenedCreditedMxl.status, "ready");
+assert.deepEqual(
+  musicalProjection(reopenedCreditedMxl.project as LocalScoreProjectV1),
+  musicalProjection(creditedProject),
+  "MXL credits must round-trip without changing canonical score credits or tempo",
+);
 assert.equal(
   ready.xml.match(/<notations><fermata\/><\/notations>/g)?.length,
   2,
@@ -1765,20 +1828,6 @@ const blockedFixtures: readonly [
   [
     withChanges({ title: "另一个项目名称" }),
     ["unsupported-distinct-score-title"],
-  ],
-  [
-    withChanges({
-      document: {
-        ...project.document,
-        scoreCredits: {
-          ...project.document.scoreCredits,
-          subtitle: "副标题",
-          creators: [{ role: "composer", name: "作者" }],
-          rightsNotice: "保留权利",
-        },
-      },
-    }),
-    ["unsupported-subtitle", "unsupported-creators", "unsupported-rights-notice"],
   ],
   [
     withChanges({

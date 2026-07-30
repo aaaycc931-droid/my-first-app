@@ -35,10 +35,13 @@ QA level recommendation：**strict**
   显式输出。当前 importer 重新导入后必须 exact 恢复相同速度。
 - 当前 round-trip 不承诺乐器语义，因此 part instrument 必须为 `unassigned`；
   任意 GM1 program 必须形成 blocking 项。
-- 项目列表标题必须与 `scoreCredits.title` 一致；谱面主标题和单 part 名称属于本切片
-  明确核对的文本，XML 特殊字符必须正确转义，重新导入后不得静默改变。副标题必须为
-  `null`、creators 必须为空数组、版权声明必须为 `null`；任一非空额外 credits 都
-  必须形成 blocking 项。
+- 项目列表标题必须与 `scoreCredits.title` 一致；导出总是把该主标题写为唯一、无属性的
+  root-level `<work><work-title>…</work-title></work>`，并在重新导入后 exact 恢复。
+  谱面主标题和单 part 名称属于本切片明确核对的文本，XML 特殊字符必须正确转义，重新
+  导入后不得静默改变。非空 subtitle、按 canonical 数组顺序的 composer／lyricist／
+  arranger creators 和 rightsNotice 均映射到唯一根级 movement-title／identification；
+  XML 1.0 非法 credits 文本、重复 creator 或其他不受支持的 credit 结构必须形成
+  blocking 项。
 - canonical note 的 half／quarter／eighth 与 canonical quarter rest 可携带
   `augmentationDots: 1`，并确定性写成 `<type>` 后、`<staff>` 前的唯一 `<dot/>`。
   导出固定使用 `divisions=4`，使基础时值分别为 `8`／`4`／`2`、单附点时值分别为
@@ -130,6 +133,9 @@ QA level recommendation：**strict**
   调号、拍号、谱号、全局速度、staff、voice、顺序小节和每个事件的 pitch／rest、
   duration、type 与受控单附点。
 - 文本必须进行 XML escape；不得通过拼接未经转义的项目标题或 part 名称生成无效 XML。
+- 每个零 blocking 导出都必须显式包含唯一严格 `work/work-title`，包括由历史缺省
+  work-title 输入得到的 canonical 标题；不得省略、改用 `movement-title`／`credit` 或
+  依赖 importer fallback。
 - `.mxl` 必须把未压缩的标准 `mimetype`
   `application/vnd.recordare.musicxml` 作为首项，并包含
   `META-INF/container.xml` 和 container 指向的 `score.musicxml`；container 使用
@@ -169,6 +175,8 @@ QA level recommendation：**strict**
   形成稳定 blocker，canonical 范围内的 supplementary-plane 字符保持无损；
 - 音符、四分休止符、小节、调号、拍号、谱号、主标题和 part 名称的内部 re-import
   语义等价；
+- `.musicxml` 与 `.mxl` 均总是写出唯一 root-level `work/work-title`，且 importer
+  re-import 后 `scoreCredits.title` exact 等于导出前 canonical title；
 - canonical `tempoBpm` 的 `30`、`90`、`240` 及范围内代表值均写为首小节
   attributes 后唯一空 `<sound tempo="N"/>`；`.musicxml`／`.mxl` re-import 后保持
   exact 速度，并覆盖与首事件 harmony／pedal 共存的固定顺序；
@@ -199,8 +207,8 @@ QA level recommendation：**strict**
   同小节、跨小节、链式及 fermata／slur 共存经 `.musicxml`／`.mxl` re-import 后
   保持同一 `tieToNext`；
 - legacy parser 对音符音高、时值、小节和拍位的交叉检查；
-- 已分配 instrument、非空副标题／creator／版权，以及每类未支持 canonical 记谱字段
-  分别形成 blocking ledger；
+- 已分配 instrument、非法 credits 文本／重复 creator／错序 rights，以及每类未支持
+  canonical 记谱字段分别形成 blocking ledger；
 - 多 part／staff／voice、非法 canonical、空事件、输出超限和压缩失败全部失败关闭；
 - 未确认、stale、fingerprint 不一致和候选被修改时不能下载；
 - 候选、blocking、确认和下载失败均不修改项目、revision、undo／redo、IndexedDB、

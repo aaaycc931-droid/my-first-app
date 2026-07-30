@@ -125,7 +125,16 @@
 - 本切片只接受当前明确支持且可无损映射的元素；所有不支持、会被忽略或会改变音乐语义的元素一律 blocking，不允许静默丢失。
 - `.musicxml`／`.xml`／`.mxl` 输入、2 MiB 输入限制，以及 MXL 既有的 100 entries／4 MiB 解压保护必须保持 fail-closed；容量、quota、事务和迁移失败必须保留全部既有项目。
 - canonical 本机谱项目到 `.musicxml`／`.mxl` 的受控导出候选已经完成：只覆盖当前可无损重新导入的严格单 part／staff／voice 子集，先显示 blocking ledger 和摘要，用户明确确认后才触发一次本机下载。
-- 当前导出 round-trip 接受全局整数 `30–240 BPM`、未分配 instrument 和没有副标题／creator／版权声明的项目；速度确定性写为第一小节直接 `<attributes>` 之后唯一、空的 `<sound tempo="N"/>`，包括默认 `90 BPM` 在内均显式输出。输入完全没有 `<sound>` 时导入默认 `90 BPM`；任何尚未映射的 canonical 记谱语义必须阻断，不能为了生成文件而静默丢弃。
+- 当前导出 round-trip 接受全局整数 `30–240 BPM`、未分配 instrument，以及 canonical
+  scoreCredits 的 title、subtitle、按数组顺序的 composer／lyricist／arranger creators
+  和 rightsNotice；这些 credits 按独立 acceptance 以确定性根级顺序往返。速度确定性
+  写为第一小节直接 `<attributes>` 之后唯一、空的 `<sound tempo="N"/>`，包括默认
+  `90 BPM` 在内均显式输出。输入完全没有 `<sound>` 时导入默认 `90 BPM`；任何尚未
+  映射的 canonical 记谱语义必须阻断，不能为了生成文件而静默丢弃。
+- 谱面主标题已纳入 strict round-trip：导出总是把 `scoreCredits.title` 写为唯一 root-level
+  `<work><work-title>…</work-title></work>` 并 XML escape；导入 exact 恢复该 title。为兼容
+  既有受控文件，完全缺省 work-title 的导入仍使用既有确定性 fallback；仅该缺省情形可
+  fallback，其他 work／credit／movement title 变体继续 blocking。
 - 当前严格子集已把全局整数速度双向映射为首小节唯一 `<sound tempo>`，把 note/rest 的 canonical 单附点双向映射为直接、唯一且结构为空的 `<dot/>`，把 note/rest 的 `pp`／`p`／`mp`／`mf`／`f`／`ff` 单事件力度记号双向映射为唯一 `<dynamics>` 中的一个空记号，把 `damperPedalMark: down/up` 双向映射为紧邻事件之前、只含 pedal `start/stop`、voice 1 和 staff 1 的严格 `<direction>`，把自然／单升降根音 `A–G`、`A#–G#`、`Ab–Gb` 的无后缀／`m`／`7`／`maj7`／`m7` canonical 和弦标记双向映射为 major／minor／dominant／major-seventh／minor-seventh 的严格 `<harmony>`，把 pitched note 的规范化单行 `lyric` 双向映射为唯一 `<lyric><text>`，把 canonical `1–5` 单指法双向映射为唯一 `<technical><fingering>N</fingering></technical>`，把 accent／staccato／tenuto 单音演奏法按固定顺序双向映射为唯一 `<articulations>`，把 `fermataMark` 双向映射为无属性且无文本的 `<fermata/>`，把 note 的 `slurToNext` 双向映射为相邻时间连续 note 上严格配对的 `<slur type="start"/>`／`<slur type="stop"/>`，并把 `tieToNext` 双向映射为相邻、同音高且时间连续 note 上成对一致的 `<tie>`／`<tied>` start／stop；附点真实时值参与 duration、容量、拍位和关系连续性核对，歌词 XML escape 与 `<staff> → <notations> → <lyric>` 顺序保持确定，指法、演奏法、力度与其他记号复用唯一 `<notations>`，首事件与和弦、踏板共存时固定为 attributes → sound → harmony → direction → event，踏板和和弦均不推断持续区间或配对，同小节、跨小节、链式关系及共存语义均保留。其他未列出的语义继续 blocking。
 - 自动证据由当前 importer re-import 与 legacy parser 音符交叉检查组成，均属于仓库内部验证。浏览器下载、Android WebView／真机及 MuseScore 等外部独立阅读器仍为 `NOT_EXECUTED`，不得宣称第三方兼容已经通过。
-- 导入边界见 `docs/s3-local-score-project-musicxml-import-acceptance.md`，导出边界见 `docs/s3-local-score-project-musicxml-export-acceptance.md`；全局整数速度边界见 `docs/s3-local-score-project-musicxml-tempo-round-trip-acceptance.md`，单附点、单段歌词、单指法、单音演奏法、单事件力度记号、单事件制音踏板记号、受控和弦标记、fermata、圆滑线和延音线双向边界分别见对应的 S3 round-trip acceptance 文档，其中和弦切片见 `docs/s3-local-score-project-musicxml-chord-symbol-round-trip-acceptance.md`。浏览器真实导入／下载／重开、Android WebView／真机、第三方独立阅读器、速度／和弦／踏板／力度／演奏法／指法显示与真实播放、tempo map／中途变速、双升降／Unicode 升降号／转位／其他和弦类别、左右手／替代指法、歌词排版／多 verse／melisma、真实音频与歌唱对齐、教师审核、MIDI、OMR、完整 MusicXML、S3 与正式版 V1 均仍为 `NOT_EXECUTED` 或未完成。
+- 导入边界见 `docs/s3-local-score-project-musicxml-import-acceptance.md`，导出边界见 `docs/s3-local-score-project-musicxml-export-acceptance.md`，谱面标题、署名与版权双向边界见 `docs/s3-local-score-project-musicxml-score-credits-round-trip-acceptance.md`；全局整数速度边界见 `docs/s3-local-score-project-musicxml-tempo-round-trip-acceptance.md`，单附点、单段歌词、单指法、单音演奏法、单事件力度记号、单事件制音踏板记号、受控和弦标记、fermata、圆滑线和延音线双向边界分别见对应的 S3 round-trip acceptance 文档，其中和弦切片见 `docs/s3-local-score-project-musicxml-chord-symbol-round-trip-acceptance.md`。浏览器真实导入／下载／重开、Android WebView／真机、第三方独立阅读器、速度／和弦／踏板／力度／演奏法／指法／标题与署名显示及真实播放、tempo map／中途变速、双升降／Unicode 升降号／转位／其他和弦类别、左右手／替代指法、歌词排版／多 verse／melisma、真实音频与歌唱对齐、教师审核、MIDI、OMR、完整 MusicXML、完整 S3 与正式版 V1 均仍为 `NOT_EXECUTED` 或未完成。

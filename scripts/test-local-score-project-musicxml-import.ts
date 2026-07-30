@@ -1896,7 +1896,7 @@ const metadataReady = createLocalScoreProjectMusicXmlImportDraft({
   xml: supportedXml
     .replace(
       "<score-partwise version=\"4.0\">",
-      "<score-partwise version=\"4.0\"><work><work-title>标题 &amp; 练习 &#x97F3;</work-title></work>",
+      "<score-partwise version=\"4.0\"><work><work-title>标题 &amp; 练习 &#x97F3;</work-title></work><movement-title>副标题 &amp; &lt;段落&gt;</movement-title><identification><creator type=\"composer\">作曲者</creator><creator type=\"lyricist\">作词者</creator><creator type=\"arranger\">编曲者</creator><rights>© 权利 &amp; 保留</rights></identification>",
     )
     .replace("<part-name>练习</part-name>", "<part-name>钢琴 &lt;主部&gt;</part-name>"),
   fileName: "文件名不应覆盖标题.musicxml",
@@ -1908,7 +1908,85 @@ const metadataReady = createLocalScoreProjectMusicXmlImportDraft({
 assert.equal(metadataReady.status, "ready");
 assert.equal(metadataReady.project?.title, "标题 & 练习 音");
 assert.equal(metadataReady.project?.document.scoreCredits.title, "标题 & 练习 音");
+assert.equal(metadataReady.project?.document.scoreCredits.subtitle, "副标题 & <段落>");
+assert.deepEqual(metadataReady.project?.document.scoreCredits.creators, [
+  { role: "composer", name: "作曲者" },
+  { role: "lyricist", name: "作词者" },
+  { role: "arranger", name: "编曲者" },
+]);
+assert.equal(metadataReady.project?.document.scoreCredits.rightsNotice, "© 权利 & 保留");
 assert.equal(metadataReady.project?.document.parts[0]?.name, "钢琴 <主部>");
+
+const creditInvalidCases = [
+  {
+    label: "subtitle-whitespace",
+    xml: supportedXml.replace(
+      "<part-list>",
+      "<movement-title> 副标题</movement-title><part-list>",
+    ),
+    code: "unsupported-movement-title",
+  },
+  {
+    label: "subtitle-cdata",
+    xml: supportedXml.replace(
+      "<part-list>",
+      "<movement-title><![CDATA[副标题]]></movement-title><part-list>",
+    ),
+    code: "unsupported-movement-title",
+  },
+  {
+    label: "creator-comment",
+    xml: supportedXml.replace(
+      "<part-list>",
+      "<identification><creator type=\"composer\">作<!--注释-->者</creator></identification><part-list>",
+    ),
+    code: "unsupported-creator",
+  },
+  {
+    label: "creator-too-long",
+    xml: supportedXml.replace(
+      "<part-list>",
+      `<identification><creator type="composer">${"作".repeat(81)}</creator></identification><part-list>`,
+    ),
+    code: "unsupported-creator",
+  },
+  {
+    label: "duplicate-creator",
+    xml: supportedXml.replace(
+      "<part-list>",
+      "<identification><creator type=\"composer\">作者</creator><creator type=\"composer\">作者</creator></identification><part-list>",
+    ),
+    code: "duplicate-creator",
+  },
+  {
+    label: "rights-before-creator",
+    xml: supportedXml.replace(
+      "<part-list>",
+      "<identification><rights>权利</rights><creator type=\"composer\">作者</creator></identification><part-list>",
+    ),
+    code: "unsupported-identification-order",
+  },
+] as const;
+for (const creditCase of creditInvalidCases) {
+  let eventIdCalls = 0;
+  const blockedCredits = createLocalScoreProjectMusicXmlImportDraft({
+    xml: creditCase.xml,
+    fileName: `${creditCase.label}.musicxml`,
+    sourceFormat: "musicxml",
+    projectId: `blocked-${creditCase.label}`,
+    now: "2026-07-27T08:00:02.000Z",
+    createEventId: () => {
+      eventIdCalls += 1;
+      return `unused-${creditCase.label}-${eventIdCalls}`;
+    },
+  });
+  assert.equal(blockedCredits.status, "blocked", creditCase.label);
+  assert.ok(
+    blockedCredits.issues.some((issue) => issue.code === creditCase.code),
+    `${creditCase.label} must produce its stable credit blocker`,
+  );
+  assert.equal(eventIdCalls, 0, `${creditCase.label} must not allocate event ids`);
+}
 
 eventSequence = 0;
 const mxlEquivalent = createLocalScoreProjectMusicXmlImportDraft({
@@ -2676,9 +2754,9 @@ for (const [unsupportedXml, code] of [
   [
     supportedXml.replace(
       "<part-list>",
-      "<identification><creator type=\"composer\">作者</creator><rights>保留权利</rights></identification><part-list>",
+      "<identification><creator type=\"publisher\">作者</creator><rights>保留权利</rights></identification><part-list>",
     ),
-    "unsupported-root-element",
+    "unsupported-creator",
   ],
   [
     supportedXml.replace(

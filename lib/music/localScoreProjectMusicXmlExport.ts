@@ -389,6 +389,19 @@ const renderMusicXml = (project: LocalScoreProjectV1) => {
     ? { sign: "G", line: 2 }
     : { sign: "F", line: 4 };
   const [beats, beatType] = project.document.meter.split("/");
+  const { scoreCredits } = project.document;
+  const movementTitle = scoreCredits.subtitle === null
+    ? ""
+    : `  <movement-title>${escapeXmlText(scoreCredits.subtitle)}</movement-title>\n`;
+  const identification = (
+    scoreCredits.creators.length === 0 && scoreCredits.rightsNotice === null
+  ) ? "" : `  <identification>\n${scoreCredits.creators.map((creator) =>
+    `    <creator type="${creator.role}">${escapeXmlText(creator.name)}</creator>`
+  ).join("\n")}${scoreCredits.creators.length > 0 && scoreCredits.rightsNotice !== null ? "\n" : ""}${
+    scoreCredits.rightsNotice === null
+      ? ""
+      : `    <rights>${escapeXmlText(scoreCredits.rightsNotice)}</rights>`
+  }\n  </identification>\n`;
   let previousEvent: LocalScoreProjectEventV9 | null = null;
   const measures = voice.measures.map((measure, measureIndex) => {
     const attributes = measureIndex === 0
@@ -426,8 +439,9 @@ ${attributes}${tempo}${events}${events ? "\n" : ""}    </measure>`;
 <!DOCTYPE score-partwise PUBLIC "-//Recordare//DTD MusicXML 4.0 Partwise//EN" "http://www.musicxml.org/dtds/partwise.dtd">
 <score-partwise version="4.0">
   <work>
-    <work-title>${escapeXmlText(project.document.scoreCredits.title)}</work-title>
+    <work-title>${escapeXmlText(scoreCredits.title)}</work-title>
   </work>
+${movementTitle}${identification}
   <part-list>
     <score-part id="P1">
       <part-name>${escapeXmlText(part.name)}</part-name>
@@ -523,22 +537,25 @@ export const createLocalScoreProjectMusicXmlExportDraft = ({
       "谱面标题包含 XML 1.0 无法无损表示的字符，不能导出。",
     ));
   }
-  if (parsedProject.document.scoreCredits.subtitle !== null) {
+  const { scoreCredits } = parsedProject.document;
+  if (scoreCredits.subtitle !== null && !isXml10Text(scoreCredits.subtitle)) {
     issues.push(blockingIssue(
-      "unsupported-subtitle",
-      "当前导出不支持非空副标题。",
+      "unsupported-subtitle-text",
+      "副标题包含 XML 1.0 无法无损表示的字符，不能导出。",
     ));
   }
-  if (parsedProject.document.scoreCredits.creators.length > 0) {
+  scoreCredits.creators.forEach((creator) => {
+    if (!isXml10Text(creator.name)) {
+      issues.push(blockingIssue(
+        "unsupported-creator-text",
+        "署名包含 XML 1.0 无法无损表示的字符，不能导出。",
+      ));
+    }
+  });
+  if (scoreCredits.rightsNotice !== null && !isXml10Text(scoreCredits.rightsNotice)) {
     issues.push(blockingIssue(
-      "unsupported-creators",
-      "当前导出不支持作曲、作词或编曲署名。",
-    ));
-  }
-  if (parsedProject.document.scoreCredits.rightsNotice !== null) {
-    issues.push(blockingIssue(
-      "unsupported-rights-notice",
-      "当前导出不支持非空版权声明。",
+      "unsupported-rights-notice-text",
+      "版权声明包含 XML 1.0 无法无损表示的字符，不能导出。",
     ));
   }
   if (parsedProject.document.parts.length !== 1) {
