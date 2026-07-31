@@ -16,6 +16,7 @@ import com.getcapacitor.Plugin;
 import com.getcapacitor.PluginCall;
 import com.getcapacitor.PluginMethod;
 import com.getcapacitor.annotation.CapacitorPlugin;
+import java.util.Arrays;
 import java.util.UUID;
 
 @CapacitorPlugin(name = "UsbMidi")
@@ -315,8 +316,8 @@ public final class UsbMidiPlugin extends Plugin {
   }
 
   @SuppressWarnings("deprecation")
-  private MidiDeviceInfo[] legacyMidiByteStreamDevices() {
-    return midiManager.getDevices();
+  private Iterable<MidiDeviceInfo> legacyMidiByteStreamDevices() {
+    return Arrays.asList(midiManager.getDevices());
   }
 
   private double elapsedSessionMs() {

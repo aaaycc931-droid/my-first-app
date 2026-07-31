@@ -979,7 +979,7 @@ if (
     '@SuppressWarnings("deprecation")\n  private void registerLegacyDeviceCallback()',
   )
   || !usbMidiPluginSource.includes(
-    '@SuppressWarnings("deprecation")\n  private MidiDeviceInfo[] legacyMidiByteStreamDevices()',
+    '@SuppressWarnings("deprecation")\n  private Iterable<MidiDeviceInfo> legacyMidiByteStreamDevices()',
   )
   || legacyMidiDeviceEnumerationCalls.length !== 1
   || legacyMidiCallbackRegistrationCalls.length !== 1
