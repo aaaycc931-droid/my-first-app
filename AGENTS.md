@@ -27,6 +27,7 @@
 - `docs/mvp-status.md`
 - `docs/final-release-definition-of-done.md`
 - `docs/final-release-status-matrix.md`
+- `docs/final-ui-refactor-compatibility-contract.md`
 - `docs/android-apk-release-plan.md`
 - `docs/android-offline-professional-product-roadmap.md`
 - `docs/professional-competitive-roadmap-perfect-piano-earmaster.md`
@@ -203,6 +204,11 @@ QA 分级：
 - 不要过度设计。
 - 先功能后美观。
 - 用户可见 UI 默认使用简体中文。
+- 当前页面、导航和样式是能力实现候选，不是最终视觉冻结基线；路线冻结能力和行为
+  契约，不冻结当前组件树或视觉表达。
+- 后续功能不得继续扩大 UI 对 storage、parser、migration、业务判定或平台 runtime
+  的直接耦合；触及既有热点时按
+  `docs/final-ui-refactor-compatibility-contract.md` 渐进抽离。
 
 ## 技术栈
 

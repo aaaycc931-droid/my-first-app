@@ -13,12 +13,13 @@
 1. 本文件：正式版 V1 的范围、质量门槛和最终退出条件。
 2. `docs/final-release-status-matrix.md`：每项门槛的实时状态、证据和下一步。
 3. `docs/mvp-status.md`：已经真实交付的运行时事实和历史阶段记录。
-4. `docs/final-product-shape-and-feature-map.md`：完整产品方向与长期功能地图。
-5. `docs/android-offline-professional-product-roadmap.md`：第一代 Android 离线私测版的阶段约束。
-6. `docs/eight-product-unified-competitive-roadmap-2026-07-18.md`：八产品长期终局、单项竞争力和本地/云端协同范围。
-7. `docs/future-development-execution-roadmap-eight-products-2026-07-18.md`：P/F/S/A/C/Q 原始范围和历史执行基线。
-8. `docs/unified-development-roadmap-with-ai-music-companion-2026-07-18.md`：P113 合并后的统一执行顺序，以及 P/F/S/A/C/M/Q 泳道、首发伙伴和长期多伙伴的依赖与闸门。
-9. 其他 Pxx 文档：阶段设计、研究或历史决策，不单独构成正式发布证明。
+4. `docs/final-ui-refactor-compatibility-contract.md`：路线能力与最终 UI 重构之间的兼容、架构和验收边界。
+5. `docs/final-product-shape-and-feature-map.md`：完整产品方向与长期功能地图。
+6. `docs/android-offline-professional-product-roadmap.md`：第一代 Android 离线私测版的阶段约束。
+7. `docs/eight-product-unified-competitive-roadmap-2026-07-18.md`：八产品长期终局、单项竞争力和本地/云端协同范围。
+8. `docs/future-development-execution-roadmap-eight-products-2026-07-18.md`：P/F/S/A/C/Q 原始范围和历史执行基线。
+9. `docs/unified-development-roadmap-with-ai-music-companion-2026-07-18.md`：P113 合并后的统一执行顺序，以及 P/F/S/A/C/M/Q 泳道、首发伙伴和长期多伙伴的依赖与闸门。
+10. 其他 Pxx 文档：阶段设计、研究或历史决策，不单独构成正式发布证明。
 
 八产品与伙伴路线扩大的是长期产品终局，不自动把未列入本 V1 冻结范围的能力变成当前 V1 发布宣称，也不降低本文件任何 MUST 门槛。P120 仍只是专业私测候选，不是八产品公开最终版。伙伴能力在本 V1 中继续属于条件能力；未通过教学、安全、隐私、性能和用户验收时必须关闭，不能阻塞已达到 DoD 的核心专业功能。
 
@@ -89,6 +90,9 @@ AI 只能解释已经结构化、版本化的测量结果，不能替代音高�
 6. 关键路径有 focused tests、类型检查、生产构建和浏览器交互证据。
 7. 用户可见文案为简体中文，不使用误导性的评分、正式转写或最终目标表述。
 8. 对应文档、迁移、运行手册和回滚方式已经更新。
+9. UI、导航或展示实现发生变化时，满足
+   `docs/final-ui-refactor-compatibility-contract.md` 的数据兼容、行为等价、架构边界和
+   Web／Android／可访问性证据要求。
 
 ## 5. 课程与内容门槛
 

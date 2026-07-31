@@ -10,8 +10,8 @@
 
 ## 1. 当前事实与本次决策
 
-当前执行检查点在 PR #482 已把 minor-sixth 纳入既有严格 `<harmony>` 双向
-映射之后，继续增加 suspended-fourth；PR #481 已完成 major-sixth，PR #480 已完成 augmented-seventh，PR #479 已完成
+当前执行检查点在 PR #483 已把 suspended-fourth 纳入既有严格 `<harmony>` 双向
+映射之后，继续增加 suspended-second；PR #482 已完成 minor-sixth，PR #481 已完成 major-sixth，PR #480 已完成 augmented-seventh，PR #479 已完成
 diminished-seventh，PR #477 已完成 note 容器硬化，PR #476 已完成增三／减三和弦，PR #475 已完成
 part identity，PR #474 已完成 GM1 program，
 PR #473 已完成 scoreCredits，PR #466 已完成 XML 1.0 文本
@@ -57,11 +57,12 @@ fail-closed。仓库默认分支实时状态仍以 GitHub 为准：
 1. `docs/final-release-definition-of-done.md` 仍是首个正式 V1 的唯一完成标准；
 2. `docs/final-release-status-matrix.md` 仍记录实时状态和证据缺口；
 3. `docs/mvp-status.md` 仍记录已经真实交付的事实；
-4. `docs/eight-product-unified-competitive-roadmap-2026-07-18.md` 仍定义八款参照产品的能力范围和竞争门槛；
-5. 本文件取代 `docs/future-development-execution-roadmap-eight-products-2026-07-18.md` 中过期的 P112/P113 检查点，并成为 P113 之后包含伙伴系统的统一执行顺序；
-6. `docs/ai-music-companion-agent-roadmap-2026-07-18.md` 继续定义伙伴能力、安全和智能体原则；
-7. `docs/ai-music-companion-single-companion-pilot-roadmap-2026-07-18.md` 继续定义首发单伙伴、人格、学习风格、成长和多伙伴触发条件；
-8. 旧交接与旧执行路线保留为历史记录，不得用其中“P113 尚未开始”的描述覆盖当前事实。
+4. `docs/final-ui-refactor-compatibility-contract.md` 规定路线能力与最终 UI 重构之间的兼容、架构和验收边界；
+5. `docs/eight-product-unified-competitive-roadmap-2026-07-18.md` 仍定义八款参照产品的能力范围和竞争门槛；
+6. 本文件取代 `docs/future-development-execution-roadmap-eight-products-2026-07-18.md` 中过期的 P112/P113 检查点，并成为 P113 之后包含伙伴系统的统一执行顺序；
+7. `docs/ai-music-companion-agent-roadmap-2026-07-18.md` 继续定义伙伴能力、安全和智能体原则；
+8. `docs/ai-music-companion-single-companion-pilot-roadmap-2026-07-18.md` 继续定义首发单伙伴、人格、学习风格、成长和多伙伴触发条件；
+9. 旧交接与旧执行路线保留为历史记录，不得用其中“P113 尚未开始”的描述覆盖当前事实。
 
 `docs/future-product-requirements-roadmap.md` 已建立为 P115i 之后的短周期执行索引；本文件仍负责长期统一路线，两者冲突时以正式版 DoD 与状态矩阵的证据边界为准。
 
