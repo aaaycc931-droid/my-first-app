@@ -8,11 +8,11 @@ QA level recommendation：**strict**
 
 - 复用当前 canonical note/rest 事件起点的 `chordSymbol: string | null`，不修改
   canonical schema、storage 版本、编辑器、谱面显示或播放语义。
-- 本切片只接受根音 `A–G`，以及可选的单个 ASCII `#`／`b`，与十种无转位和弦：
+- 本切片只接受根音 `A–G`，以及可选的单个 ASCII `#`／`b`，与十一种无转位和弦：
   `C`（major）、`Cm`（minor）、`C7`（dominant）、
   `Cmaj7`（major-seventh）、`Cm7`（minor-seventh）、
   `Caug`（augmented）、`Cdim`（diminished）、
-  `Caug7`（augmented-seventh）、`Cdim7`（diminished-seventh）、
+  `C6`（major-sixth）、`Caug7`（augmented-seventh）、`Cdim7`（diminished-seventh）、
   `Cm7b5`（half-diminished）；`C` 可替换为任一
   `A–G`、`A#–G#` 或 `Ab–Gb`。
 - canonical 和弦标记确定性写为目标 note/rest 之前的 measure-level
@@ -56,8 +56,8 @@ MusicXML 4.0 使用 measure-level `<harmony>` 表达流行音乐和弦标记，`
 
 ## 自动验收
 
-- canonical parser/renderer 纯映射覆盖十种 kind、全部 7 个自然根音及其单升／
-  单降形式（210 个组合）；XML 与 MXL 以 note/rest 上的升降根音代表组合验证
+- canonical parser/renderer 纯映射覆盖十一种 kind、全部 7 个自然根音及其单升／
+  单降形式（231 个组合）；XML 与 MXL 以 note/rest 上的升降根音代表组合验证
   `null` 及与 dot、fermata、tie/tied、slur、lyric、fingering、
   articulations、dynamic 和 damper pedal 共存。
 - 同一 canonical revision 重复生成的 XML/MXL 字节一致；解包 XML 一致，
@@ -93,3 +93,6 @@ MuseScore/Dorico/Sibelius 等第三方独立阅读器中的和弦符号显示、
 
 增七和弦新增严格边界见
 `docs/s3-local-score-project-musicxml-augmented-seventh-round-trip-acceptance.md`。
+
+大六和弦新增严格边界见
+`docs/s3-local-score-project-musicxml-major-sixth-round-trip-acceptance.md`。
