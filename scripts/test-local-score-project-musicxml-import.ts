@@ -1547,9 +1547,40 @@ for (const sourceFormat of ["musicxml", "mxl"] as const) {
   assert.equal(augmentedSeventhEventIds, 5);
 }
 
+const strictMajorSixthHarmonyXml = supportedXml
+  .replace(
+    "<note><pitch><step>C</step>",
+    '<harmony><root><root-step>C</root-step><root-alter>1</root-alter></root><kind>major-sixth</kind><staff>1</staff></harmony><note><pitch><step>C</step>',
+  )
+  .replace(
+    "<note><rest/>",
+    '<harmony><root><root-step>D</root-step><root-alter>-1</root-alter></root><kind>major-sixth</kind><staff>1</staff></harmony><note><rest/>',
+  );
+for (const sourceFormat of ["musicxml", "mxl"] as const) {
+  let majorSixthEventIds = 0;
+  const majorSixthDraft = createLocalScoreProjectMusicXmlImportDraft({
+    xml: strictMajorSixthHarmonyXml,
+    fileName: `严格大六和弦.${sourceFormat}`,
+    sourceFormat,
+    projectId: `import-project-major-sixth-${sourceFormat}`,
+    now: "2026-07-30T13:50:00.000Z",
+    createEventId: () =>
+      `major-sixth-${sourceFormat}-${++majorSixthEventIds}`,
+  });
+  assert.equal(majorSixthDraft.status, "ready");
+  assert.deepEqual(majorSixthDraft.issues, []);
+  assert.deepEqual(
+    majorSixthDraft.project?.document.parts[0].staves[0].voices[0]
+      .measures.flatMap((measure) => measure.events)
+      .map((event) => event.chordSymbol),
+    ["C#6", "Db6", null, null, null],
+    `${sourceFormat} must preserve major-sixth symbols`,
+  );
+  assert.equal(majorSixthEventIds, 5);
+}
+
 const harmonyAnchor = "<note><pitch><step>D</step>";
 const invalidHarmonies = [
-  '<harmony><root><root-step>C</root-step></root><kind>major-sixth</kind><staff>1</staff></harmony>',
   '<harmony><root><root-step>C</root-step></root><kind>minor-sixth</kind><staff>1</staff></harmony>',
   '<harmony placement="above"><root><root-step>C</root-step></root><kind>major</kind><staff>1</staff></harmony>',
   '<harmony><root><root-step>C</root-step><root-alter>2</root-alter></root><kind>major</kind><staff>1</staff></harmony>',
