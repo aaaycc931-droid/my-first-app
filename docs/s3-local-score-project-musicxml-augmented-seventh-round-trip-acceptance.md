@@ -17,7 +17,7 @@ QA level recommendation：**strict**
 
 - `C+7`、`C+` 或其他 alias 不得归一化为 `Caug7`。
 - `Caug`／`augmented` 不得与 `Caug7`／`augmented-seventh` 混同或互相降级。
-- major-sixth、diminished-seventh、half-diminished、其他七和弦、sus／add／扩展音
+- major-sixth、minor-sixth、diminished-seventh、half-diminished、其他七和弦、sus／add／扩展音
   不得与 augmented-seventh 混同。
 - slash／bass／inversion、双升降、Unicode 升降号、属性、额外节点、错序、重复、
   namespace／大小写变体及非规范间隔继续 blocking。
@@ -43,3 +43,6 @@ QA level recommendation：**strict**
 
 大六和弦的独立严格边界见
 `docs/s3-local-score-project-musicxml-major-sixth-round-trip-acceptance.md`。
+
+小六和弦的独立严格边界见
+`docs/s3-local-score-project-musicxml-minor-sixth-round-trip-acceptance.md`。

@@ -1,4 +1,4 @@
-# S3 MusicXML／MXL 大六和弦严格 round-trip 验收
+# S3 MusicXML／MXL 小六和弦严格 round-trip 验收
 
 状态：**严格子集实现候选；外部 QA NOT_EXECUTED**
 
@@ -7,7 +7,7 @@ QA level recommendation：**strict**
 ## 范围
 
 - 在既有受控 `chordSymbol` 双向映射上只增加一种和弦类别：
-  `C6` ↔ `<kind>major-sixth</kind>`。
+  `Cm6` ↔ `<kind>minor-sixth</kind>`。
 - 根音仍只允许 `A–G`，以及可选的单个 ASCII `#`／`b`；因此新增 21 个确定性组合。
 - MusicXML 与 MXL 的 note/rest 锚定、harmony 结构、踏板共存顺序、blocking ledger、
   明确确认、re-import 和 legacy parser 边界全部复用既有严格门禁。
@@ -15,8 +15,8 @@ QA level recommendation：**strict**
 
 ## 失败关闭边界
 
-- `Cmaj6` 或其他 alias 不得归一化为 `C6`。
-- `C6`／`major-sixth` 不得与 `Cm6`／`minor-sixth`、major 或其他 kind 混同或降级。
+- `Cmaj6` 或其他 alias 不得归一化为 `C6` 或 `Cm6`。
+- `Cm6`／`minor-sixth` 不得与 `C6`／`major-sixth`、minor 或其他 kind 混同或降级。
 - sus／add／扩展音及其他未列出的和弦类别继续 blocking。
 - slash／bass／inversion、双升降、Unicode 升降号、属性、额外节点、错序、重复、
   namespace／大小写变体及非规范间隔继续 blocking。
@@ -24,11 +24,11 @@ QA level recommendation：**strict**
 
 ## 自动验收
 
-- 纯映射覆盖 major-sixth、全部 7 个自然根音及其单升／单降形式。
-- XML 与 MXL 都以 pitched note 上的 `C#6`、rest 上的 `Db6` 验证 exact import；
-  导出 fixture 验证 `<kind>major-sixth</kind>` 和 exact re-import。
-- `Cmaj6` alias、`Cm6`／minor-sixth、未知 kind、结构变体和所有既有 blocker 保持
-  失败关闭，blocking import 不分配 event ID。
+- 纯映射覆盖 minor-sixth、全部 7 个自然根音及其单升／单降形式。
+- XML 与 MXL 都以 pitched note 上的 `C#m6`、rest 上的 `Dbm6` 验证 exact import；
+  导出 fixture 验证 `<kind>minor-sixth</kind>` 和 exact re-import。
+- `Cmaj6` alias、未知 kind、结构变体和所有既有 blocker 保持失败关闭，blocking
+  import 不分配 event ID。
 - focused import/export、typecheck、documentation hygiene、完整 check、Android
   本地门禁和 `git diff --check` 必须通过。
 

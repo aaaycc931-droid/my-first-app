@@ -1579,9 +1579,40 @@ for (const sourceFormat of ["musicxml", "mxl"] as const) {
   assert.equal(majorSixthEventIds, 5);
 }
 
+const strictMinorSixthHarmonyXml = supportedXml
+  .replace(
+    "<note><pitch><step>C</step>",
+    '<harmony><root><root-step>C</root-step><root-alter>1</root-alter></root><kind>minor-sixth</kind><staff>1</staff></harmony><note><pitch><step>C</step>',
+  )
+  .replace(
+    "<note><rest/>",
+    '<harmony><root><root-step>D</root-step><root-alter>-1</root-alter></root><kind>minor-sixth</kind><staff>1</staff></harmony><note><rest/>',
+  );
+for (const sourceFormat of ["musicxml", "mxl"] as const) {
+  let minorSixthEventIds = 0;
+  const minorSixthDraft = createLocalScoreProjectMusicXmlImportDraft({
+    xml: strictMinorSixthHarmonyXml,
+    fileName: `严格小六和弦.${sourceFormat}`,
+    sourceFormat,
+    projectId: `import-project-minor-sixth-${sourceFormat}`,
+    now: "2026-07-31T01:10:00.000Z",
+    createEventId: () =>
+      `minor-sixth-${sourceFormat}-${++minorSixthEventIds}`,
+  });
+  assert.equal(minorSixthDraft.status, "ready");
+  assert.deepEqual(minorSixthDraft.issues, []);
+  assert.deepEqual(
+    minorSixthDraft.project?.document.parts[0].staves[0].voices[0]
+      .measures.flatMap((measure) => measure.events)
+      .map((event) => event.chordSymbol),
+    ["C#m6", "Dbm6", null, null, null],
+    `${sourceFormat} must preserve minor-sixth symbols`,
+  );
+  assert.equal(minorSixthEventIds, 5);
+}
+
 const harmonyAnchor = "<note><pitch><step>D</step>";
 const invalidHarmonies = [
-  '<harmony><root><root-step>C</root-step></root><kind>minor-sixth</kind><staff>1</staff></harmony>',
   '<harmony placement="above"><root><root-step>C</root-step></root><kind>major</kind><staff>1</staff></harmony>',
   '<harmony><root><root-step>C</root-step><root-alter>2</root-alter></root><kind>major</kind><staff>1</staff></harmony>',
   '<harmony><root><root-step>C</root-step><root-alter>1.0</root-alter></root><kind>major</kind><staff>1</staff></harmony>',
@@ -1589,8 +1620,13 @@ const invalidHarmonies = [
   '<harmony><root><root-alter>1</root-alter><root-step>C</root-step></root><kind>major</kind><staff>1</staff></harmony>',
   '<harmony><root><root-step>C</root-step><root-alter print-object="no">1</root-alter></root><kind>major</kind><staff>1</staff></harmony>',
   '<harmony><root><root-step>C</root-step></root><kind text="maj">major</kind><staff>1</staff></harmony>',
+  '<harmony><root><root-step>C</root-step></root><kind>other</kind><staff>1</staff></harmony>',
   '<harmony><root><root-step>H</root-step></root><kind>major</kind><staff>1</staff></harmony>',
   '<harmony><root><root-step>C</root-step></root><kind>major</kind><staff>2</staff></harmony>',
+  '<harmony><root><root-step>C</root-step></root><kind>major</kind><bass><bass-step>G</bass-step></bass><staff>1</staff></harmony>',
+  '<harmony><root><root-step>C</root-step></root><kind>major</kind><inversion>1</inversion><staff>1</staff></harmony>',
+  '<harmony xmlns="urn:unsupported"><root><root-step>C</root-step></root><kind>major</kind><staff>1</staff></harmony>',
+  '<harmony><root><root-step>C</root-step></root><Kind>major</Kind><staff>1</staff></harmony>',
   '<harmony><kind>major</kind><root><root-step>C</root-step></root><staff>1</staff></harmony>',
   '<harmony><root><root-step>C</root-step></root><kind>major</kind><staff>1</staff><degree/></harmony>',
   '<harmony><root><!--comment--><root-step>C</root-step></root><kind>major</kind><staff>1</staff></harmony>',
