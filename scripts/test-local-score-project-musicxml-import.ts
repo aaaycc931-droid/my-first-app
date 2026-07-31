@@ -1739,6 +1739,38 @@ for (const sourceFormat of ["musicxml", "mxl"] as const) {
   assert.equal(dominantNinthEventIds, 5);
 }
 
+const strictMajorNinthHarmonyXml = supportedXml
+  .replace(
+    "<note><pitch><step>C</step>",
+    '<harmony><root><root-step>C</root-step><root-alter>1</root-alter></root><kind>major-ninth</kind><staff>1</staff></harmony><note><pitch><step>C</step>',
+  )
+  .replace(
+    "<note><rest/>",
+    '<harmony><root><root-step>D</root-step><root-alter>-1</root-alter></root><kind>major-ninth</kind><staff>1</staff></harmony><note><rest/>',
+  );
+for (const sourceFormat of ["musicxml", "mxl"] as const) {
+  let majorNinthEventIds = 0;
+  const majorNinthDraft = createLocalScoreProjectMusicXmlImportDraft({
+    xml: strictMajorNinthHarmonyXml,
+    fileName: `严格大九和弦.${sourceFormat}`,
+    sourceFormat,
+    projectId: `import-project-major-ninth-${sourceFormat}`,
+    now: "2026-07-31T12:30:00.000Z",
+    createEventId: () =>
+      `major-ninth-${sourceFormat}-${++majorNinthEventIds}`,
+  });
+  assert.equal(majorNinthDraft.status, "ready");
+  assert.deepEqual(majorNinthDraft.issues, []);
+  assert.deepEqual(
+    majorNinthDraft.project?.document.parts[0].staves[0].voices[0]
+      .measures.flatMap((measure) => measure.events)
+      .map((event) => event.chordSymbol),
+    ["C#maj9", "Dbmaj9", null, null, null],
+    `${sourceFormat} must preserve major-ninth symbols`,
+  );
+  assert.equal(majorNinthEventIds, 5);
+}
+
 const harmonyAnchor = "<note><pitch><step>D</step>";
 const invalidHarmonies = [
   '<harmony placement="above"><root><root-step>C</root-step></root><kind>major</kind><staff>1</staff></harmony>',
@@ -1752,6 +1784,8 @@ const invalidHarmonies = [
   '<harmony><root><root-step>C</root-step></root><kind>Power</kind><staff>1</staff></harmony>',
   '<harmony><root><root-step>C</root-step></root><kind text="9">dominant-ninth</kind><staff>1</staff></harmony>',
   '<harmony><root><root-step>C</root-step></root><kind>Dominant-Ninth</kind><staff>1</staff></harmony>',
+  '<harmony><root><root-step>C</root-step></root><kind text="maj9">major-ninth</kind><staff>1</staff></harmony>',
+  '<harmony><root><root-step>C</root-step></root><kind>Major-Ninth</kind><staff>1</staff></harmony>',
   '<harmony><root><root-step>C</root-step></root><kind>other</kind><staff>1</staff></harmony>',
   '<harmony><root><root-step>H</root-step></root><kind>major</kind><staff>1</staff></harmony>',
   '<harmony><root><root-step>C</root-step></root><kind>major</kind><staff>2</staff></harmony>',
