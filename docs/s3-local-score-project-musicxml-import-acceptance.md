@@ -112,10 +112,10 @@ QA level recommendation：**strict**
 - note 与 rest 最多允许一个锚定其前的 measure-level `<harmony>`，依次且仅含
   `<root><root-step>A–G</root-step>[<root-alter>±1</root-alter>]</root>`、
   受控 `<kind>` 与 `<staff>1</staff>`；major/minor/dominant/major-seventh/
-  minor-seventh/major-sixth/minor-sixth/suspended-second/suspended-fourth/power/dominant-ninth/augmented/diminished/augmented-seventh/diminished-seventh/
+  minor-seventh/major-sixth/minor-sixth/suspended-second/suspended-fourth/power/dominant-ninth/major-ninth/augmented/diminished/augmented-seventh/diminished-seventh/
   half-diminished exact
   映射为 canonical 根音可选单个 ASCII `#`／`b` 的无后缀/`m`/`7`/`maj7`/
-  `m7`/`6`/`m6`/`sus2`/`sus4`/`5`/`9`/`aug`/`dim`/`aug7`/`dim7`/`m7b5`
+  `m7`/`6`/`m6`/`sus2`/`sus4`/`5`/`9`/`maj9`/`aug`/`dim`/`aug7`/`dim7`/`m7b5`
   和弦标记。harmony 与目标之间
   只允许格式化空白和同一事件的
   严格踏板 direction。属性、其他／非 exact／重复／错序 root-alter、bass、
@@ -215,9 +215,9 @@ tie 结构以外的歌词、指法、演奏法、力度、踏板、和弦、速�
   direction 全部失败关闭；
 - note/rest 之前的严格 `<harmony>` exact 映射自然／单升降根音的 major/minor/
   dominant/major-seventh/minor-seventh/major-sixth/minor-sixth/suspended-second/
-  suspended-fourth/power/dominant-ninth/augmented/diminished/augmented-seventh/
+  suspended-fourth/power/dominant-ninth/major-ninth/augmented/diminished/augmented-seventh/
   diminished-seventh/half-diminished 为 canonical 无后缀/`m`/`7`/`maj7`/`m7`/
-  `6`/`m6`/`sus2`/`sus4`/`5`/`9`/`aug`/`dim`/`aug7`/`dim7`/`m7b5`；
+  `6`/`m6`/`sus2`/`sus4`/`5`/`9`/`maj9`/`aug`/`dim`/`aug7`/`dim7`/`m7b5`；
   XML/MXL、与踏板及既有受控记号共存
   保持不变，其他根音/kind、属性、其他／
   非 exact／重复／错序 root-alter、bass、inversion、degree、重复、悬空、错误
@@ -340,6 +340,9 @@ part identity fail-closed 硬化的独立验收边界见
 
 属九和弦新增严格边界见
 `docs/s3-local-score-project-musicxml-dominant-ninth-round-trip-acceptance.md`。
+
+大九和弦新增严格边界见
+`docs/s3-local-score-project-musicxml-major-ninth-round-trip-acceptance.md`。
 
 note 容器名称、namespace 与属性的 fail-closed 边界见
 `docs/s3-local-score-project-musicxml-note-container-hardening-acceptance.md`。

@@ -86,10 +86,10 @@ QA level recommendation：**strict**
   `down`／`up` 分别在目标事件紧邻之前确定性写入只含 pedal `start`／`stop`、
   voice 1 和 staff 1 的严格 `<direction>`，`null` 不生成 direction。
 - note/rest 的 canonical `chordSymbol` 只接受根音 `A–G` 后可选单个 ASCII
-  `#`／`b` 的无后缀、`m`、`7`、`maj7`、`m7`、`6`、`m6`、`sus2`、`sus4`、`5`、`9`、`aug`、`dim`、`aug7`、
+  `#`／`b` 的无后缀、`m`、`7`、`maj7`、`m7`、`6`、`m6`、`sus2`、`sus4`、`5`、`9`、`maj9`、`aug`、`dim`、`aug7`、
   `dim7` 或 `m7b5`
   形式，分别确定性
-  写为 major、minor、dominant、major-seventh、minor-seventh、major-sixth、minor-sixth、suspended-second、suspended-fourth、power、dominant-ninth、
+  写为 major、minor、dominant、major-seventh、minor-seventh、major-sixth、minor-sixth、suspended-second、suspended-fourth、power、dominant-ninth、major-ninth、
   augmented、diminished、augmented-seventh、diminished-seventh、half-diminished 的严格
   `<harmony>`；`#`／`b` 分别写为 exact `<root-alter>1</root-alter>`／
   `<root-alter>-1</root-alter>`，自然音省略 root-alter。和踏板共存时固定输出
@@ -311,6 +311,9 @@ QA level recommendation：**strict**
 
 属九和弦新增严格边界见
 `docs/s3-local-score-project-musicxml-dominant-ninth-round-trip-acceptance.md`。
+
+大九和弦新增严格边界见
+`docs/s3-local-score-project-musicxml-major-ninth-round-trip-acceptance.md`。
 
 XML 1.0 文本与 Unicode 安全边界见
 `docs/s3-local-score-project-musicxml-xml-text-safety-acceptance.md`。
