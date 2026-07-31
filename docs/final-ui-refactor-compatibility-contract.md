@@ -85,6 +85,10 @@ URL、深链、文件格式、持久化键、原生 bridge 名称或其他外部
 7. 不为未来重构提前进行无边界的大爆炸改写；后续功能触及耦合热点时渐进抽离，并
    保持每个切片可运行、可测试、可回滚。
 
+仓库 hygiene 门禁会解析已跟踪的 `lib/` 源文件 import／export／dynamic import／
+require 依赖，并阻止其反向引用 `app/`、`components/` 或 `mobile/src/`。该自动门禁
+只保护依赖方向，不表示热点 controller／adapter 抽离或最终 UI 重构已经完成。
+
 ## 6. 当前已知的渐进抽离热点
 
 截至 2026-07-31 的 source-level 审查确认核心 `lib/` 没有反向导入 UI，但以下文件
