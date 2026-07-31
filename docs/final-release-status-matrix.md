@@ -1,15 +1,19 @@
 # 正式版 V1 状态矩阵
 
-最后更新：2026-07-30
+最后更新：2026-07-31
 规范来源：`docs/final-release-definition-of-done.md`
+UI 重构兼容来源：`docs/final-ui-refactor-compatibility-contract.md`
 
 本文件只记录可验证的当前状态。`IN_PROGRESS` 不等于失败，也不得对外宣称正式完成；状态必须随合并和生产证据更新。
+当前页面、导航和样式仍是 implementation candidates，不是最终视觉冻结基线；已知
+UI 编排热点、渐进抽离边界和最终重构门槛以 UI 重构兼容契约为准。该文档入库不代表
+UI 重构、浏览器／Android 真机、可访问性或目标用户验收已经执行。
 
 ## 1. 总览
 
 | ID | 领域 | 当前状态 | 已有真实证据 | 距离 PASS 的主要缺口 |
 | --- | --- | --- | --- | --- |
-| V1-01 | 范围与规范 | PASS | 正式版 DoD、范围分层、退出条件 | 后续变更必须走范围变更记录 |
+| V1-01 | 范围与规范 | PASS | 正式版 DoD、范围分层、退出条件、最终 UI 重构兼容契约 | 后续变更必须走范围变更记录，并保持路线冻结能力而不冻结当前视觉实现 |
 | V1-02 | 账户与会话 | IN_PROGRESS | Supabase Auth、邮箱 magic link、资料读取/更新、生产浏览器 QA | 密码登录、退出/恢复全矩阵、异常邮件路径 |
 | V1-03 | 数据导出与删除 | NOT_STARTED | 数据模型有 deletion request 草案 | 用户入口、导出包、级联删除、24h SLA、端到端演练 |
 | V1-04 | 系统课程与题库 | IN_PROGRESS | 基础课程；单音、音程、节奏持久化；P115a–P115i、P116a–P116d、P117a–P117e、P118a–P118e implementation candidates 已合并；P118e 组合既有课程、练习事实、复练与可解释建议并分别失败关闭 | 双教师题量/难度/解释校准；Android 真实用户验证；P119/Q 联合验收 |
