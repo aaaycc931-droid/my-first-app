@@ -140,8 +140,8 @@
 - 当前严格子集已把 canonical GM1 program `0–127` 精确双向映射为
   `score-part` 中固定相邻的 `score-instrument` 与一基 `midi-program 1–128`；
   instrument-name 必须与 part name 一致，其他 MIDI／音色语义继续 blocking。全局整数
-  速度、单附点、力度、踏板、自然／单升降根音十四类和弦（含 major-sixth／
-  minor-sixth／suspended-second／suspended-fourth／augmented／diminished／augmented-seventh／diminished-seventh／half-diminished）、
+  速度、单附点、力度、踏板、自然／单升降根音十五类和弦（含 major-sixth／
+  minor-sixth／suspended-second／suspended-fourth／power／augmented／diminished／augmented-seventh／diminished-seventh／half-diminished）、
   lyric、fingering、
   articulations、fermata、slur 和 tie 的既有严格双向映射继续保留；附点真实时值、
   首事件顺序、同小节／跨小节／链式及共存语义均保持确定。其他未列出的语义继续
@@ -157,6 +157,7 @@
 - 小六和弦独立边界见 `docs/s3-local-score-project-musicxml-minor-sixth-round-trip-acceptance.md`；该切片不改变 schema、storage version 或迁移链。
 - 挂四和弦独立边界见 `docs/s3-local-score-project-musicxml-suspended-fourth-round-trip-acceptance.md`；该切片不改变 schema、storage version 或迁移链。
 - 挂二和弦独立边界见 `docs/s3-local-score-project-musicxml-suspended-second-round-trip-acceptance.md`；该切片不改变 schema、storage version 或迁移链。
+- 强力和弦独立边界见 `docs/s3-local-score-project-musicxml-power-chord-round-trip-acceptance.md`；该切片不改变 schema、storage version 或迁移链。
 - 当前和未来路线冻结能力、行为、数据兼容与证据门槛，不冻结当前页面、导航、组件树
   或视觉表达；最终 UI 重构及已知渐进抽离热点见
   `docs/final-ui-refactor-compatibility-contract.md`。该 docs-only 契约不表示 UI 重构或

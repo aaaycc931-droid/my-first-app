@@ -112,10 +112,10 @@ QA level recommendation：**strict**
 - note 与 rest 最多允许一个锚定其前的 measure-level `<harmony>`，依次且仅含
   `<root><root-step>A–G</root-step>[<root-alter>±1</root-alter>]</root>`、
   受控 `<kind>` 与 `<staff>1</staff>`；major/minor/dominant/major-seventh/
-  minor-seventh/major-sixth/minor-sixth/suspended-second/suspended-fourth/augmented/diminished/augmented-seventh/diminished-seventh/
+  minor-seventh/major-sixth/minor-sixth/suspended-second/suspended-fourth/power/augmented/diminished/augmented-seventh/diminished-seventh/
   half-diminished exact
   映射为 canonical 根音可选单个 ASCII `#`／`b` 的无后缀/`m`/`7`/`maj7`/
-  `m7`/`6`/`m6`/`sus2`/`sus4`/`aug`/`dim`/`aug7`/`dim7`/`m7b5`
+  `m7`/`6`/`m6`/`sus2`/`sus4`/`5`/`aug`/`dim`/`aug7`/`dim7`/`m7b5`
   和弦标记。harmony 与目标之间
   只允许格式化空白和同一事件的
   严格踏板 direction。属性、其他／非 exact／重复／错序 root-alter、bass、
@@ -333,6 +333,9 @@ part identity fail-closed 硬化的独立验收边界见
 
 挂二和弦新增严格边界见
 `docs/s3-local-score-project-musicxml-suspended-second-round-trip-acceptance.md`。
+
+强力和弦新增严格边界见
+`docs/s3-local-score-project-musicxml-power-chord-round-trip-acceptance.md`。
 
 note 容器名称、namespace 与属性的 fail-closed 边界见
 `docs/s3-local-score-project-musicxml-note-container-hardening-acceptance.md`。
