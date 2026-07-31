@@ -452,6 +452,40 @@ const createChordSymbolSupportedProject = (): LocalScoreProjectV1 => {
   return parsed;
 };
 
+const createSuspendedSecondSupportedProject = (): LocalScoreProjectV1 => {
+  const base = createChordSymbolSupportedProject();
+  const measures = base.document.parts[0].staves[0].voices[0].measures;
+  const symbols = new Map<string, string>([
+    ["event-1", "C#sus2"],
+    ["event-2", "Dbsus2"],
+  ] as const);
+  const candidate: LocalScoreProjectV1 = {
+    ...base,
+    document: {
+      ...base.document,
+      parts: [{
+        ...base.document.parts[0],
+        staves: [{
+          ...base.document.parts[0].staves[0],
+          voices: [{
+            ...base.document.parts[0].staves[0].voices[0],
+            measures: measures.map((measure) => ({
+              ...measure,
+              events: measure.events.map((event) => ({
+                ...event,
+                chordSymbol: symbols.get(event.id) ?? null,
+              })),
+            })),
+          }],
+        }],
+      }],
+    },
+  };
+  const parsed = parseLocalScoreProject(candidate);
+  assert.ok(parsed, "suspended-second export fixture must be canonical");
+  return parsed;
+};
+
 for (const rootStep of ["A", "B", "C", "D", "E", "F", "G"] as const) {
   for (const [suffix, kind] of [
     ["", "major"],
@@ -466,6 +500,7 @@ for (const rootStep of ["A", "B", "C", "D", "E", "F", "G"] as const) {
     ["aug7", "augmented-seventh"],
     ["6", "major-sixth"],
     ["m6", "minor-sixth"],
+    ["sus2", "suspended-second"],
     ["sus4", "suspended-fourth"],
   ] as const) {
     const canonical = `${rootStep}${suffix}`;
@@ -497,6 +532,7 @@ for (const rootStep of ["A", "B", "C", "D", "E", "F", "G"] as const) {
       ["aug7", "augmented-seventh"],
       ["6", "major-sixth"],
       ["m6", "minor-sixth"],
+      ["sus2", "suspended-second"],
       ["sus4", "suspended-fourth"],
     ] as const) {
       const canonical = `${rootStep}${accidental}${suffix}`;
@@ -523,8 +559,9 @@ for (const unsupported of [
   "Cø7",
   "Cmaj6",
   "Csus",
+  "C2",
   "C4",
-  "Csus2",
+  "Csus6",
   "C/E",
   "c",
   " C",
@@ -1547,6 +1584,93 @@ assert.deepEqual(
   parseMusicXML(chordSymbolReady.xml),
   parseMusicXML(damperPedalReady.xml),
   "legacy parsing must ignore harmony without changing note timing",
+);
+
+const suspendedSecondProject = createSuspendedSecondSupportedProject();
+const suspendedSecondReady = createLocalScoreProjectMusicXmlExportDraft({
+  project: suspendedSecondProject,
+});
+assert.equal(suspendedSecondReady.status, "ready");
+assert.deepEqual(suspendedSecondReady.issues, []);
+assert.ok(suspendedSecondReady.xml);
+for (const [rootStep, rootAlter] of [
+  ["C", "1"],
+  ["D", "-1"],
+] as const) {
+  assert.match(
+    suspendedSecondReady.xml,
+    new RegExp(
+      `<harmony>\\s*<root><root-step>${rootStep}</root-step>`
+      + `<root-alter>${rootAlter}</root-alter></root>\\s*`
+      + "<kind>suspended-second</kind>\\s*"
+      + "<staff>1</staff>\\s*</harmony>",
+    ),
+  );
+}
+assert.deepEqual(
+  createLocalScoreProjectMusicXmlExportDraft({
+    project: suspendedSecondProject,
+  }),
+  suspendedSecondReady,
+  "suspended-second MusicXML output must be deterministic",
+);
+const suspendedSecondXmlPayload =
+  confirmLocalScoreProjectMusicXmlExportDraft({
+    draft: suspendedSecondReady,
+    currentProject: suspendedSecondProject,
+    format: "musicxml",
+  });
+const reopenedSuspendedSecondXml =
+  createLocalScoreProjectMusicXmlImportDraft({
+    xml: String(suspendedSecondXmlPayload.data),
+    fileName: suspendedSecondXmlPayload.fileName,
+    sourceFormat: "musicxml",
+    projectId: suspendedSecondProject.projectId,
+    now: suspendedSecondProject.createdAt,
+    createEventId: () =>
+      `reopened-suspended-second-event-${++importedEventIndex}`,
+  });
+assert.equal(reopenedSuspendedSecondXml.status, "ready");
+assert.ok(reopenedSuspendedSecondXml.project);
+assert.deepEqual(
+  musicalProjection(reopenedSuspendedSecondXml.project),
+  musicalProjection(suspendedSecondProject),
+  "strict MusicXML re-import must preserve pitched-note and rest suspended-second symbols",
+);
+const suspendedSecondMxlPayload =
+  confirmLocalScoreProjectMusicXmlExportDraft({
+    draft: suspendedSecondReady,
+    currentProject: suspendedSecondProject,
+    format: "mxl",
+  });
+assert.deepEqual(
+  suspendedSecondMxlPayload.data,
+  createMusicXmlMxlArchive(suspendedSecondReady.xml),
+  "suspended-second MXL generation must remain deterministic",
+);
+const reopenedSuspendedSecondMxl =
+  createLocalScoreProjectMusicXmlImportDraft({
+    xml: extractMusicXMLFromMxl(
+      suspendedSecondMxlPayload.data as Uint8Array,
+    ),
+    fileName: suspendedSecondMxlPayload.fileName,
+    sourceFormat: "mxl",
+    projectId: suspendedSecondProject.projectId,
+    now: suspendedSecondProject.createdAt,
+    createEventId: () =>
+      `reopened-suspended-second-mxl-event-${++importedEventIndex}`,
+  });
+assert.equal(reopenedSuspendedSecondMxl.status, "ready");
+assert.ok(reopenedSuspendedSecondMxl.project);
+assert.deepEqual(
+  musicalProjection(reopenedSuspendedSecondMxl.project),
+  musicalProjection(suspendedSecondProject),
+  "strict MXL re-import must preserve pitched-note and rest suspended-second symbols",
+);
+assert.deepEqual(
+  parseMusicXML(suspendedSecondReady.xml),
+  parseMusicXML(damperPedalReady.xml),
+  "legacy parsing must ignore suspended-second harmony without changing note timing",
 );
 
 for (const mark of ["pp", "p", "mp", "mf", "f", "ff"] as const) {

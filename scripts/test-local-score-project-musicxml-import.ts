@@ -1643,6 +1643,38 @@ for (const sourceFormat of ["musicxml", "mxl"] as const) {
   assert.equal(suspendedFourthEventIds, 5);
 }
 
+const strictSuspendedSecondHarmonyXml = supportedXml
+  .replace(
+    "<note><pitch><step>C</step>",
+    '<harmony><root><root-step>C</root-step><root-alter>1</root-alter></root><kind>suspended-second</kind><staff>1</staff></harmony><note><pitch><step>C</step>',
+  )
+  .replace(
+    "<note><rest/>",
+    '<harmony><root><root-step>D</root-step><root-alter>-1</root-alter></root><kind>suspended-second</kind><staff>1</staff></harmony><note><rest/>',
+  );
+for (const sourceFormat of ["musicxml", "mxl"] as const) {
+  let suspendedSecondEventIds = 0;
+  const suspendedSecondDraft = createLocalScoreProjectMusicXmlImportDraft({
+    xml: strictSuspendedSecondHarmonyXml,
+    fileName: `严格挂二和弦.${sourceFormat}`,
+    sourceFormat,
+    projectId: `import-project-suspended-second-${sourceFormat}`,
+    now: "2026-07-31T05:00:00.000Z",
+    createEventId: () =>
+      `suspended-second-${sourceFormat}-${++suspendedSecondEventIds}`,
+  });
+  assert.equal(suspendedSecondDraft.status, "ready");
+  assert.deepEqual(suspendedSecondDraft.issues, []);
+  assert.deepEqual(
+    suspendedSecondDraft.project?.document.parts[0].staves[0].voices[0]
+      .measures.flatMap((measure) => measure.events)
+      .map((event) => event.chordSymbol),
+    ["C#sus2", "Dbsus2", null, null, null],
+    `${sourceFormat} must preserve suspended-second symbols`,
+  );
+  assert.equal(suspendedSecondEventIds, 5);
+}
+
 const harmonyAnchor = "<note><pitch><step>D</step>";
 const invalidHarmonies = [
   '<harmony placement="above"><root><root-step>C</root-step></root><kind>major</kind><staff>1</staff></harmony>',

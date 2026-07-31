@@ -1,4 +1,4 @@
-# S3 MusicXML／MXL 挂四和弦严格 round-trip 验收
+# S3 MusicXML／MXL 挂二和弦严格 round-trip 验收
 
 状态：**严格子集实现候选；外部 QA NOT_EXECUTED**
 
@@ -7,18 +7,18 @@ QA level recommendation：**strict**
 ## 范围
 
 - 在既有受控 `chordSymbol` 双向映射上只增加一种和弦类别：
-  `Csus4` ↔ `<kind>suspended-fourth</kind>`。
+  `Csus2` ↔ `<kind>suspended-second</kind>`。
 - 根音仍只允许 `A–G`，以及可选的单个 ASCII `#`／`b`；因此新增 21 个确定性组合，
-  使受控组合总数从 252 增至 273。
+  使受控组合总数从 273 增至 294。
 - MusicXML 与 MXL 的 note/rest 锚定、harmony 结构、踏板共存顺序、blocking ledger、
   明确确认、re-import 和 legacy parser 边界全部复用既有严格门禁。
 - 不修改 canonical schema、storage version、迁移链、编辑器、谱面显示或播放语义。
 
 ## 失败关闭边界
 
-- `Csus`、`C4` 或其他 alias 不得归一化为 `Csus4`。
-- `Csus4`／`suspended-fourth` 不得与 major、minor、major-sixth、minor-sixth、
-  `Csus2`／suspended-second 或其他 kind 混同或降级。
+- `Csus`、`C2`、`Csus6` 或其他 alias 不得归一化为 `Csus2`。
+- `Csus2`／`suspended-second` 不得与 `Csus4`／`suspended-fourth`、major、minor、
+  major-sixth、minor-sixth 或其他 kind 混同或降级。
 - add／扩展音及其他未列出的和弦类别继续 blocking。
 - slash／bass／inversion、双升降、Unicode 升降号、属性、额外节点、错序、重复、
   namespace／大小写变体及非规范间隔继续 blocking。
@@ -26,11 +26,11 @@ QA level recommendation：**strict**
 
 ## 自动验收
 
-- 纯映射覆盖 suspended-fourth、全部 7 个自然根音及其单升／单降形式。
-- XML 与 MXL 都以 pitched note 上的 `C#sus4`、rest 上的 `Dbsus4` 验证 exact
-  import；导出 fixture 验证 `<kind>suspended-fourth</kind>`、确定性导出和 exact
-  re-import。
-- `Csus`／`C4` alias、未知 kind、bass／inversion、namespace／大小写、
+- 纯映射覆盖 suspended-second、全部 7 个自然根音及其单升／单降形式。
+- XML 与 MXL 都以 pitched note 上的 `C#sus2`、rest 上的 `Dbsus2` 验证 exact
+  import；独立导出 fixture 验证 `<kind>suspended-second</kind>`、确定性 XML/MXL、
+  pitched note/rest 与既有记号共存，以及 exact re-import。
+- `Csus`／`C2`／`Csus6` alias、未知 kind、bass／inversion、namespace／大小写、
   属性、错序、重复和其他既有 blocker 保持失败关闭；blocking import 不分配 event ID。
 - focused import/export、chord-symbol、typecheck、documentation hygiene、完整
   `test:*` 注册门禁、production dependency audit、Android sync／本地门禁、移动端与
@@ -43,6 +43,3 @@ QA level recommendation：**strict**
 教育有效性也为 `NOT_EXECUTED`。
 
 本切片不是完整和弦系统、完整 MusicXML/MXL、完整 S3 或正式版 V1。
-
-挂二和弦的后续独立边界见
-`docs/s3-local-score-project-musicxml-suspended-second-round-trip-acceptance.md`。
