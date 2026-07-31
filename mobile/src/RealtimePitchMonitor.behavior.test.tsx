@@ -5,6 +5,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { RealtimePitchMonitorPanel } from "../../components/practice/RealtimePitchMonitorPanel";
 import { stopAllBrowserAudio } from "../../lib/audio/browserAudioEngine";
 import { generateLocalVocalExercise, type GeneratedLocalVocalExercise } from "../../lib/practice/localVocalExercise";
+import type {
+  LocalVocalPracticeRecord,
+  LocalVocalPracticeRecordRepository,
+} from "../../lib/practice/localVocalPracticeRecord";
 
 let root: Root | null = null;
 let trackStop: ReturnType<typeof vi.fn>;
@@ -29,11 +33,42 @@ const waitFor = async (predicate: () => boolean, message: string) => {
   throw new Error(`等待超时：${message}`);
 };
 
-const renderPanel = async (targetExercise?: GeneratedLocalVocalExercise) => {
+const createPracticeRecordRepository = (
+  records: LocalVocalPracticeRecord[] = [],
+) => ({
+  list: vi.fn().mockResolvedValue(records),
+  save: vi.fn().mockResolvedValue(undefined),
+  remove: vi.fn().mockResolvedValue(undefined),
+  clear: vi.fn().mockResolvedValue(undefined),
+}) satisfies LocalVocalPracticeRecordRepository;
+
+const storedRecord: LocalVocalPracticeRecord = {
+  schemaVersion: 1,
+  id: "stored-record",
+  createdAt: "2026-07-31T08:00:00.000Z",
+  note: "保留的记录",
+  targetLabel: "自由练唱",
+  targetMidi: 69,
+  curvePoints: [{ timestampMs: 1_000, midi: 69, state: "reliable", confidence: 0.9 }],
+  recording: null,
+  algorithmVersion: "autocorrelation-realtime-v1",
+};
+
+const renderPanel = async (
+  targetExercise?: GeneratedLocalVocalExercise,
+  practiceRecordRepository = createPracticeRecordRepository(),
+) => {
   const container = document.createElement("div");
   document.body.append(container);
   root = createRoot(container);
-  await act(async () => root?.render(<StrictMode><RealtimePitchMonitorPanel targetExercise={targetExercise} /></StrictMode>));
+  await act(async () => root?.render(
+    <StrictMode>
+      <RealtimePitchMonitorPanel
+        practiceRecordRepository={practiceRecordRepository}
+        targetExercise={targetExercise}
+      />
+    </StrictMode>,
+  ));
   await flush();
   return container;
 };
@@ -123,6 +158,67 @@ afterEach(async () => {
 });
 
 describe("Android 实时音高反馈行为", () => {
+  it("本机记录只在 repository 成功后更新保存、删除和清空界面", async () => {
+    const repository = createPracticeRecordRepository([storedRecord]);
+    const container = await renderPanel(undefined, repository);
+    expect(container.textContent).toContain("保留的记录");
+
+    await click(button(container, "开始实时反馈"));
+    await click(button(container, "保存当前曲线与录音"));
+    expect(repository.save).toHaveBeenCalledTimes(1);
+    expect(container.textContent).toContain("已保存到本机应用私有记录");
+
+    const deleteStoredRecord = Array.from(container.querySelectorAll("button")).find(
+      (item) => item.getAttribute("aria-label")?.startsWith("删除：")
+        && item.parentElement?.parentElement?.textContent?.includes("保留的记录"),
+    );
+    if (!deleteStoredRecord) throw new Error("找不到已保存记录的删除按钮");
+    await click(deleteStoredRecord);
+    expect(repository.remove).toHaveBeenCalledWith("stored-record");
+    expect(container.textContent).not.toContain("保留的记录");
+
+    await click(button(container, "清除全部记录"));
+    expect(repository.clear).not.toHaveBeenCalled();
+    await click(button(container, "确认全部清除"));
+    expect(repository.clear).toHaveBeenCalledTimes(1);
+    expect(container.querySelectorAll('[aria-label^="删除："]')).toHaveLength(0);
+  });
+
+  it("repository 读取、保存、删除或清空失败时保持实时练习与既有记录", async () => {
+    const unavailableRepository = createPracticeRecordRepository();
+    unavailableRepository.list.mockRejectedValue(new Error("unavailable"));
+    const unavailableContainer = await renderPanel(undefined, unavailableRepository);
+    expect(unavailableContainer.textContent).toContain("本机记录暂时不可用；实时练习不受影响。");
+    await click(button(unavailableContainer, "开始实时反馈"));
+    expect(unavailableContainer.textContent).toContain("440.0 Hz");
+    await act(async () => root?.unmount());
+    root = null;
+    document.body.replaceChildren();
+
+    const repository = createPracticeRecordRepository([storedRecord]);
+    repository.save.mockRejectedValue(new Error("保存失败"));
+    repository.remove.mockRejectedValue(new Error("删除失败"));
+    repository.clear.mockRejectedValue(new Error("清除失败"));
+    const container = await renderPanel(undefined, repository);
+    await click(button(container, "开始实时反馈"));
+    await click(button(container, "保存当前曲线与录音"));
+    expect(container.textContent).toContain("保存失败");
+    expect(container.querySelectorAll('[aria-label^="删除："]')).toHaveLength(1);
+
+    await click(container.querySelector('[aria-label^="删除："]') as HTMLElement);
+    expect(container.textContent).toContain("删除失败，请重试。");
+    expect(container.textContent).toContain("保留的记录");
+
+    await click(button(container, "清除全部记录"));
+    await click(button(container, "取消"));
+    expect(repository.clear).not.toHaveBeenCalled();
+    await click(button(container, "清除全部记录"));
+    await click(button(container, "确认全部清除"));
+    expect(repository.clear).toHaveBeenCalledTimes(1);
+    expect(container.textContent).toContain("清除失败，请重试。");
+    expect(container.textContent).toContain("保留的记录");
+  });
+
   it("必须由用户主动开始，可靠帧可显示并在停止时释放麦克风", async () => {
     const container = await renderPanel();
     expect(getUserMedia).not.toHaveBeenCalled();

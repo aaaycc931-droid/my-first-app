@@ -6,7 +6,7 @@
 
 ## 当前基线
 
-- 最新已合并产品功能基线：S3 MusicXML/MXL 挂四和弦严格 round-trip / PR #483，合并提交 `9cc3ae0df1ec2cd32271f2ecbc379f76d6021db2`
+- 最新已合并产品功能基线：S3 MusicXML/MXL 挂二和弦严格 round-trip / PR #485，合并提交 `d53f0f0e2d534666203d36fc1ef5b9e04db8594e`
 - 最新已合并交换安全加固：MusicXML/MXL note 容器 fail-closed / PR #477，合并提交 `27ae5dff483afa0437b75e1bde0dd091c165bd12`
 - 最新已合并证据准备基线：P119c / PR #419，合并提交 `de9ab7f9a6d050a951e70835fbe97cecc693b9f4`
 - 最近仓库维护：PR #464 清理 323 个已完全合并的远端工作分支；其余分支因未合并或仅能映射到 squash PR 而保留，不能仅凭祖先关系删除
@@ -69,6 +69,7 @@
 | P119a | #415 | `28a448faf1f387a1c7f394f5baac6a2a7dbc4eac` | `29999854528` | `8560553741` | `c5f87c7f4c238bb7337aebbfdc3478515125768424495ce1c697d09845fe9ec3` |
 | P119b | #417 | `bd5c5af211a3a1b36f4fcfacebdfe89b65fbafc1` | `30001642941` | `8561272610` | `37e2f318ebf8330c11faeeaf4bb0fa9d401cc2a14307a8a3ebb7fd6f30f22efb` |
 | P119c | #419 | `de9ab7f9a6d050a951e70835fbe97cecc693b9f4` | `30006334599`（main push） | `8563190826` | `e282b857aff76ecdcf580d29283f2a490e08c0c1b346a88ba9c705a03ec28103` |
+| S3 挂二和弦 | #485 | `d53f0f0e2d534666203d36fc1ef5b9e04db8594e` | `30608800398`（main push） | `8784653291` | `cf305c5a0df0215802924ebaf7773c8d394a951c0b17424fda4ff93bdb7821b7` |
 
 上述列出的运行其 `quality` 与 `android-local` 均通过；P117e 合并后的 main Quality 运行 `29897075998` 也通过。P119c PR head `a6e3a655197795cdbd03badbebd5dbf82370c5fe`、PR synthetic merge `af16593bd2c2d67bec46677fe571621f14066595`、main squash commit `de9ab7f9a6d050a951e70835fbe97cecc693b9f4` 与 manifest source commit `bd5c5af211a3a1b36f4fcfacebdfe89b65fbafc1` 是不同 provenance。表中 SHA-256 是 GitHub artifact ZIP digest，不是 manifest 摘要或 ZIP 内 APK 摘要；Android 工件是 CI 构建并独立校验的 API 36 Debug APK，它只证明自动构建与校验通过。
 
@@ -160,4 +161,10 @@
   或视觉表达；最终 UI 重构及已知渐进抽离热点见
   `docs/final-ui-refactor-compatibility-contract.md`。该 docs-only 契约不表示 UI 重构或
   外部 QA 已执行。
+- 共享实时音高组件的本机练声记录已改由平台无关 repository port 注入，Web 与
+  Android composition root 继续使用相同 IndexedDB adapter；数据库／store／version、
+  `schemaVersion: 1`、20 条／5 MiB／600 帧、transaction 完成语义、录音 Blob 与
+  JSON 不含录音的既有契约不变。该依赖抽离边界见
+  `docs/ui-realtime-pitch-local-record-storage-port-acceptance.md`；录音／回放／下载
+  编排、真实浏览器、Android WebView／真机和最终 UI 重构仍为 `NOT_EXECUTED` 或未完成。
 - 导入边界见 `docs/s3-local-score-project-musicxml-import-acceptance.md`，导出边界见 `docs/s3-local-score-project-musicxml-export-acceptance.md`，part identity 硬化见 `docs/s3-local-score-project-musicxml-part-identity-hardening-acceptance.md`，note 容器硬化见 `docs/s3-local-score-project-musicxml-note-container-hardening-acceptance.md`，谱面标题、署名与版权双向边界见 `docs/s3-local-score-project-musicxml-score-credits-round-trip-acceptance.md`；全局整数速度边界见 `docs/s3-local-score-project-musicxml-tempo-round-trip-acceptance.md`，单附点、单段歌词、单指法、单音演奏法、单事件力度记号、单事件制音踏板记号、受控和弦标记、fermata、圆滑线和延音线双向边界分别见对应的 S3 round-trip acceptance 文档，其中和弦切片见 `docs/s3-local-score-project-musicxml-chord-symbol-round-trip-acceptance.md`，增三／减三边界见 `docs/s3-local-score-project-musicxml-augmented-diminished-triad-round-trip-acceptance.md`，减七边界见 `docs/s3-local-score-project-musicxml-diminished-seventh-round-trip-acceptance.md`，半减七边界见 `docs/s3-local-score-project-musicxml-half-diminished-seventh-round-trip-acceptance.md`，增七边界见 `docs/s3-local-score-project-musicxml-augmented-seventh-round-trip-acceptance.md`，大六边界见 `docs/s3-local-score-project-musicxml-major-sixth-round-trip-acceptance.md`。浏览器真实导入／下载／重开、Android WebView／真机、第三方独立阅读器、速度／和弦／踏板／力度／演奏法／指法／标题与署名显示及真实播放、tempo map／中途变速、双升降／Unicode 升降号／转位／其他和弦类别、左右手／替代指法、歌词排版／多 verse／melisma、真实音频与歌唱对齐、教师审核、MIDI、OMR、完整 MusicXML、完整 S3 与正式版 V1 均仍为 `NOT_EXECUTED` 或未完成。

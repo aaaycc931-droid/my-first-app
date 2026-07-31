@@ -71,6 +71,7 @@ import { LocalEarTrainingRhythmPanel } from "../../components/practice/LocalEarT
 import { LocalEarTrainingSinglePitchPanel } from "../../components/practice/LocalEarTrainingSinglePitchPanel";
 import { LocalEarTrainingMelodyDictationPanel } from "../../components/practice/LocalEarTrainingMelodyDictationPanel";
 import { RealtimePitchMonitorPanel } from "../../components/practice/RealtimePitchMonitorPanel";
+import { indexedDbLocalVocalPracticeRecordRepository } from "../../lib/platform/indexedDbLocalVocalPracticeRecordRepository";
 import { LocalTargetPitchCurveDraftPanel } from "../../components/practice/LocalTargetPitchCurveDraftPanel";
 import { LocalTargetPitchCurveReviewPreviewPanel } from "../../components/practice/LocalTargetPitchCurveReviewPreviewPanel";
 import { LocalTargetPitchCurveDraftReviewControlsPanel } from "../../components/practice/LocalTargetPitchCurveDraftReviewControlsPanel";
@@ -3336,7 +3337,7 @@ export default function PracticePage() {
             </section>
             {isA4MicrophoneActivityOpen ? (
               <div id="web-a4-microphone-activity" className="mt-4">
-                <RealtimePitchMonitorPanel />
+                <RealtimePitchMonitorPanel practiceRecordRepository={indexedDbLocalVocalPracticeRecordRepository} />
               </div>
             ) : null}
         {notationPracticePitchFeedbackContext ? (

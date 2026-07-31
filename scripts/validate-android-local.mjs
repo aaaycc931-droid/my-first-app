@@ -107,7 +107,8 @@ const requiredSources = [
   "lib/practice/realtimePitchCurve.ts",
   "lib/practice/localVocalExercise.ts",
   "lib/practice/localVocalTargetFeedback.ts",
-  "mobile/src/runtime/localVocalPracticeStorage.ts",
+  "lib/practice/localVocalPracticeRecord.ts",
+  "lib/platform/indexedDbLocalVocalPracticeRecordRepository.ts",
   "android/app/src/main/java/com/aaaycc931/solfeggio/midi/NormalizedMidiMessage.java",
   "android/app/src/main/java/com/aaaycc931/solfeggio/midi/NativeUsbMidiNoteEvent.java",
   "android/app/src/main/java/com/aaaycc931/solfeggio/midi/UsbMidiMessageParser.java",
@@ -120,6 +121,26 @@ for (const relativePath of requiredSources) {
   if (!existsSync(join(root, relativePath))) {
     throw new Error(`缺少 Android 本地模式文件：${relativePath}`);
   }
+}
+
+const sharedComponentRuntimeImports = [];
+const collectSharedComponentRuntimeImports = (directory) => {
+  for (const entry of readdirSync(directory)) {
+    const absolutePath = join(directory, entry);
+    if (statSync(absolutePath).isDirectory()) {
+      collectSharedComponentRuntimeImports(absolutePath);
+      continue;
+    }
+    if (!/\.[cm]?[jt]sx?$/.test(entry)) continue;
+    const source = readFileSync(absolutePath, "utf8");
+    if (source.includes("mobile/src/runtime")) {
+      sharedComponentRuntimeImports.push(absolutePath.slice(root.length + 1));
+    }
+  }
+};
+collectSharedComponentRuntimeImports(join(root, "components"));
+if (sharedComponentRuntimeImports.length > 0) {
+  throw new Error(`共享组件不得反向导入 mobile runtime：${sharedComponentRuntimeImports.join(", ")}`);
 }
 
 const capacitorConfig = readFileSync(join(root, "capacitor.config.ts"), "utf8");

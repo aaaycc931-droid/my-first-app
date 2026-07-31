@@ -4,14 +4,17 @@
 
 状态：**Canonical integrated roadmap / 统一长期开发主路线**
 
-当前执行状态：**S3 STRICT MUSICXML/MXL EXPANSION IN PROGRESS / EXTERNAL ROUND-TRIP QA NOT_EXECUTED / P119d ITEM REVIEW DEFERRED**
+当前执行状态：**UI REFACTOR COMPATIBILITY GRADUAL EXTRACTION IN PROGRESS / EXTERNAL UI QA NOT_EXECUTED / P119d ITEM REVIEW DEFERRED**
 
 适用项目：`aaaycc931-droid/my-first-app`
 
 ## 1. 当前事实与本次决策
 
-当前执行切片在 PR #483 已把 suspended-fourth 纳入既有严格 `<harmony>` 双向
-映射之后，增加 suspended-second；PR #482 已完成 minor-sixth，PR #481 已完成 major-sixth，PR #480 已完成 augmented-seventh，PR #479 已完成
+PR #485 已把 suspended-second 纳入既有严格 `<harmony>` 双向映射；当前工程切片按
+最终 UI 重构兼容契约，渐进抽离共享实时音高组件对 mobile runtime storage 的反向依赖，
+先建立本机练声记录的平台无关 repository port 和 Web／Android 显式注入，不改变存储
+协议、页面布局或用户行为。PR #483 已完成 suspended-fourth，PR #482 已完成
+minor-sixth，PR #481 已完成 major-sixth，PR #480 已完成 augmented-seventh，PR #479 已完成
 diminished-seventh，PR #477 已完成 note 容器硬化，PR #476 已完成增三／减三和弦，PR #475 已完成
 part identity，PR #474 已完成 GM1 program，
 PR #473 已完成 scoreCredits，PR #466 已完成 XML 1.0 文本
