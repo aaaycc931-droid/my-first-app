@@ -6,7 +6,7 @@
 
 ## 当前基线
 
-- 最新已合并产品功能基线：S3 MusicXML/MXL 大九和弦严格 round-trip / PR #491，合并提交 `696dc9285a0ed4522241ab501d48e1eb30b493d2`
+- 最新已合并产品功能基线：S3 MusicXML/MXL 小九和弦严格 round-trip / PR #494，合并提交 `f5dcc10bcc0d8b3bf2630baf7359b8e47007e59c`
 - 最新已合并交换安全加固：MusicXML/MXL note 容器 fail-closed / PR #477，合并提交 `27ae5dff483afa0437b75e1bde0dd091c165bd12`
 - 最新已合并证据准备基线：P119c / PR #419，合并提交 `de9ab7f9a6d050a951e70835fbe97cecc693b9f4`
 - 最近仓库维护：PR #464 清理 323 个已完全合并的远端工作分支；其余分支因未合并或仅能映射到 squash PR 而保留，不能仅凭祖先关系删除
