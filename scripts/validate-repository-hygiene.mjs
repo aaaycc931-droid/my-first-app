@@ -1,7 +1,11 @@
 import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { extname } from "node:path";
-import { findForbiddenTrackedFiles } from "./repository-hygiene.mjs";
+import {
+  findForbiddenTrackedFiles,
+  findLibUiBoundaryViolations,
+  isLibSourceFile,
+} from "./repository-hygiene.mjs";
 
 const checks = [];
 const failures = [];
@@ -45,6 +49,24 @@ if (forbiddenTrackedFiles.length > 0) {
   );
 } else {
   pass("No unexpected generated/sample file extensions are tracked by git.");
+}
+
+const libUiBoundaryViolations = findLibUiBoundaryViolations(
+  trackedFiles
+    .filter(isLibSourceFile)
+    .map((filePath) => ({ filePath, source: readTextFile(filePath) })),
+);
+
+if (libUiBoundaryViolations.length > 0) {
+  fail(
+    "lib source files must not import UI or platform composition roots.",
+    libUiBoundaryViolations.map(
+      ({ filePath, specifier, resolvedPath }) =>
+        `${filePath}: ${specifier} -> ${resolvedPath}`,
+    ),
+  );
+} else {
+  pass("lib source files do not import app, components, or mobile/src.");
 }
 
 const recognizerFactoryPath = "lib/recognition/recognizerFactory.ts";
