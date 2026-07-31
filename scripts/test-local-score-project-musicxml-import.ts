@@ -1771,6 +1771,38 @@ for (const sourceFormat of ["musicxml", "mxl"] as const) {
   assert.equal(majorNinthEventIds, 5);
 }
 
+const strictMinorNinthHarmonyXml = supportedXml
+  .replace(
+    "<note><pitch><step>C</step>",
+    '<harmony><root><root-step>C</root-step><root-alter>1</root-alter></root><kind>minor-ninth</kind><staff>1</staff></harmony><note><pitch><step>C</step>',
+  )
+  .replace(
+    "<note><rest/>",
+    '<harmony><root><root-step>D</root-step><root-alter>-1</root-alter></root><kind>minor-ninth</kind><staff>1</staff></harmony><note><rest/>',
+  );
+for (const sourceFormat of ["musicxml", "mxl"] as const) {
+  let minorNinthEventIds = 0;
+  const minorNinthDraft = createLocalScoreProjectMusicXmlImportDraft({
+    xml: strictMinorNinthHarmonyXml,
+    fileName: `严格小九和弦.${sourceFormat}`,
+    sourceFormat,
+    projectId: `import-project-minor-ninth-${sourceFormat}`,
+    now: "2026-07-31T13:45:00.000Z",
+    createEventId: () =>
+      `minor-ninth-${sourceFormat}-${++minorNinthEventIds}`,
+  });
+  assert.equal(minorNinthDraft.status, "ready");
+  assert.deepEqual(minorNinthDraft.issues, []);
+  assert.deepEqual(
+    minorNinthDraft.project?.document.parts[0].staves[0].voices[0]
+      .measures.flatMap((measure) => measure.events)
+      .map((event) => event.chordSymbol),
+    ["C#m9", "Dbm9", null, null, null],
+    `${sourceFormat} must preserve minor-ninth symbols`,
+  );
+  assert.equal(minorNinthEventIds, 5);
+}
+
 const harmonyAnchor = "<note><pitch><step>D</step>";
 const invalidHarmonies = [
   '<harmony placement="above"><root><root-step>C</root-step></root><kind>major</kind><staff>1</staff></harmony>',
@@ -1786,6 +1818,14 @@ const invalidHarmonies = [
   '<harmony><root><root-step>C</root-step></root><kind>Dominant-Ninth</kind><staff>1</staff></harmony>',
   '<harmony><root><root-step>C</root-step></root><kind text="maj9">major-ninth</kind><staff>1</staff></harmony>',
   '<harmony><root><root-step>C</root-step></root><kind>Major-Ninth</kind><staff>1</staff></harmony>',
+  '<harmony><root><root-step>C</root-step></root><kind text="m9">minor-ninth</kind><staff>1</staff></harmony>',
+  '<harmony><root><root-step>C</root-step></root><kind>Minor-Ninth</kind><staff>1</staff></harmony>',
+  '<harmony placement="above"><root><root-step>C</root-step></root><kind>minor-ninth</kind><staff>1</staff></harmony>',
+  '<harmony><root><root-step>C</root-step><root-alter>2</root-alter></root><kind>minor-ninth</kind><staff>1</staff></harmony>',
+  '<harmony><kind>minor-ninth</kind><root><root-step>C</root-step></root><staff>1</staff></harmony>',
+  '<harmony><root><root-step>C</root-step></root><kind>minor-ninth</kind><bass><bass-step>G</bass-step></bass><staff>1</staff></harmony>',
+  '<harmony xmlns="urn:unsupported"><root><root-step>C</root-step></root><kind>minor-ninth</kind><staff>1</staff></harmony>',
+  '<harmony><root><root-step>C</root-step></root><kind>minor-ninth</kind><staff>1</staff><degree><degree-value>5</degree-value><degree-alter>1</degree-alter><degree-type>alter</degree-type></degree></harmony>',
   '<harmony><root><root-step>C</root-step></root><kind>other</kind><staff>1</staff></harmony>',
   '<harmony><root><root-step>H</root-step></root><kind>major</kind><staff>1</staff></harmony>',
   '<harmony><root><root-step>C</root-step></root><kind>major</kind><staff>2</staff></harmony>',

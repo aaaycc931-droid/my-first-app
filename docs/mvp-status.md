@@ -6,7 +6,7 @@
 
 ## 当前基线
 
-- 最新已合并产品功能基线：S3 MusicXML/MXL 属九和弦严格 round-trip / PR #488，合并提交 `4f5f8d6e0edf11966c589c4ce1584c9db7b50f64`
+- 最新已合并产品功能基线：S3 MusicXML/MXL 大九和弦严格 round-trip / PR #491，合并提交 `696dc9285a0ed4522241ab501d48e1eb30b493d2`
 - 最新已合并交换安全加固：MusicXML/MXL note 容器 fail-closed / PR #477，合并提交 `27ae5dff483afa0437b75e1bde0dd091c165bd12`
 - 最新已合并证据准备基线：P119c / PR #419，合并提交 `de9ab7f9a6d050a951e70835fbe97cecc693b9f4`
 - 最近仓库维护：PR #464 清理 323 个已完全合并的远端工作分支；其余分支因未合并或仅能映射到 squash PR 而保留，不能仅凭祖先关系删除
@@ -141,9 +141,9 @@
 - 当前严格子集已把 canonical GM1 program `0–127` 精确双向映射为
   `score-part` 中固定相邻的 `score-instrument` 与一基 `midi-program 1–128`；
   instrument-name 必须与 part name 一致，其他 MIDI／音色语义继续 blocking。全局整数
-  速度、单附点、力度、踏板、自然／单升降根音十七类、357 个和弦组合（含
+  速度、单附点、力度、踏板、自然／单升降根音十八类、378 个和弦组合（含
   major-sixth／minor-sixth／suspended-second／suspended-fourth／power／
-  dominant-ninth／major-ninth／augmented／diminished／augmented-seventh／
+  dominant-ninth／major-ninth／minor-ninth／augmented／diminished／augmented-seventh／
   diminished-seventh／half-diminished）、
   lyric、fingering、
   articulations、fermata、slur 和 tie 的既有严格双向映射继续保留；附点真实时值、
@@ -163,6 +163,7 @@
 - 强力和弦独立边界见 `docs/s3-local-score-project-musicxml-power-chord-round-trip-acceptance.md`；该切片不改变 schema、storage version 或迁移链。
 - 属九和弦独立边界见 `docs/s3-local-score-project-musicxml-dominant-ninth-round-trip-acceptance.md`；该切片不改变 schema、storage version、迁移链、UI、谱面显示或播放语义。
 - 大九和弦独立边界见 `docs/s3-local-score-project-musicxml-major-ninth-round-trip-acceptance.md`；该切片不改变 schema、storage version、迁移链、UI、谱面显示或播放语义。
+- 小九和弦独立边界见 `docs/s3-local-score-project-musicxml-minor-ninth-round-trip-acceptance.md`；该切片不改变 schema、storage version、迁移链、UI、谱面显示或播放语义。
 - 当前和未来路线冻结能力、行为、数据兼容与证据门槛，不冻结当前页面、导航、组件树
   或视觉表达；最终 UI 重构及已知渐进抽离热点见
   `docs/final-ui-refactor-compatibility-contract.md`。该 docs-only 契约不表示 UI 重构或
