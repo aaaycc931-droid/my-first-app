@@ -955,6 +955,39 @@ if (
 ) {
   throw new Error("Android USB/BLE MIDI bridge 缺少原生设备类型、显式设备/端口选择、协议或生命周期关闭边界");
 }
+const legacyMidiDeviceEnumerationCalls = usbMidiPluginSource.match(
+  /midiManager\.getDevices\(\)/g,
+) ?? [];
+const legacyMidiCallbackRegistrationCalls = usbMidiPluginSource.match(
+  /midiManager\.registerDeviceCallback\(deviceCallback, midiHandler\)/g,
+) ?? [];
+const deprecatedSuppressionAnnotations = usbMidiPluginSource.match(
+  /@SuppressWarnings\("deprecation"\)/g,
+) ?? [];
+const api33MidiGuards = usbMidiPluginSource.match(
+  /Build\.VERSION\.SDK_INT >= Build\.VERSION_CODES\.TIRAMISU/g,
+) ?? [];
+if (
+  !usbMidiPluginSource.includes(
+    "getDevicesForTransport(MidiManager.TRANSPORT_MIDI_BYTE_STREAM)",
+  )
+  || !usbMidiPluginSource.includes("final Handler callbackHandler = midiHandler;")
+  || !usbMidiPluginSource.includes(
+    "MidiManager.TRANSPORT_MIDI_BYTE_STREAM,\n          command -> {\n            callbackHandler.post(command);\n          },\n          deviceCallback",
+  )
+  || !usbMidiPluginSource.includes(
+    '@SuppressWarnings("deprecation")\n  private void registerLegacyDeviceCallback()',
+  )
+  || !usbMidiPluginSource.includes(
+    '@SuppressWarnings("deprecation")\n  private Iterable<MidiDeviceInfo> legacyMidiByteStreamDevices()',
+  )
+  || legacyMidiDeviceEnumerationCalls.length !== 1
+  || legacyMidiCallbackRegistrationCalls.length !== 1
+  || deprecatedSuppressionAnnotations.length !== 2
+  || api33MidiGuards.length !== 2
+) {
+  throw new Error("Android MIDI API 33 兼容层必须使用 byte-stream 新 API，并把旧 API 限制在 API 24–32 helper");
+}
 if (
   deviceCallbackEnd < 0
   || deviceCallbackSource.includes("openDevice(")

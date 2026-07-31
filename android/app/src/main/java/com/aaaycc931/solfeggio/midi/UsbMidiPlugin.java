@@ -6,6 +6,7 @@ import android.media.midi.MidiDeviceInfo;
 import android.media.midi.MidiManager;
 import android.media.midi.MidiOutputPort;
 import android.media.midi.MidiReceiver;
+import android.os.Build;
 import android.os.Handler;
 import android.os.HandlerThread;
 import android.os.SystemClock;
@@ -15,6 +16,7 @@ import com.getcapacitor.Plugin;
 import com.getcapacitor.PluginCall;
 import com.getcapacitor.PluginMethod;
 import com.getcapacitor.annotation.CapacitorPlugin;
+import java.util.Arrays;
 import java.util.UUID;
 
 @CapacitorPlugin(name = "UsbMidi")
@@ -62,7 +64,26 @@ public final class UsbMidiPlugin extends Plugin {
     midiThread = new HandlerThread("solfeggio-usb-midi");
     midiThread.start();
     midiHandler = new Handler(midiThread.getLooper());
-    if (midiManager != null) midiManager.registerDeviceCallback(deviceCallback, midiHandler);
+    if (midiManager != null) registerDeviceCallback();
+  }
+
+  private void registerDeviceCallback() {
+    final Handler callbackHandler = midiHandler;
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+      midiManager.registerDeviceCallback(
+          MidiManager.TRANSPORT_MIDI_BYTE_STREAM,
+          command -> {
+            callbackHandler.post(command);
+          },
+          deviceCallback);
+      return;
+    }
+    registerLegacyDeviceCallback();
+  }
+
+  @SuppressWarnings("deprecation")
+  private void registerLegacyDeviceCallback() {
+    midiManager.registerDeviceCallback(deviceCallback, midiHandler);
   }
 
   @PluginMethod
@@ -251,7 +272,7 @@ public final class UsbMidiPlugin extends Plugin {
   }
 
   private MidiDeviceInfo findDevice(int deviceId, int deviceType) {
-    for (MidiDeviceInfo info : midiManager.getDevices()) {
+    for (MidiDeviceInfo info : midiByteStreamDevices()) {
       if (info.getId() == deviceId && info.getType() == deviceType) return info;
     }
     return null;
@@ -267,7 +288,7 @@ public final class UsbMidiPlugin extends Plugin {
   private JSArray deviceArray(int deviceType) {
     JSArray devices = new JSArray();
     if (midiManager == null) return devices;
-    for (MidiDeviceInfo info : midiManager.getDevices()) {
+    for (MidiDeviceInfo info : midiByteStreamDevices()) {
       if (info.getType() != deviceType) continue;
       String transport = transportForDeviceType(deviceType);
       JSObject device = new JSObject();
@@ -285,6 +306,18 @@ public final class UsbMidiPlugin extends Plugin {
       devices.put(device);
     }
     return devices;
+  }
+
+  private Iterable<MidiDeviceInfo> midiByteStreamDevices() {
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+      return midiManager.getDevicesForTransport(MidiManager.TRANSPORT_MIDI_BYTE_STREAM);
+    }
+    return legacyMidiByteStreamDevices();
+  }
+
+  @SuppressWarnings("deprecation")
+  private Iterable<MidiDeviceInfo> legacyMidiByteStreamDevices() {
+    return Arrays.asList(midiManager.getDevices());
   }
 
   private double elapsedSessionMs() {
