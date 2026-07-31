@@ -13,7 +13,8 @@ export type SupportedMusicXmlChordKind =
   | "minor-sixth"
   | "suspended-second"
   | "suspended-fourth"
-  | "power";
+  | "power"
+  | "dominant-ninth";
 
 export type SupportedMusicXmlChordSymbol = Readonly<{
   canonical: string;
@@ -48,13 +49,14 @@ const suffixByKind: Readonly<Record<SupportedMusicXmlChordKind, string>> = {
   "suspended-second": "sus2",
   "suspended-fourth": "sus4",
   power: "5",
+  "dominant-ninth": "9",
 };
 
 export const parseSupportedCanonicalChordSymbol = (
   value: string,
 ): SupportedMusicXmlChordSymbol | null => {
   const match = value.match(
-    /^([A-G])([#b]?)(m7b5|maj7|m7|dim7|aug7|sus4|sus2|m6|aug|dim|m|7|6|5)?$/,
+    /^([A-G])([#b]?)(m7b5|maj7|m7|dim7|aug7|sus4|sus2|m6|aug|dim|m|7|6|5|9)?$/,
   );
   if (!match) return null;
   const rootStep = match[1] as SupportedMusicXmlChordSymbol["rootStep"];

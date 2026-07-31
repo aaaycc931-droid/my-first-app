@@ -6,7 +6,7 @@
 
 ## 当前基线
 
-- 最新已合并产品功能基线：S3 MusicXML/MXL 挂二和弦严格 round-trip / PR #485，合并提交 `d53f0f0e2d534666203d36fc1ef5b9e04db8594e`
+- 最新已合并产品功能基线：S3 MusicXML/MXL 强力和弦严格 round-trip / PR #487，合并提交 `b07f2ff6ec340bbe883863c5f3e7207afb664631`
 - 最新已合并交换安全加固：MusicXML/MXL note 容器 fail-closed / PR #477，合并提交 `27ae5dff483afa0437b75e1bde0dd091c165bd12`
 - 最新已合并证据准备基线：P119c / PR #419，合并提交 `de9ab7f9a6d050a951e70835fbe97cecc693b9f4`
 - 最近仓库维护：PR #464 清理 323 个已完全合并的远端工作分支；其余分支因未合并或仅能映射到 squash PR 而保留，不能仅凭祖先关系删除
@@ -70,6 +70,7 @@
 | P119b | #417 | `bd5c5af211a3a1b36f4fcfacebdfe89b65fbafc1` | `30001642941` | `8561272610` | `37e2f318ebf8330c11faeeaf4bb0fa9d401cc2a14307a8a3ebb7fd6f30f22efb` |
 | P119c | #419 | `de9ab7f9a6d050a951e70835fbe97cecc693b9f4` | `30006334599`（main push） | `8563190826` | `e282b857aff76ecdcf580d29283f2a490e08c0c1b346a88ba9c705a03ec28103` |
 | S3 挂二和弦 | #485 | `d53f0f0e2d534666203d36fc1ef5b9e04db8594e` | `30608800398`（main push） | `8784653291` | `cf305c5a0df0215802924ebaf7773c8d394a951c0b17424fda4ff93bdb7821b7` |
+| S3 强力和弦 | #487 | `b07f2ff6ec340bbe883863c5f3e7207afb664631` | `30613766987`（main push） | `8786540817` | `2aed797842661680dd6cc788efbabb9c17cd332f08ad15002052846ae3e9f2a1` |
 
 上述列出的运行其 `quality` 与 `android-local` 均通过；P117e 合并后的 main Quality 运行 `29897075998` 也通过。P119c PR head `a6e3a655197795cdbd03badbebd5dbf82370c5fe`、PR synthetic merge `af16593bd2c2d67bec46677fe571621f14066595`、main squash commit `de9ab7f9a6d050a951e70835fbe97cecc693b9f4` 与 manifest source commit `bd5c5af211a3a1b36f4fcfacebdfe89b65fbafc1` 是不同 provenance。表中 SHA-256 是 GitHub artifact ZIP digest，不是 manifest 摘要或 ZIP 内 APK 摘要；Android 工件是 CI 构建并独立校验的 API 36 Debug APK，它只证明自动构建与校验通过。
 
@@ -140,8 +141,10 @@
 - 当前严格子集已把 canonical GM1 program `0–127` 精确双向映射为
   `score-part` 中固定相邻的 `score-instrument` 与一基 `midi-program 1–128`；
   instrument-name 必须与 part name 一致，其他 MIDI／音色语义继续 blocking。全局整数
-  速度、单附点、力度、踏板、自然／单升降根音十五类和弦（含 major-sixth／
-  minor-sixth／suspended-second／suspended-fourth／power／augmented／diminished／augmented-seventh／diminished-seventh／half-diminished）、
+  速度、单附点、力度、踏板、自然／单升降根音十六类、336 个和弦组合（含
+  major-sixth／minor-sixth／suspended-second／suspended-fourth／power／
+  dominant-ninth／augmented／diminished／augmented-seventh／
+  diminished-seventh／half-diminished）、
   lyric、fingering、
   articulations、fermata、slur 和 tie 的既有严格双向映射继续保留；附点真实时值、
   首事件顺序、同小节／跨小节／链式及共存语义均保持确定。其他未列出的语义继续
@@ -158,6 +161,7 @@
 - 挂四和弦独立边界见 `docs/s3-local-score-project-musicxml-suspended-fourth-round-trip-acceptance.md`；该切片不改变 schema、storage version 或迁移链。
 - 挂二和弦独立边界见 `docs/s3-local-score-project-musicxml-suspended-second-round-trip-acceptance.md`；该切片不改变 schema、storage version 或迁移链。
 - 强力和弦独立边界见 `docs/s3-local-score-project-musicxml-power-chord-round-trip-acceptance.md`；该切片不改变 schema、storage version 或迁移链。
+- 属九和弦独立边界见 `docs/s3-local-score-project-musicxml-dominant-ninth-round-trip-acceptance.md`；该切片不改变 schema、storage version、迁移链、UI、谱面显示或播放语义。
 - 当前和未来路线冻结能力、行为、数据兼容与证据门槛，不冻结当前页面、导航、组件树
   或视觉表达；最终 UI 重构及已知渐进抽离热点见
   `docs/final-ui-refactor-compatibility-contract.md`。该 docs-only 契约不表示 UI 重构或

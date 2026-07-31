@@ -520,6 +520,41 @@ const createPowerChordSupportedProject = (): LocalScoreProjectV1 => {
   return parsed;
 };
 
+const createDominantNinthSupportedProject = (): LocalScoreProjectV1 => {
+  const base = createChordSymbolSupportedProject();
+  const measures = base.document.parts[0].staves[0].voices[0].measures;
+  const symbols = new Map<string, string>([
+    ["event-1", "C#9"],
+    ["event-2", "Db9"],
+  ] as const);
+  const candidate: LocalScoreProjectV1 = {
+    ...base,
+    document: {
+      ...base.document,
+      parts: [{
+        ...base.document.parts[0],
+        staves: [{
+          ...base.document.parts[0].staves[0],
+          voices: [{
+            ...base.document.parts[0].staves[0].voices[0],
+            measures: measures.map((measure) => ({
+              ...measure,
+              events: measure.events.map((event) => ({
+                ...event,
+                chordSymbol: symbols.get(event.id) ?? null,
+              })),
+            })),
+          }],
+        }],
+      }],
+    },
+  };
+  const parsed = parseLocalScoreProject(candidate);
+  assert.ok(parsed, "dominant-ninth export fixture must be canonical");
+  return parsed;
+};
+
+let supportedChordCombinationCount = 0;
 for (const rootStep of ["A", "B", "C", "D", "E", "F", "G"] as const) {
   for (const [suffix, kind] of [
     ["", "major"],
@@ -537,6 +572,7 @@ for (const rootStep of ["A", "B", "C", "D", "E", "F", "G"] as const) {
     ["sus2", "suspended-second"],
     ["sus4", "suspended-fourth"],
     ["5", "power"],
+    ["9", "dominant-ninth"],
   ] as const) {
     const canonical = `${rootStep}${suffix}`;
     assert.deepEqual(
@@ -547,6 +583,7 @@ for (const rootStep of ["A", "B", "C", "D", "E", "F", "G"] as const) {
       createSupportedCanonicalChordSymbol({ rootStep, kind }),
       { canonical, rootStep, rootAlter: 0, kind },
     );
+    supportedChordCombinationCount += 1;
   }
 }
 for (const rootStep of ["A", "B", "C", "D", "E", "F", "G"] as const) {
@@ -570,6 +607,7 @@ for (const rootStep of ["A", "B", "C", "D", "E", "F", "G"] as const) {
       ["sus2", "suspended-second"],
       ["sus4", "suspended-fourth"],
       ["5", "power"],
+      ["9", "dominant-ninth"],
     ] as const) {
       const canonical = `${rootStep}${accidental}${suffix}`;
       assert.deepEqual(
@@ -580,9 +618,15 @@ for (const rootStep of ["A", "B", "C", "D", "E", "F", "G"] as const) {
         createSupportedCanonicalChordSymbol({ rootStep, rootAlter, kind }),
         { canonical, rootStep, rootAlter, kind },
       );
+      supportedChordCombinationCount += 1;
     }
   }
 }
+assert.equal(
+  supportedChordCombinationCount,
+  336,
+  "16 chord kinds across natural, single-sharp, and single-flat A-G roots must produce 336 controlled combinations",
+);
 for (const unsupported of [
   "C##",
   "Dbb",
@@ -603,6 +647,13 @@ for (const unsupported of [
   "C(no3)",
   "Comit3",
   "C5/E",
+  "Cmaj9",
+  "Cm9",
+  "Cadd9",
+  "C69",
+  "C99",
+  "C9/E",
+  "Cdom9",
   "Csus6",
   "C/E",
   "c",
@@ -1802,6 +1853,93 @@ assert.deepEqual(
   "legacy parsing must ignore power harmony without changing note timing",
 );
 
+const dominantNinthProject = createDominantNinthSupportedProject();
+const dominantNinthReady = createLocalScoreProjectMusicXmlExportDraft({
+  project: dominantNinthProject,
+});
+assert.equal(dominantNinthReady.status, "ready");
+assert.deepEqual(dominantNinthReady.issues, []);
+assert.ok(dominantNinthReady.xml);
+for (const [rootStep, rootAlter] of [
+  ["C", "1"],
+  ["D", "-1"],
+] as const) {
+  assert.match(
+    dominantNinthReady.xml,
+    new RegExp(
+      `<harmony>\\s*<root><root-step>${rootStep}</root-step>`
+      + `<root-alter>${rootAlter}</root-alter></root>\\s*`
+      + "<kind>dominant-ninth</kind>\\s*"
+      + "<staff>1</staff>\\s*</harmony>",
+    ),
+  );
+}
+assert.deepEqual(
+  createLocalScoreProjectMusicXmlExportDraft({
+    project: dominantNinthProject,
+  }),
+  dominantNinthReady,
+  "dominant-ninth MusicXML output must be deterministic",
+);
+const dominantNinthXmlPayload =
+  confirmLocalScoreProjectMusicXmlExportDraft({
+    draft: dominantNinthReady,
+    currentProject: dominantNinthProject,
+    format: "musicxml",
+  });
+const reopenedDominantNinthXml =
+  createLocalScoreProjectMusicXmlImportDraft({
+    xml: String(dominantNinthXmlPayload.data),
+    fileName: dominantNinthXmlPayload.fileName,
+    sourceFormat: "musicxml",
+    projectId: dominantNinthProject.projectId,
+    now: dominantNinthProject.createdAt,
+    createEventId: () =>
+      `reopened-dominant-ninth-event-${++importedEventIndex}`,
+  });
+assert.equal(reopenedDominantNinthXml.status, "ready");
+assert.ok(reopenedDominantNinthXml.project);
+assert.deepEqual(
+  musicalProjection(reopenedDominantNinthXml.project),
+  musicalProjection(dominantNinthProject),
+  "strict MusicXML re-import must preserve pitched-note and rest dominant-ninth symbols",
+);
+const dominantNinthMxlPayload =
+  confirmLocalScoreProjectMusicXmlExportDraft({
+    draft: dominantNinthReady,
+    currentProject: dominantNinthProject,
+    format: "mxl",
+  });
+assert.deepEqual(
+  dominantNinthMxlPayload.data,
+  createMusicXmlMxlArchive(dominantNinthReady.xml),
+  "dominant-ninth MXL generation must remain deterministic",
+);
+const reopenedDominantNinthMxl =
+  createLocalScoreProjectMusicXmlImportDraft({
+    xml: extractMusicXMLFromMxl(
+      dominantNinthMxlPayload.data as Uint8Array,
+    ),
+    fileName: dominantNinthMxlPayload.fileName,
+    sourceFormat: "mxl",
+    projectId: dominantNinthProject.projectId,
+    now: dominantNinthProject.createdAt,
+    createEventId: () =>
+      `reopened-dominant-ninth-mxl-event-${++importedEventIndex}`,
+  });
+assert.equal(reopenedDominantNinthMxl.status, "ready");
+assert.ok(reopenedDominantNinthMxl.project);
+assert.deepEqual(
+  musicalProjection(reopenedDominantNinthMxl.project),
+  musicalProjection(dominantNinthProject),
+  "strict MXL re-import must preserve pitched-note and rest dominant-ninth symbols",
+);
+assert.deepEqual(
+  parseMusicXML(dominantNinthReady.xml),
+  parseMusicXML(damperPedalReady.xml),
+  "legacy parsing must ignore dominant-ninth harmony without changing note timing",
+);
+
 for (const mark of ["pp", "p", "mp", "mf", "f", "ff"] as const) {
   const measures =
     dynamicProject.document.parts[0].staves[0].voices[0].measures;
@@ -2255,7 +2393,7 @@ const blockedFixtures: readonly [
       chordSymbol: "C#maj7",
     }, {
       ...sourceRest,
-      chordSymbol: "Cpower",
+      chordSymbol: "Cdom9",
     }]),
     ["unsupported-chord-symbol"],
   ],
