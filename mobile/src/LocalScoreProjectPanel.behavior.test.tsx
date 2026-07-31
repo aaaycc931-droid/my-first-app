@@ -23,6 +23,9 @@ import {
   createLocalScoreProjectRecoveryCandidate,
   type LocalScoreProjectRecoveryCandidateV1,
 } from "../../lib/music/localScoreProjectRecovery";
+import {
+  createBrowserFileDownloadPort,
+} from "../../lib/platform/browserFileDownload";
 import { LocalScoreProjectPanel } from "./LocalScoreProjectPanel";
 import { useLocalScoreProjectAutosave } from "./useLocalScoreProjectAutosave";
 import {
@@ -546,6 +549,97 @@ afterEach(async () => {
 });
 
 describe("S1 本机谱项目面板", () => {
+  it("浏览器下载端口同步点击并只写入 Uint8Array view 的有效字节", async () => {
+    const scheduledCleanups: Array<() => void> = [];
+    const source = new Uint8Array([90, 1, 2, 3, 91]);
+    const data = source.subarray(1, 4);
+    let downloadReturned = false;
+    let createdBlob: Blob | null = null;
+    const createObjectUrl = vi.fn((blob: Blob) => {
+      createdBlob = blob;
+      return "blob:browser-file-download-port";
+    });
+    const revokeObjectUrl = vi.fn();
+    Object.defineProperty(URL, "createObjectURL", {
+      configurable: true,
+      value: createObjectUrl,
+    });
+    Object.defineProperty(URL, "revokeObjectURL", {
+      configurable: true,
+      value: revokeObjectUrl,
+    });
+    const anchorClick = vi.spyOn(
+      HTMLAnchorElement.prototype,
+      "click",
+    ).mockImplementation(function (this: HTMLAnchorElement) {
+      expect(downloadReturned).toBe(false);
+      expect(document.body.contains(this)).toBe(true);
+      expect(this.download).toBe("有效字节.mxl");
+    });
+    const port = createBrowserFileDownloadPort({
+      scheduleCleanup: (cleanup) => scheduledCleanups.push(cleanup),
+    });
+
+    port.download({
+      data,
+      fileName: "有效字节.mxl",
+      mimeType: "application/vnd.recordare.musicxml",
+    });
+    downloadReturned = true;
+
+    expect(anchorClick).toHaveBeenCalledTimes(1);
+    expect(document.querySelector("a")).toBeNull();
+    expect(createObjectUrl).toHaveBeenCalledTimes(1);
+    expect(createdBlob).not.toBeNull();
+    expect(Array.from(new Uint8Array(await createdBlob!.arrayBuffer())))
+      .toEqual([1, 2, 3]);
+    expect(scheduledCleanups).toHaveLength(1);
+    scheduledCleanups[0]?.();
+    scheduledCleanups[0]?.();
+    expect(revokeObjectUrl).toHaveBeenCalledTimes(1);
+    expect(revokeObjectUrl).toHaveBeenCalledWith(
+      "blob:browser-file-download-port",
+    );
+  });
+
+  it("浏览器下载端口在 click 失败时仍移除锚点且 URL 清理和错误通知只执行一次", () => {
+    const scheduledCleanups: Array<() => void> = [];
+    const cleanupError = new Error("URL 清理失败");
+    const onCleanupError = vi.fn();
+    Object.defineProperty(URL, "createObjectURL", {
+      configurable: true,
+      value: vi.fn(() => "blob:failed-browser-file-download"),
+    });
+    const revokeObjectUrl = vi.fn(() => {
+      throw cleanupError;
+    });
+    Object.defineProperty(URL, "revokeObjectURL", {
+      configurable: true,
+      value: revokeObjectUrl,
+    });
+    vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {
+      throw new Error("浏览器拒绝下载");
+    });
+    const port = createBrowserFileDownloadPort({
+      scheduleCleanup: (cleanup) => scheduledCleanups.push(cleanup),
+    });
+
+    expect(() => port.download({
+      data: "<score-partwise/>",
+      fileName: "失败.musicxml",
+      mimeType: "application/vnd.recordare.musicxml+xml",
+      onCleanupError,
+    })).toThrow("浏览器拒绝下载");
+    expect(document.querySelector("a")).toBeNull();
+    expect(scheduledCleanups).toHaveLength(1);
+
+    scheduledCleanups[0]?.();
+    scheduledCleanups[0]?.();
+    expect(revokeObjectUrl).toHaveBeenCalledTimes(1);
+    expect(onCleanupError).toHaveBeenCalledTimes(1);
+    expect(onCleanupError).toHaveBeenCalledWith(cleanupError);
+  });
+
   it("受支持 MusicXML 只生成内存候选，明确确认后才新增并打开已保存项目", async () => {
     const store = new MemoryProjectStore();
     const container = await renderPanel(store);
