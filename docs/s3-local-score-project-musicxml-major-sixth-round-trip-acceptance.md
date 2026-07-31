@@ -17,7 +17,7 @@ QA level recommendation：**strict**
 
 - `Cmaj6` 或其他 alias 不得归一化为 `C6`。
 - `C6`／`major-sixth` 不得与 `Cm6`／`minor-sixth`、major 或其他 kind 混同或降级。
-- minor-sixth、sus／add／扩展音及其他未列出的和弦类别继续 blocking。
+- sus／add／扩展音及其他未列出的和弦类别继续 blocking。
 - slash／bass／inversion、双升降、Unicode 升降号、属性、额外节点、错序、重复、
   namespace／大小写变体及非规范间隔继续 blocking。
 - blocking 输入不得分配 canonical event ID，也不得静默删除或改变和弦语义。
