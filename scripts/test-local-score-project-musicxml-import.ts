@@ -1675,6 +1675,38 @@ for (const sourceFormat of ["musicxml", "mxl"] as const) {
   assert.equal(suspendedSecondEventIds, 5);
 }
 
+const strictPowerChordHarmonyXml = supportedXml
+  .replace(
+    "<note><pitch><step>C</step>",
+    '<harmony><root><root-step>C</root-step><root-alter>1</root-alter></root><kind>power</kind><staff>1</staff></harmony><note><pitch><step>C</step>',
+  )
+  .replace(
+    "<note><rest/>",
+    '<harmony><root><root-step>D</root-step><root-alter>-1</root-alter></root><kind>power</kind><staff>1</staff></harmony><note><rest/>',
+  );
+for (const sourceFormat of ["musicxml", "mxl"] as const) {
+  let powerChordEventIds = 0;
+  const powerChordDraft = createLocalScoreProjectMusicXmlImportDraft({
+    xml: strictPowerChordHarmonyXml,
+    fileName: `严格强力和弦.${sourceFormat}`,
+    sourceFormat,
+    projectId: `import-project-power-chord-${sourceFormat}`,
+    now: "2026-07-31T08:00:00.000Z",
+    createEventId: () =>
+      `power-chord-${sourceFormat}-${++powerChordEventIds}`,
+  });
+  assert.equal(powerChordDraft.status, "ready");
+  assert.deepEqual(powerChordDraft.issues, []);
+  assert.deepEqual(
+    powerChordDraft.project?.document.parts[0].staves[0].voices[0]
+      .measures.flatMap((measure) => measure.events)
+      .map((event) => event.chordSymbol),
+    ["C#5", "Db5", null, null, null],
+    `${sourceFormat} must preserve power chord symbols`,
+  );
+  assert.equal(powerChordEventIds, 5);
+}
+
 const harmonyAnchor = "<note><pitch><step>D</step>";
 const invalidHarmonies = [
   '<harmony placement="above"><root><root-step>C</root-step></root><kind>major</kind><staff>1</staff></harmony>',
@@ -1684,6 +1716,8 @@ const invalidHarmonies = [
   '<harmony><root><root-alter>1</root-alter><root-step>C</root-step></root><kind>major</kind><staff>1</staff></harmony>',
   '<harmony><root><root-step>C</root-step><root-alter print-object="no">1</root-alter></root><kind>major</kind><staff>1</staff></harmony>',
   '<harmony><root><root-step>C</root-step></root><kind text="maj">major</kind><staff>1</staff></harmony>',
+  '<harmony><root><root-step>C</root-step></root><kind text="5">power</kind><staff>1</staff></harmony>',
+  '<harmony><root><root-step>C</root-step></root><kind>Power</kind><staff>1</staff></harmony>',
   '<harmony><root><root-step>C</root-step></root><kind>other</kind><staff>1</staff></harmony>',
   '<harmony><root><root-step>H</root-step></root><kind>major</kind><staff>1</staff></harmony>',
   '<harmony><root><root-step>C</root-step></root><kind>major</kind><staff>2</staff></harmony>',

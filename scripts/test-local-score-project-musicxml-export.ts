@@ -486,6 +486,40 @@ const createSuspendedSecondSupportedProject = (): LocalScoreProjectV1 => {
   return parsed;
 };
 
+const createPowerChordSupportedProject = (): LocalScoreProjectV1 => {
+  const base = createChordSymbolSupportedProject();
+  const measures = base.document.parts[0].staves[0].voices[0].measures;
+  const symbols = new Map<string, string>([
+    ["event-1", "C#5"],
+    ["event-2", "Db5"],
+  ] as const);
+  const candidate: LocalScoreProjectV1 = {
+    ...base,
+    document: {
+      ...base.document,
+      parts: [{
+        ...base.document.parts[0],
+        staves: [{
+          ...base.document.parts[0].staves[0],
+          voices: [{
+            ...base.document.parts[0].staves[0].voices[0],
+            measures: measures.map((measure) => ({
+              ...measure,
+              events: measure.events.map((event) => ({
+                ...event,
+                chordSymbol: symbols.get(event.id) ?? null,
+              })),
+            })),
+          }],
+        }],
+      }],
+    },
+  };
+  const parsed = parseLocalScoreProject(candidate);
+  assert.ok(parsed, "power chord export fixture must be canonical");
+  return parsed;
+};
+
 for (const rootStep of ["A", "B", "C", "D", "E", "F", "G"] as const) {
   for (const [suffix, kind] of [
     ["", "major"],
@@ -502,6 +536,7 @@ for (const rootStep of ["A", "B", "C", "D", "E", "F", "G"] as const) {
     ["m6", "minor-sixth"],
     ["sus2", "suspended-second"],
     ["sus4", "suspended-fourth"],
+    ["5", "power"],
   ] as const) {
     const canonical = `${rootStep}${suffix}`;
     assert.deepEqual(
@@ -534,6 +569,7 @@ for (const rootStep of ["A", "B", "C", "D", "E", "F", "G"] as const) {
       ["m6", "minor-sixth"],
       ["sus2", "suspended-second"],
       ["sus4", "suspended-fourth"],
+      ["5", "power"],
     ] as const) {
       const canonical = `${rootStep}${accidental}${suffix}`;
       assert.deepEqual(
@@ -561,6 +597,12 @@ for (const unsupported of [
   "Csus",
   "C2",
   "C4",
+  "Cm5",
+  "C55",
+  "Cpower",
+  "C(no3)",
+  "Comit3",
+  "C5/E",
   "Csus6",
   "C/E",
   "c",
@@ -1673,6 +1715,93 @@ assert.deepEqual(
   "legacy parsing must ignore suspended-second harmony without changing note timing",
 );
 
+const powerChordProject = createPowerChordSupportedProject();
+const powerChordReady = createLocalScoreProjectMusicXmlExportDraft({
+  project: powerChordProject,
+});
+assert.equal(powerChordReady.status, "ready");
+assert.deepEqual(powerChordReady.issues, []);
+assert.ok(powerChordReady.xml);
+for (const [rootStep, rootAlter] of [
+  ["C", "1"],
+  ["D", "-1"],
+] as const) {
+  assert.match(
+    powerChordReady.xml,
+    new RegExp(
+      `<harmony>\\s*<root><root-step>${rootStep}</root-step>`
+      + `<root-alter>${rootAlter}</root-alter></root>\\s*`
+      + "<kind>power</kind>\\s*"
+      + "<staff>1</staff>\\s*</harmony>",
+    ),
+  );
+}
+assert.deepEqual(
+  createLocalScoreProjectMusicXmlExportDraft({
+    project: powerChordProject,
+  }),
+  powerChordReady,
+  "power chord MusicXML output must be deterministic",
+);
+const powerChordXmlPayload =
+  confirmLocalScoreProjectMusicXmlExportDraft({
+    draft: powerChordReady,
+    currentProject: powerChordProject,
+    format: "musicxml",
+  });
+const reopenedPowerChordXml =
+  createLocalScoreProjectMusicXmlImportDraft({
+    xml: String(powerChordXmlPayload.data),
+    fileName: powerChordXmlPayload.fileName,
+    sourceFormat: "musicxml",
+    projectId: powerChordProject.projectId,
+    now: powerChordProject.createdAt,
+    createEventId: () =>
+      `reopened-power-chord-event-${++importedEventIndex}`,
+  });
+assert.equal(reopenedPowerChordXml.status, "ready");
+assert.ok(reopenedPowerChordXml.project);
+assert.deepEqual(
+  musicalProjection(reopenedPowerChordXml.project),
+  musicalProjection(powerChordProject),
+  "strict MusicXML re-import must preserve pitched-note and rest power chord symbols",
+);
+const powerChordMxlPayload =
+  confirmLocalScoreProjectMusicXmlExportDraft({
+    draft: powerChordReady,
+    currentProject: powerChordProject,
+    format: "mxl",
+  });
+assert.deepEqual(
+  powerChordMxlPayload.data,
+  createMusicXmlMxlArchive(powerChordReady.xml),
+  "power chord MXL generation must remain deterministic",
+);
+const reopenedPowerChordMxl =
+  createLocalScoreProjectMusicXmlImportDraft({
+    xml: extractMusicXMLFromMxl(
+      powerChordMxlPayload.data as Uint8Array,
+    ),
+    fileName: powerChordMxlPayload.fileName,
+    sourceFormat: "mxl",
+    projectId: powerChordProject.projectId,
+    now: powerChordProject.createdAt,
+    createEventId: () =>
+      `reopened-power-chord-mxl-event-${++importedEventIndex}`,
+  });
+assert.equal(reopenedPowerChordMxl.status, "ready");
+assert.ok(reopenedPowerChordMxl.project);
+assert.deepEqual(
+  musicalProjection(reopenedPowerChordMxl.project),
+  musicalProjection(powerChordProject),
+  "strict MXL re-import must preserve pitched-note and rest power chord symbols",
+);
+assert.deepEqual(
+  parseMusicXML(powerChordReady.xml),
+  parseMusicXML(damperPedalReady.xml),
+  "legacy parsing must ignore power harmony without changing note timing",
+);
+
 for (const mark of ["pp", "p", "mp", "mf", "f", "ff"] as const) {
   const measures =
     dynamicProject.document.parts[0].staves[0].voices[0].measures;
@@ -2126,7 +2255,7 @@ const blockedFixtures: readonly [
       chordSymbol: "C#maj7",
     }, {
       ...sourceRest,
-      chordSymbol: "Csus",
+      chordSymbol: "Cpower",
     }]),
     ["unsupported-chord-symbol"],
   ],

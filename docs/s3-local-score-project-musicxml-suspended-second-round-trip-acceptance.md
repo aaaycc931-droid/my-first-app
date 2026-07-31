@@ -43,3 +43,6 @@ QA level recommendation：**strict**
 教育有效性也为 `NOT_EXECUTED`。
 
 本切片不是完整和弦系统、完整 MusicXML/MXL、完整 S3 或正式版 V1。
+
+后续强力和弦新增严格边界见
+`docs/s3-local-score-project-musicxml-power-chord-round-trip-acceptance.md`。
