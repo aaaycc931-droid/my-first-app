@@ -257,7 +257,7 @@ const addEventIssues = ({
   ) {
     issues.push(blockingIssue(
       "unsupported-chord-symbol",
-      "当前导出只支持自然音或单升降根音的大三、小三、增三、减三、属七、大七、小七、增七、减七、半减七和大六和弦标记。",
+      "当前导出只支持自然音或单升降根音的大三、小三、增三、减三、属七、大七、小七、大六、小六、增七、减七和半减七和弦标记。",
       location,
     ));
   }
