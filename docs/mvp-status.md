@@ -1,6 +1,6 @@
 # MVP / Android 私测当前状态
 
-最后更新：2026-07-30
+最后更新：2026-07-31
 
 本文件是当前可验证状态总账，不再作为逐次运行日志无限追加。历史细节保留在 Git 提交记录、PR 与 Actions 中。
 
@@ -139,8 +139,8 @@
 - 当前严格子集已把 canonical GM1 program `0–127` 精确双向映射为
   `score-part` 中固定相邻的 `score-instrument` 与一基 `midi-program 1–128`；
   instrument-name 必须与 part name 一致，其他 MIDI／音色语义继续 blocking。全局整数
-  速度、单附点、力度、踏板、自然／单升降根音十三类和弦（含 major-sixth／
-  minor-sixth／suspended-fourth／augmented／diminished／augmented-seventh／diminished-seventh／half-diminished）、
+  速度、单附点、力度、踏板、自然／单升降根音十四类和弦（含 major-sixth／
+  minor-sixth／suspended-second／suspended-fourth／augmented／diminished／augmented-seventh／diminished-seventh／half-diminished）、
   lyric、fingering、
   articulations、fermata、slur 和 tie 的既有严格双向映射继续保留；附点真实时值、
   首事件顺序、同小节／跨小节／链式及共存语义均保持确定。其他未列出的语义继续
@@ -155,6 +155,7 @@
 - 自动证据由当前 importer re-import 与 legacy parser 音符交叉检查组成，均属于仓库内部验证。浏览器下载、Android WebView／真机及 MuseScore 等外部独立阅读器仍为 `NOT_EXECUTED`，不得宣称第三方兼容已经通过。
 - 小六和弦独立边界见 `docs/s3-local-score-project-musicxml-minor-sixth-round-trip-acceptance.md`；该切片不改变 schema、storage version 或迁移链。
 - 挂四和弦独立边界见 `docs/s3-local-score-project-musicxml-suspended-fourth-round-trip-acceptance.md`；该切片不改变 schema、storage version 或迁移链。
+- 挂二和弦独立边界见 `docs/s3-local-score-project-musicxml-suspended-second-round-trip-acceptance.md`；该切片不改变 schema、storage version 或迁移链。
 - 当前和未来路线冻结能力、行为、数据兼容与证据门槛，不冻结当前页面、导航、组件树
   或视觉表达；最终 UI 重构及已知渐进抽离热点见
   `docs/final-ui-refactor-compatibility-contract.md`。该 docs-only 契约不表示 UI 重构或

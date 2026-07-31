@@ -10,8 +10,8 @@
 
 ## 1. 当前事实与本次决策
 
-当前执行检查点在 PR #483 已把 suspended-fourth 纳入既有严格 `<harmony>` 双向
-映射之后，继续增加 suspended-second；PR #482 已完成 minor-sixth，PR #481 已完成 major-sixth，PR #480 已完成 augmented-seventh，PR #479 已完成
+当前执行切片在 PR #483 已把 suspended-fourth 纳入既有严格 `<harmony>` 双向
+映射之后，增加 suspended-second；PR #482 已完成 minor-sixth，PR #481 已完成 major-sixth，PR #480 已完成 augmented-seventh，PR #479 已完成
 diminished-seventh，PR #477 已完成 note 容器硬化，PR #476 已完成增三／减三和弦，PR #475 已完成
 part identity，PR #474 已完成 GM1 program，
 PR #473 已完成 scoreCredits，PR #466 已完成 XML 1.0 文本
@@ -44,7 +44,7 @@ fail-closed。仓库默认分支实时状态仍以 GitHub 为准：
 - P119a 已通过 PR #415 合并为 `28a448faf1f387a1c7f394f5baac6a2a7dbc4eac`；它只建立 Q3 内容盘点和双教师审核证据协议。自动盘点暴露两个基础档各 8 个变体的数量缺口，外部教师审核仍为 `NOT_EXECUTED`。
 - P119b 已通过 PR #417 合并为 `bd5c5af211a3a1b36f4fcfacebdfe89b65fbafc1`；两个基础档各达到 20，当前 30 个自动盘点组满足 V1 数量前置。
 - P119c 已通过 PR #419 合并为 `de9ab7f9a6d050a951e70835fbe97cecc693b9f4`；catalog v10 可复核清单已绑定 P119b source commit、18 个真源文件、1,855 个题目 item、3 个课节和 canonical SHA-256。P119d 已记录产品所有者对仓库外双教师预批准的无身份摘要：30 层各 5 项、3 个课程项，共 153 项；获批批次继续冻结，逐题六维双教师审核与 finding 闭环延期到正式推广测试启动时，专业 40 与教育有效性仍未完成。
-- S1/S2 canonical tie／fermata／slur／单附点／单段歌词／单指法／单音演奏法／单事件力度记号／单事件制音踏板记号／受控和弦标记与 S3 受控单 part／staff／voice MusicXML/MXL 导入、导出及仓库内部 round-trip 已形成连续主线；当前严格子集已纳入首小节 attributes 后唯一 `<sound tempo="N"/>` 表达的全局整数 `30–240 BPM`、scoreCredits title/subtitle/按数组顺序 creators/rightsNotice、未指定或 canonical `0–127` GM1 program 乐器归属（固定 `score-instrument` 与 MusicXML 一基 `midi-program 1–128`）、note/rest 单附点、fermata、`pp`／`p`／`mp`／`mf`／`f`／`ff` 唯一 `<dynamics>`、`down/up` 到紧邻 pedal `start/stop` direction 的映射、credits 到 root-level 严格 `work → movement-title → identification`（导出写出非空字段，导入仅在完全缺省 work-title 时保留既有 fallback），以及自然／单升降根音十三类严格 `<harmony>`（含 major-sixth／minor-sixth／suspended-fourth／augmented／diminished／augmented-seventh／diminished-seventh／half-diminished）、pitched note 的规范化唯一 lyric、fingering 和 articulations、相邻时间连续 note 的 slur，以及相邻同音高时间连续 note 的 tie start／stop、跨小节、链式关系和 notations 共存。part identity 载体与每个事件的外层 `<note>` 均进一步要求 exact、无 namespace；ID 与名称不做静默 trim，note 不允许任何属性，非法节点在 event ID 分配前 blocking。浏览器真实导入／下载／重开、Android WebView／真机、MuseScore 等第三方独立阅读器、速度／GM1 音色／credits／和弦／踏板／力度／演奏法／指法显示与真实播放、MIDI channel／bank／program change 与 MIDI 文件、tempo map／中途变速、双升降／Unicode 升降号／转位／其他和弦类别、左右手／替代指法、歌词排版／多 verse／melisma、真实音频与歌唱对齐、教师审核、OMR、完整 MusicXML、完整 S3 与正式版 V1 仍为 `NOT_EXECUTED` 或未完成。
+- S1/S2 canonical tie／fermata／slur／单附点／单段歌词／单指法／单音演奏法／单事件力度记号／单事件制音踏板记号／受控和弦标记与 S3 受控单 part／staff／voice MusicXML/MXL 导入、导出及仓库内部 round-trip 已形成连续主线；当前严格子集已纳入首小节 attributes 后唯一 `<sound tempo="N"/>` 表达的全局整数 `30–240 BPM`、scoreCredits title/subtitle/按数组顺序 creators/rightsNotice、未指定或 canonical `0–127` GM1 program 乐器归属（固定 `score-instrument` 与 MusicXML 一基 `midi-program 1–128`）、note/rest 单附点、fermata、`pp`／`p`／`mp`／`mf`／`f`／`ff` 唯一 `<dynamics>`、`down/up` 到紧邻 pedal `start/stop` direction 的映射、credits 到 root-level 严格 `work → movement-title → identification`（导出写出非空字段，导入仅在完全缺省 work-title 时保留既有 fallback），以及自然／单升降根音十四类严格 `<harmony>`（含 major-sixth／minor-sixth／suspended-second／suspended-fourth／augmented／diminished／augmented-seventh／diminished-seventh／half-diminished）、pitched note 的规范化唯一 lyric、fingering 和 articulations、相邻时间连续 note 的 slur，以及相邻同音高时间连续 note 的 tie start／stop、跨小节、链式关系和 notations 共存。part identity 载体与每个事件的外层 `<note>` 均进一步要求 exact、无 namespace；ID 与名称不做静默 trim，note 不允许任何属性，非法节点在 event ID 分配前 blocking。浏览器真实导入／下载／重开、Android WebView／真机、MuseScore 等第三方独立阅读器、速度／GM1 音色／credits／和弦／踏板／力度／演奏法／指法显示与真实播放、MIDI channel／bank／program change 与 MIDI 文件、tempo map／中途变速、双升降／Unicode 升降号／转位／其他和弦类别、左右手／替代指法、歌词排版／多 verse／melisma、真实音频与歌唱对齐、教师审核、OMR、完整 MusicXML、完整 S3 与正式版 V1 仍为 `NOT_EXECUTED` 或未完成。
 
 本次产品决策是：
 
@@ -516,7 +516,7 @@ P120 仍是专业私测候选，不是全能公开最终版。
 
 1. 从 GitHub 默认分支的最新已验证提交建立单一后续切片分支，先核对本路线、DoD、状态矩阵和当前验收文档；
 2. 继续把 P104/P113 的真实人声、三档 Android、延迟/同步和教育证据列为独立缺口；
-3. P118a 中文课程路径、P118b 本机详细练习统计、P118c 薄弱点复练队列、P118d 可解释非评分推荐与 P118e 本机学习总览已合并；P118e 只组合四类既有真源并分别失败关闭，继续复用既有 Activity、复练／画像和本地存储边界，不改写协议、不产生正式能力评级；下一阶段仅为 P119/Q 联合验收与证据准备；
+3. P118a 中文课程路径、P118b 本机详细练习统计、P118c 薄弱点复练队列、P118d 可解释非评分推荐与 P118e 本机学习总览已合并；P118e 只组合四类既有真源并分别失败关闭，继续复用既有 Activity、复练／画像和本地存储边界，不改写协议、不产生正式能力评级；P119/Q 联合验收与证据准备继续作为独立外部门槛，当前工程执行同时按本文件顶部的 S3 严格扩展与 UI 重构兼容契约推进；
 4. 不先做伙伴形象、首页悬浮物或自由聊天；
 5. P118 的统计、薄弱点复练、可解释推荐与最终整合已经拆分为 P118b–P118e 并分别合并；M1a 单伙伴可信反馈闭环仍按证据和依赖门槛启动；
 6. 后续按 R2–R9 滚动推进，每个切片完成“实现 → focused tests → 完整检查 → 提交 → 推送 → PR → CI → 审查 → squash merge → 状态更新”；
