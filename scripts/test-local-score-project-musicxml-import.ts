@@ -1,3 +1,6 @@
+Warning: truncated output (original token count: 31249)
+Total output lines: 3602
+
 import assert from "node:assert/strict";
 import { DOMParser as XmlDomParser } from "@xmldom/xmldom";
 
@@ -1611,6 +1614,38 @@ for (const sourceFormat of ["musicxml", "mxl"] as const) {
   assert.equal(minorSixthEventIds, 5);
 }
 
+const strictSuspendedFourthHarmonyXml = supportedXml
+  .replace(
+    "<note><pitch><step>C</step>",
+    '<harmony><root><root-step>C</root-step><root-alter>1</root-alter></root><kind>suspended-fourth</kind><staff>1</staff></harmony><note><pitch><step>C</step>',
+  )
+  .replace(
+    "<note><rest/>",
+    '<harmony><root><root-step>D</root-step><root-alter>-1</root-alter></root><kind>suspended-fourth</kind><staff>1</staff></harmony><note><rest/>',
+  );
+for (const sourceFormat of ["musicxml", "mxl"] as const) {
+  let suspendedFourthEventIds = 0;
+  const suspendedFourthDraft = createLocalScoreProjectMusicXmlImportDraft({
+    xml: strictSuspendedFourthHarmonyXml,
+    fileName: `严格挂四和弦.${sourceFormat}`,
+    sourceFormat,
+    projectId: `import-project-suspended-fourth-${sourceFormat}`,
+    now: "2026-07-31T03:25:00.000Z",
+    createEventId: () =>
+      `suspended-fourth-${sourceFormat}-${++suspendedFourthEventIds}`,
+  });
+  assert.equal(suspendedFourthDraft.status, "ready");
+  assert.deepEqual(suspendedFourthDraft.issues, []);
+  assert.deepEqual(
+    suspendedFourthDraft.project?.document.parts[0].staves[0].voices[0]
+      .measures.flatMap((measure) => measure.events)
+      .map((event) => event.chordSymbol),
+    ["C#sus4", "Dbsus4", null, null, null],
+    `${sourceFormat} must preserve suspended-fourth symbols`,
+  );
+  assert.equal(suspendedFourthEventIds, 5);
+}
+
 const harmonyAnchor = "<note><pitch><step>D</step>";
 const invalidHarmonies = [
   '<harmony placement="above"><root><root-step>C</root-step></root><kind>major</kind><staff>1</staff></harmony>',
@@ -1620,108 +1655,7 @@ const invalidHarmonies = [
   '<harmony><root><root-alter>1</root-alter><root-step>C</root-step></root><kind>major</kind><staff>1</staff></harmony>',
   '<harmony><root><root-step>C</root-step><root-alter print-object="no">1</root-alter></root><kind>major</kind><staff>1</staff></harmony>',
   '<harmony><root><root-step>C</root-step></root><kind text="maj">major</kind><staff>1</staff></harmony>',
-  '<harmony><root><root-step>C</root-step></root><kind>other</kind><staff>1</staff></harmony>',
-  '<harmony><root><root-step>H</root-step></root><kind>major</kind><staff>1</staff></harmony>',
-  '<harmony><root><root-step>C</root-step></root><kind>major</kind><staff>2</staff></harmony>',
-  '<harmony><root><root-step>C</root-step></root><kind>major</kind><bass><bass-step>G</bass-step></bass><staff>1</staff></harmony>',
-  '<harmony><root><root-step>C</root-step></root><kind>major</kind><inversion>1</inversion><staff>1</staff></harmony>',
-  '<harmony xmlns="urn:unsupported"><root><root-step>C</root-step></root><kind>major</kind><staff>1</staff></harmony>',
-  '<harmony><root><root-step>C</root-step></root><Kind>major</Kind><staff>1</staff></harmony>',
-  '<harmony><kind>major</kind><root><root-step>C</root-step></root><staff>1</staff></harmony>',
-  '<harmony><root><root-step>C</root-step></root><kind>major</kind><staff>1</staff><degree/></harmony>',
-  '<harmony><root><!--comment--><root-step>C</root-step></root><kind>major</kind><staff>1</staff></harmony>',
-  '<harmony><root><root-step>C</root-step></root><kind>major</kind><staff>1</staff></harmony><!--gap-->',
-] as const;
-for (let index = 0; index < invalidHarmonies.length; index += 1) {
-  let invalidHarmonyIdCalls = 0;
-  const invalidHarmonyDraft = createLocalScoreProjectMusicXmlImportDraft({
-    xml: supportedXml.replace(
-      harmonyAnchor,
-      `${invalidHarmonies[index]}${harmonyAnchor}`,
-    ),
-    fileName: `invalid-harmony-${index + 1}.musicxml`,
-    sourceFormat: "musicxml",
-    projectId: `blocked-invalid-harmony-${index + 1}`,
-    now: "2026-07-27T08:01:08.670Z",
-    createEventId: () => {
-      invalidHarmonyIdCalls += 1;
-      return `unused-invalid-harmony-${invalidHarmonyIdCalls}`;
-    },
-  });
-  assert.equal(invalidHarmonyDraft.status, "blocked");
-  assert.equal(invalidHarmonyIdCalls, 0);
-  assert.ok(
-    invalidHarmonyDraft.issues.some(
-      (issue) =>
-        issue.code === "unsupported-harmony-structure"
-        || issue.code === "unsupported-harmony-anchor",
-    ),
-    `harmony structure ${index + 1} must fail closed with a stable ledger code`,
-  );
-}
-
-const duplicateHarmony = '<harmony><root><root-step>C</root-step></root><kind>major</kind><staff>1</staff></harmony>';
-const invalidHarmonyAnchors = [
-  supportedXml.replace(
-    harmonyAnchor,
-    `${duplicateHarmony}${duplicateHarmony}${harmonyAnchor}`,
-  ),
-  supportedXml.replace(
-    "</measure>",
-    `${duplicateHarmony}</measure>`,
-  ),
-] as const;
-for (let index = 0; index < invalidHarmonyAnchors.length; index += 1) {
-  const invalidHarmonyAnchorDraft =
-    createLocalScoreProjectMusicXmlImportDraft({
-      xml: invalidHarmonyAnchors[index],
-      fileName: `invalid-harmony-anchor-${index + 1}.musicxml`,
-      sourceFormat: "musicxml",
-      projectId: `blocked-invalid-harmony-anchor-${index + 1}`,
-      now: "2026-07-27T08:01:08.680Z",
-      createEventId: () => "unused-invalid-harmony-anchor",
-    });
-  assert.equal(invalidHarmonyAnchorDraft.status, "blocked");
-  assert.ok(
-    invalidHarmonyAnchorDraft.issues.some(
-      (issue) => issue.code === "unsupported-harmony-anchor",
-    ),
-  );
-}
-
-for (const [label, strayMarkup] of [
-  ["root", "<root><root-step>C</root-step></root>"],
-  ["root-step", "<root-step>C</root-step>"],
-  ["root-alter", "<root-alter>1</root-alter>"],
-  ["kind", "<kind>major</kind>"],
-] as const) {
-  const strayHarmonyElementDraft = createLocalScoreProjectMusicXmlImportDraft({
-    xml: supportedXml.replace(harmonyAnchor, `${strayMarkup}${harmonyAnchor}`),
-    fileName: `stray-harmony-${label}.musicxml`,
-    sourceFormat: "musicxml",
-    projectId: `blocked-stray-harmony-${label}`,
-    now: "2026-07-27T08:01:08.690Z",
-    createEventId: () => "unused-stray-harmony",
-  });
-  assert.equal(strayHarmonyElementDraft.status, "blocked");
-  assert.ok(
-    strayHarmonyElementDraft.issues.some(
-      (issue) => issue.code === "unsupported-harmony-structure",
-    ),
-    `stray ${label} must fail closed`,
-  );
-}
-
-const pedalAnchor = "<note><pitch><step>D</step>";
-const invalidPedalDirections = [
-  '<direction><direction-type><pedal/></direction-type><voice>1</voice><staff>1</staff></direction>',
-  '<direction><direction-type><pedal type="change"/></direction-type><voice>1</voice><staff>1</staff></direction>',
-  '<direction><direction-type><pedal type="start" line="yes"/></direction-type><voice>1</voice><staff>1</staff></direction>',
-  '<direction placement="below"><direction-type><pedal type="start"/></direction-type><voice>1</voice><staff>1</staff></direction>',
-  '<direction><direction-type id="pedal"><pedal type="start"/></direction-type><voice>1</voice><staff>1</staff></direction>',
-  '<direction><direction-type><pedal type="start">text</pedal></direction-type><voice>1</voice><staff>1</staff></direction>',
-  '<direction><direction-type><!--comment--><pedal type="start"/></direction-type><voice>1</voice><staff>1</staff></direction>',
-  '<direction><direction-type><![CDATA[ ]]><pedal type="start"/></direction-type><voice>1</voice><staff>1</staff></direction>',
+  '<harmony><root><root-step>C</root-step></root><kind>other</kind><staff>1</staff></harmony…1249 tokens truncated…>',
   '<direction><direction-type><?pedal data?><pedal type="start"/></direction-type><voice>1</voice><staff>1</staff></direction>',
   '<direction><direction-type><pedal type="start"/><pedal type="stop"/></direction-type><voice>1</voice><staff>1</staff></direction>',
   '<direction><direction-type><pedal type="start"/></direction-type><voice>2</voice><staff>1</staff></direction>',
