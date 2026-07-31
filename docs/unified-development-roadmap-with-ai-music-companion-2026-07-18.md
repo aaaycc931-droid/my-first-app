@@ -4,7 +4,7 @@
 
 状态：**Canonical integrated roadmap / 统一长期开发主路线**
 
-当前执行状态：**S3 STRICT MINOR-NINTH EXPANSION IN PROGRESS / EXTERNAL MUSICXML QA NOT_EXECUTED / P119d ITEM REVIEW DEFERRED**
+当前执行状态：**S3 STRICT MINOR-NINTH INTEGRATED / NEXT EXCHANGE SLICE UNDER REVIEW / EXTERNAL MUSICXML QA NOT_EXECUTED / P119d ITEM REVIEW DEFERRED**
 
 适用项目：`aaaycc931-droid/my-first-app`
 
@@ -15,9 +15,11 @@ suspended-second 纳入该映射，PR #486 已按
 最终 UI 重构兼容契约完成共享实时音高组件的本机练声记录 repository port 与
 Web／Android 显式注入；PR #488 已加入
 `C9` ↔ `<kind>dominant-ninth</kind>`，PR #491 已加入
-`Cmaj9` ↔ `<kind>major-ninth</kind>`，当前工程切片继续以严格 fail-closed 方式加入
+`Cmaj9` ↔ `<kind>major-ninth</kind>`，PR #494 已以严格 fail-closed 方式加入
 `Cm9` ↔ `<kind>minor-ninth</kind>`，把受控和弦类别从 17 种扩至 18 种、组合从
-357 扩至 378；不改变 schema、storage、迁移、页面布局、谱面显示或播放语义。
+357 扩至 378；该合并不改变 schema、storage、迁移、页面布局、谱面显示或播放语义。
+下一交换语义切片仍需独立评审，不把 add-ninth／`degree` 或其他未表达语义并入
+已完成的小九和弦边界。
 PR #483 已完成 suspended-fourth，PR #482 已完成
 minor-sixth，PR #481 已完成 major-sixth，PR #480 已完成 augmented-seventh，PR #479 已完成
 diminished-seventh，PR #477 已完成 note 容器硬化，PR #476 已完成增三／减三和弦，PR #475 已完成
