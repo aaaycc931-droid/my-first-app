@@ -7,6 +7,12 @@ import type { ActivityCheckEvidence } from "../../lib/activity/activitySession";
 import { midiToScientificNote } from "../../lib/practice/realtimePitchCurve";
 import { generateLocalVocalExercise, localVocalExerciseManifest, type GeneratedLocalVocalExercise } from "../../lib/practice/localVocalExercise";
 import { getLocalVocalTargetFeedback } from "../../lib/practice/localVocalTargetFeedback";
+import {
+  createLocalVocalPracticeRecord,
+  serializeLocalVocalPracticeRecord,
+  type LocalVocalPracticeRecord,
+  type LocalVocalPracticeRecordRepository,
+} from "../../lib/practice/localVocalPracticeRecord";
 import { RealtimePitchCurveChart } from "./RealtimePitchCurveChart";
 import { LocalVocalObservationPanel } from "./LocalVocalObservationPanel";
 import { OfflinePitchAnalysisPanel } from "./OfflinePitchAnalysisPanel";
@@ -15,15 +21,6 @@ import { ActivityProtocolState } from "./ActivityProtocolState";
 import { useChoiceActivitySession } from "./useChoiceActivitySession";
 import { useRealtimePitchMonitor } from "./useRealtimePitchMonitor";
 import { createBrowserAudioChannel, stopAllBrowserAudio, subscribeBrowserAudioStopAll } from "../../lib/audio/browserAudioEngine";
-import {
-  clearLocalVocalPracticeRecords,
-  createLocalVocalPracticeRecord,
-  deleteLocalVocalPracticeRecord,
-  listLocalVocalPracticeRecords,
-  saveLocalVocalPracticeRecord,
-  serializeLocalVocalPracticeRecord,
-  type LocalVocalPracticeRecord,
-} from "../../mobile/src/runtime/localVocalPracticeStorage";
 
 const frameCopy = {
   quiet: "声音太轻，正在等待较稳定的单音。",
@@ -52,7 +49,13 @@ type PendingA4ActivityCheck = {
   checkEvidence: ActivityCheckEvidence;
 };
 
-export function RealtimePitchMonitorPanel({ targetExercise = null }: { targetExercise?: GeneratedLocalVocalExercise | null }) {
+export function RealtimePitchMonitorPanel({
+  practiceRecordRepository,
+  targetExercise = null,
+}: {
+  practiceRecordRepository: LocalVocalPracticeRecordRepository;
+  targetExercise?: GeneratedLocalVocalExercise | null;
+}) {
   const monitor = useRealtimePitchMonitor();
   const a4Activity = useChoiceActivitySession(fixedA4ActivityDefinition, "local-vocal-a4-microphone-session");
   const [windowSeconds, setWindowSeconds] = useState(10);
@@ -88,9 +91,9 @@ export function RealtimePitchMonitorPanel({ targetExercise = null }: { targetExe
 
   useEffect(() => {
     let active = true;
-    void listLocalVocalPracticeRecords().then((items) => { if (active) setRecords(items); }).catch(() => { if (active) setStorageNotice("本机记录暂时不可用；实时练习不受影响。"); }).finally(() => { if (active) setIsStorageLoading(false); });
+    void practiceRecordRepository.list().then((items) => { if (active) setRecords(items); }).catch(() => { if (active) setStorageNotice("本机记录暂时不可用；实时练习不受影响。"); }).finally(() => { if (active) setIsStorageLoading(false); });
     return () => { active = false; stopSavedPlayback(); };
-  }, [stopSavedPlayback]);
+  }, [practiceRecordRepository, stopSavedPlayback]);
 
   useEffect(() => subscribeBrowserAudioStopAll(stopSavedPlayback), [stopSavedPlayback]);
 
@@ -101,7 +104,7 @@ export function RealtimePitchMonitorPanel({ targetExercise = null }: { targetExe
     setStorageBusy(true);
     try {
       const record = createLocalVocalPracticeRecord({ note: recordNote, targetLabel, targetMidi, curvePoints: monitor.curvePoints, recording: monitor.recordingBlob });
-      await saveLocalVocalPracticeRecord(record);
+      await practiceRecordRepository.save(record);
       setRecords((items) => [record, ...items.filter((item) => item.id !== record.id)]);
       setSelectedRecord(record);
       setRecordNote("");
@@ -249,7 +252,7 @@ export function RealtimePitchMonitorPanel({ targetExercise = null }: { targetExe
     setStorageBusy(true);
     stopSavedPlayback();
     try {
-      await deleteLocalVocalPracticeRecord(record.id);
+      await practiceRecordRepository.remove(record.id);
       setRecords((items) => items.filter((item) => item.id !== record.id));
       if (selectedRecord?.id === record.id) setSelectedRecord(null);
     } catch { setStorageNotice("删除失败，请重试。"); }
@@ -261,7 +264,7 @@ export function RealtimePitchMonitorPanel({ targetExercise = null }: { targetExe
     setStorageBusy(true);
     stopSavedPlayback();
     try {
-      await clearLocalVocalPracticeRecords();
+      await practiceRecordRepository.clear();
       setRecords([]);
       setSelectedRecord(null);
       setConfirmClearRecords(false);

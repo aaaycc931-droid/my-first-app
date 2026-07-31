@@ -97,11 +97,15 @@ URL、深链、文件格式、持久化键、原生 bridge 名称或其他外部
 | `mobile/src/App.tsx` | 导航、生命周期、学习事实和复练持久化 | 提取 app shell、navigation state 与 learning storage service |
 | `app/recognize/page.tsx` | 文件校验、API 请求、识别结果和播放预览 | 提取 recognition controller 与 API/file adapter |
 | 本机课程／学习概览组件 | 组件直接读取 localStorage 或 runtime storage | 由上层注入 repository、snapshot 和 commands |
-| 共享实时音高组件 | 共享组件引用 mobile runtime storage | 改为平台无关 port，由 Web／Android composition root 注入 |
+| 共享实时音高组件 | 本机练声记录 storage 已由平台无关 port 注入；组件仍编排录音、回放、下载与活动状态 | 继续提取音频／录音 adapter 和实时练习 controller；不得把已抽离 storage 重新耦合到组件 |
 
 这些热点是可控技术债，不代表当前功能错误，也不单独阻塞 S3 或其他边界清楚的能力
 切片。不得据此宣称 UI 重构已完成；也不得继续把新的 schema、迁移、格式解析或业务
 判定堆入这些展示文件。
+
+共享实时音高组件的首个 storage port 抽离边界见
+`docs/ui-realtime-pitch-local-record-storage-port-acceptance.md`。该切片只修正依赖方向，
+不表示录音／回放／下载编排、实时练习 controller 或最终 UI 已完成重构。
 
 ## 7. 每个未来切片的兼容检查
 
