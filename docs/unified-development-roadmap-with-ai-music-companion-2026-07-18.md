@@ -4,17 +4,19 @@
 
 状态：**Canonical integrated roadmap / 统一长期开发主路线**
 
-当前执行状态：**S3 STRICT POWER-CHORD EXPANSION IN PROGRESS / EXTERNAL MUSICXML QA NOT_EXECUTED / P119d ITEM REVIEW DEFERRED**
+当前执行状态：**S3 STRICT DOMINANT-NINTH EXPANSION IN PROGRESS / EXTERNAL MUSICXML QA NOT_EXECUTED / P119d ITEM REVIEW DEFERRED**
 
 适用项目：`aaaycc931-droid/my-first-app`
 
 ## 1. 当前事实与本次决策
 
-PR #485 已把 suspended-second 纳入既有严格 `<harmony>` 双向映射，PR #486 已按
+PR #487 已把 power 纳入既有严格 `<harmony>` 双向映射，PR #485 已把
+suspended-second 纳入该映射，PR #486 已按
 最终 UI 重构兼容契约完成共享实时音高组件的本机练声记录 repository port 与
 Web／Android 显式注入；当前工程切片继续以严格 fail-closed 方式加入
-`C5` ↔ `<kind>power</kind>`，不改变 schema、storage、迁移、页面布局、谱面显示或
-播放语义。PR #483 已完成 suspended-fourth，PR #482 已完成
+`C9` ↔ `<kind>dominant-ninth</kind>`，把受控和弦类别从 15 种扩至 16 种、组合从
+315 扩至 336；不改变 schema、storage、迁移、页面布局、谱面显示或播放语义。
+PR #483 已完成 suspended-fourth，PR #482 已完成
 minor-sixth，PR #481 已完成 major-sixth，PR #480 已完成 augmented-seventh，PR #479 已完成
 diminished-seventh，PR #477 已完成 note 容器硬化，PR #476 已完成增三／减三和弦，PR #475 已完成
 part identity，PR #474 已完成 GM1 program，
@@ -48,7 +50,7 @@ fail-closed。仓库默认分支实时状态仍以 GitHub 为准：
 - P119a 已通过 PR #415 合并为 `28a448faf1f387a1c7f394f5baac6a2a7dbc4eac`；它只建立 Q3 内容盘点和双教师审核证据协议。自动盘点暴露两个基础档各 8 个变体的数量缺口，外部教师审核仍为 `NOT_EXECUTED`。
 - P119b 已通过 PR #417 合并为 `bd5c5af211a3a1b36f4fcfacebdfe89b65fbafc1`；两个基础档各达到 20，当前 30 个自动盘点组满足 V1 数量前置。
 - P119c 已通过 PR #419 合并为 `de9ab7f9a6d050a951e70835fbe97cecc693b9f4`；catalog v10 可复核清单已绑定 P119b source commit、18 个真源文件、1,855 个题目 item、3 个课节和 canonical SHA-256。P119d 已记录产品所有者对仓库外双教师预批准的无身份摘要：30 层各 5 项、3 个课程项，共 153 项；获批批次继续冻结，逐题六维双教师审核与 finding 闭环延期到正式推广测试启动时，专业 40 与教育有效性仍未完成。
-- S1/S2 canonical tie／fermata／slur／单附点／单段歌词／单指法／单音演奏法／单事件力度记号／单事件制音踏板记号／受控和弦标记与 S3 受控单 part／staff／voice MusicXML/MXL 导入、导出及仓库内部 round-trip 已形成连续主线；当前严格子集已纳入首小节 attributes 后唯一 `<sound tempo="N"/>` 表达的全局整数 `30–240 BPM`、scoreCredits title/subtitle/按数组顺序 creators/rightsNotice、未指定或 canonical `0–127` GM1 program 乐器归属（固定 `score-instrument` 与 MusicXML 一基 `midi-program 1–128`）、note/rest 单附点、fermata、`pp`／`p`／`mp`／`mf`／`f`／`ff` 唯一 `<dynamics>`、`down/up` 到紧邻 pedal `start/stop` direction 的映射、credits 到 root-level 严格 `work → movement-title → identification`（导出写出非空字段，导入仅在完全缺省 work-title 时保留既有 fallback），以及自然／单升降根音十五类严格 `<harmony>`（含 major-sixth／minor-sixth／suspended-second／suspended-fourth／power／augmented／diminished／augmented-seventh／diminished-seventh／half-diminished）、pitched note 的规范化唯一 lyric、fingering 和 articulations、相邻时间连续 note 的 slur，以及相邻同音高时间连续 note 的 tie start／stop、跨小节、链式关系和 notations 共存。part identity 载体与每个事件的外层 `<note>` 均进一步要求 exact、无 namespace；ID 与名称不做静默 trim，note 不允许属性，非法节点在 event ID 分配前 blocking。浏览器真实导入／下载／重开、Android WebView／真机、MuseScore 等第三方独立阅读器、速度／GM1 音色／credits／和弦／踏板／力度／演奏法／指法显示与真实播放、MIDI channel／bank／program change 与 MIDI 文件、tempo map／中途变速、双升降／Unicode 升降号／转位／其他和弦类别、左右手／替代指法、歌词排版／多 verse／melisma、真实音频与歌唱对齐、教师审核、OMR、完整 MusicXML、完整 S3 与正式版 V1 仍为 `NOT_EXECUTED` 或未完成。
+- S1/S2 canonical tie／fermata／slur／单附点／单段歌词／单指法／单音演奏法／单事件力度记号／单事件制音踏板记号／受控和弦标记与 S3 受控单 part／staff／voice MusicXML/MXL 导入、导出及仓库内部 round-trip 已形成连续主线；当前严格子集已纳入首小节 attributes 后唯一 `<sound tempo="N"/>` 表达的全局整数 `30–240 BPM`、scoreCredits title/subtitle/按数组顺序 creators/rightsNotice、未指定或 canonical `0–127` GM1 program 乐器归属（固定 `score-instrument` 与 MusicXML 一基 `midi-program 1–128`）、note/rest 单附点、fermata、`pp`／`p`／`mp`／`mf`／`f`／`ff` 唯一 `<dynamics>`、`down/up` 到紧邻 pedal `start/stop` direction 的映射、credits 到 root-level 严格 `work → movement-title → identification`（导出写出非空字段，导入仅在完全缺省 work-title 时保留既有 fallback），以及自然／单升降根音十六类、336 个严格 `<harmony>` 组合（含 major-sixth／minor-sixth／suspended-second／suspended-fourth／power／dominant-ninth／augmented／diminished／augmented-seventh／diminished-seventh／half-diminished）、pitched note 的规范化唯一 lyric、fingering 和 articulations、相邻时间连续 note 的 slur，以及相邻同音高时间连续 note 的 tie start／stop、跨小节、链式关系和 notations 共存。part identity 载体与每个事件的外层 `<note>` 均进一步要求 exact、无 namespace；ID 与名称不做静默 trim，note 不允许属性，非法节点在 event ID 分配前 blocking。浏览器真实导入／下载／重开、Android WebView／真机、MuseScore 等第三方独立阅读器、速度／GM1 音色／credits／和弦／踏板／力度／演奏法／指法显示与真实播放、MIDI channel／bank／program change 与 MIDI 文件、tempo map／中途变速、双升降／Unicode 升降号／转位／其他和弦类别、左右手／替代指法、歌词排版／多 verse／melisma、真实音频与歌唱对齐、教师审核、OMR、完整 MusicXML、完整 S3 与正式版 V1 仍为 `NOT_EXECUTED` 或未完成。
 
 本次产品决策是：
 
