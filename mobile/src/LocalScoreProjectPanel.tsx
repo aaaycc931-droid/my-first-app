@@ -85,6 +85,10 @@ import {
   type NotationTimeSignature,
 } from "../../lib/practice/localNotationFragmentDraft";
 import {
+  browserFileDownloadPort,
+  type BrowserFileDownloadPort,
+} from "../../lib/platform/browserFileDownload";
+import {
   LOCAL_SCORE_PROJECT_STORAGE_LIMITS,
   createIndexedDbLocalScoreProjectStore,
   deleteLocalScoreProject,
@@ -492,10 +496,12 @@ function LocalScoreProjectPlaybackControls({
 
 export function LocalScoreProjectPanel({
   store,
+  fileDownloadPort = browserFileDownloadPort,
   now = () => new Date().toISOString(),
   createId = createDefaultId,
 }: {
   store?: LocalScoreProjectStore;
+  fileDownloadPort?: BrowserFileDownloadPort;
   now?: () => string;
   createId?: () => string;
 }) {
@@ -873,30 +879,22 @@ export function LocalScoreProjectPanel({
       || !musicXmlExportDraft
       || structureMutationDisabled
     ) return;
-    let objectUrl: string | null = null;
     try {
       const confirmed = confirmLocalScoreProjectMusicXmlExportDraft({
         draft: musicXmlExportDraft,
         currentProject,
         format,
       });
-      const content = typeof confirmed.data === "string"
-        ? confirmed.data
-        : confirmed.data.slice().buffer;
-      objectUrl = URL.createObjectURL(new Blob(
-        [content],
-        { type: confirmed.mimeType },
-      ));
-      const anchor = document.createElement("a");
-      anchor.href = objectUrl;
-      anchor.download = confirmed.fileName;
-      anchor.hidden = true;
-      document.body.append(anchor);
-      try {
-        anchor.click();
-      } finally {
-        anchor.remove();
-      }
+      fileDownloadPort.download({
+        data: confirmed.data,
+        fileName: confirmed.fileName,
+        mimeType: confirmed.mimeType,
+        onCleanupError: (error) => {
+          setNotice(
+            `无法回收导出下载 URL：${error.message}；候选和项目均保持不变。`,
+          );
+        },
+      });
       setNotice(
         `${confirmed.fileName} 已在本机生成下载；项目、修订和历史没有变化。`,
       );
@@ -906,21 +904,6 @@ export function LocalScoreProjectPanel({
           ? error.message
           : "本机下载启动失败；导出候选和项目均保持不变。",
       );
-    } finally {
-      if (objectUrl) {
-        const urlToRevoke = objectUrl;
-        window.setTimeout(() => {
-          try {
-            URL.revokeObjectURL(urlToRevoke);
-          } catch (error) {
-            setNotice(
-              error instanceof Error
-                ? `无法回收导出下载 URL：${error.message}；候选和项目均保持不变。`
-                : "无法回收导出下载 URL；候选和项目均保持不变。",
-            );
-          }
-        }, 0);
-      }
     }
   };
 
