@@ -6,7 +6,7 @@
 
 ## 当前基线
 
-- 最新已合并产品功能基线：S3 MusicXML/MXL 大六和弦严格 round-trip / PR #481，合并提交 `38e3371019b337f2227292444f2030eef755d06a`
+- 最新已合并产品功能基线：S3 MusicXML/MXL 小六和弦严格 round-trip / PR #482，合并提交 `a3c8e0743cd934460f6cdc8ba10a14d1ef37b877`
 - 最新已合并交换安全加固：MusicXML/MXL note 容器 fail-closed / PR #477，合并提交 `27ae5dff483afa0437b75e1bde0dd091c165bd12`
 - 最新已合并证据准备基线：P119c / PR #419，合并提交 `de9ab7f9a6d050a951e70835fbe97cecc693b9f4`
 - 最近仓库维护：PR #464 清理 323 个已完全合并的远端工作分支；其余分支因未合并或仅能映射到 squash PR 而保留，不能仅凭祖先关系删除
@@ -139,8 +139,8 @@
 - 当前严格子集已把 canonical GM1 program `0–127` 精确双向映射为
   `score-part` 中固定相邻的 `score-instrument` 与一基 `midi-program 1–128`；
   instrument-name 必须与 part name 一致，其他 MIDI／音色语义继续 blocking。全局整数
-  速度、单附点、力度、踏板、自然／单升降根音十二类和弦（含 major-sixth／
-  minor-sixth／augmented／diminished／augmented-seventh／diminished-seventh／half-diminished）、
+  速度、单附点、力度、踏板、自然／单升降根音十三类和弦（含 major-sixth／
+  minor-sixth／suspended-fourth／augmented／diminished／augmented-seventh／diminished-seventh／half-diminished）、
   lyric、fingering、
   articulations、fermata、slur 和 tie 的既有严格双向映射继续保留；附点真实时值、
   首事件顺序、同小节／跨小节／链式及共存语义均保持确定。其他未列出的语义继续
@@ -154,4 +154,5 @@
   event ID 分配前 blocking。该切片同样不改 schema、storage 或迁移链。
 - 自动证据由当前 importer re-import 与 legacy parser 音符交叉检查组成，均属于仓库内部验证。浏览器下载、Android WebView／真机及 MuseScore 等外部独立阅读器仍为 `NOT_EXECUTED`，不得宣称第三方兼容已经通过。
 - 小六和弦独立边界见 `docs/s3-local-score-project-musicxml-minor-sixth-round-trip-acceptance.md`；该切片不改变 schema、storage version 或迁移链。
+- 挂四和弦独立边界见 `docs/s3-local-score-project-musicxml-suspended-fourth-round-trip-acceptance.md`；该切片不改变 schema、storage version 或迁移链。
 - 导入边界见 `docs/s3-local-score-project-musicxml-import-acceptance.md`，导出边界见 `docs/s3-local-score-project-musicxml-export-acceptance.md`，part identity 硬化见 `docs/s3-local-score-project-musicxml-part-identity-hardening-acceptance.md`，note 容器硬化见 `docs/s3-local-score-project-musicxml-note-container-hardening-acceptance.md`，谱面标题、署名与版权双向边界见 `docs/s3-local-score-project-musicxml-score-credits-round-trip-acceptance.md`；全局整数速度边界见 `docs/s3-local-score-project-musicxml-tempo-round-trip-acceptance.md`，单附点、单段歌词、单指法、单音演奏法、单事件力度记号、单事件制音踏板记号、受控和弦标记、fermata、圆滑线和延音线双向边界分别见对应的 S3 round-trip acceptance 文档，其中和弦切片见 `docs/s3-local-score-project-musicxml-chord-symbol-round-trip-acceptance.md`，增三／减三边界见 `docs/s3-local-score-project-musicxml-augmented-diminished-triad-round-trip-acceptance.md`，减七边界见 `docs/s3-local-score-project-musicxml-diminished-seventh-round-trip-acceptance.md`，半减七边界见 `docs/s3-local-score-project-musicxml-half-diminished-seventh-round-trip-acceptance.md`，增七边界见 `docs/s3-local-score-project-musicxml-augmented-seventh-round-trip-acceptance.md`，大六边界见 `docs/s3-local-score-project-musicxml-major-sixth-round-trip-acceptance.md`。浏览器真实导入／下载／重开、Android WebView／真机、第三方独立阅读器、速度／和弦／踏板／力度／演奏法／指法／标题与署名显示及真实播放、tempo map／中途变速、双升降／Unicode 升降号／转位／其他和弦类别、左右手／替代指法、歌词排版／多 verse／melisma、真实音频与歌唱对齐、教师审核、MIDI、OMR、完整 MusicXML、完整 S3 与正式版 V1 均仍为 `NOT_EXECUTED` 或未完成。

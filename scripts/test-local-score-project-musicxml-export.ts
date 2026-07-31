@@ -421,7 +421,7 @@ const createChordSymbolSupportedProject = (): LocalScoreProjectV1 => {
   const symbols = new Map<string, string>([
     ["event-1", "C#aug"],
     ["event-2", "Dbdim"],
-    ["event-3", "E#m6"],
+    ["event-3", "E#sus4"],
     ["event-4", "Fbmaj7"],
     ["event-5", "Gm7"],
   ] as const);
@@ -466,6 +466,7 @@ for (const rootStep of ["A", "B", "C", "D", "E", "F", "G"] as const) {
     ["aug7", "augmented-seventh"],
     ["6", "major-sixth"],
     ["m6", "minor-sixth"],
+    ["sus4", "suspended-fourth"],
   ] as const) {
     const canonical = `${rootStep}${suffix}`;
     assert.deepEqual(
@@ -496,6 +497,7 @@ for (const rootStep of ["A", "B", "C", "D", "E", "F", "G"] as const) {
       ["aug7", "augmented-seventh"],
       ["6", "major-sixth"],
       ["m6", "minor-sixth"],
+      ["sus4", "suspended-fourth"],
     ] as const) {
       const canonical = `${rootStep}${accidental}${suffix}`;
       assert.deepEqual(
@@ -520,7 +522,9 @@ for (const unsupported of [
   "C°7",
   "Cø7",
   "Cmaj6",
-  "Csus4",
+  "Csus",
+  "C4",
+  "Csus2",
   "C/E",
   "c",
   " C",
@@ -1432,7 +1436,7 @@ assert.ok(chordSymbolReady.xml);
 for (const [rootStep, rootAlter, kind] of [
   ["C", "1", "augmented"],
   ["D", "-1", "diminished"],
-  ["E", "1", "minor-sixth"],
+  ["E", "1", "suspended-fourth"],
   ["F", "-1", "major-seventh"],
   ["G", null, "minor-seventh"],
 ] as const) {
@@ -1998,7 +2002,7 @@ const blockedFixtures: readonly [
       chordSymbol: "C#maj7",
     }, {
       ...sourceRest,
-      chordSymbol: "Csus4",
+      chordSymbol: "Csus",
     }]),
     ["unsupported-chord-symbol"],
   ],

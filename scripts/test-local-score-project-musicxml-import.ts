@@ -1611,6 +1611,38 @@ for (const sourceFormat of ["musicxml", "mxl"] as const) {
   assert.equal(minorSixthEventIds, 5);
 }
 
+const strictSuspendedFourthHarmonyXml = supportedXml
+  .replace(
+    "<note><pitch><step>C</step>",
+    '<harmony><root><root-step>C</root-step><root-alter>1</root-alter></root><kind>suspended-fourth</kind><staff>1</staff></harmony><note><pitch><step>C</step>',
+  )
+  .replace(
+    "<note><rest/>",
+    '<harmony><root><root-step>D</root-step><root-alter>-1</root-alter></root><kind>suspended-fourth</kind><staff>1</staff></harmony><note><rest/>',
+  );
+for (const sourceFormat of ["musicxml", "mxl"] as const) {
+  let suspendedFourthEventIds = 0;
+  const suspendedFourthDraft = createLocalScoreProjectMusicXmlImportDraft({
+    xml: strictSuspendedFourthHarmonyXml,
+    fileName: `严格挂四和弦.${sourceFormat}`,
+    sourceFormat,
+    projectId: `import-project-suspended-fourth-${sourceFormat}`,
+    now: "2026-07-31T03:25:00.000Z",
+    createEventId: () =>
+      `suspended-fourth-${sourceFormat}-${++suspendedFourthEventIds}`,
+  });
+  assert.equal(suspendedFourthDraft.status, "ready");
+  assert.deepEqual(suspendedFourthDraft.issues, []);
+  assert.deepEqual(
+    suspendedFourthDraft.project?.document.parts[0].staves[0].voices[0]
+      .measures.flatMap((measure) => measure.events)
+      .map((event) => event.chordSymbol),
+    ["C#sus4", "Dbsus4", null, null, null],
+    `${sourceFormat} must preserve suspended-fourth symbols`,
+  );
+  assert.equal(suspendedFourthEventIds, 5);
+}
+
 const harmonyAnchor = "<note><pitch><step>D</step>";
 const invalidHarmonies = [
   '<harmony placement="above"><root><root-step>C</root-step></root><kind>major</kind><staff>1</staff></harmony>',
