@@ -42,6 +42,19 @@ const approvedActions = new Map([
   ["actions/upload-artifact", ["ea165f8d65b6e75b540449e92b4886f43607fa02", "v4.6.2"]],
 ]);
 
+const approvedWorkflowActions = new Map([
+  ["quality.yml", new Map([
+    ["actions/checkout", ["fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09", "v5.1.0"]],
+    ["actions/setup-node", ["a0853c24544627f65ddf259abe73b1d18a591444", "v5.0.0"]],
+    ["actions/setup-java", ["dded0888837ed1f317902acf8a20df0ad188d165", "v5.0.0"]],
+    [
+      "android-actions/setup-android",
+      ["651bceb6f9ca583f16b8d75b62c36ded2ae6fc9c", "v4.0.0"],
+    ],
+    ["actions/upload-artifact", ["b7c566a772e6b6bfb58ed0dc250532a479d7789f", "v6.0.0"]],
+  ])],
+]);
+
 const actionUses = workflows.flatMap(({ name, contents }) =>
   [...contents.matchAll(/^\s*uses:\s*([^\s#]+)(?:\s+#\s*(\S+))?\s*$/gm)].map(
     ([, reference, versionComment]) => ({
@@ -63,7 +76,8 @@ for (const { workflowName, reference: actionReference, versionComment } of actio
 
   const actionName = actionReference.slice(0, separatorIndex);
   const actionSha = actionReference.slice(separatorIndex + 1);
-  const approved = approvedActions.get(actionName);
+  const approved = approvedWorkflowActions.get(workflowName)?.get(actionName)
+    ?? approvedActions.get(actionName);
 
   assert.ok(approved, `${workflowName}: unapproved action: ${actionName}`);
   assert.match(
