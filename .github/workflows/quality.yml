@@ -168,6 +168,7 @@ jobs:
           npm run test:practice-module-registry
           npm run test:note-frequency
           npm run test:recognition-fail-closed
+          npm run test:recognition-static-boundaries
           npm run test:auth-ui-policy
           npm run test:account-data-export
           npm run test:account-data-export-ui-contract
