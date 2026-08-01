@@ -13,6 +13,7 @@ import {
   createBrowserRecognitionApiClient,
   type AudiverisDevSummary,
 } from "../../lib/recognition/browserRecognitionApiClient";
+import { browserRecognitionFilePreviewPort } from "../../lib/recognition/browserRecognitionFilePreview";
 
 type RecognizeStatus = "未上传" | "已上传" | "识别中" | "识别完成" | "识别失败";
 type MusicXMLImportStatus = "idle" | "importing" | "success" | "error";
@@ -98,7 +99,11 @@ export default function Home() {
       });
       playbackTimeoutIdsRef.current = [];
       playbackChannelRef.current?.stop();
-      if (imagePreviewUrlRef.current) URL.revokeObjectURL(imagePreviewUrlRef.current);
+      if (imagePreviewUrlRef.current) {
+        browserRecognitionFilePreviewPort.revokePreviewUrl(
+          imagePreviewUrlRef.current,
+        );
+      }
     },
     [],
   );
@@ -110,8 +115,12 @@ export default function Home() {
       return;
     }
 
-    if (imagePreviewUrlRef.current) URL.revokeObjectURL(imagePreviewUrlRef.current);
-    const objectUrl = URL.createObjectURL(file);
+    if (imagePreviewUrlRef.current) {
+      browserRecognitionFilePreviewPort.revokePreviewUrl(
+        imagePreviewUrlRef.current,
+      );
+    }
+    const objectUrl = browserRecognitionFilePreviewPort.createPreviewUrl(file);
     imagePreviewUrlRef.current = objectUrl;
     setPreviewUrl(objectUrl);
     setSelectedFile(file);
