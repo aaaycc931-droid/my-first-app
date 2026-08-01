@@ -38,10 +38,7 @@ import {
   enterMobileForeground,
 } from "./runtime/mobileLifecycle";
 import {
-  clearMobilePracticeReviewQueue,
-  getBrowserPracticeReviewStorage,
-  loadMobilePracticeReviewQueue,
-  saveMobilePracticeReviewQueue,
+  type MobilePracticeReviewRepository,
 } from "./runtime/mobilePracticeReviewStorage";
 import {
   type MobileLearningProfileRepository,
@@ -270,13 +267,15 @@ function PracticeScreen({
 
 export function App({
   learningProfileRepository,
+  practiceReviewRepository,
 }: {
   learningProfileRepository: MobileLearningProfileRepository;
+  practiceReviewRepository: MobilePracticeReviewRepository;
 }) {
   const [vocalTarget, setVocalTarget] = useState<GeneratedLocalVocalExercise | null>(null);
   const [activeScreen, setActiveScreen] = useState<Screen>(screenFromHash);
   const [initialReviewStorageResult] = useState(() =>
-    loadMobilePracticeReviewQueue(getBrowserPracticeReviewStorage()),
+    practiceReviewRepository.load(),
   );
   const [reviewQueue, setReviewQueue] = useState<LocalPracticeReviewQueue>(
     initialReviewStorageResult.queue,
@@ -348,10 +347,7 @@ export function App({
         target: result.target,
         isCorrect: result.isCorrect,
       });
-      const saveResult = saveMobilePracticeReviewQueue(
-        getBrowserPracticeReviewStorage(),
-        nextQueue,
-      );
+      const saveResult = practiceReviewRepository.save(nextQueue);
       if (saveResult.notice) setReviewNotice(saveResult.notice);
       else {
         setReviewQueue(nextQueue);
@@ -387,6 +383,7 @@ export function App({
       activeScreen,
       learningHistory,
       learningProfileRepository,
+      practiceReviewRepository,
       reviewQueue,
     ],
   );
@@ -418,9 +415,7 @@ export function App({
   );
 
   const clearReviewQueue = useCallback(() => {
-    const result = clearMobilePracticeReviewQueue(
-      getBrowserPracticeReviewStorage(),
-    );
+    const result = practiceReviewRepository.clear();
     if (result.notice) {
       setReviewNotice(result.notice);
       return;
@@ -429,7 +424,7 @@ export function App({
     setReviewSourceStatus("available");
     setActiveReviewTarget(null);
     setReviewNotice("本机复练记录已清除。");
-  }, []);
+  }, [practiceReviewRepository]);
 
   const toggleLearningSuggestions = useCallback(() => {
     const nextHistory = setLearningSuggestionsEnabled(

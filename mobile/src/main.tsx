@@ -6,6 +6,7 @@ import "./mobile.css";
 import { App } from "./App";
 import { MobileErrorBoundary } from "./MobileErrorBoundary";
 import { browserMobileLearningProfileRepository } from "./runtime/mobileLearningProfileStorage";
+import { browserMobilePracticeReviewRepository } from "./runtime/mobilePracticeReviewStorage";
 
 const root = document.getElementById("root");
 
@@ -19,6 +20,7 @@ if (!root) {
         <MobileErrorBoundary>
           <App
             learningProfileRepository={browserMobileLearningProfileRepository}
+            practiceReviewRepository={browserMobilePracticeReviewRepository}
           />
         </MobileErrorBoundary>
       </StrictMode>,

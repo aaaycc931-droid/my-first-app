@@ -59,7 +59,10 @@ import {
   browserMobileLearningProfileRepository,
   MOBILE_LEARNING_PROFILE_STORAGE_KEY,
 } from "./runtime/mobileLearningProfileStorage";
-import { MOBILE_PRACTICE_REVIEW_STORAGE_KEY } from "./runtime/mobilePracticeReviewStorage";
+import {
+  browserMobilePracticeReviewRepository,
+  MOBILE_PRACTICE_REVIEW_STORAGE_KEY,
+} from "./runtime/mobilePracticeReviewStorage";
 import {
   LOCAL_COURSE_LESSONS,
   createEmptyLocalCourseProgress,
@@ -94,7 +97,10 @@ const renderApp = async () => {
   root = createRoot(container);
   await act(async () => root?.render(
     <StrictMode>
-      <App learningProfileRepository={browserMobileLearningProfileRepository} />
+      <App
+        learningProfileRepository={browserMobileLearningProfileRepository}
+        practiceReviewRepository={browserMobilePracticeReviewRepository}
+      />
     </StrictMode>,
   ));
   await flushReact();

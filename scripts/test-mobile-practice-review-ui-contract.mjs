@@ -193,7 +193,8 @@ for (const expected of [
 }
 
 assert(
-  answerResult.indexOf("saveMobilePracticeReviewQueue(") < answerResult.indexOf("setReviewQueue(nextQueue)"),
+  answerResult.indexOf("practiceReviewRepository.save(nextQueue)")
+    < answerResult.indexOf("setReviewQueue(nextQueue)"),
   "复练队列必须先持久化成功，再更新内存界面",
 );
 
