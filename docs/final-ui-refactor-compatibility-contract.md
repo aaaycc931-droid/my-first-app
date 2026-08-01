@@ -98,9 +98,9 @@ require 依赖，并阻止其反向引用 `app/`、`components/` 或 `mobile/src
 | --- | --- | --- |
 | `app/practice/page.tsx` | 页面、活动会话、计时器、录音、音频分析和反馈编排 | 提取 practice controller、录音／计时 adapter 和语义化页面状态 |
 | `mobile/src/LocalScoreProjectPanel.tsx` | 编辑 UI、项目存储、MusicXML/MXL 候选、确认和下载 | 提取 score-project controller、exchange use-case 与 file adapter |
-| `mobile/src/App.tsx` | 导航、生命周期、学习事实和复练持久化 | 提取 app shell、navigation state 与 learning storage service |
+| `mobile/src/App.tsx` | 导航、生命周期和复练队列持久化；课程进度与学习画像已分别注入 repository | 提取 app shell、navigation state 与其余 learning storage service |
 | `app/recognize/page.tsx` | 文件校验、API 请求、识别结果和播放预览 | 提取 recognition controller 与 API/file adapter |
-| 本机课程／学习概览组件 | 课程进度 repository 已通过 PR #499 由 App 注入；其他学习状态仍由各自 runtime storage 编排 | 继续由上层注入 repository、snapshot 和 commands，不把 localStorage 访问放回组件 |
+| 本机课程／学习概览组件 | 课程进度与学习画像 repository 已分别通过 PR #499／#503 由 composition root 注入；复练队列仍由 runtime storage 编排 | 继续由上层注入 repository、snapshot 和 commands，不把 localStorage 访问放回组件 |
 | 共享实时音高组件 | 本机练声记录 storage 已由平台无关 port 注入；组件仍编排录音、回放、下载与活动状态 | 继续提取音频／录音 adapter 和实时练习 controller；不得把已抽离 storage 重新耦合到组件 |
 
 这些热点是可控技术债，不代表当前功能错误，也不单独阻塞 S3 或其他边界清楚的能力
@@ -117,8 +117,9 @@ require 依赖，并阻止其反向引用 `app/`、`components/` 或 `mobile/src
 失败关闭和界面行为不变，只把浏览器 storage adapter 留在 Android composition root；
 不表示 App shell、其他学习存储或最终 UI 已完成重构。
 
-本机学习画像 repository port 的候选边界见
-`docs/ui-mobile-learning-profile-repository-port-acceptance.md`。该切片只把 P114m／P118b／
+本机学习画像 repository port 边界见
+`docs/ui-mobile-learning-profile-repository-port-acceptance.md`，已通过 PR #503 合并为
+`9065d74f368b3bbe38e4c9af7a97fb5335707a88`。该切片只把 P114m／P118b／
 P118d／P118e 已有学习事实持久化改由 Android composition root 注入，不改变 key、schema、
 迁移、统计、建议、重置或界面行为；复练队列、完整 learning controller、App shell 和
 最终 UI 重构仍未完成。

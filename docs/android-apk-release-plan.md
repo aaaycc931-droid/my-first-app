@@ -63,12 +63,13 @@ Android APK
 - Android 本机错题复练队列：查看答案后，答错题置顶加入、答对题移除，最多保留 12 个最小复现目标；首页可查看数量并进入复练；清除全部复练必须经过页面内二次确认；
 - P118c 已合并：把同一队列按题目族分组，保留既有 MRU 顺序并从精确目标进入复练；“薄弱点”不是能力评级或推荐排序。队列写入失败时保留旧 UI，不新增存储、schema、网络或权限；
 - P118d 已合并：建议只复用同一 MRU 队列第 1 项，并解释固定规则、位置、同题目族与全部待复练数；不读取 `outcome`、画像计数或统计。画像存储不可用、损坏或读取失败时默认关闭建议；
-- P118e implementation candidate 已通过 PR #413 合并：中文“本机学习总览”只组合既有课程核对数、当前保留的练习动作事实、精确复练队列和可解释建议；四类来源独立失败关闭，不生成联合评分、总学习进度或新持久化协议。PR Quality run `29984984760` 的 `quality` 与 `android-local` 均成功且 Vercel Ready；下一阶段仅为 P119/Q 联合验收与证据准备；
+- P118e implementation candidate 已通过 PR #413 合并：中文“本机学习总览”只组合既有课程核对数、当前保留的练习动作事实、精确复练队列和可解释建议；四类来源独立失败关闭，不生成联合评分、总学习进度或新持久化协议。PR Quality run `29984984760` 的 `quality` 与 `android-local` 均成功且 Vercel Ready；P119/Q 外部验收继续保留，同时后续 S3 严格交换语义和最终 UI 前架构解耦已按独立切片继续推进；
 - P119a 证据准备已通过 PR #415 合并：只盘点当前题型数量并冻结双教师审核协议，不改变 Android 运行时。Quality run `29999854528` 的两个 job 均成功且 Vercel Ready；artifact `8560553741` 是 PR synthetic merge SHA `8ff547cf37b75096550bd6a695cdeb151c0548c5` 的 Debug APK 自动工件，不是教师、真机使用或正式发布证据；
 - P119b 已通过 PR #417 合并：两个基础档各追加 12 个稳定移调组合，catalog/review queue 升至 v10；Quality run `30001642941` 的两个 job 均成功且 Vercel Ready。达到 20 只解除 V1 数量前置，不是教师审核、真机听感或完整 P119/Q 证据；
 - P119c 已通过 PR #419 合并：catalog v10 的可复核审核清单绑定 P119b source commit、18 个内容真源文件与 manifest SHA-256 `b8430559e1fc3f102f8f9fce1158b473ea199e4c7f8fec9fef607b0ef42da8a1`。合并后的 main Quality run `30006334599` 两个 job 均成功，PR #419 的 Vercel preview Ready；这不代表抽样计划获批、教师审核、真机听感或完整 P119/Q 证据；
+- 主线已继续合并 PR #502 的严格 `minor-11th` MusicXML/MXL round-trip，使受控和弦矩阵达到 21 类 × 21 根音、共 441 个组合；`add11`、`degree`、转位和其他不同语义继续 fail closed。PR #503 又把本机学习画像 storage 通过平台无关 repository 由 Android composition root 注入，保持既有 key、schema、迁移、失败关闭和 UI 行为不变。这两个 PR 的自动工件只证明各自 head／自动门禁，不是当前合并后 main 的已核验 APK provenance，也不替代外部 QA；
 - React 移动入口行为回归真实挂载 `App`，自动覆盖错题加入、答对移除、清除取消/确认、浏览历史前进后退及存储异常降级；该 DOM 回归不替代真实 WebView 或手机验证；
-- 复练队列存储不可用、内容失效或读写失败时显示简体中文提示，七类本地练习仍须可用；卸载应用或清除应用数据会删除队列；
+- 复练队列存储不可用、内容失效或读写失败时显示简体中文提示，所有已交付的本机练习仍须可用；卸载应用或清除应用数据会删除队列；
 - 统一的本地音频启动、播放、停止与定时器清理；音频只能在用户点击后恢复；
 - 应用切换练习、进入后台、页面冻结、页面卸载或 Android 原生暂停时停止声音并暂停音频上下文；恢复时明确提示题目已重置，不自动播放；
 - Android System WebView 兼容构建目标、启动失败中文降级页和运行时异常恢复页；
@@ -81,16 +82,16 @@ Android APK
 
 | 阶段 | 交付物 | 当前状态 | 退出条件 |
 | --- | --- | --- | --- |
-| A. 本地移动入口 | Vite 入口、统一的十类离线练耳及音程比较/非评分模唱、和声声部线索、本地参考钢琴、本地桩、相对资源路径 | IN_PROGRESS | P115–P118 implementation candidates 已通过 PR 门禁；静态构建通过；无生产云端标识；断网边界可自动校验；仍须完成 P119/Q 联合验收 |
+| A. 本地移动入口 | Vite 入口、统一的本机课程与离线练耳、非评分模唱、和声声部线索、本地参考钢琴、本地谱项目与学习总览、本地桩、相对资源路径 | IN_PROGRESS | P115–P119 自动候选及后续 S3／架构切片持续通过各自门禁；静态构建和断网边界可自动校验；教师、目标用户和其他外部验收仍按统一证据矩阵保持 `NOT_EXECUTED` |
 | B. Android 工程 | Capacitor 工程、固定包名、图标、启动画面、无网络权限 | PASS | Gradle 构建成功；APK 结构、包名、SDK 和权限检查通过 |
 | C. 私测 APK | V2 调试签名 APK、SHA-256 | PASS | APK 可下载；签名验证通过；校验和已记录；每次成功的 Android CI 均产出带 commit、SHA-256 与本地边界报告的可下载 debug APK 工件 |
 | C1. CI 候选下载物 | 每次 Android 本地构建的调试 APK、SHA-256 与可独立复核的报告 | PASS | PR #389 合并后 run `29740400363` 的两个 job 均 PASS；artifact `8460154570` 已上传，GitHub digest 为 `4c0bb0beb440fcb60c9542c97c8ebc8a17a10856b6ee0a4ee0bbddd8314973a8`，内部 APK 摘要由工件内 `.sha256` / JSON 报告给出 |
-| D. 真机验收 | 安装、启动、七类练习的播放/停止/答案/重置、钢琴多指/延音/全停、后台恢复 | IN_PROGRESS | 至少一台真实 Android 手机完成首轮测试；最终候选覆盖三档设备 |
+| D. 真机验收 | 安装、启动、当前全部本机课程／练耳／练声／钢琴／本机谱项目的适用播放、录音、停止、核对、重置、存储与后台恢复 | IN_PROGRESS | 至少一台真实 Android 手机完成首轮测试；最终候选覆盖三档设备，并按 `docs/external-qa-not-executed-matrix-template.md` 绑定候选和真实证据 |
 | E. 私下正式包 | 专用 release key、版本升级和回滚包 | NOT_STARTED | 功能冻结后再创建；密钥不入仓库；安装、覆盖升级和回滚经过验证 |
 
 调试签名 APK 是可安装的私测包，不得冒充最终私下正式包。当前先让真实用户测试功能，再决定专用 release key 和最终版本号。
 
-历史候选包的哈希、签名、结构检查和未执行项记录在 `docs/android-private-test-build-evidence.md`；面向测试者的历史版本变化记录在 `docs/android-private-test-changelog.md`。0.2.0（versionCode 2）的最新已核对自动候选来自 P119c 合并后的 main Quality run `30006334599` 的 artifact `8563190826`；GitHub artifact ZIP digest 为 `sha256:e282b857aff76ecdcf580d29283f2a490e08c0c1b346a88ba9c705a03ec28103`，工件来源是 main squash commit `de9ab7f9a6d050a951e70835fbe97cecc693b9f4`。P119c PR head `a6e3a655197795cdbd03badbebd5dbf82370c5fe`、PR synthetic merge `af16593bd2c2d67bec46677fe571621f14066595`、manifest source commit `bd5c5af211a3a1b36f4fcfacebdfe89b65fbafc1` 与 manifest SHA-256 `b8430559e1fc3f102f8f9fce1158b473ea199e4c7f8fec9fef607b0ef42da8a1` 均不是该 APK provenance。内部 APK 摘要仍必须从下载工件的 `.sha256` / JSON 报告复核；它仍是调试签名技术包，不是覆盖升级、P104 真实证据或最终 release 签名证据。
+历史候选包的哈希、签名、结构检查和未执行项记录在 `docs/android-private-test-build-evidence.md`；面向测试者的历史版本变化记录在 `docs/android-private-test-changelog.md`。截至本次 docs-only 同步，0.2.0（versionCode 2）最新一份**已经完成合并后 main provenance 核对并在本文记录 artifact ID／ZIP digest**的自动候选仍来自 P119c 合并后的 main Quality run `30006334599` 的 artifact `8563190826`；GitHub artifact ZIP digest 为 `sha256:e282b857aff76ecdcf580d29283f2a490e08c0c1b346a88ba9c705a03ec28103`，工件来源是 main squash commit `de9ab7f9a6d050a951e70835fbe97cecc693b9f4`。这不是说后续主线没有自动构建；PR #502／#503 的自动工件只分别证明其 PR head，本文没有可复核的合并后 main artifact ID、ZIP digest 与内部 APK 摘要，因此不把它们虚构为新的主线候选。P119c PR head `a6e3a655197795cdbd03badbebd5dbf82370c5fe`、PR synthetic merge `af16593bd2c2d67bec46677fe571621f14066595`、manifest source commit `bd5c5af211a3a1b36f4fcfacebdfe89b65fbafc1` 与 manifest SHA-256 `b8430559e1fc3f102f8f9fce1158b473ea199e4c7f8fec9fef607b0ef42da8a1` 均不是该 APK provenance。内部 APK 摘要仍必须从下载工件的 `.sha256` / JSON 报告复核；它仍是调试签名技术包，不是覆盖升级、P104 真实证据或最终 release 签名证据。
 
 ## 5. 构建基线
 
