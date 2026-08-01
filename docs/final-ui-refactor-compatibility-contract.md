@@ -91,7 +91,7 @@ require 依赖，并阻止其反向引用 `app/`、`components/` 或 `mobile/src
 
 ## 6. 当前已知的渐进抽离热点
 
-截至 2026-07-31 的 source-level 审查确认核心 `lib/` 没有反向导入 UI，但以下文件
+截至 2026-08-01 的 source-level 审查确认核心 `lib/` 没有反向导入 UI，但以下文件
 同时承担较多展示与流程编排职责：
 
 | 热点 | 当前混合职责 | 重构前目标边界 |
@@ -99,7 +99,7 @@ require 依赖，并阻止其反向引用 `app/`、`components/` 或 `mobile/src
 | `app/practice/page.tsx` | 页面、活动会话、计时器、录音、音频分析和反馈编排 | 提取 practice controller、录音／计时 adapter 和语义化页面状态 |
 | `mobile/src/LocalScoreProjectPanel.tsx` | 编辑 UI、项目存储、MusicXML/MXL 候选、确认和下载 | 提取 score-project controller、exchange use-case 与 file adapter |
 | `mobile/src/App.tsx` | 导航、生命周期和学习流程编排；课程进度、学习画像与复练队列已分别注入 repository | 提取 app shell、navigation state 与 learning controller |
-| `app/recognize/page.tsx` | 文件校验、API 请求、识别结果和播放预览 | 提取 recognition controller 与 API/file adapter |
+| `app/recognize/page.tsx` | 文件校验、识别结果和播放预览；API 请求已由可注入 client port／adapter 承接 | 继续提取 recognition controller 与 file adapter；不得把 fetch／FormData 放回页面 |
 | 本机课程／学习概览组件 | 课程进度、学习画像与复练队列 repository 已分别通过 PR #499／#503／#505 由 composition root 注入 | 继续由上层注入 repository、snapshot 和 commands，不把 localStorage 访问放回组件 |
 | 共享实时音高组件 | 本机练声记录 storage 已由平台无关 port 注入；组件仍编排录音、回放、下载与活动状态 | 继续提取音频／录音 adapter 和实时练习 controller；不得把已抽离 storage 重新耦合到组件 |
 
@@ -130,6 +130,12 @@ P118d／P118e 已有学习事实持久化改由 Android composition root 注入�
 持久化改由 Android composition root 注入，不改变 key、schema／catalog version、迁移、
 MRU、最多 12 项、答题更新、清空确认或界面行为；完整 learning controller、App shell、
 navigation state 和最终 UI 重构仍未完成。
+
+浏览器 recognition API client port／adapter 边界已通过 PR #511 合并为
+`0655dfcd3f2c59b8e131bd313295c9ace9204e5d`。该切片只把 `/recognize` 页面既有三个
+fetch／FormData 路径改由可注入 client 承接，保持 endpoint、POST、字段、开发开关、
+响应默认值、错误文案、原始网络异常传播和界面行为不变；recognition controller、
+file adapter、真实 OMR 和最终 UI 重构仍未完成。
 
 课程库加载失败关闭边界已通过 PR #507 合并为
 `a43b323bb14678990cdcb4111c3969cf5fc66f76`：成功与 rejection 路径保持不变，永不 settle
