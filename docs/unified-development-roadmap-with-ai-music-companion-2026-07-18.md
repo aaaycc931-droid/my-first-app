@@ -4,7 +4,7 @@
 
 状态：**Canonical integrated roadmap / 统一长期开发主路线**
 
-当前执行状态：**S3 STRICT DOMINANT-ELEVENTH EXPANSION IN PROGRESS / EXTERNAL MUSICXML QA NOT_EXECUTED / P119d ITEM REVIEW DEFERRED**
+当前执行状态：**S3 STRICT DOMINANT-ELEVENTH INTEGRATED / NEXT EXCHANGE SLICE UNDER REVIEW / EXTERNAL MUSICXML QA NOT_EXECUTED / P119d ITEM REVIEW DEFERRED**
 
 适用项目：`aaaycc931-droid/my-first-app`
 
@@ -13,14 +13,15 @@
 PR #487 已把 power 纳入既有严格 `<harmony>` 双向映射，PR #485 已把
 suspended-second 纳入该映射，PR #486 已按
 最终 UI 重构兼容契约完成共享实时音高组件的本机练声记录 repository port 与
-Web／Android 显式注入；PR #488 已加入
+Web／Android 显式注入，PR #496 又把该组件的 JSON 下载抽到浏览器文件下载 port；
+PR #488 已加入
 `C9` ↔ `<kind>dominant-ninth</kind>`，PR #491 已加入
 `Cmaj9` ↔ `<kind>major-ninth</kind>`，PR #494 已以严格 fail-closed 方式加入
-`Cm9` ↔ `<kind>minor-ninth</kind>`；当前工程切片继续加入
+`Cm9` ↔ `<kind>minor-ninth</kind>`；PR #497 已加入
 `C11` ↔ `<kind>dominant-11th</kind>`，把受控和弦类别从 18 种扩至 19 种、组合从
-378 扩至 399；不改变 schema、storage、迁移、页面布局、谱面显示或播放语义。
-add-ninth／`degree`、major-11th、minor-11th 及其他未表达语义继续独立评审，
-不并入本切片。
+378 扩至 399；该合并不改变 schema、storage、迁移、页面布局、谱面显示或播放语义。
+下一交换语义切片仍需独立评审，不把 add-ninth／`degree`、major-11th、minor-11th
+或其他未表达语义并入已完成的属十一和弦边界。
 PR #483 已完成 suspended-fourth，PR #482 已完成
 minor-sixth，PR #481 已完成 major-sixth，PR #480 已完成 augmented-seventh，PR #479 已完成
 diminished-seventh，PR #477 已完成 note 容器硬化，PR #476 已完成增三／减三和弦，PR #475 已完成
