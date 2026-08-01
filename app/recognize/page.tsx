@@ -9,20 +9,14 @@ import {
   type BrowserAudioChannel,
 } from "../../lib/audio/browserAudioEngine";
 import { noteNameToFrequencyHz } from "../../lib/audio/noteFrequency";
+import {
+  createBrowserRecognitionApiClient,
+  type AudiverisDevSummary,
+} from "../../lib/recognition/browserRecognitionApiClient";
 
 type RecognizeStatus = "未上传" | "已上传" | "识别中" | "识别完成" | "识别失败";
 type MusicXMLImportStatus = "idle" | "importing" | "success" | "error";
 type AudiverisDevStatus = "idle" | "processing" | "success" | "error";
-
-type AudiverisDevSummary = {
-  noteCount: number;
-  firstNotes: RecognizedNote[];
-  source: string;
-  inputType: string;
-  notes?: RecognizedNote[];
-  returnedNoteCount?: number;
-  notesTruncated?: boolean;
-};
 
 const durationToBeats: Record<RecognizedNote["duration"], number> = {
   eighth: 0.5,
@@ -41,6 +35,7 @@ const isAudiverisDevUIEnabled =
   process.env.NEXT_PUBLIC_AUDIVERIS_DEV_UI_ENABLED === "true";
 const isAudiverisDevFullNotesEnabled =
   process.env.NEXT_PUBLIC_AUDIVERIS_DEV_FULL_NOTES_ENABLED === "true";
+const recognitionApiClient = createBrowserRecognitionApiClient();
 
 const calculateDurationSeconds = (
   duration: RecognizedNote["duration"],
@@ -191,19 +186,8 @@ export default function Home() {
     setRecognizeError("");
     setPlayError("");
 
-    const formData = new FormData();
-    formData.append("file", musicXMLFile);
-
     try {
-      const response = await fetch("/api/dev/recognize-musicxml", {
-        method: "POST",
-        body: formData,
-      });
-      const data = (await response.json()) as RecognizeResponse;
-
-      if (!response.ok || data.error) {
-        throw new Error(data.error || "MusicXML 导入接口调用失败。");
-      }
+      const data = await recognitionApiClient.importMusicXML(musicXMLFile);
 
       const importedNotes = data.notes || [];
 
@@ -262,36 +246,13 @@ export default function Home() {
     setAudiverisDevError("");
     setAudiverisDevSummary(null);
 
-    const formData = new FormData();
-    formData.append("file", audiverisDevFile);
-    if (isAudiverisDevFullNotesEnabled) {
-      formData.append("includeNotes", "full");
-    }
-
     try {
-      const response = await fetch("/api/dev/recognize-audiveris", {
-        method: "POST",
-        body: formData,
-      });
-      const data = (await response.json()) as Partial<AudiverisDevSummary> & {
-        error?: string;
-      };
+      const summary = await recognitionApiClient.recognizeAudiverisPdf(
+        audiverisDevFile,
+        { includeFullNotes: isAudiverisDevFullNotesEnabled },
+      );
 
-      if (!response.ok || data.error) {
-        throw new Error(
-          data.error || "仅开发使用的 Local Audiveris PDF 测试失败。",
-        );
-      }
-
-      setAudiverisDevSummary({
-        noteCount: data.noteCount ?? 0,
-        firstNotes: data.firstNotes ?? [],
-        source: data.source ?? "unknown",
-        inputType: data.inputType ?? "unknown",
-        notes: data.notes,
-        returnedNoteCount: data.returnedNoteCount,
-        notesTruncated: data.notesTruncated,
-      });
+      setAudiverisDevSummary(summary);
       setAudiverisDevStatus("success");
     } catch (error) {
       setAudiverisDevStatus("error");
@@ -313,20 +274,8 @@ export default function Home() {
     setRecognizeError("");
     setPlayError("");
 
-    const formData = new FormData();
-    formData.append("image", selectedFile);
-
     try {
-      const response = await fetch("/api/recognize", {
-        method: "POST",
-        body: formData,
-      });
-
-      const data = (await response.json()) as RecognizeResponse;
-
-      if (!response.ok) {
-        throw new Error(data.error || "识别接口调用失败");
-      }
+      const data = await recognitionApiClient.recognizeImage(selectedFile);
 
       setRecognizedNotes(data.notes || []);
       setRecognizeStatus("识别完成");
