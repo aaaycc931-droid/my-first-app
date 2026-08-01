@@ -8,11 +8,14 @@ const gradleWrapperPath = new URL(
   "../android/gradle/wrapper/gradle-wrapper.properties",
   import.meta.url,
 );
+const packageJsonPath = new URL("../package.json", import.meta.url);
 
-const [workflowEntries, gradleWrapper] = await Promise.all([
+const [workflowEntries, gradleWrapper, packageJsonText] = await Promise.all([
   readdir(workflowsDirectory, { withFileTypes: true }),
   readFile(gradleWrapperPath, "utf8"),
+  readFile(packageJsonPath, "utf8"),
 ]);
+const packageJson = JSON.parse(packageJsonText);
 const workflowNames = workflowEntries
   .filter(
     (entry) =>
@@ -113,6 +116,25 @@ assert.equal(
   (gradleWrapper.match(/^distributionSha256Sum=/gm) ?? []).length,
   1,
   "Gradle wrapper must declare exactly one distribution checksum",
+);
+
+const checkCommands = packageJson.scripts?.check?.split(" && ") ?? [];
+const androidSyncIndex = checkCommands.indexOf("npm run android:sync");
+const androidValidatorIndex = checkCommands.indexOf("npm run validate:android-local");
+assert.notEqual(
+  androidSyncIndex,
+  -1,
+  "check must sync the Android project before validating its generated assets",
+);
+assert.equal(
+  androidValidatorIndex,
+  androidSyncIndex + 1,
+  "check must run validate:android-local immediately after android:sync",
+);
+assert.equal(
+  checkCommands.includes("npm run mobile:build"),
+  false,
+  "check must delegate the mobile build to android:sync instead of skipping Capacitor sync",
 );
 
 console.log(`CI supply-chain policy passed for ${repositoryRoot}`);
