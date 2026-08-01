@@ -24,6 +24,9 @@ type Exercise = {
   instructions: string;
 };
 
+const COURSE_LIBRARY_LOAD_TIMEOUT_MS = 10_000;
+const COURSE_LIBRARY_LOAD_ERROR = "课程库暂时无法加载，请稍后重试。";
+
 export function CourseLibrary() {
   const [courses, setCourses] = useState<Course[]>([]);
   const [lessons, setLessons] = useState<Lesson[]>([]);
@@ -35,30 +38,55 @@ export function CourseLibrary() {
     const client = getSupabaseBrowserClient();
     if (!client) return;
 
-    void Promise.all([
-      client
-        .from("courses")
-        .select("id, title, description")
-        .eq("is_published", true),
-      client
-        .from("lessons")
-        .select("id, course_id, title, description, position")
-        .eq("is_published", true)
-        .order("position"),
-      client
-        .from("exercises")
-        .select("id, lesson_id, kind, title, instructions")
-        .eq("is_published", true),
-    ]).then(([courseResult, lessonResult, exerciseResult]) => {
-      setIsLoading(false);
-      if (courseResult.error || lessonResult.error || exerciseResult.error) {
-        setError("课程库暂时无法加载，请稍后重试。");
-        return;
-      }
-      setCourses((courseResult.data ?? []) as Course[]);
-      setLessons((lessonResult.data ?? []) as Lesson[]);
-      setExercises((exerciseResult.data ?? []) as Exercise[]);
+    let active = true;
+    let timeoutId = 0;
+    const timeout = new Promise<never>((_resolve, reject) => {
+      timeoutId = window.setTimeout(
+        () => reject(new Error("course-library-load-timeout")),
+        COURSE_LIBRARY_LOAD_TIMEOUT_MS,
+      );
     });
+
+    void Promise.race([
+      Promise.all([
+        client
+          .from("courses")
+          .select("id, title, description")
+          .eq("is_published", true),
+        client
+          .from("lessons")
+          .select("id, course_id, title, description, position")
+          .eq("is_published", true)
+          .order("position"),
+        client
+          .from("exercises")
+          .select("id, lesson_id, kind, title, instructions")
+          .eq("is_published", true),
+      ]),
+      timeout,
+    ])
+      .then(([courseResult, lessonResult, exerciseResult]) => {
+        if (!active) return;
+        setIsLoading(false);
+        if (courseResult.error || lessonResult.error || exerciseResult.error) {
+          setError(COURSE_LIBRARY_LOAD_ERROR);
+          return;
+        }
+        setCourses((courseResult.data ?? []) as Course[]);
+        setLessons((lessonResult.data ?? []) as Lesson[]);
+        setExercises((exerciseResult.data ?? []) as Exercise[]);
+      })
+      .catch(() => {
+        if (!active) return;
+        setIsLoading(false);
+        setError(COURSE_LIBRARY_LOAD_ERROR);
+      })
+      .finally(() => window.clearTimeout(timeoutId));
+
+    return () => {
+      active = false;
+      window.clearTimeout(timeoutId);
+    };
   }, []);
 
   if (!isSupabaseConfigured) {
