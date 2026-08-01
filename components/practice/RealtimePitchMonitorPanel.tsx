@@ -13,6 +13,7 @@ import {
   type LocalVocalPracticeRecord,
   type LocalVocalPracticeRecordRepository,
 } from "../../lib/practice/localVocalPracticeRecord";
+import type { BrowserFileDownloadPort } from "../../lib/platform/browserFileDownload";
 import { RealtimePitchCurveChart } from "./RealtimePitchCurveChart";
 import { LocalVocalObservationPanel } from "./LocalVocalObservationPanel";
 import { OfflinePitchAnalysisPanel } from "./OfflinePitchAnalysisPanel";
@@ -51,9 +52,11 @@ type PendingA4ActivityCheck = {
 
 export function RealtimePitchMonitorPanel({
   practiceRecordRepository,
+  fileDownloadPort,
   targetExercise = null,
 }: {
   practiceRecordRepository: LocalVocalPracticeRecordRepository;
+  fileDownloadPort: BrowserFileDownloadPort;
   targetExercise?: GeneratedLocalVocalExercise | null;
 }) {
   const monitor = useRealtimePitchMonitor();
@@ -130,14 +133,24 @@ export function RealtimePitchMonitorPanel({
   };
 
   const exportRecord = (record: LocalVocalPracticeRecord) => {
-    const url = URL.createObjectURL(new Blob([serializeLocalVocalPracticeRecord(record)], { type: "application/json" }));
-    const anchor = document.createElement("a");
-    anchor.href = url;
-    anchor.download = `视唱练耳-${record.createdAt.slice(0, 10)}-${record.id.slice(0, 8)}.json`;
-    document.body.append(anchor);
-    anchor.click();
-    anchor.remove();
-    window.setTimeout(() => URL.revokeObjectURL(url), 0);
+    try {
+      fileDownloadPort.download({
+        data: serializeLocalVocalPracticeRecord(record),
+        fileName: `视唱练耳-${record.createdAt.slice(0, 10)}-${record.id.slice(0, 8)}.json`,
+        mimeType: "application/json",
+        onCleanupError: (error) => {
+          setStorageNotice(
+            `无法回收练声记录下载 URL：${error.message}；本机记录和录音保持不变。`,
+          );
+        },
+      });
+    } catch (error) {
+      setStorageNotice(
+        error instanceof Error
+          ? `练声记录 JSON 下载启动失败：${error.message}；本机记录和录音保持不变。`
+          : "练声记录 JSON 下载启动失败；本机记录和录音保持不变。",
+      );
+    }
   };
 
   const startMonitoring = () => { stopSavedPlayback(); void monitor.start(); };

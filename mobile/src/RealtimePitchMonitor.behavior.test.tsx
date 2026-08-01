@@ -4,11 +4,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { RealtimePitchMonitorPanel } from "../../components/practice/RealtimePitchMonitorPanel";
 import { stopAllBrowserAudio } from "../../lib/audio/browserAudioEngine";
+import type { BrowserFileDownloadPort } from "../../lib/platform/browserFileDownload";
 import { generateLocalVocalExercise, type GeneratedLocalVocalExercise } from "../../lib/practice/localVocalExercise";
-import type {
-  LocalVocalPracticeRecord,
-  LocalVocalPracticeRecordRepository,
+import {
+  serializeLocalVocalPracticeRecord,
+  type LocalVocalPracticeRecord,
+  type LocalVocalPracticeRecordRepository,
 } from "../../lib/practice/localVocalPracticeRecord";
+type DownloadRecord = Parameters<BrowserFileDownloadPort["download"]>[0];
 
 let root: Root | null = null;
 let trackStop: ReturnType<typeof vi.fn>;
@@ -42,6 +45,10 @@ const createPracticeRecordRepository = (
   clear: vi.fn().mockResolvedValue(undefined),
 }) satisfies LocalVocalPracticeRecordRepository;
 
+const createFileDownloadPort = () => ({
+  download: vi.fn<(request: DownloadRecord) => void>(),
+}) satisfies BrowserFileDownloadPort;
+
 const storedRecord: LocalVocalPracticeRecord = {
   schemaVersion: 1,
   id: "stored-record",
@@ -57,6 +64,7 @@ const storedRecord: LocalVocalPracticeRecord = {
 const renderPanel = async (
   targetExercise?: GeneratedLocalVocalExercise,
   practiceRecordRepository = createPracticeRecordRepository(),
+  fileDownloadPort = createFileDownloadPort(),
 ) => {
   const container = document.createElement("div");
   document.body.append(container);
@@ -64,6 +72,7 @@ const renderPanel = async (
   await act(async () => root?.render(
     <StrictMode>
       <RealtimePitchMonitorPanel
+        fileDownloadPort={fileDownloadPort}
         practiceRecordRepository={practiceRecordRepository}
         targetExercise={targetExercise}
       />
@@ -158,6 +167,51 @@ afterEach(async () => {
 });
 
 describe("Android 实时音高反馈行为", () => {
+  it("练声记录 JSON 只通过注入的下载端口导出，并在启动或清理失败时保持记录", async () => {
+    const repository = createPracticeRecordRepository([storedRecord]);
+    const fileDownloadPort = createFileDownloadPort();
+    const container = await renderPanel(
+      undefined,
+      repository,
+      fileDownloadPort,
+    );
+    const exportButton = container.querySelector(
+      '[aria-label^="导出 JSON："]',
+    ) as HTMLButtonElement | null;
+    if (!exportButton) throw new Error("找不到练声记录 JSON 导出按钮");
+
+    await click(exportButton);
+
+    expect(fileDownloadPort.download).toHaveBeenCalledTimes(1);
+    const request = fileDownloadPort.download.mock.calls[0]?.[0];
+    expect(request).toMatchObject({
+      data: serializeLocalVocalPracticeRecord(storedRecord),
+      fileName: "视唱练耳-2026-07-31-stored-r.json",
+      mimeType: "application/json",
+    });
+    expect(request?.onCleanupError).toBeTypeOf("function");
+    expect(container.textContent).toContain("保留的记录");
+
+    await act(async () => {
+      request?.onCleanupError?.(new Error("URL 清理失败"));
+    });
+    expect(container.textContent).toContain(
+      "无法回收练声记录下载 URL：URL 清理失败；本机记录和录音保持不变。",
+    );
+    expect(container.textContent).toContain("保留的记录");
+
+    fileDownloadPort.download.mockImplementationOnce(() => {
+      throw new Error("浏览器拒绝下载");
+    });
+    await click(exportButton);
+    expect(container.textContent).toContain(
+      "练声记录 JSON 下载启动失败：浏览器拒绝下载；本机记录和录音保持不变。",
+    );
+    expect(container.textContent).toContain("保留的记录");
+    expect(repository.remove).not.toHaveBeenCalled();
+    expect(repository.clear).not.toHaveBeenCalled();
+  });
+
   it("本机记录只在 repository 成功后更新保存、删除和清空界面", async () => {
     const repository = createPracticeRecordRepository([storedRecord]);
     const container = await renderPanel(undefined, repository);

@@ -9,6 +9,7 @@ import { LocalEarTrainingSinglePitchPanel } from "../../components/practice/Loca
 import { LocalPracticeCustomizerPanel } from "../../components/practice/LocalPracticeCustomizerPanel";
 import { LocalVocalExercisePanel } from "../../components/practice/LocalVocalExercisePanel";
 import { RealtimePitchMonitorPanel } from "../../components/practice/RealtimePitchMonitorPanel";
+import { browserFileDownloadPort } from "../../lib/platform/browserFileDownload";
 import { indexedDbLocalVocalPracticeRecordRepository } from "../../lib/platform/indexedDbLocalVocalPracticeRecordRepository";
 import { LocalPianoPanel } from "../../components/piano/LocalPianoPanel";
 import {
@@ -757,7 +758,13 @@ export function App() {
         ) : activeScreen === "monitor" ? (
           <section aria-label={screenDetails.monitor.title} className="grid gap-4">
             <a href="#home" onClick={() => setActiveReviewTarget(null)} className="mb-3 inline-flex min-h-11 items-center rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-bold text-slate-800 shadow-sm">返回练习首页</a>
-            {lifecycle.isForeground ? <RealtimePitchMonitorPanel practiceRecordRepository={indexedDbLocalVocalPracticeRecordRepository} targetExercise={vocalTarget} /> : null}
+            {lifecycle.isForeground ? (
+              <RealtimePitchMonitorPanel
+                fileDownloadPort={browserFileDownloadPort}
+                practiceRecordRepository={indexedDbLocalVocalPracticeRecordRepository}
+                targetExercise={vocalTarget}
+              />
+            ) : null}
             {lifecycle.isForeground ? <LocalVocalExercisePanel onTargetChange={setVocalTarget} /> : null}
           </section>
         ) : (
