@@ -1,6 +1,6 @@
 # 正式版 V1 状态矩阵
 
-最后更新：2026-07-31
+最后更新：2026-08-01
 规范来源：`docs/final-release-definition-of-done.md`
 UI 重构兼容来源：`docs/final-ui-refactor-compatibility-contract.md`
 

@@ -51,3 +51,6 @@ QA level recommendation：**strict**
 仓库内部 parser、re-import、legacy parser、CI、Vercel 或 Debug APK 工件不能替代
 上述外部证据。本切片不是完整和弦系统、完整 MusicXML/MXL、完整 S3、最终 APK 或
 正式版 V1。
+
+后续属十一和弦新增严格边界见
+`docs/s3-local-score-project-musicxml-dominant-eleventh-round-trip-acceptance.md`。
