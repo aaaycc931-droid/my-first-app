@@ -6,11 +6,13 @@
 
 ## 当前基线
 
-- 最新已合并产品功能基线：S3 MusicXML/MXL 大十一和弦严格 round-trip / PR #500，合并提交 `ed8cb14a9475a06bb7d3d52ceb1a8cd410e702b5`；当前独立候选切片只增加小十一和弦严格 round-trip，尚未把外部 QA 写为通过
-- 最新已合并 UI 边界切片：本机课程进度 repository 注入 / PR #499，合并提交 `c919bd155994598d02462706821ba4e00bda47ad`
+- 最新已合并产品功能基线：S3 MusicXML/MXL 小十一和弦严格 round-trip / PR #502，合并提交 `19b091f9fb73885d5fb4a8605badb629891ffe64`
+- 最新已合并 UI 边界切片：本机学习画像 repository 注入 / PR #503，合并提交 `9065d74f368b3bbe38e4c9af7a97fb5335707a88`
+- PR #502 Quality run `30693832075` 与 PR #503 Quality run `30693855680` 的 `quality`、`android-local` 均成功且 Vercel Ready；对应自动 APK 工件分别为 `8816595912` 与 `8816604505`。这些工件绑定 PR synthetic merge，不替代 main provenance、真机、第三方 MusicXML、可访问性、教师或目标用户证据。
 - 最新已合并交换安全加固：MusicXML/MXL note 容器 fail-closed / PR #477，合并提交 `27ae5dff483afa0437b75e1bde0dd091c165bd12`
 - 最新已合并证据准备基线：P119c / PR #419，合并提交 `de9ab7f9a6d050a951e70835fbe97cecc693b9f4`
 - 最近仓库维护：PR #464 清理 323 个已完全合并的远端工作分支；其余分支因未合并或仅能映射到 squash PR 而保留，不能仅凭祖先关系删除
+- 外部 QA 的统一 `NOT_EXECUTED` 分类、最小证据字段和不可替代边界见 `docs/external-qa-not-executed-matrix-template.md`；模板与自动门禁入库不把任何外部项目改写为通过
 - 仓库当前提交以 GitHub 默认分支为权威；本文件不硬编码会因自身合并而立即过期的“当前 main SHA”
 - P115a–P115i 已合并；当前没有接续中的 P115 PR
 - 早期遗留 PR #217、#114、#113、#112、#69、#68 不属于当前路线，本轮不修改、不接续
@@ -167,10 +169,15 @@
 - 小九和弦独立边界见 `docs/s3-local-score-project-musicxml-minor-ninth-round-trip-acceptance.md`；该切片不改变 schema、storage version、迁移链、UI、谱面显示或播放语义。
 - 属十一和弦独立边界见 `docs/s3-local-score-project-musicxml-dominant-eleventh-round-trip-acceptance.md`；该切片不改变 schema、storage version、迁移链、UI、谱面显示或播放语义。
 - 大十一和弦独立边界见 `docs/s3-local-score-project-musicxml-major-eleventh-round-trip-acceptance.md`；该切片不改变 schema、storage version、迁移链、UI、谱面显示或播放语义。
+- 小十一和弦独立边界见 `docs/s3-local-score-project-musicxml-minor-eleventh-round-trip-acceptance.md`；该切片通过 PR #502 合并，矩阵现为 21 类 × 21 个根音 = 441；add11、MusicXML degree、别名、转位、改变音及其他语义继续失败关闭。
 - 本机课程进度 repository 注入边界已通过 PR #499 合并；课程 key、schema、失败关闭、
   save-first／clear-first 与界面行为不变。浏览器 storage adapter 仍由 Android
   composition root 注入；真机跨重启、storage disabled、进程重建、可访问性和目标用户
   QA 仍为 `NOT_EXECUTED`。
+- 本机学习画像 repository 注入边界已通过 PR #503 合并；既有 key、schema、storage
+  version、最多 48 条事件、建议开关、save-first 与重置行为保持不变，浏览器 adapter
+  由 Android composition root 注入。真实浏览器跨刷新、Android WebView／真机跨重启、
+  配额／存储禁用／进程重建、可访问性和目标用户 QA 仍为 `NOT_EXECUTED`。
 - 当前和未来路线冻结能力、行为、数据兼容与证据门槛，不冻结当前页面、导航、组件树
   或视觉表达；最终 UI 重构及已知渐进抽离热点见
   `docs/final-ui-refactor-compatibility-contract.md`。该 docs-only 契约不表示 UI 重构或
