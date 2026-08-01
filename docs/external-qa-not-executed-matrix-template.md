@@ -33,7 +33,7 @@ artifact、APK、公开日志或聊天。仓库记录只保存匿名 token、非
 | EXT-A | 仓库／CI 风险降低 | `NOT_EXECUTED` | 对计划新增的 headless browser、可访问性预筛、Android emulator 或第三方 CLI smoke 真实运行并保存命令、版本、commit 和结果 | focused tests、DOM 行为测试、parser/re-import、静态依赖边界、APK 构建与结构验证 | 真实浏览器音频、人工屏幕阅读器、Android 真机、实体 MIDI、第三方 GUI、教师或用户结论 |
 | EXT-B | 桌面浏览器 | `NOT_EXECUTED` | 真实 Chrome／Edge／Firefox／Safari 中完成适用的导入、下载、重开、键盘、缩放、焦点、屏幕阅读器、音频／麦克风与失败恢复 | headless 文件流、DOM 状态、键盘基础路径、静态可访问性扫描 | Android WebView、实体设备权限／生命周期、真实手机性能或跨浏览器手动结果 |
 | EXT-C | Android／WebView／麦克风／MIDI 真机 | `NOT_EXECUTED` | 已安装 APK 的飞行模式、三档设备、System WebView、权限、真实输入输出、存储、前后台／锁屏／进程重建、20 轮，以及适用的 USB／BLE MIDI | Android unit／instrumentation／emulator、bridge fake、bundle／权限／签名／结构校验 | 实体麦克风、扬声器、耳机、USB／BLE 传输、真实延迟／抖动、温度、内存或三档设备矩阵 |
-| EXT-D | 第三方 MusicXML 软件 | `NOT_EXECUTED` | 使用明确版本的 MuseScore、Dorico、Sibelius 或其他合法独立阅读器真实打开 XML／MXL，记录 warning、显示、布局、重开与适用播放 | 仓库 importer、legacy parser、确定性 XML/MXL、可选固定版本 CLI smoke | 第三方 GUI 兼容、完整 MusicXML、未抽样的 462 组合、真实音色／播放或其他软件版本 |
+| EXT-D | 第三方 MusicXML 软件 | `NOT_EXECUTED` | 使用明确版本的 MuseScore、Dorico、Sibelius 或其他合法独立阅读器真实打开 XML／MXL，记录 warning、显示、布局、重开与适用播放 | 仓库 importer、legacy parser、确定性 XML/MXL、可选固定版本 CLI smoke | 第三方 GUI 兼容、完整 MusicXML、未抽样的 483 组合、真实音色／播放或其他软件版本 |
 | EXT-E1 | 独立教师 | `NOT_EXECUTED` | 按冻结范围分别完成题目／课程六维审核、算法文案与阈值、谱面／唱名／节奏／反馈及适用 MusicXML 教学语义审核 | manifest、候选生成器、worksheet schema、fail-closed validator | 教师身份、独立性、资质、签署、逐题判断、finding 闭环或教育有效性 |
 | EXT-E2 | 中文目标用户 | `NOT_EXECUTED` | 至少 5 名不参与开发的目标用户独立完成正式 DoD 核心任务，统计成功率、误解、阻塞问题与修复后复测 | 自动行为测试、任务脚本、埋点或汇总计算 | 用户是否能发现、完成和理解任务，尤其是草稿／反馈与正式转写／评分的区分 |
 
@@ -106,7 +106,7 @@ fixture ID、打开结果、全部 warning、标题／署名、part／乐器、�
 播放、保存／重开、第三方再次导出的文件 SHA-256 及与原 canonical 的差异。
 
 抽样必须声明覆盖和未覆盖的根音、类别与共存组合。代表性文件通过不能外推为当前
-22 类 × 21 根音的 462 个组合全部通过，更不能外推为完整 MusicXML、MIDI、OMR 或真实
+23 类 × 21 根音的 483 个组合全部通过，更不能外推为完整 MusicXML、MIDI、OMR 或真实
 和弦／踏板／连奏音频语义。
 
 ### 4.5 EXT-E1：独立教师记录
