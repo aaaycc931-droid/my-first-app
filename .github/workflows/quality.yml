@@ -169,6 +169,7 @@ jobs:
           npm run test:note-frequency
           npm run test:recognition-fail-closed
           npm run test:auth-ui-policy
+          npm run test:course-library-behavior
           npm run test:notation-temporary-practice-progress
           npm run test:notation-reference-melody-playback
           npm run test:repository-hygiene
