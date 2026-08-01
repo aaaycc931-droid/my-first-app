@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { LOCAL_COURSE_LESSONS, createEmptyLocalCourseProgress, deserializeLocalCourseProgress, isLessonComplete, isLessonUnlocked, recordLocalCourseLessonCheck, serializeLocalCourseProgress } from "../lib/learning/localCoursePath";
-import { MOBILE_COURSE_PROGRESS_STORAGE_KEY, clearMobileCourseProgress, loadMobileCourseProgress, saveMobileCourseProgress } from "../mobile/src/runtime/mobileCourseProgressStorage";
+import { MOBILE_COURSE_PROGRESS_STORAGE_KEY, clearMobileCourseProgress, createMobileCourseProgressRepository, loadMobileCourseProgress, saveMobileCourseProgress } from "../mobile/src/runtime/mobileCourseProgressStorage";
 import type { StorageLike } from "../mobile/src/runtime/mobilePracticeReviewStorage";
 import { adaptIntervalQuestionToActivity, adaptRhythmQuestionToActivity, adaptSinglePitchQuestionToActivity } from "../lib/activity/legacyLocalActivityAdapter";
 import { createLocalEarTrainingSinglePitchQuestion } from "../lib/practice/localEarTrainingSinglePitch";
@@ -58,4 +58,14 @@ assert.match(saveMobileCourseProgress(throwing, progress).notice ?? "", /保存�
 assert.match(clearMobileCourseProgress(throwing).notice ?? "", /清除失败/);
 assert.match(loadMobileCourseProgress(null).notice ?? "", /不会标记为已保存/);
 assert.equal(loadMobileCourseProgress(null).sourceStatus, "unavailable");
+let repositoryStorage: StorageLike | null = storage;
+const repository = createMobileCourseProgressRepository(() => repositoryStorage);
+assert.deepEqual(repository.save(progress), { notice: null });
+assert.deepEqual(repository.load(), { progress, notice: null, sourceStatus: "available" });
+assert.deepEqual(repository.clear(), { notice: null });
+assert.equal(values.has(MOBILE_COURSE_PROGRESS_STORAGE_KEY), false);
+repositoryStorage = null;
+assert.equal(repository.load().sourceStatus, "unavailable");
+assert.match(repository.save(progress).notice ?? "", /不会标记为已保存/);
+assert.match(repository.clear().notice ?? "", /暂时不可用/);
 console.log("local course path tests passed");

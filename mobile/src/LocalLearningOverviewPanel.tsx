@@ -10,17 +10,10 @@ import type {
 } from "../../lib/practice/localPracticeReviewQueue";
 import { LocalExplainablePracticeRecommendationPanel } from "./LocalExplainablePracticeRecommendationPanel";
 import { LocalWeakPointReviewQueuePanel } from "./LocalWeakPointReviewQueuePanel";
-import { loadMobileCourseProgress } from "./runtime/mobileCourseProgressStorage";
-
-const browserStorage = () => {
-  try {
-    return window.localStorage;
-  } catch {
-    return null;
-  }
-};
+import type { MobileCourseProgressRepository } from "./runtime/mobileCourseProgressStorage";
 
 export function LocalLearningOverviewPanel({
+  courseProgressRepository,
   events,
   reviewQueue,
   suggestionsEnabled,
@@ -32,6 +25,7 @@ export function LocalLearningOverviewPanel({
   onToggleSuggestions,
   now,
 }: {
+  courseProgressRepository: MobileCourseProgressRepository;
   events: readonly LocalPracticeStatisticsEvent[];
   reviewQueue: LocalPracticeReviewQueue;
   suggestionsEnabled: boolean;
@@ -43,7 +37,7 @@ export function LocalLearningOverviewPanel({
   onToggleSuggestions: () => void;
   now?: Date;
 }) {
-  const loadedCourse = useState(() => loadMobileCourseProgress(browserStorage()))[0];
+  const loadedCourse = useState(() => courseProgressRepository.load())[0];
   const overview = useMemo(
     () => buildLocalLearningOverview({
       courseProgress: loadedCourse.sourceStatus === "available"

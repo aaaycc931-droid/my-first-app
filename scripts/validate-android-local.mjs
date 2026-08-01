@@ -473,6 +473,22 @@ if (
   throw new Error("Android P118a 本地课程、版本进度、解锁或隐私边界不完整");
 }
 if (
+  !courseStorageSource.includes("type MobileCourseProgressRepository")
+  || !courseStorageSource.includes("createMobileCourseProgressRepository")
+  || !courseStorageSource.includes("browserMobileCourseProgressRepository")
+  || !coursePanelSource.includes("courseProgressRepository: MobileCourseProgressRepository")
+  || !coursePanelSource.includes("courseProgressRepository.load()")
+  || !coursePanelSource.includes("courseProgressRepository.save(next)")
+  || !coursePanelSource.includes("courseProgressRepository.clear()")
+  || coursePanelSource.includes("window.localStorage")
+  || !learningOverviewPanelSource.includes("courseProgressRepository: MobileCourseProgressRepository")
+  || !learningOverviewPanelSource.includes("courseProgressRepository.load()")
+  || learningOverviewPanelSource.includes("window.localStorage")
+  || (mobileApp.match(/courseProgressRepository={browserMobileCourseProgressRepository}/g) ?? []).length !== 2
+) {
+  throw new Error("Android 本机课程进度 repository 注入或组件存储隔离边界不完整");
+}
+if (
   !practiceStatisticsSource.includes("LocalPracticeStatisticsEvent")
   || !practiceStatisticsSource.includes('"occurredAt" | "kind" | "skillKind" | "practiceMode"')
   || !practiceStatisticsSource.includes('LOCAL_PRACTICE_STATISTICS_WINDOWS = ["7d", "30d", "all"]')
