@@ -100,7 +100,7 @@ require 依赖，并阻止其反向引用 `app/`、`components/` 或 `mobile/src
 | `mobile/src/LocalScoreProjectPanel.tsx` | 编辑 UI、项目存储、MusicXML/MXL 候选、确认和下载 | 提取 score-project controller、exchange use-case 与 file adapter |
 | `mobile/src/App.tsx` | 导航、生命周期、学习事实和复练持久化 | 提取 app shell、navigation state 与 learning storage service |
 | `app/recognize/page.tsx` | 文件校验、API 请求、识别结果和播放预览 | 提取 recognition controller 与 API/file adapter |
-| 本机课程／学习概览组件 | 课程进度已形成由 App 注入的 repository 实现候选；其他学习状态仍由各自 runtime storage 编排 | 继续由上层注入 repository、snapshot 和 commands，不把 localStorage 访问放回组件 |
+| 本机课程／学习概览组件 | 课程进度 repository 已通过 PR #499 由 App 注入；其他学习状态仍由各自 runtime storage 编排 | 继续由上层注入 repository、snapshot 和 commands，不把 localStorage 访问放回组件 |
 | 共享实时音高组件 | 本机练声记录 storage 已由平台无关 port 注入；组件仍编排录音、回放、下载与活动状态 | 继续提取音频／录音 adapter 和实时练习 controller；不得把已抽离 storage 重新耦合到组件 |
 
 这些热点是可控技术债，不代表当前功能错误，也不单独阻塞 S3 或其他边界清楚的能力
@@ -112,9 +112,10 @@ require 依赖，并阻止其反向引用 `app/`、`components/` 或 `mobile/src
 不表示录音／回放／下载编排、实时练习 controller 或最终 UI 已完成重构。
 
 本机课程进度 repository 注入边界见
-`docs/ui-mobile-course-progress-repository-port-acceptance.md`。该切片保持 P118a／P118e
-课程 key、schema、失败关闭和界面行为不变，只把浏览器 storage adapter 留在 Android
-composition root；不表示 App shell、其他学习存储或最终 UI 已完成重构。
+`docs/ui-mobile-course-progress-repository-port-acceptance.md`，已通过 PR #499 合并为
+`c919bd155994598d02462706821ba4e00bda47ad`。该切片保持 P118a／P118e 课程 key、schema、
+失败关闭和界面行为不变，只把浏览器 storage adapter 留在 Android composition root；
+不表示 App shell、其他学习存储或最终 UI 已完成重构。
 
 ## 7. 每个未来切片的兼容检查
 
