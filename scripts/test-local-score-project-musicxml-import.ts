@@ -1899,6 +1899,38 @@ for (const sourceFormat of ["musicxml", "mxl"] as const) {
   assert.equal(minorEleventhEventIds, 5);
 }
 
+const strictDominantThirteenthHarmonyXml = supportedXml
+  .replace(
+    "<note><pitch><step>C</step>",
+    '<harmony><root><root-step>C</root-step><root-alter>1</root-alter></root><kind>dominant-13th</kind><staff>1</staff></harmony><note><pitch><step>C</step>',
+  )
+  .replace(
+    "<note><rest/>",
+    '<harmony><root><root-step>D</root-step><root-alter>-1</root-alter></root><kind>dominant-13th</kind><staff>1</staff></harmony><note><rest/>',
+  );
+for (const sourceFormat of ["musicxml", "mxl"] as const) {
+  let dominantThirteenthEventIds = 0;
+  const dominantThirteenthDraft = createLocalScoreProjectMusicXmlImportDraft({
+    xml: strictDominantThirteenthHarmonyXml,
+    fileName: `严格属十三和弦.${sourceFormat}`,
+    sourceFormat,
+    projectId: `import-project-dominant-thirteenth-${sourceFormat}`,
+    now: "2026-08-01T10:00:00.000Z",
+    createEventId: () =>
+      `dominant-thirteenth-${sourceFormat}-${++dominantThirteenthEventIds}`,
+  });
+  assert.equal(dominantThirteenthDraft.status, "ready");
+  assert.deepEqual(dominantThirteenthDraft.issues, []);
+  assert.deepEqual(
+    dominantThirteenthDraft.project?.document.parts[0].staves[0].voices[0]
+      .measures.flatMap((measure) => measure.events)
+      .map((event) => event.chordSymbol),
+    ["C#13", "Db13", null, null, null],
+    `${sourceFormat} must preserve dominant-13th symbols`,
+  );
+  assert.equal(dominantThirteenthEventIds, 5);
+}
+
 const harmonyAnchor = "<note><pitch><step>D</step>";
 const invalidHarmonies = [
   '<harmony placement="above"><root><root-step>C</root-step></root><kind>major</kind><staff>1</staff></harmony>',
@@ -1949,6 +1981,17 @@ const invalidHarmonies = [
   '<harmony><root><root-step>C</root-step></root><kind>minor-11th</kind><inversion>1</inversion><staff>1</staff></harmony>',
   '<harmony xmlns="urn:unsupported"><root><root-step>C</root-step></root><kind>minor-11th</kind><staff>1</staff></harmony>',
   '<harmony><root><root-step>C</root-step></root><kind>minor-11th</kind><staff>1</staff><degree><degree-value>5</degree-value><degree-alter>1</degree-alter><degree-type>alter</degree-type></degree></harmony>',
+  '<harmony><root><root-step>C</root-step></root><kind text="13">dominant-13th</kind><staff>1</staff></harmony>',
+  '<harmony><root><root-step>C</root-step></root><kind>Dominant-13th</kind><staff>1</staff></harmony>',
+  '<harmony placement="above"><root><root-step>C</root-step></root><kind>dominant-13th</kind><staff>1</staff></harmony>',
+  '<harmony><root><root-step>C</root-step><root-alter>2</root-alter></root><kind>dominant-13th</kind><staff>1</staff></harmony>',
+  '<harmony><kind>dominant-13th</kind><root><root-step>C</root-step></root><staff>1</staff></harmony>',
+  '<harmony><root><root-step>C</root-step></root><kind>dominant-13th</kind><bass><bass-step>G</bass-step></bass><staff>1</staff></harmony>',
+  '<harmony><root><root-step>C</root-step></root><kind>dominant-13th</kind><inversion>1</inversion><staff>1</staff></harmony>',
+  '<harmony xmlns="urn:unsupported"><root><root-step>C</root-step></root><kind>dominant-13th</kind><staff>1</staff></harmony>',
+  '<harmony><root><root-step>C</root-step></root><kind>dominant-13th</kind><staff>1</staff><degree><degree-value>5</degree-value><degree-alter>1</degree-alter><degree-type>alter</degree-type></degree></harmony>',
+  '<harmony><root><root-step>C</root-step></root><kind>major-13th</kind><staff>1</staff></harmony>',
+  '<harmony><root><root-step>C</root-step></root><kind>minor-13th</kind><staff>1</staff></harmony>',
   '<harmony><root><root-step>C</root-step></root><kind>other</kind><staff>1</staff></harmony>',
   '<harmony><root><root-step>H</root-step></root><kind>major</kind><staff>1</staff></harmony>',
   '<harmony><root><root-step>C</root-step></root><kind>major</kind><staff>2</staff></harmony>',
