@@ -44,8 +44,7 @@ import {
   saveMobilePracticeReviewQueue,
 } from "./runtime/mobilePracticeReviewStorage";
 import {
-  loadMobileLearningHistory,
-  saveMobileLearningHistory,
+  type MobileLearningProfileRepository,
 } from "./runtime/mobileLearningProfileStorage";
 import { browserMobileCourseProgressRepository } from "./runtime/mobileCourseProgressStorage";
 import type { GeneratedLocalVocalExercise } from "../../lib/practice/localVocalExercise";
@@ -269,7 +268,11 @@ function PracticeScreen({
   return <LocalEarTrainingMelodyDictationPanel key={target ? getLocalPracticeReviewTargetKey(target) : "random-melody"} initialReviewTarget={target} showLocalPiano expandedLocalCatalog {...sharedProps} />;
 }
 
-export function App() {
+export function App({
+  learningProfileRepository,
+}: {
+  learningProfileRepository: MobileLearningProfileRepository;
+}) {
   const [vocalTarget, setVocalTarget] = useState<GeneratedLocalVocalExercise | null>(null);
   const [activeScreen, setActiveScreen] = useState<Screen>(screenFromHash);
   const [initialReviewStorageResult] = useState(() =>
@@ -291,7 +294,7 @@ export function App() {
     initialReviewStorageResult.sourceStatus,
   );
   const [initialLearningStorageResult] = useState(() =>
-    loadMobileLearningHistory(getBrowserPracticeReviewStorage()),
+    learningProfileRepository.load(),
   );
   const [learningHistory, setLearningHistory] = useState<LocalLearningHistory>(
     initialLearningStorageResult.history,
@@ -370,10 +373,7 @@ export function App() {
             ? "custom"
             : "random",
       });
-      const learningSaveResult = saveMobileLearningHistory(
-        getBrowserPracticeReviewStorage(),
-        nextHistory,
-      );
+      const learningSaveResult = learningProfileRepository.save(nextHistory);
       if (learningSaveResult.notice) setLearningNotice(learningSaveResult.notice);
       else {
         setLearningHistory(nextHistory);
@@ -381,7 +381,14 @@ export function App() {
         setLearningNotice(null);
       }
     },
-    [activeCustomPractice, activeReviewTarget, activeScreen, learningHistory, reviewQueue],
+    [
+      activeCustomPractice,
+      activeReviewTarget,
+      activeScreen,
+      learningHistory,
+      learningProfileRepository,
+      reviewQueue,
+    ],
   );
 
   const leaveReviewTarget = useCallback(() => {
@@ -393,10 +400,7 @@ export function App() {
     (target: LocalPracticeReviewTarget) => {
       stopActiveAudio();
       const nextHistory = recordReviewStartedLearningEvent({ history: learningHistory, target });
-      const learningSaveResult = saveMobileLearningHistory(
-        getBrowserPracticeReviewStorage(),
-        nextHistory,
-      );
+      const learningSaveResult = learningProfileRepository.save(nextHistory);
       if (learningSaveResult.notice) setLearningNotice(learningSaveResult.notice);
       else {
         setLearningHistory(nextHistory);
@@ -410,7 +414,7 @@ export function App() {
         window.location.hash = targetScreen;
       }
     },
-    [learningHistory, stopActiveAudio],
+    [learningHistory, learningProfileRepository, stopActiveAudio],
   );
 
   const clearReviewQueue = useCallback(() => {
@@ -432,25 +436,19 @@ export function App() {
       learningHistory,
       !learningHistory.profile.suggestionsEnabled,
     );
-    const learningSaveResult = saveMobileLearningHistory(
-      getBrowserPracticeReviewStorage(),
-      nextHistory,
-    );
+    const learningSaveResult = learningProfileRepository.save(nextHistory);
     if (learningSaveResult.notice) setLearningNotice(learningSaveResult.notice);
     else {
       setLearningHistory(nextHistory);
       setLearningSourceStatus("available");
       setLearningNotice(nextHistory.profile.suggestionsEnabled ? "本机复练建议已开启。" : "本机复练建议已关闭。");
     }
-  }, [learningHistory]);
+  }, [learningHistory, learningProfileRepository]);
 
   const resetLearningProfile = useCallback(() => {
     setIsLearningResetConfirmationVisible(false);
     const resetHistory = resetLocalLearningHistory(learningHistory);
-    const saveResult = saveMobileLearningHistory(
-      getBrowserPracticeReviewStorage(),
-      resetHistory,
-    );
+    const saveResult = learningProfileRepository.save(resetHistory);
     if (saveResult.notice) {
       setLearningNotice(saveResult.notice);
       return;
@@ -458,7 +456,7 @@ export function App() {
     setLearningHistory(resetHistory);
     setLearningSourceStatus("available");
     setLearningNotice("本机学习画像与事件已清空；复练题仍保留。建议开关保持不变。");
-  }, [learningHistory]);
+  }, [learningHistory, learningProfileRepository]);
 
   useEffect(() => {
     const enterBackground = () => {

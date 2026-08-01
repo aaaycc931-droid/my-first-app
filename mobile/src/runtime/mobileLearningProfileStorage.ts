@@ -4,7 +4,10 @@ import {
   serializeLocalLearningHistory,
   type LocalLearningHistory,
 } from "../../../lib/learning/learningEventProfile";
-import type { StorageLike } from "./mobilePracticeReviewStorage";
+import {
+  getBrowserPracticeReviewStorage,
+  type StorageLike,
+} from "./mobilePracticeReviewStorage";
 
 export const MOBILE_LEARNING_PROFILE_STORAGE_KEY =
   "solfeggio.mobile.learning-profile.v1";
@@ -14,6 +17,12 @@ export type MobileLearningProfileStorageLoadResult = MobileLearningProfileStorag
   history: LocalLearningHistory;
   sourceStatus: "available" | "unavailable";
 };
+
+export type MobileLearningProfileRepository = Readonly<{
+  load: () => MobileLearningProfileStorageLoadResult;
+  save: (history: LocalLearningHistory) => MobileLearningProfileStorageResult;
+  clear: () => MobileLearningProfileStorageResult;
+}>;
 
 const unavailableNotice = "本机学习画像暂时不可用，本次练习仍可继续。";
 
@@ -69,3 +78,25 @@ export const clearMobileLearningHistory = (
     return { notice: "本机学习画像清除失败，本次练习仍可继续。" };
   }
 };
+
+const resolveStorage = (
+  getStorage: () => StorageLike | null | undefined,
+): StorageLike | null | undefined => {
+  try {
+    return getStorage();
+  } catch {
+    return null;
+  }
+};
+
+export const createMobileLearningProfileRepository = (
+  getStorage: () => StorageLike | null | undefined,
+): MobileLearningProfileRepository => ({
+  load: () => loadMobileLearningHistory(resolveStorage(getStorage)),
+  save: (history) =>
+    saveMobileLearningHistory(resolveStorage(getStorage), history),
+  clear: () => clearMobileLearningHistory(resolveStorage(getStorage)),
+});
+
+export const browserMobileLearningProfileRepository =
+  createMobileLearningProfileRepository(getBrowserPracticeReviewStorage);

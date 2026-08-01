@@ -6,6 +6,7 @@ const root = process.cwd();
 const requiredSources = [
   "capacitor.config.ts",
   "mobile/index.html",
+  "mobile/src/main.tsx",
   "mobile/src/App.tsx",
   "mobile/src/MobileErrorBoundary.tsx",
   "mobile/src/runtime/mobileLifecycle.ts",
@@ -145,6 +146,7 @@ if (sharedComponentRuntimeImports.length > 0) {
 
 const capacitorConfig = readFileSync(join(root, "capacitor.config.ts"), "utf8");
 const viteConfig = readFileSync(join(root, "mobile/vite.config.ts"), "utf8");
+const mobileMain = readFileSync(join(root, "mobile/src/main.tsx"), "utf8");
 const mobileApp = readFileSync(join(root, "mobile/src/App.tsx"), "utf8");
 const reviewQueueSource = readFileSync(
   join(root, "lib/practice/localPracticeReviewQueue.ts"),
@@ -459,6 +461,21 @@ if (
   || !mobileApp.includes("本机事实，不是能力评分")
 ) {
   throw new Error("Android 本机学习事件、非评分画像、建议控制或独立清除边界不完整");
+}
+if (
+  !learningProfileStorageSource.includes("type MobileLearningProfileRepository")
+  || !learningProfileStorageSource.includes("createMobileLearningProfileRepository")
+  || !learningProfileStorageSource.includes("browserMobileLearningProfileRepository")
+  || !mobileApp.includes("learningProfileRepository: MobileLearningProfileRepository")
+  || !mobileApp.includes("learningProfileRepository.load()")
+  || (mobileApp.match(/learningProfileRepository\.save\(/g) ?? []).length !== 4
+  || mobileApp.includes("loadMobileLearningHistory")
+  || mobileApp.includes("saveMobileLearningHistory")
+  || !mobileMain.includes(
+    "learningProfileRepository={browserMobileLearningProfileRepository}",
+  )
+) {
+  throw new Error("Android 本机学习画像 repository 注入或 App 存储隔离边界不完整");
 }
 if (
   !coursePathSource.includes('LOCAL_COURSE_PATH_SCHEMA_VERSION = "local-course-path-v1"')

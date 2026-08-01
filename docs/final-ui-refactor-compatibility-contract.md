@@ -117,6 +117,12 @@ require 依赖，并阻止其反向引用 `app/`、`components/` 或 `mobile/src
 失败关闭和界面行为不变，只把浏览器 storage adapter 留在 Android composition root；
 不表示 App shell、其他学习存储或最终 UI 已完成重构。
 
+本机学习画像 repository port 的候选边界见
+`docs/ui-mobile-learning-profile-repository-port-acceptance.md`。该切片只把 P114m／P118b／
+P118d／P118e 已有学习事实持久化改由 Android composition root 注入，不改变 key、schema、
+迁移、统计、建议、重置或界面行为；复练队列、完整 learning controller、App shell 和
+最终 UI 重构仍未完成。
+
 ## 7. 每个未来切片的兼容检查
 
 涉及 UI、导航、存储或用户流程的 PR 至少回答：
