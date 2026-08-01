@@ -141,9 +141,9 @@
 - 当前严格子集已把 canonical GM1 program `0–127` 精确双向映射为
   `score-part` 中固定相邻的 `score-instrument` 与一基 `midi-program 1–128`；
   instrument-name 必须与 part name 一致，其他 MIDI／音色语义继续 blocking。全局整数
-  速度、单附点、力度、踏板、自然／单升降根音十九类、399 个和弦组合（含
+  速度、单附点、力度、踏板、自然／单升降根音二十类、420 个和弦组合（含
   major-sixth／minor-sixth／suspended-second／suspended-fourth／power／
-  dominant-ninth／major-ninth／minor-ninth／dominant-11th／augmented／diminished／augmented-seventh／
+  dominant-ninth／major-ninth／minor-ninth／dominant-11th／major-11th／augmented／diminished／augmented-seventh／
   diminished-seventh／half-diminished）、
   lyric、fingering、
   articulations、fermata、slur 和 tie 的既有严格双向映射继续保留；附点真实时值、
@@ -165,6 +165,7 @@
 - 大九和弦独立边界见 `docs/s3-local-score-project-musicxml-major-ninth-round-trip-acceptance.md`；该切片不改变 schema、storage version、迁移链、UI、谱面显示或播放语义。
 - 小九和弦独立边界见 `docs/s3-local-score-project-musicxml-minor-ninth-round-trip-acceptance.md`；该切片不改变 schema、storage version、迁移链、UI、谱面显示或播放语义。
 - 属十一和弦独立边界见 `docs/s3-local-score-project-musicxml-dominant-eleventh-round-trip-acceptance.md`；该切片不改变 schema、storage version、迁移链、UI、谱面显示或播放语义。
+- 大十一和弦独立边界见 `docs/s3-local-score-project-musicxml-major-eleventh-round-trip-acceptance.md`；该切片不改变 schema、storage version、迁移链、UI、谱面显示或播放语义。
 - 当前和未来路线冻结能力、行为、数据兼容与证据门槛，不冻结当前页面、导航、组件树
   或视觉表达；最终 UI 重构及已知渐进抽离热点见
   `docs/final-ui-refactor-compatibility-contract.md`。该 docs-only 契约不表示 UI 重构或

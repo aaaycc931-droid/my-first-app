@@ -1835,6 +1835,38 @@ for (const sourceFormat of ["musicxml", "mxl"] as const) {
   assert.equal(dominantEleventhEventIds, 5);
 }
 
+const strictMajorEleventhHarmonyXml = supportedXml
+  .replace(
+    "<note><pitch><step>C</step>",
+    '<harmony><root><root-step>C</root-step><root-alter>1</root-alter></root><kind>major-11th</kind><staff>1</staff></harmony><note><pitch><step>C</step>',
+  )
+  .replace(
+    "<note><rest/>",
+    '<harmony><root><root-step>D</root-step><root-alter>-1</root-alter></root><kind>major-11th</kind><staff>1</staff></harmony><note><rest/>',
+  );
+for (const sourceFormat of ["musicxml", "mxl"] as const) {
+  let majorEleventhEventIds = 0;
+  const majorEleventhDraft = createLocalScoreProjectMusicXmlImportDraft({
+    xml: strictMajorEleventhHarmonyXml,
+    fileName: `严格大十一和弦.${sourceFormat}`,
+    sourceFormat,
+    projectId: `import-project-major-eleventh-${sourceFormat}`,
+    now: "2026-08-01T09:00:00.000Z",
+    createEventId: () =>
+      `major-eleventh-${sourceFormat}-${++majorEleventhEventIds}`,
+  });
+  assert.equal(majorEleventhDraft.status, "ready");
+  assert.deepEqual(majorEleventhDraft.issues, []);
+  assert.deepEqual(
+    majorEleventhDraft.project?.document.parts[0].staves[0].voices[0]
+      .measures.flatMap((measure) => measure.events)
+      .map((event) => event.chordSymbol),
+    ["C#maj11", "Dbmaj11", null, null, null],
+    `${sourceFormat} must preserve major-11th symbols`,
+  );
+  assert.equal(majorEleventhEventIds, 5);
+}
+
 const harmonyAnchor = "<note><pitch><step>D</step>";
 const invalidHarmonies = [
   '<harmony placement="above"><root><root-step>C</root-step></root><kind>major</kind><staff>1</staff></harmony>',
@@ -1867,7 +1899,15 @@ const invalidHarmonies = [
   '<harmony><root><root-step>C</root-step></root><kind>dominant-11th</kind><inversion>1</inversion><staff>1</staff></harmony>',
   '<harmony xmlns="urn:unsupported"><root><root-step>C</root-step></root><kind>dominant-11th</kind><staff>1</staff></harmony>',
   '<harmony><root><root-step>C</root-step></root><kind>dominant-11th</kind><staff>1</staff><degree><degree-value>5</degree-value><degree-alter>1</degree-alter><degree-type>alter</degree-type></degree></harmony>',
-  '<harmony><root><root-step>C</root-step></root><kind>major-11th</kind><staff>1</staff></harmony>',
+  '<harmony><root><root-step>C</root-step></root><kind text="maj11">major-11th</kind><staff>1</staff></harmony>',
+  '<harmony><root><root-step>C</root-step></root><kind>Major-11th</kind><staff>1</staff></harmony>',
+  '<harmony placement="above"><root><root-step>C</root-step></root><kind>major-11th</kind><staff>1</staff></harmony>',
+  '<harmony><root><root-step>C</root-step><root-alter>2</root-alter></root><kind>major-11th</kind><staff>1</staff></harmony>',
+  '<harmony><kind>major-11th</kind><root><root-step>C</root-step></root><staff>1</staff></harmony>',
+  '<harmony><root><root-step>C</root-step></root><kind>major-11th</kind><bass><bass-step>G</bass-step></bass><staff>1</staff></harmony>',
+  '<harmony><root><root-step>C</root-step></root><kind>major-11th</kind><inversion>1</inversion><staff>1</staff></harmony>',
+  '<harmony xmlns="urn:unsupported"><root><root-step>C</root-step></root><kind>major-11th</kind><staff>1</staff></harmony>',
+  '<harmony><root><root-step>C</root-step></root><kind>major-11th</kind><staff>1</staff><degree><degree-value>5</degree-value><degree-alter>1</degree-alter><degree-type>alter</degree-type></degree></harmony>',
   '<harmony><root><root-step>C</root-step></root><kind>minor-11th</kind><staff>1</staff></harmony>',
   '<harmony><root><root-step>C</root-step></root><kind>other</kind><staff>1</staff></harmony>',
   '<harmony><root><root-step>H</root-step></root><kind>major</kind><staff>1</staff></harmony>',
