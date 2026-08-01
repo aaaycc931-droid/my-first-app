@@ -20,7 +20,7 @@
     "start": "next start",
     "lint": "eslint . --max-warnings=0",
     "typecheck": "tsc --noEmit",
-    "check": "npm run lint && npm run typecheck && npm run validate:documentation-hygiene && npm run validate:android-version && npm run mobile:build && npm run validate:android-local && npm run build",
+    "check": "npm run lint && npm run typecheck && npm run validate:documentation-hygiene && npm run validate:android-version && npm run android:sync && npm run validate:android-local && npm run build",
     "mobile:build": "vite build --config mobile/vite.config.ts",
     "validate:android-local": "node scripts/validate-android-local.mjs",
     "validate:documentation-hygiene": "node scripts/validate-documentation-hygiene.mjs",
