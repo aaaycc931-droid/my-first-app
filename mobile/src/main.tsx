@@ -5,6 +5,7 @@ import "../../app/globals.css";
 import "./mobile.css";
 import { App } from "./App";
 import { MobileErrorBoundary } from "./MobileErrorBoundary";
+import { browserMobileLearningProfileRepository } from "./runtime/mobileLearningProfileStorage";
 
 const root = document.getElementById("root");
 
@@ -16,7 +17,9 @@ if (!root) {
     createRoot(root).render(
       <StrictMode>
         <MobileErrorBoundary>
-          <App />
+          <App
+            learningProfileRepository={browserMobileLearningProfileRepository}
+          />
         </MobileErrorBoundary>
       </StrictMode>,
     );

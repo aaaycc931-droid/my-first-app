@@ -55,7 +55,10 @@ import {
   serializeLocalLearningHistory,
   setLearningSuggestionsEnabled,
 } from "../../lib/learning/learningEventProfile";
-import { MOBILE_LEARNING_PROFILE_STORAGE_KEY } from "./runtime/mobileLearningProfileStorage";
+import {
+  browserMobileLearningProfileRepository,
+  MOBILE_LEARNING_PROFILE_STORAGE_KEY,
+} from "./runtime/mobileLearningProfileStorage";
 import { MOBILE_PRACTICE_REVIEW_STORAGE_KEY } from "./runtime/mobilePracticeReviewStorage";
 import {
   LOCAL_COURSE_LESSONS,
@@ -89,7 +92,11 @@ const renderApp = async () => {
   const container = document.createElement("div");
   document.body.append(container);
   root = createRoot(container);
-  await act(async () => root?.render(<StrictMode><App /></StrictMode>));
+  await act(async () => root?.render(
+    <StrictMode>
+      <App learningProfileRepository={browserMobileLearningProfileRepository} />
+    </StrictMode>,
+  ));
   await flushReact();
   return container;
 };

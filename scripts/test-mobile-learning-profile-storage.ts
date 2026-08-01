@@ -7,6 +7,7 @@ import {
 } from "../lib/learning/learningEventProfile";
 import {
   MOBILE_LEARNING_PROFILE_STORAGE_KEY,
+  createMobileLearningProfileRepository,
   clearMobileLearningHistory,
   loadMobileLearningHistory,
   saveMobileLearningHistory,
@@ -44,6 +45,34 @@ assert.deepEqual(loadMobileLearningHistory(storage), { history, notice: null, so
 assert.equal(values.has(MOBILE_LEARNING_PROFILE_STORAGE_KEY), true);
 assert.deepEqual(clearMobileLearningHistory(storage), { notice: null });
 assert.equal(values.has(MOBILE_LEARNING_PROFILE_STORAGE_KEY), false);
+
+let repositoryStorage: StorageLike | null = null;
+const repository = createMobileLearningProfileRepository(
+  () => repositoryStorage,
+);
+assert.equal(repository.load().sourceStatus, "unavailable");
+repositoryStorage = storage;
+assert.deepEqual(repository.save(history), { notice: null });
+assert.deepEqual(repository.load(), {
+  history,
+  notice: null,
+  sourceStatus: "available",
+});
+assert.deepEqual(repository.clear(), { notice: null });
+assert.equal(values.has(MOBILE_LEARNING_PROFILE_STORAGE_KEY), false);
+
+const throwingProviderRepository = createMobileLearningProfileRepository(() => {
+  throw new Error("provider unavailable");
+});
+assert.equal(throwingProviderRepository.load().sourceStatus, "unavailable");
+assert.match(
+  throwingProviderRepository.save(history).notice ?? "",
+  /暂时不可用/,
+);
+assert.match(
+  throwingProviderRepository.clear().notice ?? "",
+  /暂时不可用/,
+);
 
 const spacingHistory = recordCheckedAnswerLearningEvent({
   history: createEmptyLocalLearningHistory(),
