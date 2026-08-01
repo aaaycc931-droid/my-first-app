@@ -690,6 +690,40 @@ const createMajorEleventhSupportedProject = (): LocalScoreProjectV1 => {
   return parsed;
 };
 
+const createMinorEleventhSupportedProject = (): LocalScoreProjectV1 => {
+  const base = createChordSymbolSupportedProject();
+  const measures = base.document.parts[0].staves[0].voices[0].measures;
+  const symbols = new Map<string, string>([
+    ["event-1", "C#m11"],
+    ["event-2", "Dbm11"],
+  ] as const);
+  const candidate: LocalScoreProjectV1 = {
+    ...base,
+    document: {
+      ...base.document,
+      parts: [{
+        ...base.document.parts[0],
+        staves: [{
+          ...base.document.parts[0].staves[0],
+          voices: [{
+            ...base.document.parts[0].staves[0].voices[0],
+            measures: measures.map((measure) => ({
+              ...measure,
+              events: measure.events.map((event) => ({
+                ...event,
+                chordSymbol: symbols.get(event.id) ?? null,
+              })),
+            })),
+          }],
+        }],
+      }],
+    },
+  };
+  const parsed = parseLocalScoreProject(candidate);
+  assert.ok(parsed, "minor-11th export fixture must be canonical");
+  return parsed;
+};
+
 let supportedChordCombinationCount = 0;
 for (const rootStep of ["A", "B", "C", "D", "E", "F", "G"] as const) {
   for (const [suffix, kind] of [
@@ -713,6 +747,7 @@ for (const rootStep of ["A", "B", "C", "D", "E", "F", "G"] as const) {
     ["m9", "minor-ninth"],
     ["11", "dominant-11th"],
     ["maj11", "major-11th"],
+    ["m11", "minor-11th"],
   ] as const) {
     const canonical = `${rootStep}${suffix}`;
     assert.deepEqual(
@@ -752,6 +787,7 @@ for (const rootStep of ["A", "B", "C", "D", "E", "F", "G"] as const) {
       ["m9", "minor-ninth"],
       ["11", "dominant-11th"],
       ["maj11", "major-11th"],
+      ["m11", "minor-11th"],
     ] as const) {
       const canonical = `${rootStep}${accidental}${suffix}`;
       assert.deepEqual(
@@ -768,8 +804,8 @@ for (const rootStep of ["A", "B", "C", "D", "E", "F", "G"] as const) {
 }
 assert.equal(
   supportedChordCombinationCount,
-  420,
-  "20 chord kinds across natural, single-sharp, and single-flat A-G roots must produce 420 controlled combinations",
+  441,
+  "21 chord kinds across natural, single-sharp, and single-flat A-G roots must produce 441 controlled combinations",
 );
 for (const unsupported of [
   "C##",
@@ -824,7 +860,15 @@ for (const unsupported of [
   "Cmaj11#5",
   "Cmaj11b5",
   "CΔ11",
-  "Cm11",
+  "Cmin11",
+  "Cminor11",
+  "C-11",
+  "Cm111",
+  "Cm7add11",
+  "Cm9add11",
+  "Cm11/E",
+  "Cm11#5",
+  "Cm11b5",
   "C13",
   "Csus6",
   "C/E",
@@ -2434,6 +2478,89 @@ assert.deepEqual(
   parseMusicXML(majorEleventhReady.xml),
   parseMusicXML(damperPedalReady.xml),
   "legacy parsing must ignore major-11th harmony without changing note timing",
+);
+
+const minorEleventhProject = createMinorEleventhSupportedProject();
+const minorEleventhReady = createLocalScoreProjectMusicXmlExportDraft({
+  project: minorEleventhProject,
+});
+assert.equal(minorEleventhReady.status, "ready");
+assert.deepEqual(minorEleventhReady.issues, []);
+assert.ok(minorEleventhReady.xml);
+for (const [rootStep, rootAlter] of [
+  ["C", "1"],
+  ["D", "-1"],
+] as const) {
+  assert.match(
+    minorEleventhReady.xml,
+    new RegExp(
+      `<harmony>\\s*<root><root-step>${rootStep}</root-step>`
+      + `<root-alter>${rootAlter}</root-alter></root>\\s*`
+      + "<kind>minor-11th</kind>\\s*"
+      + "<staff>1</staff>\\s*</harmony>",
+    ),
+  );
+}
+assert.deepEqual(
+  createLocalScoreProjectMusicXmlExportDraft({
+    project: minorEleventhProject,
+  }),
+  minorEleventhReady,
+  "minor-11th MusicXML output must be deterministic",
+);
+const minorEleventhXmlPayload = confirmLocalScoreProjectMusicXmlExportDraft({
+  draft: minorEleventhReady,
+  currentProject: minorEleventhProject,
+  format: "musicxml",
+});
+const reopenedMinorEleventhXml = createLocalScoreProjectMusicXmlImportDraft({
+  xml: String(minorEleventhXmlPayload.data),
+  fileName: minorEleventhXmlPayload.fileName,
+  sourceFormat: "musicxml",
+  projectId: minorEleventhProject.projectId,
+  now: minorEleventhProject.createdAt,
+  createEventId: () =>
+    `reopened-minor-eleventh-event-${++importedEventIndex}`,
+});
+assert.equal(reopenedMinorEleventhXml.status, "ready");
+assert.ok(reopenedMinorEleventhXml.project);
+assert.deepEqual(
+  musicalProjection(reopenedMinorEleventhXml.project),
+  musicalProjection(minorEleventhProject),
+  "strict MusicXML re-import must preserve pitched-note and rest minor-11th symbols",
+);
+const minorEleventhMxlPayload = confirmLocalScoreProjectMusicXmlExportDraft({
+  draft: minorEleventhReady,
+  currentProject: minorEleventhProject,
+  format: "mxl",
+});
+assert.deepEqual(
+  minorEleventhMxlPayload.data,
+  createMusicXmlMxlArchive(minorEleventhReady.xml),
+  "minor-11th MXL generation must remain deterministic",
+);
+const reopenedMinorEleventhMxl = createLocalScoreProjectMusicXmlImportDraft({
+  xml: extractMusicXMLFromMxl(
+    minorEleventhMxlPayload.data as Uint8Array,
+  ),
+  fileName: minorEleventhMxlPayload.fileName,
+  sourceFormat: "mxl",
+  projectId: minorEleventhProject.projectId,
+  now: minorEleventhProject.createdAt,
+  createEventId: () =>
+    `reopened-minor-eleventh-mxl-event-${++importedEventIndex}`,
+});
+assert.equal(reopenedMinorEleventhMxl.status, "ready");
+assert.ok(reopenedMinorEleventhMxl.project);
+assert.deepEqual(
+  musicalProjection(reopenedMinorEleventhMxl.project),
+  musicalProjection(minorEleventhProject),
+  "strict MXL re-import must preserve pitched-note and rest minor-11th symbols",
+);
+assert.deepEqual(
+  parseMusicXML(minorEleventhReady.xml),
+  parseMusicXML(damperPedalReady.xml),
+  "legacy parsing must ignore minor-11th harmony without changing note timing",
 );
 
 for (const mark of ["pp", "p", "mp", "mf", "f", "ff"] as const) {

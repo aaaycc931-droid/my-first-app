@@ -6,7 +6,7 @@
 
 ## 当前基线
 
-- 最新已合并产品功能基线：S3 MusicXML/MXL 大十一和弦严格 round-trip / PR #500，合并提交 `ed8cb14a9475a06bb7d3d52ceb1a8cd410e702b5`
+- 最新已合并产品功能基线：S3 MusicXML/MXL 大十一和弦严格 round-trip / PR #500，合并提交 `ed8cb14a9475a06bb7d3d52ceb1a8cd410e702b5`；当前独立候选切片只增加小十一和弦严格 round-trip，尚未把外部 QA 写为通过
 - 最新已合并 UI 边界切片：本机课程进度 repository 注入 / PR #499，合并提交 `c919bd155994598d02462706821ba4e00bda47ad`
 - 最新已合并交换安全加固：MusicXML/MXL note 容器 fail-closed / PR #477，合并提交 `27ae5dff483afa0437b75e1bde0dd091c165bd12`
 - 最新已合并证据准备基线：P119c / PR #419，合并提交 `de9ab7f9a6d050a951e70835fbe97cecc693b9f4`
@@ -142,9 +142,9 @@
 - 当前严格子集已把 canonical GM1 program `0–127` 精确双向映射为
   `score-part` 中固定相邻的 `score-instrument` 与一基 `midi-program 1–128`；
   instrument-name 必须与 part name 一致，其他 MIDI／音色语义继续 blocking。全局整数
-  速度、单附点、力度、踏板、自然／单升降根音二十类、420 个和弦组合（含
+  速度、单附点、力度、踏板、自然／单升降根音二十一类、441 个和弦组合（含
   major-sixth／minor-sixth／suspended-second／suspended-fourth／power／
-  dominant-ninth／major-ninth／minor-ninth／dominant-11th／major-11th／augmented／diminished／augmented-seventh／
+  dominant-ninth／major-ninth／minor-ninth／dominant-11th／major-11th／minor-11th／augmented／diminished／augmented-seventh／
   diminished-seventh／half-diminished）、
   lyric、fingering、
   articulations、fermata、slur 和 tie 的既有严格双向映射继续保留；附点真实时值、

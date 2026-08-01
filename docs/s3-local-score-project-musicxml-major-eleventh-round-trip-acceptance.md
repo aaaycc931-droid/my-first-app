@@ -26,7 +26,8 @@ QA level recommendation：**strict**
 - `<degree>` 及任何 altered degree，slash／bass／inversion、双升降、Unicode
   升降号、属性、额外节点、错序、重复、namespace／大小写变体及非规范间隔继续
   blocking。
-- minor-11th、add／扩展音及其他未列出的和弦类别继续 blocking。
+- minor-11th 由独立后续严格边界表达；add／扩展音及其他未列出的和弦类别继续
+  blocking。
 - blocking 输入不得分配 canonical event ID，也不得静默删除、截断或改变和弦语义。
 
 ## 自动验收
@@ -51,3 +52,6 @@ QA level recommendation：**strict**
 仓库内部 parser、re-import、legacy parser、CI、Vercel 或 Debug APK 工件不能替代
 上述外部证据。本切片不是完整和弦系统、完整 MusicXML/MXL、完整 S3、最终 APK 或
 正式版 V1。
+
+后续小十一和弦严格边界见
+`docs/s3-local-score-project-musicxml-minor-eleventh-round-trip-acceptance.md`。
