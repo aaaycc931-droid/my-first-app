@@ -43,6 +43,7 @@ jobs:
 
       - name: Mobile runtime tests
         run: |
+          npm run test:accessibility-prefilter
           npm run test:browser-audio-engine
           npm run test:mobile-lifecycle
           npm run test:local-practice-answer-lock
