@@ -7,6 +7,7 @@ import {
   createBrowserRecognitionApiClient,
   type RecognitionApiFetch,
 } from "../lib/recognition/browserRecognitionApiClient.js";
+import { createBrowserRecognitionFilePreviewPort } from "../lib/recognition/browserRecognitionFilePreview.js";
 
 const assert = (condition: unknown, message: string) => {
   if (!condition) throw new Error(message);
@@ -139,6 +140,29 @@ const run = async () => {
   assert(
     propagatedFailure === networkFailure,
     "network and Abort-style failures must propagate unchanged to the existing page catch",
+  );
+
+  const previewFiles: File[] = [];
+  const revokedPreviewUrls: string[] = [];
+  const filePreviewPort = createBrowserRecognitionFilePreviewPort({
+    createObjectUrl: (file) => {
+      previewFiles.push(file);
+      return "blob:recognition-preview";
+    },
+    revokeObjectUrl: (url) => {
+      revokedPreviewUrls.push(url);
+    },
+  });
+  const previewUrl = filePreviewPort.createPreviewUrl(image);
+  filePreviewPort.revokePreviewUrl(previewUrl);
+
+  assert(
+    previewUrl === "blob:recognition-preview" && previewFiles[0] === image,
+    "the recognition file preview port must delegate object URL creation without changing the selected file",
+  );
+  assert(
+    revokedPreviewUrls.length === 1 && revokedPreviewUrls[0] === previewUrl,
+    "the recognition file preview port must delegate exact object URL cleanup",
   );
 
   console.log("recognition fail-closed tests passed");
