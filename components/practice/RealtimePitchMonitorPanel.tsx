@@ -67,6 +67,7 @@ export function RealtimePitchMonitorPanel({
   const [records, setRecords] = useState<LocalVocalPracticeRecord[]>([]);
   const [selectedRecord, setSelectedRecord] = useState<LocalVocalPracticeRecord | null>(null);
   const [storageNotice, setStorageNotice] = useState("");
+  const [downloadNotice, setDownloadNotice] = useState("");
   const [confirmClearRecords, setConfirmClearRecords] = useState(false);
   const [isStorageLoading, setIsStorageLoading] = useState(true);
   const [storageBusy, setStorageBusy] = useState(false);
@@ -78,6 +79,8 @@ export function RealtimePitchMonitorPanel({
   const a4ReferenceChannelRef = useRef<ReturnType<typeof createBrowserAudioChannel> | null>(null);
   const savedPlaybackRef = useRef<HTMLAudioElement | null>(null);
   const savedPlaybackUrlRef = useRef<string | null>(null);
+  const isPanelMountedRef = useRef(false);
+  const downloadRequestIdRef = useRef(0);
   const isActive = monitor.status === "requesting" || monitor.status === "listening";
   const reliable = monitor.frame?.state === "reliable" ? monitor.frame : null;
   const targetFeedback = getLocalVocalTargetFeedback(monitor.curvePoints, targetExercise?.events ?? [], monitor.listeningStartedAtMs);
@@ -101,6 +104,13 @@ export function RealtimePitchMonitorPanel({
   useEffect(() => subscribeBrowserAudioStopAll(stopSavedPlayback), [stopSavedPlayback]);
 
   useEffect(() => () => a4ReferenceChannelRef.current?.stop(), []);
+
+  useEffect(() => {
+    isPanelMountedRef.current = true;
+    return () => {
+      isPanelMountedRef.current = false;
+    };
+  }, []);
 
   const saveSession = async () => {
     if (storageBusy || isStorageLoading) return;
@@ -133,19 +143,26 @@ export function RealtimePitchMonitorPanel({
   };
 
   const exportRecord = (record: LocalVocalPracticeRecord) => {
+    const requestId = ++downloadRequestIdRef.current;
+    setDownloadNotice("");
     try {
       fileDownloadPort.download({
         data: serializeLocalVocalPracticeRecord(record),
         fileName: `视唱练耳-${record.createdAt.slice(0, 10)}-${record.id.slice(0, 8)}.json`,
         mimeType: "application/json",
         onCleanupError: (error) => {
-          setStorageNotice(
-            `无法回收练声记录下载 URL：${error.message}；本机记录和录音保持不变。`,
-          );
+          if (
+            isPanelMountedRef.current
+            && requestId === downloadRequestIdRef.current
+          ) {
+            setDownloadNotice(
+              `无法回收练声记录下载 URL：${error.message}；本机记录和录音保持不变。`,
+            );
+          }
         },
       });
     } catch (error) {
-      setStorageNotice(
+      setDownloadNotice(
         error instanceof Error
           ? `练声记录 JSON 下载启动失败：${error.message}；本机记录和录音保持不变。`
           : "练声记录 JSON 下载启动失败；本机记录和录音保持不变。",
@@ -382,6 +399,7 @@ export function RealtimePitchMonitorPanel({
         <label className="mt-3 block text-sm font-bold text-slate-900">本次备注（最多 200 字）<textarea value={recordNote} maxLength={200} onChange={(event) => setRecordNote(event.target.value)} className="mt-1 min-h-20 w-full rounded-xl border border-slate-300 bg-white p-3 font-normal" /></label>
         <button type="button" onClick={() => void saveSession()} disabled={isStorageLoading || storageBusy || (monitor.curvePoints.length === 0 && !monitor.recordingBlob)} className="mt-3 min-h-11 rounded-xl bg-slate-900 px-4 font-bold text-white disabled:bg-slate-300">{storageBusy ? "正在处理…" : "保存当前曲线与录音"}</button>
         {storageNotice ? <p className="mt-2 text-sm text-slate-700" role="status">{storageNotice}</p> : null}
+        {downloadNotice ? <p className="mt-2 text-sm text-slate-700" role="status">{downloadNotice}</p> : null}
         <div className="mt-4 grid gap-2">{records.map((record) => { const accessibleName = `${new Date(record.createdAt).toLocaleString("zh-CN")} ${record.targetLabel}`; return <article key={record.id} className="rounded-xl border border-slate-200 bg-white p-3"><p className="font-bold text-slate-950">{accessibleName}</p><p className="mt-1 text-sm text-slate-600">{record.curvePoints.length} 帧 · {record.recording ? "含录音" : "仅曲线"}{record.note ? ` · ${record.note}` : ""}</p><div className="mt-2 flex flex-wrap gap-2"><button type="button" aria-label={`回看曲线：${accessibleName}`} aria-pressed={selectedRecord?.id === record.id} onClick={() => setSelectedRecord(record)} className="min-h-10 rounded-lg border border-slate-300 px-3 text-sm font-bold">回看曲线</button>{record.recording ? <button type="button" aria-label={`${playingSavedRecordId === record.id ? "停止" : "回放"}录音：${accessibleName}`} onClick={() => playingSavedRecordId === record.id ? stopSavedPlayback() : void playSavedRecording(record)} className="min-h-10 rounded-lg border border-slate-300 px-3 text-sm font-bold">{playingSavedRecordId === record.id ? "停止回放" : "回放录音"}</button> : null}<button type="button" aria-label={`导出 JSON：${accessibleName}`} onClick={() => exportRecord(record)} className="min-h-10 rounded-lg border border-slate-300 px-3 text-sm font-bold">导出 JSON</button><button type="button" aria-label={`删除：${accessibleName}`} disabled={storageBusy} onClick={() => void deleteRecord(record)} className="min-h-10 rounded-lg border border-rose-300 px-3 text-sm font-bold text-rose-800 disabled:opacity-50">删除</button></div></article>; })}</div>
         {selectedRecord ? <div className="mt-4"><RealtimePitchCurveChart points={selectedRecord.curvePoints} windowSeconds={Math.min(15, Math.max(5, Math.ceil((((selectedRecord.curvePoints[selectedRecord.curvePoints.length - 1]?.timestampMs) ?? 0) - (selectedRecord.curvePoints[0]?.timestampMs ?? 0)) / 1_000)))} targetMidi={selectedRecord.targetMidi} /><LocalVocalObservationPanel points={selectedRecord.curvePoints} label="已保存片段" /></div> : null}
         {records.length > 0 ? <div className="mt-4">{confirmClearRecords ? <div className="flex flex-wrap items-center gap-2" role="alert" aria-live="assertive"><span className="text-sm font-bold text-rose-900">确认清除全部本机练声记录？</span><button type="button" disabled={storageBusy} onClick={() => void clearRecords()} className="min-h-10 rounded-lg bg-rose-700 px-3 text-sm font-bold text-white disabled:opacity-50">确认全部清除</button><button type="button" onClick={() => setConfirmClearRecords(false)} className="min-h-10 rounded-lg border border-slate-300 px-3 text-sm font-bold">取消</button></div> : <button type="button" onClick={() => setConfirmClearRecords(true)} className="min-h-10 rounded-lg border border-rose-300 px-3 text-sm font-bold text-rose-800">清除全部记录</button>}</div> : null}

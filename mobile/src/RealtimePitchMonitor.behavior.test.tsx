@@ -207,7 +207,24 @@ describe("Android 实时音高反馈行为", () => {
     expect(container.textContent).toContain(
       "练声记录 JSON 下载启动失败：浏览器拒绝下载；本机记录和录音保持不变。",
     );
-    expect(container.textContent).toContain("保留的记录");
+
+    await click(exportButton);
+    expect(fileDownloadPort.download).toHaveBeenCalledTimes(3);
+    expect(container.textContent).not.toContain("下载启动失败");
+    expect(container.textContent).not.toContain("无法回收练声记录下载 URL");
+
+    await act(async () => {
+      request?.onCleanupError?.(new Error("过期清理失败"));
+    });
+    expect(container.textContent).not.toContain("过期清理失败");
+
+    const latestRequest = fileDownloadPort.download.mock.calls[2]?.[0];
+    await act(async () => root?.unmount());
+    root = null;
+    await act(async () => {
+      latestRequest?.onCleanupError?.(new Error("卸载后清理失败"));
+    });
+    expect(container.textContent).toBe("");
     expect(repository.remove).not.toHaveBeenCalled();
     expect(repository.clear).not.toHaveBeenCalled();
   });

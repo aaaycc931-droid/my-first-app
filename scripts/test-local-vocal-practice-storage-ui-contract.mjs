@@ -42,6 +42,8 @@ for (const expected of [
   "practiceRecordRepository.remove(record.id)",
   "practiceRecordRepository.clear()",
   "fileDownloadPort.download({",
+  "isPanelMountedRef.current",
+  "requestId === downloadRequestIdRef.current",
   "本机练声记录",
   "保存当前曲线与录音",
   "应用私有 IndexedDB",
