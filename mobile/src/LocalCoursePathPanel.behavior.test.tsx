@@ -75,4 +75,21 @@ describe("P118a 本地课程路径", () => {
     expect(container.textContent).toContain("已练习并核对 1/3 课节");
     expect(container.textContent).toContain("本机课程进度清除失败");
   });
+
+  it("repository 直接抛出清除异常时仍保留当前进度", async () => {
+    const repository = createMobileCourseProgressRepository(() => storage);
+    const container = await renderPanel({
+      ...repository,
+      clear: () => { throw new Error("adapter failure"); },
+    });
+    await completeFirstLesson(container);
+    const stored = storedValues.get(MOBILE_COURSE_PROGRESS_STORAGE_KEY);
+    expect(stored).toBeDefined();
+    await act(async () => button(container, "返回课程路径").click()); await flush();
+    await act(async () => button(container, "重置课程进度").click());
+    await act(async () => button(container, "确认重置").click()); await flush();
+    expect(storedValues.get(MOBILE_COURSE_PROGRESS_STORAGE_KEY)).toBe(stored);
+    expect(container.textContent).toContain("已练习并核对 1/3 课节");
+    expect(container.textContent).toContain("本机课程进度清除失败");
+  });
 });

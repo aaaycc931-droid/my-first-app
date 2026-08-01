@@ -23,15 +23,19 @@ export function LocalCoursePathPanel({
     catch (error) { setNotice(error instanceof Error ? error.message : "课程状态已变化，请重新进入课节。"); }
   };
   const resetProgress = () => {
-    const result = courseProgressRepository.clear();
     setConfirmReset(false);
-    if (result.notice) {
-      setNotice(result.notice);
-      return;
+    try {
+      const result = courseProgressRepository.clear();
+      if (result.notice) {
+        setNotice(result.notice);
+        return;
+      }
+      setProgress(createEmptyLocalCourseProgress());
+      setSourceStatus("available");
+      setNotice("课程进度已重置。");
+    } catch {
+      setNotice("本机课程进度清除失败。");
     }
-    setProgress(createEmptyLocalCourseProgress());
-    setSourceStatus("available");
-    setNotice("课程进度已重置。");
   };
   if (activeLesson) {
     const target = activeLesson.target;
