@@ -8,13 +8,13 @@ QA level recommendation：**strict**
 
 - 复用当前 canonical note/rest 事件起点的 `chordSymbol: string | null`，不修改
   canonical schema、storage 版本、编辑器、谱面显示或播放语义。
-- 本切片只接受根音 `A–G`，以及可选的单个 ASCII `#`／`b`，与十八种无转位和弦：
+- 本切片只接受根音 `A–G`，以及可选的单个 ASCII `#`／`b`，与十九种无转位和弦：
   `C`（major）、`Cm`（minor）、`C7`（dominant）、
   `Cmaj7`（major-seventh）、`Cm7`（minor-seventh）、
   `Caug`（augmented）、`Cdim`（diminished）、
   `C6`（major-sixth）、`Cm6`（minor-sixth）、`Csus2`（suspended-second）、
   `Csus4`（suspended-fourth）、`C5`（power）、`C9`（dominant-ninth）、
-  `Cmaj9`（major-ninth）、`Cm9`（minor-ninth）、
+  `Cmaj9`（major-ninth）、`Cm9`（minor-ninth）、`C11`（dominant-11th）、
   `Caug7`（augmented-seventh）、`Cdim7`（diminished-seventh）、
   `Cm7b5`（half-diminished）；`C` 可替换为任一
   `A–G`、`A#–G#` 或 `Ab–Gb`。
@@ -59,8 +59,8 @@ MusicXML 4.0 使用 measure-level `<harmony>` 表达流行音乐和弦标记，`
 
 ## 自动验收
 
-- canonical parser/renderer 纯映射覆盖十八种 kind、全部 7 个自然根音及其单升／
-  单降形式（378 个组合）；XML 与 MXL 以 note/rest 上的升降根音代表组合验证
+- canonical parser/renderer 纯映射覆盖十九种 kind、全部 7 个自然根音及其单升／
+  单降形式（399 个组合）；XML 与 MXL 以 note/rest 上的升降根音代表组合验证
   `null` 及与 dot、fermata、tie/tied、slur、lyric、fingering、
   articulations、dynamic 和 damper pedal 共存。
 - 同一 canonical revision 重复生成的 XML/MXL 字节一致；解包 XML 一致，
@@ -120,3 +120,6 @@ MuseScore/Dorico/Sibelius 等第三方独立阅读器中的和弦符号显示、
 
 小九和弦新增严格边界见
 `docs/s3-local-score-project-musicxml-minor-ninth-round-trip-acceptance.md`。
+
+属十一和弦新增严格边界见
+`docs/s3-local-score-project-musicxml-dominant-eleventh-round-trip-acceptance.md`。
