@@ -6,7 +6,8 @@
 
 ## 当前基线
 
-- 最新已合并产品功能基线：S3 MusicXML/MXL 属十一和弦严格 round-trip / PR #497，合并提交 `cfcbf54d49383f5c6c2f86bb5fd4c747424224ae`
+- 最新已合并产品功能基线：S3 MusicXML/MXL 大十一和弦严格 round-trip / PR #500，合并提交 `ed8cb14a9475a06bb7d3d52ceb1a8cd410e702b5`
+- 最新已合并 UI 边界切片：本机课程进度 repository 注入 / PR #499，合并提交 `c919bd155994598d02462706821ba4e00bda47ad`
 - 最新已合并交换安全加固：MusicXML/MXL note 容器 fail-closed / PR #477，合并提交 `27ae5dff483afa0437b75e1bde0dd091c165bd12`
 - 最新已合并证据准备基线：P119c / PR #419，合并提交 `de9ab7f9a6d050a951e70835fbe97cecc693b9f4`
 - 最近仓库维护：PR #464 清理 323 个已完全合并的远端工作分支；其余分支因未合并或仅能映射到 squash PR 而保留，不能仅凭祖先关系删除
@@ -166,6 +167,10 @@
 - 小九和弦独立边界见 `docs/s3-local-score-project-musicxml-minor-ninth-round-trip-acceptance.md`；该切片不改变 schema、storage version、迁移链、UI、谱面显示或播放语义。
 - 属十一和弦独立边界见 `docs/s3-local-score-project-musicxml-dominant-eleventh-round-trip-acceptance.md`；该切片不改变 schema、storage version、迁移链、UI、谱面显示或播放语义。
 - 大十一和弦独立边界见 `docs/s3-local-score-project-musicxml-major-eleventh-round-trip-acceptance.md`；该切片不改变 schema、storage version、迁移链、UI、谱面显示或播放语义。
+- 本机课程进度 repository 注入边界已通过 PR #499 合并；课程 key、schema、失败关闭、
+  save-first／clear-first 与界面行为不变。浏览器 storage adapter 仍由 Android
+  composition root 注入；真机跨重启、storage disabled、进程重建、可访问性和目标用户
+  QA 仍为 `NOT_EXECUTED`。
 - 当前和未来路线冻结能力、行为、数据兼容与证据门槛，不冻结当前页面、导航、组件树
   或视觉表达；最终 UI 重构及已知渐进抽离热点见
   `docs/final-ui-refactor-compatibility-contract.md`。该 docs-only 契约不表示 UI 重构或

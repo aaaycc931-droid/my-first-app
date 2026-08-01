@@ -4,7 +4,7 @@
 
 状态：**Canonical integrated roadmap / 统一长期开发主路线**
 
-当前执行状态：**S3 STRICT MAJOR-ELEVENTH EXPANSION IN PROGRESS / EXTERNAL MUSICXML QA NOT_EXECUTED / P119d ITEM REVIEW DEFERRED**
+当前执行状态：**S3 STRICT MAJOR-ELEVENTH INTEGRATED / NEXT EXCHANGE SLICE UNDER REVIEW / EXTERNAL MUSICXML QA NOT_EXECUTED / P119d ITEM REVIEW DEFERRED**
 
 适用项目：`aaaycc931-droid/my-first-app`
 
@@ -20,10 +20,10 @@ PR #488 已加入
 `Cm9` ↔ `<kind>minor-ninth</kind>`；PR #497 已加入
 `C11` ↔ `<kind>dominant-11th</kind>`，把受控和弦类别从 18 种扩至 19 种、组合从
 378 扩至 399；该合并不改变 schema、storage、迁移、页面布局、谱面显示或播放语义。
-当前工程切片以独立严格边界加入 `Cmaj11` ↔ `<kind>major-11th</kind>`，把受控和弦
-类别从 19 种扩至 20 种、组合从 399 扩至 420；不改变 schema、storage、迁移、
-页面布局、谱面显示或播放语义。add11／`degree`、minor-11th 及其他未表达语义继续
-失败关闭，不并入本切片。
+PR #500 已以独立严格边界加入 `Cmaj11` ↔ `<kind>major-11th</kind>`，把受控和弦
+类别从 19 种扩至 20 种、组合从 399 扩至 420；该合并不改变 schema、storage、迁移、
+页面布局、谱面显示或播放语义。下一交换语义切片仍需独立评审；add11／`degree`、
+minor-11th 及其他未表达语义继续失败关闭，不并入已完成的大十一和弦边界。
 PR #483 已完成 suspended-fourth，PR #482 已完成
 minor-sixth，PR #481 已完成 major-sixth，PR #480 已完成 augmented-seventh，PR #479 已完成
 diminished-seventh，PR #477 已完成 note 容器硬化，PR #476 已完成增三／减三和弦，PR #475 已完成
