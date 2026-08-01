@@ -2,6 +2,10 @@ import assert from "node:assert/strict";
 import { access, readFile } from "node:fs/promises";
 
 const pageUrl = new URL("../app/recognize/page.tsx", import.meta.url);
+const apiClientUrl = new URL(
+  "../lib/recognition/browserRecognitionApiClient.ts",
+  import.meta.url,
+);
 const routeUrl = new URL("../app/api/dev/recognize-musicxml/route.ts", import.meta.url);
 const recognizeRouteUrl = new URL("../app/api/recognize/route.ts", import.meta.url);
 const uiDocsUrl = new URL("../docs/musicxml-import-ui.md", import.meta.url);
@@ -9,6 +13,7 @@ const qaDocsUrl = new URL("../docs/musicxml-import-ui-qa.md", import.meta.url);
 
 try {
   const pageSource = await readFile(pageUrl, "utf8");
+  const apiClientSource = await readFile(apiClientUrl, "utf8");
   const routeSource = await readFile(routeUrl, "utf8");
   const recognizeRouteSource = await readFile(recognizeRouteUrl, "utf8");
 
@@ -19,7 +24,23 @@ try {
   assert.match(routeSource, /extractMusicXMLFromMxl/, ".mxl extraction must stay in the dev-only MusicXML API route.");
   assert.doesNotMatch(recognizeRouteSource, /extractMusicXMLFromMxl|\.mxl|fflate/, "Main image recognition API must not include .mxl extraction.");
   assert.match(routeSource, /file\.size === 0/, "MusicXML dev API must reject empty files.");
-  assert.match(pageSource, /fetch\("\/api\/dev\/recognize-musicxml"/, "MusicXML import UI must use the dev-only MusicXML API.");
+  assert.match(pageSource, /recognitionApiClient\.importMusicXML\(musicXMLFile\)/, "MusicXML import UI must call the injected recognition API client.");
+  assert.doesNotMatch(pageSource, /\bfetch\s*\(/, "MusicXML import UI must not move fetch back into the page.");
+  assert.doesNotMatch(pageSource, /\bFormData\s*\(/, "MusicXML import UI must not move FormData construction back into the page.");
+  assert.doesNotMatch(pageSource, /\/api\/dev\/recognize-musicxml/, "MusicXML import UI must not own the dev endpoint literal.");
+
+  const importMusicXMLMethod = apiClientSource.match(
+    /async importMusicXML\(file\) \{[\s\S]*?\n  \},\n\n  async recognizeAudiverisPdf/,
+  )?.[0];
+  assert.ok(importMusicXMLMethod, "Browser recognition API client must define importMusicXML.");
+  assert.match(importMusicXMLMethod, /const formData = new FormData\(\)/, "Browser recognition API client must construct MusicXML FormData.");
+  assert.match(importMusicXMLMethod, /formData\.append\("file", file\)/, "Browser recognition API client must preserve the MusicXML file field.");
+  assert.match(importMusicXMLMethod, /fetchRequest\("\/api\/dev\/recognize-musicxml", \{[\s\S]*?method: "POST"[\s\S]*?body: formData/, "Browser recognition API client must preserve the dev-only MusicXML POST request.");
+  assert.equal(
+    [...apiClientSource.matchAll(/\/api\/dev\/recognize-musicxml/g)].length,
+    1,
+    "Browser recognition API client must own exactly one MusicXML dev endpoint reference.",
+  );
   assert.match(pageSource, /支持 \.musicxml、\.xml、\.mxl；\.mxl 只会在 dev API 中解压验证/, "MusicXML import UI must describe dev-only .mxl support.");
   assert.doesNotMatch(pageSource, /改名为 \.zip|手动解压|人工解压/, "MusicXML import UI must not tell users to manually unzip .mxl files.");
   assert.doesNotMatch(pageSource, /extractMusicXMLFromMxl|fflate|unzipSync/, "Browser UI must not contain .mxl decompression logic.");

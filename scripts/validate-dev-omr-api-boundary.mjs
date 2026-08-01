@@ -4,6 +4,7 @@ import { execSync } from "node:child_process";
 const routePath = "app/api/dev/recognize-audiveris/route.ts";
 const mainApiPath = "app/api/recognize/route.ts";
 const pagePath = "app/recognize/page.tsx";
+const apiClientPath = "lib/recognition/browserRecognitionApiClient.ts";
 const recognizerFactoryPath = "lib/recognition/recognizerFactory.ts";
 
 const checks = [];
@@ -61,7 +62,12 @@ const assertFinallyReleasesLock = (filePath, source) => {
     fail(`${filePath} must release isAudiverisRunning = false inside finally.`);
 };
 
-const assertAudiverisDevUIBoundary = (filePath, source) => {
+const assertAudiverisDevUIBoundary = (
+  filePath,
+  source,
+  clientFilePath,
+  clientSource,
+) => {
   assertContains(
     filePath,
     source,
@@ -71,39 +77,57 @@ const assertAudiverisDevUIBoundary = (filePath, source) => {
   assertContains(
     filePath,
     source,
-    /fetch\(\s*["']\/api\/dev\/recognize-audiveris["']/,
-    "calls the Audiveris dev API only from the explicit dev UI handler",
+    /recognitionApiClient\.recognizeAudiverisPdf\(\s*audiverisDevFile,\s*\{\s*includeFullNotes:\s*isAudiverisDevFullNotesEnabled\s*},?\s*\)/,
+    "calls the recognition API client from the explicit dev UI handler",
+  );
+  assertNotContains(
+    filePath,
+    source,
+    /\bfetch\s*\(/,
+    "does not move fetch back into the page",
+  );
+  assertNotContains(
+    filePath,
+    source,
+    /\bFormData\s*\(/,
+    "does not move FormData construction back into the page",
+  );
+  assertNotContains(
+    filePath,
+    source,
+    /\/api\/dev\/recognize-audiveris/,
+    "does not own the Audiveris dev endpoint literal",
   );
 
   const apiReferenceIndexes = [
-    ...source.matchAll(/\/api\/dev\/recognize-audiveris/g),
+    ...clientSource.matchAll(/\/api\/dev\/recognize-audiveris/g),
   ].map((match) => match.index ?? -1);
 
   if (apiReferenceIndexes.length !== 1) {
     fail(
-      `${filePath} must reference /api/dev/recognize-audiveris exactly once.`,
+      `${clientFilePath} must reference /api/dev/recognize-audiveris exactly once.`,
       [`found: ${apiReferenceIndexes.length}`],
     );
     return;
   }
 
   const referenceIndex = apiReferenceIndexes[0];
-  const nearbySource = source.slice(
+  const nearbySource = clientSource.slice(
     Math.max(0, referenceIndex - 2500),
     referenceIndex + 2500,
   );
 
   if (
-    nearbySource.includes("handleAudiverisDevRecognize") &&
-    nearbySource.includes('formData.append("file", audiverisDevFile)') &&
-    source.includes("isAudiverisDevUIEnabled")
+    nearbySource.includes("async recognizeAudiverisPdf") &&
+    nearbySource.includes('formData.append("file", file)') &&
+    nearbySource.includes("fetchRequest")
   ) {
     pass(
-      `${filePath} references /api/dev/recognize-audiveris only in the dev-only UI logic.`,
+      `${clientFilePath} owns /api/dev/recognize-audiveris inside recognizeAudiverisPdf.`,
     );
   } else {
     fail(
-      `${filePath} must keep /api/dev/recognize-audiveris inside the Audiveris dev-only UI logic.`,
+      `${clientFilePath} must keep /api/dev/recognize-audiveris inside recognizeAudiverisPdf.`,
     );
   }
 
@@ -148,8 +172,14 @@ const assertAudiverisDevUIBoundary = (filePath, source) => {
   assertContains(
     filePath,
     source,
-    /fetch\(\s*["']\/api\/recognize["']/,
-    "keeps the main upload flow calling /api/recognize",
+    /recognitionApiClient\.recognizeImage\(selectedFile\)/,
+    "keeps the main upload flow calling the recognition API client",
+  );
+  assertContains(
+    clientFilePath,
+    clientSource,
+    /async recognizeImage\(file\)[\s\S]*?fetchRequest\(\s*["']\/api\/recognize["'][\s\S]*?method:\s*["']POST["'][\s\S]*?body:\s*formData/,
+    "keeps the main upload adapter posting to /api/recognize",
   );
   assertContains(
     filePath,
@@ -160,8 +190,14 @@ const assertAudiverisDevUIBoundary = (filePath, source) => {
   assertContains(
     filePath,
     source,
-    /if\s*\(isAudiverisDevFullNotesEnabled\)\s*{[\s\S]*?formData\.append\(\s*["']includeNotes["']\s*,\s*["']full["']\s*\)/,
-    "appends includeNotes=full only when the full notes flag is enabled",
+    /includeFullNotes:\s*isAudiverisDevFullNotesEnabled/,
+    "passes the full notes preview flag to the recognition API client",
+  );
+  assertContains(
+    clientFilePath,
+    clientSource,
+    /async recognizeAudiverisPdf\(file, \{ includeFullNotes \}\)[\s\S]*?formData\.append\(\s*["']file["']\s*,\s*file\s*\)[\s\S]*?if\s*\(includeFullNotes\)\s*{[\s\S]*?formData\.append\(\s*["']includeNotes["']\s*,\s*["']full["']\s*\)[\s\S]*?fetchRequest\(\s*["']\/api\/dev\/recognize-audiveris["'][\s\S]*?method:\s*["']POST["'][\s\S]*?body:\s*formData/,
+    "owns the file field, conditional includeNotes=full flag, and Audiveris POST request",
   );
   assertContains(
     filePath,
@@ -200,12 +236,14 @@ const assertAudiverisDevUIBoundary = (filePath, source) => {
     "explains full notes preview safety boundaries",
   );
 
-  const audiverisSummarySetter = source.match(
-    /setAudiverisDevSummary\([\s\S]*?\n\s*}\);/,
-  );
-  if (
-    audiverisSummarySetter?.[0].includes("setRecognizedNotes") ||
-    audiverisSummarySetter?.[0].includes("setRecognizeStatus")
+  const audiverisHandler = source.match(
+    /const handleAudiverisDevRecognize = async \(\) => \{[\s\S]*?\n  };\n\n  const handleRecognize/,
+  )?.[0];
+  if (!audiverisHandler) {
+    fail(`${filePath} must keep the Audiveris dev handler explicit.`);
+  } else if (
+    audiverisHandler.includes("setRecognizedNotes") ||
+    audiverisHandler.includes("setRecognizeStatus")
   ) {
     fail(
       `${filePath} must not write Audiveris dev results into the main recognition state.`,
@@ -364,7 +402,13 @@ if (changedFiles.includes(mainApiPath)) {
 }
 
 const pageSource = readSource(pagePath);
-assertAudiverisDevUIBoundary(pagePath, pageSource);
+const apiClientSource = readSource(apiClientPath);
+assertAudiverisDevUIBoundary(
+  pagePath,
+  pageSource,
+  apiClientPath,
+  apiClientSource,
+);
 
 const mainApiSource = readSource(mainApiPath);
 assertNotContains(
