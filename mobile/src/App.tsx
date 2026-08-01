@@ -47,6 +47,7 @@ import {
   loadMobileLearningHistory,
   saveMobileLearningHistory,
 } from "./runtime/mobileLearningProfileStorage";
+import { browserMobileCourseProgressRepository } from "./runtime/mobileCourseProgressStorage";
 import type { GeneratedLocalVocalExercise } from "../../lib/practice/localVocalExercise";
 import type {
   LocalPracticeCustomization,
@@ -602,6 +603,7 @@ export function App() {
             </section>
 
             <LocalLearningOverviewPanel
+              courseProgressRepository={browserMobileCourseProgressRepository}
               events={learningHistory.recentEvents}
               reviewQueue={reviewQueue}
               suggestionsEnabled={learningHistory.profile.suggestionsEnabled}
@@ -671,7 +673,11 @@ export function App() {
         ) : activeScreen === "course" ? (
           <section aria-label={screenDetails.course.title} className="grid gap-4">
             <a href="#home" onClick={() => { stopActiveAudio(); setActiveReviewTarget(null); }} className="inline-flex min-h-11 w-fit items-center rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-bold text-slate-800 shadow-sm">返回练习首页</a>
-            {lifecycle.isForeground ? <LocalCoursePathPanel /> : null}
+            {lifecycle.isForeground ? (
+              <LocalCoursePathPanel
+                courseProgressRepository={browserMobileCourseProgressRepository}
+              />
+            ) : null}
           </section>
         ) : activeScreen === "custom" ? (
           <section aria-label={screenDetails.custom.title} className="grid gap-4">

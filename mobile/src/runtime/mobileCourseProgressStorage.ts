@@ -1,10 +1,50 @@
 import { createEmptyLocalCourseProgress, deserializeLocalCourseProgress, serializeLocalCourseProgress, type LocalCourseProgress } from "../../../lib/learning/localCoursePath";
-import type { StorageLike } from "./mobilePracticeReviewStorage";
+import {
+  getBrowserPracticeReviewStorage,
+  type StorageLike,
+} from "./mobilePracticeReviewStorage";
 
 export const MOBILE_COURSE_PROGRESS_STORAGE_KEY = "solfeggio.mobile.course-progress.v1";
-export const loadMobileCourseProgress = (storage: StorageLike | null | undefined): { progress: LocalCourseProgress; notice: string | null; sourceStatus: "available" | "unavailable" } => {
+
+export type MobileCourseProgressStorageResult = {
+  notice: string | null;
+};
+
+export type MobileCourseProgressStorageLoadResult =
+  MobileCourseProgressStorageResult & {
+    progress: LocalCourseProgress;
+    sourceStatus: "available" | "unavailable";
+  };
+
+export type MobileCourseProgressRepository = Readonly<{
+  load: () => MobileCourseProgressStorageLoadResult;
+  save: (progress: LocalCourseProgress) => MobileCourseProgressStorageResult;
+  clear: () => MobileCourseProgressStorageResult;
+}>;
+
+export const loadMobileCourseProgress = (
+  storage: StorageLike | null | undefined,
+): MobileCourseProgressStorageLoadResult => {
   if (!storage) return { progress: createEmptyLocalCourseProgress(), notice: "本机课程进度暂时不可用，本次练习仍可继续，但不会标记为已保存。", sourceStatus: "unavailable" };
   try { const raw = storage.getItem(MOBILE_COURSE_PROGRESS_STORAGE_KEY); if (!raw) return { progress: createEmptyLocalCourseProgress(), notice: null, sourceStatus: "available" }; const progress = deserializeLocalCourseProgress(raw); if (progress) return { progress, notice: null, sourceStatus: "available" }; return { progress: createEmptyLocalCourseProgress(), notice: "旧版或无效课程进度无法读取；请明确重置后再从空进度开始。", sourceStatus: "unavailable" }; } catch { return { progress: createEmptyLocalCourseProgress(), notice: "本机课程进度读取失败，未生成课程进度。", sourceStatus: "unavailable" }; }
 };
-export const saveMobileCourseProgress = (storage: StorageLike | null | undefined, progress: LocalCourseProgress) => { if (!storage) return { notice: "本机课程进度暂时不可用，本次练习仍可继续，但不会标记为已保存。" }; try { storage.setItem(MOBILE_COURSE_PROGRESS_STORAGE_KEY, serializeLocalCourseProgress(progress)); return { notice: null }; } catch { return { notice: "本机课程进度保存失败，本次练习仍可继续，但不会标记为已保存。" }; } };
-export const clearMobileCourseProgress = (storage: StorageLike | null | undefined) => { if (!storage) return { notice: "本机课程进度暂时不可用。" }; try { storage.removeItem(MOBILE_COURSE_PROGRESS_STORAGE_KEY); return { notice: null }; } catch { return { notice: "本机课程进度清除失败。" }; } };
+
+export const saveMobileCourseProgress = (
+  storage: StorageLike | null | undefined,
+  progress: LocalCourseProgress,
+): MobileCourseProgressStorageResult => { if (!storage) return { notice: "本机课程进度暂时不可用，本次练习仍可继续，但不会标记为已保存。" }; try { storage.setItem(MOBILE_COURSE_PROGRESS_STORAGE_KEY, serializeLocalCourseProgress(progress)); return { notice: null }; } catch { return { notice: "本机课程进度保存失败，本次练习仍可继续，但不会标记为已保存。" }; } };
+
+export const clearMobileCourseProgress = (
+  storage: StorageLike | null | undefined,
+): MobileCourseProgressStorageResult => { if (!storage) return { notice: "本机课程进度暂时不可用。" }; try { storage.removeItem(MOBILE_COURSE_PROGRESS_STORAGE_KEY); return { notice: null }; } catch { return { notice: "本机课程进度清除失败。" }; } };
+
+export const createMobileCourseProgressRepository = (
+  getStorage: () => StorageLike | null | undefined,
+): MobileCourseProgressRepository => ({
+  load: () => loadMobileCourseProgress(getStorage()),
+  save: (progress) => saveMobileCourseProgress(getStorage(), progress),
+  clear: () => clearMobileCourseProgress(getStorage()),
+});
+
+export const browserMobileCourseProgressRepository =
+  createMobileCourseProgressRepository(getBrowserPracticeReviewStorage);

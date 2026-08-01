@@ -4,12 +4,14 @@ import { LocalEarTrainingRhythmPanel } from "../../components/practice/LocalEarT
 import { LocalEarTrainingSinglePitchPanel } from "../../components/practice/LocalEarTrainingSinglePitchPanel";
 import type { ChoiceActivityCheckedEvent } from "../../components/practice/useChoiceActivitySession";
 import { LOCAL_CHINESE_FOUNDATION_COURSE, LOCAL_COURSE_LESSONS, createEmptyLocalCourseProgress, isLessonComplete, isLessonUnlocked, recordLocalCourseLessonCheck, type LocalCourseLesson, type LocalCourseProgress } from "../../lib/learning/localCoursePath";
-import { clearMobileCourseProgress, loadMobileCourseProgress, saveMobileCourseProgress } from "./runtime/mobileCourseProgressStorage";
+import type { MobileCourseProgressRepository } from "./runtime/mobileCourseProgressStorage";
 
-const browserStorage = () => { try { return window.localStorage; } catch { return null; } };
-
-export function LocalCoursePathPanel() {
-  const loaded = useState(() => loadMobileCourseProgress(browserStorage()))[0];
+export function LocalCoursePathPanel({
+  courseProgressRepository,
+}: {
+  courseProgressRepository: MobileCourseProgressRepository;
+}) {
+  const loaded = useState(() => courseProgressRepository.load())[0];
   const [progress, setProgress] = useState<LocalCourseProgress>(loaded.progress);
   const [notice, setNotice] = useState<string | null>(loaded.notice);
   const [sourceStatus, setSourceStatus] = useState(loaded.sourceStatus);
@@ -17,19 +19,23 @@ export function LocalCoursePathPanel() {
   const [confirmReset, setConfirmReset] = useState(false);
   const complete = (event: ChoiceActivityCheckedEvent) => {
     if (!activeLesson) return;
-    try { const next = recordLocalCourseLessonCheck(progress, activeLesson, event); const saved = saveMobileCourseProgress(browserStorage(), next); if (saved.notice) { setNotice(saved.notice); return; } setProgress(next); setSourceStatus("available"); setNotice("已记录：你完成了本课节的核对。结果不是分数、等级或通过判断。"); }
+    try { const next = recordLocalCourseLessonCheck(progress, activeLesson, event); const saved = courseProgressRepository.save(next); if (saved.notice) { setNotice(saved.notice); return; } setProgress(next); setSourceStatus("available"); setNotice("已记录：你完成了本课节的核对。结果不是分数、等级或通过判断。"); }
     catch (error) { setNotice(error instanceof Error ? error.message : "课程状态已变化，请重新进入课节。"); }
   };
   const resetProgress = () => {
-    const result = clearMobileCourseProgress(browserStorage());
     setConfirmReset(false);
-    if (result.notice) {
-      setNotice(result.notice);
-      return;
+    try {
+      const result = courseProgressRepository.clear();
+      if (result.notice) {
+        setNotice(result.notice);
+        return;
+      }
+      setProgress(createEmptyLocalCourseProgress());
+      setSourceStatus("available");
+      setNotice("课程进度已重置。");
+    } catch {
+      setNotice("本机课程进度清除失败。");
     }
-    setProgress(createEmptyLocalCourseProgress());
-    setSourceStatus("available");
-    setNotice("课程进度已重置。");
   };
   if (activeLesson) {
     const target = activeLesson.target;

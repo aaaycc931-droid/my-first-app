@@ -10,9 +10,16 @@ import {
 import type { LocalPracticeStatisticsEvent } from "../../lib/learning/localPracticeStatistics";
 import type { LocalPracticeReviewTarget } from "../../lib/practice/localPracticeReviewQueue";
 import { LocalLearningOverviewPanel } from "./LocalLearningOverviewPanel";
-import { MOBILE_COURSE_PROGRESS_STORAGE_KEY } from "./runtime/mobileCourseProgressStorage";
+import {
+  MOBILE_COURSE_PROGRESS_STORAGE_KEY,
+  createMobileCourseProgressRepository,
+  type MobileCourseProgressRepository,
+} from "./runtime/mobileCourseProgressStorage";
+import type { StorageLike } from "./runtime/mobilePracticeReviewStorage";
 
 let root: Root | null = null;
+let storedValues: Map<string, string>;
+let storage: StorageLike;
 
 const now = new Date("2026-07-23T12:00:00.000Z");
 const pitch: LocalPracticeReviewTarget = {
@@ -43,12 +50,14 @@ const renderPanel = async ({
   suggestionsEnabled = true,
   learningSourceStatus = "available",
   reviewSourceStatus = "available",
+  courseProgressRepository = createMobileCourseProgressRepository(() => storage),
 }: {
   eventValues?: readonly LocalPracticeStatisticsEvent[];
   reviewQueue?: LocalPracticeReviewTarget[];
   suggestionsEnabled?: boolean;
   learningSourceStatus?: "available" | "unavailable";
   reviewSourceStatus?: "available" | "unavailable";
+  courseProgressRepository?: MobileCourseProgressRepository;
 } = {}) => {
   const container = document.createElement("div");
   document.body.append(container);
@@ -58,6 +67,7 @@ const renderPanel = async ({
   root = createRoot(container);
   await act(async () => root?.render(
     <LocalLearningOverviewPanel
+      courseProgressRepository={courseProgressRepository}
       events={eventValues}
       reviewQueue={reviewQueue}
       suggestionsEnabled={suggestionsEnabled}
@@ -83,7 +93,12 @@ const click = async (element: Element) => {
 };
 
 beforeEach(() => {
-  window.localStorage.clear();
+  storedValues = new Map();
+  storage = {
+    getItem: (key) => storedValues.get(key) ?? null,
+    setItem: (key, value) => { storedValues.set(key, value); },
+    removeItem: (key) => { storedValues.delete(key); },
+  };
 });
 
 afterEach(async () => {
@@ -101,7 +116,7 @@ describe("P118e 本机学习总览面板", () => {
       lessonId: LOCAL_COURSE_LESSONS[0].id,
       completionFingerprint: LOCAL_COURSE_LESSONS[0].completionFingerprint,
     }];
-    window.localStorage.setItem(
+    storage.setItem(
       MOBILE_COURSE_PROGRESS_STORAGE_KEY,
       serializeLocalCourseProgress(progress),
     );
@@ -125,7 +140,7 @@ describe("P118e 本机学习总览面板", () => {
   });
 
   it("课程存储异常仅关闭课程摘要，其他来源仍可使用", async () => {
-    window.localStorage.setItem(MOBILE_COURSE_PROGRESS_STORAGE_KEY, "{bad");
+    storage.setItem(MOBILE_COURSE_PROGRESS_STORAGE_KEY, "{bad");
 
     const { container } = await renderPanel();
 
