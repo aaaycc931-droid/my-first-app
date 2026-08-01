@@ -100,7 +100,7 @@ require 依赖，并阻止其反向引用 `app/`、`components/` 或 `mobile/src
 | `mobile/src/LocalScoreProjectPanel.tsx` | 编辑 UI、项目存储、MusicXML/MXL 候选、确认和下载 | 提取 score-project controller、exchange use-case 与 file adapter |
 | `mobile/src/App.tsx` | 导航、生命周期和学习流程编排；课程进度、学习画像与复练队列已分别注入 repository | 提取 app shell、navigation state 与 learning controller |
 | `app/recognize/page.tsx` | 文件校验、API 请求、识别结果和播放预览 | 提取 recognition controller 与 API/file adapter |
-| 本机课程／学习概览组件 | 课程进度与学习画像 repository 已分别通过 PR #499／#503 由 composition root 注入；复练队列 repository 候选也改由 root 注入 | 继续由上层注入 repository、snapshot 和 commands，不把 localStorage 访问放回组件 |
+| 本机课程／学习概览组件 | 课程进度、学习画像与复练队列 repository 已分别通过 PR #499／#503／#505 由 composition root 注入 | 继续由上层注入 repository、snapshot 和 commands，不把 localStorage 访问放回组件 |
 | 共享实时音高组件 | 本机练声记录 storage 已由平台无关 port 注入；组件仍编排录音、回放、下载与活动状态 | 继续提取音频／录音 adapter 和实时练习 controller；不得把已抽离 storage 重新耦合到组件 |
 
 这些热点是可控技术债，不代表当前功能错误，也不单独阻塞 S3 或其他边界清楚的能力
@@ -121,14 +121,21 @@ require 依赖，并阻止其反向引用 `app/`、`components/` 或 `mobile/src
 `docs/ui-mobile-learning-profile-repository-port-acceptance.md`，已通过 PR #503 合并为
 `9065d74f368b3bbe38e4c9af7a97fb5335707a88`。该切片只把 P114m／P118b／
 P118d／P118e 已有学习事实持久化改由 Android composition root 注入，不改变 key、schema、
-迁移、统计、建议、重置或界面行为；复练队列、完整 learning controller、App shell 和
+迁移、统计、建议、重置或界面行为；完整 learning controller、App shell 和
 最终 UI 重构仍未完成。
 
-本机复练队列 repository port 的候选边界见
-`docs/ui-mobile-practice-review-repository-port-acceptance.md`。该切片只把现有复练队列
+本机复练队列 repository port 边界见
+`docs/ui-mobile-practice-review-repository-port-acceptance.md`，已通过 PR #505 合并为
+`fa037a7395e0d78b22599e22802e428ac067e301`。该切片只把现有复练队列
 持久化改由 Android composition root 注入，不改变 key、schema／catalog version、迁移、
 MRU、最多 12 项、答题更新、清空确认或界面行为；完整 learning controller、App shell、
 navigation state 和最终 UI 重构仍未完成。
+
+课程库加载失败关闭边界已通过 PR #507 合并为
+`a43b323bb14678990cdcb4111c3969cf5fc66f76`：成功与 rejection 路径保持不变，永不 settle
+的请求最多等待 10 秒，随后退出 loading 并显示既有错误。该切片不改变课程 schema、
+内容、页面布局、导航或错误文案。2026-08-01 云 Chrome 仅完成对应 timeout、首页模式
+切换／刷新保持和路由渲染的部分自动化 smoke，不代表完整浏览器、可访问性或最终 UI QA。
 
 ## 7. 每个未来切片的兼容检查
 
