@@ -36,10 +36,14 @@ for (const expected of [
 
 for (const expected of [
   "practiceRecordRepository: LocalVocalPracticeRecordRepository",
+  "fileDownloadPort: BrowserFileDownloadPort",
   "practiceRecordRepository.list()",
   "practiceRecordRepository.save(record)",
   "practiceRecordRepository.remove(record.id)",
   "practiceRecordRepository.clear()",
+  "fileDownloadPort.download({",
+  "isPanelMountedRef.current",
+  "requestId === downloadRequestIdRef.current",
   "本机练声记录",
   "保存当前曲线与录音",
   "应用私有 IndexedDB",
@@ -53,11 +57,23 @@ for (const expected of [
   "stopSavedPlayback();",
 ]) requireCopy(panel, expected, "本机练声记录中文界面");
 
+if (panel.includes('document.createElement("a")')) {
+  throw new Error("共享实时音高组件不得直接创建下载锚点");
+}
+if (panel.includes("browserFileDownloadPort")) {
+  throw new Error("共享实时音高组件必须由 composition root 注入下载端口");
+}
+
 for (const [source, label] of [[webRoot, "Web"], [androidRoot, "Android"]]) {
   requireCopy(
     source,
     "practiceRecordRepository={indexedDbLocalVocalPracticeRecordRepository}",
     `${label} composition root`,
+  );
+  requireCopy(
+    source,
+    "fileDownloadPort={browserFileDownloadPort}",
+    `${label} 下载 composition root`,
   );
 }
 
