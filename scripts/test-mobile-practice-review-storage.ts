@@ -6,6 +6,7 @@ import {
 } from "../lib/practice/localPracticeReviewQueue";
 import {
   MOBILE_PRACTICE_REVIEW_STORAGE_KEY,
+  createMobilePracticeReviewRepository,
   clearMobilePracticeReviewQueue,
   loadMobilePracticeReviewQueue,
   saveMobilePracticeReviewQueue,
@@ -173,6 +174,34 @@ assert.match(migrationWriteFailureLoad.notice ?? "", /升级保存失败/);
 assert.equal(migrationWriteFailureLoad.sourceStatus, "available");
 assert.deepEqual(clearMobilePracticeReviewQueue(memoryStorage), { notice: null });
 assert.equal(memoryStorage.values.has(MOBILE_PRACTICE_REVIEW_STORAGE_KEY), false);
+
+let repositoryStorage: StorageLike | null = null;
+const repository = createMobilePracticeReviewRepository(
+  () => repositoryStorage,
+);
+assert.equal(repository.load().sourceStatus, "unavailable");
+repositoryStorage = memoryStorage;
+assert.deepEqual(repository.save(queue), { notice: null });
+assert.deepEqual(repository.load(), {
+  queue,
+  notice: null,
+  sourceStatus: "available",
+});
+assert.deepEqual(repository.clear(), { notice: null });
+assert.equal(memoryStorage.values.has(MOBILE_PRACTICE_REVIEW_STORAGE_KEY), false);
+
+const throwingProviderRepository = createMobilePracticeReviewRepository(() => {
+  throw new Error("provider unavailable");
+});
+assert.equal(throwingProviderRepository.load().sourceStatus, "unavailable");
+assert.match(
+  throwingProviderRepository.save(queue).notice ?? "",
+  /暂时不可用/,
+);
+assert.match(
+  throwingProviderRepository.clear().notice ?? "",
+  /暂时不可用/,
+);
 
 const makeThrowingStorage = (operation: "get" | "set" | "remove"): StorageLike => ({
   getItem: () => {

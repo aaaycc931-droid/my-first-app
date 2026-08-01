@@ -24,6 +24,12 @@ export type MobilePracticeReviewStorageLoadResult =
     sourceStatus: "available" | "unavailable";
   };
 
+export type MobilePracticeReviewRepository = Readonly<{
+  load: () => MobilePracticeReviewStorageLoadResult;
+  save: (queue: LocalPracticeReviewQueue) => MobilePracticeReviewStorageResult;
+  clear: () => MobilePracticeReviewStorageResult;
+}>;
+
 const unavailableNotice = "本机复练记录暂时不可用，本次练习仍可继续。";
 
 export const getBrowserPracticeReviewStorage = (): StorageLike | null => {
@@ -136,3 +142,25 @@ export const clearMobilePracticeReviewQueue = (
     };
   }
 };
+
+const resolveStorage = (
+  getStorage: () => StorageLike | null | undefined,
+): StorageLike | null | undefined => {
+  try {
+    return getStorage();
+  } catch {
+    return null;
+  }
+};
+
+export const createMobilePracticeReviewRepository = (
+  getStorage: () => StorageLike | null | undefined,
+): MobilePracticeReviewRepository => ({
+  load: () => loadMobilePracticeReviewQueue(resolveStorage(getStorage)),
+  save: (queue) =>
+    saveMobilePracticeReviewQueue(resolveStorage(getStorage), queue),
+  clear: () => clearMobilePracticeReviewQueue(resolveStorage(getStorage)),
+});
+
+export const browserMobilePracticeReviewRepository =
+  createMobilePracticeReviewRepository(getBrowserPracticeReviewStorage);

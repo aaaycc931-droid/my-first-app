@@ -450,6 +450,24 @@ if (
   throw new Error("移动端缺少本机复练的读取、保存或清除边界");
 }
 if (
+  !reviewStorageSource.includes("type MobilePracticeReviewRepository")
+  || !reviewStorageSource.includes("createMobilePracticeReviewRepository")
+  || !reviewStorageSource.includes("browserMobilePracticeReviewRepository")
+  || !mobileApp.includes("practiceReviewRepository: MobilePracticeReviewRepository")
+  || !mobileApp.includes("practiceReviewRepository.load()")
+  || (mobileApp.match(/practiceReviewRepository\.save\(/g) ?? []).length !== 1
+  || (mobileApp.match(/practiceReviewRepository\.clear\(/g) ?? []).length !== 1
+  || mobileApp.includes("loadMobilePracticeReviewQueue")
+  || mobileApp.includes("saveMobilePracticeReviewQueue")
+  || mobileApp.includes("clearMobilePracticeReviewQueue")
+  || mobileApp.includes("getBrowserPracticeReviewStorage")
+  || !mobileMain.includes(
+    "practiceReviewRepository={browserMobilePracticeReviewRepository}",
+  )
+) {
+  throw new Error("Android 本机复练 repository 注入或 App 存储隔离边界不完整");
+}
+if (
   !learningProfileSource.includes('LEARNING_EVENT_SCHEMA_VERSION = "learning-event-v1"')
   || !learningProfileSource.includes('LEARNING_PROFILE_SCHEMA_VERSION = "learning-profile-v1"')
   || !learningProfileSource.includes("MAX_RECENT_LEARNING_EVENTS = 48")
