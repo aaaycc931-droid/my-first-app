@@ -4,7 +4,7 @@
 
 状态：**Canonical integrated roadmap / 统一长期开发主路线**
 
-当前执行状态：**S3 STRICT MAJOR-THIRTEENTH INTEGRATED / NEXT EXCHANGE SLICE UNDER REVIEW / EXTERNAL MUSICXML QA NOT_EXECUTED / P119d ITEM REVIEW DEFERRED**
+当前执行状态：**S3 STRICT MAJOR-THIRTEENTH INTEGRATED / NEXT EXCHANGE SLICE UNDER REVIEW / V1-03 DATA EXPORT IN_PROGRESS / EXTERNAL QA NOT_EXECUTED / P119d ITEM REVIEW DEFERRED**
 
 适用项目：`aaaycc931-droid/my-first-app`
 
@@ -40,7 +40,16 @@ Web assets，再运行 `validate:android-local`，补齐 clean worktree 中的�
 产品能力，也不改变浏览器、Android 真机、第三方 MusicXML、可访问性、教师或用户 QA 状态。
 PR #511 把 `/recognize` 页面既有三个 fetch／FormData 路径抽到可注入的浏览器
 recognition API client port／adapter，保持 endpoint、字段、开发开关、默认值、错误文案、
-网络异常传播和用户行为不变；recognition controller 与 file adapter 仍是后续独立边界。
+网络异常传播和用户行为不变；PR #514 又把图片预览 object URL 创建／释放抽到独立
+file preview adapter，仍不改变文件校验、UI 或用户行为；recognition controller 与其余
+文件编排继续作为后续独立边界。PR #515 只修复并注册两个过期 recognition 静态边界
+validator，防止 fetch／FormData 回流页面，不增加 runtime 能力。
+PR #513 已加入登录用户版本化 JSON 账户数据导出：显式白名单覆盖 12 个 owner／RLS
+数据面，任一查询或下载失败都不产生部分文件；原始私有资产、账户删除、Auth／数据库／
+Storage 级联、24 小时 SLA 与生产端到端证据仍未完成，因此 V1-03 只进入 `IN_PROGRESS`。
+PR #516 已为 8 个 Android 初始视图加入 axe DOM 语义自动预筛；颜色对比、键盘／焦点、
+真实屏幕阅读器、缩放／reflow、真实浏览器／WebView／Android 设备及用户 QA 仍为
+`NOT_EXECUTED`，不得由自动预筛替代。
 PR #483 已完成 suspended-fourth，PR #482 已完成
 minor-sixth，PR #481 已完成 major-sixth，PR #480 已完成 augmented-seventh，PR #479 已完成
 diminished-seventh，PR #477 已完成 note 容器硬化，PR #476 已完成增三／减三和弦，PR #475 已完成
