@@ -10,27 +10,6 @@ import {
   type RecognitionWorkflowEffects,
 } from "../../lib/recognition/recognitionWorkflowController";
 
-const createControllerLifecycle = (
-  controller: RecognitionWorkflowController,
-): Readonly<{
-  mount: () => void;
-  unmount: () => void;
-}> => {
-  let activeEffectCount = 0;
-
-  return {
-    mount: () => {
-      activeEffectCount += 1;
-    },
-    unmount: () => {
-      activeEffectCount -= 1;
-      void Promise.resolve().then(() => {
-        if (activeEffectCount === 0) controller.dispose();
-      });
-    },
-  };
-};
-
 export const useRecognitionWorkflowController = (
   apiClient: RecognitionApiClient,
   previewPort: RecognitionFilePreviewPort,
@@ -44,20 +23,13 @@ export const useRecognitionWorkflowController = (
       createRecognitionWorkflowController(apiClient, previewPort, effects),
     [apiClient, effects, previewPort],
   );
-  const lifecycle = useMemo(
-    () => createControllerLifecycle(controller),
-    [controller],
-  );
   const state = useSyncExternalStore(
     controller.subscribe,
     controller.getState,
     controller.getState,
   );
 
-  useEffect(() => {
-    lifecycle.mount();
-    return lifecycle.unmount;
-  }, [lifecycle]);
+  useEffect(() => () => controller.dispose(), [controller]);
 
   return { controller, state };
 };
