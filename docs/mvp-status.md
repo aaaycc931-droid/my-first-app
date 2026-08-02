@@ -6,10 +6,12 @@
 
 ## 当前基线
 
-- 最新已合并产品功能基线：S3 MusicXML/MXL 大十三和弦严格 round-trip / PR #510，合并提交 `0f07de37e1fcdfdfbf7ba898190f269e97a28bf4`
-- 最新已合并 UI 边界切片：浏览器 recognition API client port／adapter 抽离 / PR #511，合并提交 `0655dfcd3f2c59b8e131bd313295c9ace9204e5d`
+- 最新已合并产品功能基线：登录用户账户数据导出 / PR #513，合并提交 `f04ba847cf8211e4bcd39239269c69781f99401d`；S3 MusicXML/MXL 严格矩阵仍冻结为 23 类 × 21 根音 = 483
+- 最新已合并 UI 边界切片：浏览器 recognition 文件预览 adapter 抽离 / PR #514，合并提交 `f5a1c1ed3feb26c8d3b76650578c50e8c84f5511`
+- 最新已合并验证链修复：recognition 抽离后的静态边界 validator 对齐 / PR #515，合并提交 `a0fa4cba9b970365fbbc815e24cea4931cd2f324`
+- 最新已合并可访问性自动预筛：8 个 Android 初始视图 axe DOM 语义检查 / PR #516，合并提交 `5824ca59b7bc14a11753dd2475da3cbd0a493ad6`；人工无障碍与外部 QA 状态未改变
 - 最新已合并可靠性切片：课程库加载最长等待 10 秒后失败关闭并显示既有错误 / PR #507，合并提交 `a43b323bb14678990cdcb4111c3969cf5fc66f76`
-- PR #505 Quality run `30695255092`、PR #506 Quality run `30695503131`、PR #507 Quality run `30695628301`、PR #508 Quality run `30696194007`、PR #510 Quality run `30698278610` 与刷新到 PR #510 合并后 main 的 PR #511 Quality run `30698677668` 的 `quality`、`android-local` 均成功且 Vercel Ready。这些自动门禁不替代 main provenance、真实浏览器完整矩阵、Android 真机、第三方 MusicXML、可访问性、教师或目标用户证据。
+- PR #505 Quality run `30695255092`、PR #506 `30695503131`、PR #507 `30695628301`、PR #508 `30696194007`、PR #510 `30698278610`、刷新到 PR #510 合并后 main 的 PR #511 `30698677668`、PR #513 `30701011509`、刷新到 PR #513 合并后 main 的 PR #514 `30701443456`、PR #515 `30701864574` 与 PR #516 `30702247755` 的 `quality`、`android-local` 均成功且 Vercel Ready。这些自动门禁和 DOM 预筛不替代 main provenance、真实浏览器完整矩阵、Android 真机、第三方 MusicXML、人工可访问性、教师或目标用户证据。
 - 最新已合并交换安全加固：MusicXML/MXL note 容器 fail-closed / PR #477，合并提交 `27ae5dff483afa0437b75e1bde0dd091c165bd12`
 - 最新已合并证据准备基线：P119c / PR #419，合并提交 `de9ab7f9a6d050a951e70835fbe97cecc693b9f4`
 - 最近仓库维护：PR #464 清理 323 个已完全合并的远端工作分支；其余分支因未合并或仅能映射到 squash PR 而保留，不能仅凭祖先关系删除
@@ -189,9 +191,22 @@
 - 浏览器 recognition API client port／adapter 抽离已通过 PR #511 合并；三个既有
   POST endpoint、FormData `image`／`file` 字段、Audiveris `includeNotes=full` 开关、
   默认值、错误文案和原始网络异常传播保持不变。该切片不改变 UI、schema、storage、
-  provider 默认值、API route 或 MusicXML 语义；recognition controller、file adapter、
+  provider 默认值、API route 或 MusicXML 语义；PR #514 又只把 image preview object URL
+  创建／释放抽到可注入 file preview adapter，保持文件校验、预览时机和用户行为不变；
+  recognition controller、其他文件编排、
   真实 OMR、浏览器、Android 真机、可访问性、教师和目标用户 QA 仍未完成或为
   `NOT_EXECUTED`。
+- 登录用户账户数据导出已通过 PR #513 合并；版本化 JSON 以显式字段白名单覆盖账户
+  摘要和 12 个 owner／RLS 数据面，11 个直接 owner 表显式按当前用户过滤，evaluation
+  results 依赖既有 attempt ownership RLS。导出只含私有资产清单、不含原始文件；任一
+  表查询或下载失败都不生成部分文件。该实现不代表账户删除、Auth／数据库／Storage
+  级联、24 小时 SLA、生产 RLS、真实浏览器或完整数据可携带已经通过，V1-03 仍为
+  `IN_PROGRESS`。
+- PR #515 修复了 PR #511 后仍要求页面直接 fetch／FormData 的两个过期静态 validator，
+  并把当前 page/client 边界注册到 Quality；它没有 runtime、UI、endpoint、schema、
+  storage 或用户行为变化。PR #516 为 8 个 Android 初始视图加入 axe DOM 语义自动预筛，
+  但模拟 DOM 无法可靠覆盖颜色对比；键盘／焦点、真实屏幕阅读器、颜色对比、缩放／
+  reflow、真实浏览器／WebView／Android 设备和目标用户可访问性 QA 仍为 `NOT_EXECUTED`。
 - 课程库加载可靠性切片已通过 PR #507 合并；加载成功和 rejection 行为保持不变，
   永不 settle 的请求最多等待 10 秒后退出 loading 并显示既有错误
   `课程库暂时无法加载，请稍后重试。`。2026-08-01 云 Chrome 部分 smoke 观察到 PR #504

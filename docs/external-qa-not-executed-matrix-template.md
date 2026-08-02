@@ -168,6 +168,17 @@ EXT-B 总体仍为 `NOT_EXECUTED`**。
 屏幕阅读器、适用的 20 轮、Android 真机、第三方 MusicXML 软件、独立教师和中文目标用户。
 云浏览器扩展或工具自身的 console error 不计为应用错误，也不作为应用通过证据。
 
+### 5.2 2026-08-01 可访问性 DOM 自动预筛
+
+PR #516 在 Quality 中对 8 个 Android 初始视图运行 axe WCAG tag DOM 语义预筛；8/8
+focused tests 通过。该记录只属于 **`PARTIAL automated risk reduction`**：模拟 DOM 不能
+可靠产生布局和 computed color 证据，因此 color-contrast rule 被明确禁用；它也没有运行
+真实键盘／焦点路径、屏幕阅读器、缩放／reflow、浏览器、WebView 或 Android 设备。
+
+EXT-A 与可访问性外部 QA 继续保持 `NOT_EXECUTED`，不得把 axe 零 finding 写成 WCAG
+通过、人工审计通过或目标用户可用性通过。若后续执行真实辅助技术／设备验证，仍必须按
+本模板另建包含候选 commit、工具／设备版本、步骤、原始证据与 finding 闭环的记录。
+
 ## 6. 当前载体与真实缺口
 
 - P104 JSON／validator、真实人声本地元数据约定和 P119d candidate／worksheet／approval／

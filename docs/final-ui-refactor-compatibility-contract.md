@@ -135,7 +135,14 @@ navigation state 和最终 UI 重构仍未完成。
 `0655dfcd3f2c59b8e131bd313295c9ace9204e5d`。该切片只把 `/recognize` 页面既有三个
 fetch／FormData 路径改由可注入 client 承接，保持 endpoint、POST、字段、开发开关、
 响应默认值、错误文案、原始网络异常传播和界面行为不变；recognition controller、
-file adapter、真实 OMR 和最终 UI 重构仍未完成。
+file adapter、真实 OMR 和最终 UI 重构仍未完成。PR #514 又把图片选择后的 object URL
+创建／释放改由可注入 browser recognition file preview adapter 承接；文件校验、选择／
+清空时机、预览显示、endpoint、FormData、错误文案和用户行为保持不变。它只完成
+file adapter 的预览 URL 子边界，recognition controller 与其余文件编排仍未完成。
+
+PR #515 随后把两个静态 validator 对齐到上述 page／client 依赖方向：endpoint、POST、
+字段和条件参数仍在 client 检查，页面重新出现 fetch、FormData 或 dev endpoint literal
+会失败。该维护不改变 runtime 或界面，但防止后续重构把已抽离的平台依赖重新放回页面。
 
 课程库加载失败关闭边界已通过 PR #507 合并为
 `a43b323bb14678990cdcb4111c3969cf5fc66f76`：成功与 rejection 路径保持不变，永不 settle

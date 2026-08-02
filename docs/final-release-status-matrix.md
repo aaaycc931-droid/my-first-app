@@ -16,7 +16,7 @@ UI 重构、浏览器／Android 真机、可访问性或目标用户验收已经
 | --- | --- | --- | --- | --- |
 | V1-01 | 范围与规范 | PASS | 正式版 DoD、范围分层、退出条件、最终 UI 重构兼容契约 | 后续变更必须走范围变更记录，并保持路线冻结能力而不冻结当前视觉实现 |
 | V1-02 | 账户与会话 | IN_PROGRESS | Supabase Auth、邮箱 magic link、资料读取/更新、生产浏览器 QA | 密码登录、退出/恢复全矩阵、异常邮件路径 |
-| V1-03 | 数据导出与删除 | NOT_STARTED | 数据模型有 deletion request 草案 | 用户入口、导出包、级联删除、24h SLA、端到端演练 |
+| V1-03 | 数据导出与删除 | IN_PROGRESS | 数据模型有 deletion request 草案；PR #513 已为登录用户提供版本化 JSON 账户数据导出，使用显式字段白名单覆盖 12 个 owner／RLS 数据面，任一查询或下载失败时不产生部分文件 | 删除请求可信服务端入口与执行器、Auth／数据库／Storage 级联删除、原始私有资产归档、24h SLA、生产 RLS／浏览器端到端演练；当前导出不等于完整数据可携带或账户删除 |
 | V1-04 | 系统课程与题库 | IN_PROGRESS | 基础课程；单音、音程、节奏持久化；P115a–P115i、P116a–P116d、P117a–P117e、P118a–P118e implementation candidates 已合并；P118e 组合既有课程、练习事实、复练与可解释建议并分别失败关闭；PR #507 把课程库永不 settle 的请求限制为最多等待 10 秒，随后显示既有错误 | 双教师题量/难度/解释校准；Android 真实用户验证；P119/Q 联合验收；完整浏览器失败恢复矩阵 |
 | V1-05 | 视唱与录音闭环 | IN_PROGRESS | Web 本地录音/回放；Android 实时曲线、录音、本机记录与 P103 观察；本机记录已通过平台无关 repository port 由 Web／Android 显式注入；P112/P113 分析证据、P114f 固定 A4、P115h 音程模唱、P117d 旋律回唱与 P117e 可见目标视唱均已合并 | Browser/Android 真麦克风与 IndexedDB 跨刷新／重启 QA；P113/P114f/P115h/P117d/P117e 真实人声；录音／回放 controller 抽离；正式课程/云端记录；P104 真机同步/延迟/录音设备矩阵 |
 | V1-06 | 节奏练习与反馈 | IN_PROGRESS | 节拍器、tap/onset、延迟校准、DP 对齐、课程节奏听辨；P116a–P116d 已合并，覆盖视读、回模、找错和听写的非评分闭环 | 真实设备/输入数据基准、长期记录与复练、双教师校准和目标用户验证 |
@@ -30,13 +30,13 @@ UI 重构、浏览器／Android 真机、可访问性或目标用户验收已经
 | V1-14 | 节奏算法基准 | IN_PROGRESS | DP 对齐回归、tap/onset/latency 测试 | 真实设备/人声/乐器集、量化报告、低置信度校准 |
 | V1-15 | RLS 与最小权限 | IN_PROGRESS | P78 最小权限；P84 生产 RPC 和跨用户事务 smoke QA | 覆盖所有 owner tables、Storage、签名 URL、删除后访问 |
 | V1-16 | 性能与可靠性 | NOT_STARTED | 生产构建和常规 CI | 14 天窗口、真实用户指标、音频延迟、长循环/内存测试 |
-| V1-17 | 可访问性 | NOT_STARTED | 语义化控件的局部实现 | 目标等级全量审计、键盘/屏幕阅读器、对比度与缩放证据 |
+| V1-17 | 可访问性 | IN_PROGRESS | 语义化控件的局部实现；PR #516 为 8 个 Android 初始视图加入 axe DOM 语义自动预筛，颜色对比因模拟 DOM 不能提供可靠布局证据而明确排除 | 目标等级全量人工审计、键盘／焦点、真实屏幕阅读器、颜色对比、缩放／reflow、真实浏览器／WebView／Android 设备证据；自动预筛不等于可访问性验收 |
 | V1-18 | 浏览器与真实设备 | IN_PROGRESS | 多次桌面 Preview QA；历史移动端 magic-link/播放 QA；2026-08-01 云 Chrome 部分自动化 smoke 观察到 PR #504 baseline `/learn` 在 2.5 秒仍加载、PR #507 Preview 在 11 秒显示既有课程错误，首页键盘／点击模式切换及刷新保持通过，`/practice`、`/recognize`、`/account` 可渲染 | 该 smoke 未覆盖 EXT-B 固定跨浏览器矩阵、音频／麦克风、缩放／焦点／屏幕阅读器或 20 轮；EXT-B 仍为 `NOT_EXECUTED`；另缺 2 台 iOS + 3 台 Android APK 与麦克风／录音全流程 |
 | V1-19 | 备份、恢复与回滚 | NOT_STARTED | Git/Vercel 可回退；迁移有局部事务验证 | 数据库恢复演练、RPO/RTO、不可逆迁移策略、30 分钟演练 |
 | V1-20 | 观测与事故响应 | NOT_STARTED | GitHub Actions、Vercel 状态 | 错误追踪、指标、隐私日志、告警接收人和故障手册 |
 | V1-21 | 内容与教学审核 | DEFERRED | P119a 已合并双教师六维审核协议；P119b 已使 30 个盘点组达到 V1 数量前置；P119c 已冻结可复核清单；P119d 已记录两名独立教师在仓库外签署的 153 项样本计划无身份摘要 | 正式推广测试启动时，由 2 名独立教师分别完成同一获批批次的逐题六维审核并闭环 finding；专业 40 目标另行补足 |
 | V1-22 | 用户可用性验收 | NOT_STARTED | 开发与所有者 QA | 5 名目标用户、核心任务成功率和误解检查 |
-| V1-23 | 发布证据包 | IN_PROGRESS | P119c 合并后的 main run `30006334599` 的 quality、Android API 36 构建及独立 APK 复核已核对；artifact `8563190826` 的 GitHub ZIP digest 为 `e282b857aff76ecdcf580d29283f2a490e08c0c1b346a88ba9c705a03ec28103`；PR #505/#506/#507/#508/#510/#511 的 Quality runs `30695255092`／`30695503131`／`30695628301`／`30696194007`／`30698278610`／`30698677668` 中 `quality`、`android-local` 均成功且 Vercel Ready；PR #511 在 PR #510 合并后 main 上刷新 head 并重新通过门禁；PR #508 让本地 `check` 在 Android validator 前复用 `android:sync`，补齐 clean worktree 验证链 | 专用签名与 APK 内部独立摘要证据、P104 真实数据/设备/教育证据、删除/恢复与用户验收证据；PR 自动门禁和本地验证链维护不能替代 main provenance 或外部 QA |
+| V1-23 | 发布证据包 | IN_PROGRESS | P119c 合并后的 main run `30006334599` 的 quality、Android API 36 构建及独立 APK 复核已核对；artifact `8563190826` 的 GitHub ZIP digest 为 `e282b857aff76ecdcf580d29283f2a490e08c0c1b346a88ba9c705a03ec28103`；PR #505/#506/#507/#508/#510/#511/#513/#514/#515/#516 的 Quality runs `30695255092`／`30695503131`／`30695628301`／`30696194007`／`30698278610`／`30698677668`／`30701011509`／`30701443456`／`30701864574`／`30702247755` 中 `quality`、`android-local` 均成功且 Vercel Ready；PR #511 与 #514 均在前置 PR 合并后的 main 上刷新 head 并重新通过门禁；PR #508 让本地 `check` 在 Android validator 前复用 `android:sync`，PR #515 修复 recognition 抽离后两个过期静态 validator 并把它们注册到 Quality | 专用签名与 APK 内部独立摘要证据、P104 真实数据/设备/教育证据、删除/恢复、人工可访问性与用户验收证据；PR 自动门禁、DOM 预筛和本地验证链维护不能替代 main provenance 或外部 QA |
 | V1-24 | Android 本地 APK | IN_PROGRESS | 离线题库、实时曲线/录音/目标/观察、本机记录/复练与共享 Activity 能力；本机记录 IndexedDB adapter 已从共享组件抽离并由 Android root 注入；P115–P118 implementation candidates 均已合并并通过 `android-local` Debug APK 门禁 | P104 三档真机/真实人声、WebView 跨重启／配额与录音回放、专用签名、升级与前向回滚 |
 | V1-25 | 最终生产发布 | BLOCKED | 当前 P84 生产 Web 版本已部署 | V1-02 至 V1-24 的全部 MUST 门槛尚未通过 |
 
