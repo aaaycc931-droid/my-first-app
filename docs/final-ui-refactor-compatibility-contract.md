@@ -99,7 +99,7 @@ require 依赖，并阻止其反向引用 `app/`、`components/` 或 `mobile/src
 | `app/practice/page.tsx` | 页面、活动会话、计时器、录音、音频分析和反馈编排 | 提取 practice controller、录音／计时 adapter 和语义化页面状态 |
 | `mobile/src/LocalScoreProjectPanel.tsx` | 编辑 UI、项目存储、MusicXML/MXL 候选、确认和下载 | 提取 score-project controller、exchange use-case 与 file adapter |
 | `mobile/src/App.tsx` | 导航、生命周期和学习流程编排；课程进度、学习画像与复练队列已分别注入 repository | 提取 app shell、navigation state 与 learning controller |
-| `app/recognize/page.tsx` | 文件校验、识别结果和播放预览；API 请求已由可注入 client port／adapter 承接 | 继续提取 recognition controller 与剩余文件选择／导入编排；preview URL adapter 已抽离；不得把 fetch／FormData 放回页面 |
+| `app/recognize/page.tsx` | 文件校验、识别结果和文件选择／导入编排已由可注入 recognition workflow controller／薄 React hook 承接；API 请求和 preview URL 也分别由 client／preview adapter 承接 | 继续提取播放调度及其余页面职责；不得把 fetch／FormData 放回页面 |
 | 本机课程／学习概览组件 | 课程进度、学习画像与复练队列 repository 已分别通过 PR #499／#503／#505 由 composition root 注入 | 继续由上层注入 repository、snapshot 和 commands，不把 localStorage 访问放回组件 |
 | 共享实时音高组件 | 本机练声记录 storage 已由平台无关 port 注入；组件仍编排录音、回放、下载与活动状态 | 继续提取音频／录音 adapter 和实时练习 controller；不得把已抽离 storage 重新耦合到组件 |
 
@@ -134,11 +134,13 @@ navigation state 和最终 UI 重构仍未完成。
 浏览器 recognition API client port／adapter 边界已通过 PR #511 合并为
 `0655dfcd3f2c59b8e131bd313295c9ace9204e5d`。该切片只把 `/recognize` 页面既有三个
 fetch／FormData 路径改由可注入 client 承接，保持 endpoint、POST、字段、开发开关、
-响应默认值、错误文案、原始网络异常传播和界面行为不变；recognition controller、
-file adapter、真实 OMR 和最终 UI 重构仍未完成。PR #514 又把图片选择后的 object URL
-创建／释放改由可注入 browser recognition file preview adapter 承接；文件校验、选择／
-清空时机、预览显示、endpoint、FormData、错误文案和用户行为保持不变。它只完成
-file adapter 的预览 URL 子边界，recognition controller 与其余文件编排仍未完成。
+响应默认值、错误文案、原始网络异常传播和界面行为不变；真实 OMR 和最终 UI 重构仍未完成。
+PR #514 又把图片选择后的 object URL 创建／释放改由可注入 browser recognition file
+preview adapter 承接；文件校验、选择／清空时机、预览显示、endpoint、FormData、错误
+文案和用户行为保持不变。PR #521 随后完成 recognition workflow controller 与薄 React
+subscription hook，承接图片、MusicXML 和开发态 Audiveris 的文件选择及异步编排，并加入
+源替换 stale-result guard、迟到回调屏蔽和 dispose 后 preview URL 单次撤销。该切片仍不
+改变真实 OMR、浏览器／WebView／真机或最终 UI 验收状态。
 
 PR #515 随后把两个静态 validator 对齐到上述 page／client 依赖方向：endpoint、POST、
 字段和条件参数仍在 client 检查，页面重新出现 fetch、FormData 或 dev endpoint literal

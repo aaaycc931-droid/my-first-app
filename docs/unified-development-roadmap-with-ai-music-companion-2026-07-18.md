@@ -4,7 +4,7 @@
 
 状态：**Canonical integrated roadmap / 统一长期开发主路线**
 
-当前执行状态：**S3 STRICT MINOR-THIRTEENTH INTEGRATED / NEXT EXCHANGE SLICE UNDER REVIEW / V1-03 DATA EXPORT IN_PROGRESS / EXTERNAL QA NOT_EXECUTED / P119d ITEM REVIEW DEFERRED**
+当前执行状态：**S3 STRICT MINOR-THIRTEENTH INTEGRATED / RECOGNITION CONTROLLER COMPLETE / NEXT EXCHANGE SLICE UNDER REVIEW / V1-03 DATA EXPORT IN_PROGRESS / EXTERNAL QA NOT_EXECUTED / P119d ITEM REVIEW DEFERRED**
 
 适用项目：`aaaycc931-droid/my-first-app`
 
@@ -42,9 +42,12 @@ Web assets，再运行 `validate:android-local`，补齐 clean worktree 中的�
 PR #511 把 `/recognize` 页面既有三个 fetch／FormData 路径抽到可注入的浏览器
 recognition API client port／adapter，保持 endpoint、字段、开发开关、默认值、错误文案、
 网络异常传播和用户行为不变；PR #514 又把图片预览 object URL 创建／释放抽到独立
-file preview adapter，仍不改变文件校验、UI 或用户行为；recognition controller 与其余
-文件编排继续作为后续独立边界。PR #515 只修复并注册两个过期 recognition 静态边界
-validator，防止 fetch／FormData 回流页面，不增加 runtime 能力。
+file preview adapter，仍不改变文件校验、UI 或用户行为。PR #521 随后完成 recognition
+workflow controller 与薄 React subscription hook，承接图片、MusicXML 和开发态 Audiveris
+的文件选择及异步编排，并加入源替换 stale-result guard、迟到回调屏蔽和 dispose 后 preview
+URL 单次撤销；真实 OMR 和外部浏览器／WebView／真机验收仍未执行。PR #515 只修复并注册
+两个过期 recognition 静态边界 validator，防止 fetch／FormData 回流页面，不增加 runtime
+能力。
 PR #513 已加入登录用户版本化 JSON 账户数据导出：显式白名单覆盖 12 个 owner／RLS
 数据面，任一查询或下载失败都不产生部分文件；原始私有资产、账户删除、Auth／数据库／
 Storage 级联、24 小时 SLA 与生产端到端证据仍未完成，因此 V1-03 只进入 `IN_PROGRESS`。

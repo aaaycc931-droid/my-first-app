@@ -193,8 +193,10 @@
   默认值、错误文案和原始网络异常传播保持不变。该切片不改变 UI、schema、storage、
   provider 默认值、API route 或 MusicXML 语义；PR #514 又只把 image preview object URL
   创建／释放抽到可注入 file preview adapter，保持文件校验、预览时机和用户行为不变；
-  recognition controller、其他文件编排、
-  真实 OMR、浏览器、Android 真机、可访问性、教师和目标用户 QA 仍未完成或为
+  PR #521 已完成 recognition workflow controller 与薄 React subscription hook，承接
+  图片、MusicXML 和开发态 Audiveris 的文件选择及异步编排，并覆盖源替换 stale-result
+  guard、迟到回调屏蔽和 dispose 后 preview URL 单次撤销。真实 OMR、浏览器、Android 真机、
+  可访问性、教师和目标用户 QA 仍未完成或为
   `NOT_EXECUTED`。
 - 登录用户账户数据导出已通过 PR #513 合并；版本化 JSON 以显式字段白名单覆盖账户
   摘要和 12 个 owner／RLS 数据面，11 个直接 owner 表显式按当前用户过滤，evaluation
