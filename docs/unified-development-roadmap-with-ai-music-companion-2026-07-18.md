@@ -4,7 +4,7 @@
 
 状态：**Canonical integrated roadmap / 统一长期开发主路线**
 
-当前执行状态：**S3 STRICT MAJOR-THIRTEENTH INTEGRATED / NEXT EXCHANGE SLICE UNDER REVIEW / V1-03 DATA EXPORT IN_PROGRESS / EXTERNAL QA NOT_EXECUTED / P119d ITEM REVIEW DEFERRED**
+当前执行状态：**S3 STRICT MINOR-THIRTEENTH INTEGRATED / NEXT EXCHANGE SLICE UNDER REVIEW / V1-03 DATA EXPORT IN_PROGRESS / EXTERNAL QA NOT_EXECUTED / P119d ITEM REVIEW DEFERRED**
 
 适用项目：`aaaycc931-droid/my-first-app`
 
@@ -31,7 +31,8 @@ PR #500 已以独立严格边界加入 `Cmaj11` ↔ `<kind>major-11th</kind>`，
 PR #506 已以独立严格边界加入 `C13` ↔ `<kind>dominant-13th</kind>`，把受控和弦类别
 从 21 种扩至 22 种、组合从 441 扩至 462；小十三、大十三、add11、`degree` 及其他
 未表达语义继续失败关闭，不并入属十三和弦边界。PR #510 又以独立严格边界加入
-`Cmaj13` ↔ `<kind>major-13th</kind>`，把矩阵扩至 23 种、483 个组合；小十三、add13、
+`Cmaj13` ↔ `<kind>major-13th</kind>`，把矩阵扩至 23 种、483 个组合。PR #518 又以独立
+严格边界加入 `Cm13` ↔ `<kind>minor-13th</kind>`，把矩阵扩至 24 种、504 个组合；add13、
 add11、`degree`、别名、转位和 altered 语义继续失败关闭。下一交换语义切片尚未选定，状态保持
 `NEXT EXCHANGE SLICE UNDER REVIEW`。PR #507 又把课程库永不 settle 的请求限制为最多
 等待 10 秒，随后退出 loading 并显示既有错误；它不改变课程 schema、内容或正常加载行为。
@@ -47,7 +48,8 @@ validator，防止 fetch／FormData 回流页面，不增加 runtime 能力。
 PR #513 已加入登录用户版本化 JSON 账户数据导出：显式白名单覆盖 12 个 owner／RLS
 数据面，任一查询或下载失败都不产生部分文件；原始私有资产、账户删除、Auth／数据库／
 Storage 级联、24 小时 SLA 与生产端到端证据仍未完成，因此 V1-03 只进入 `IN_PROGRESS`。
-PR #516 已为 8 个 Android 初始视图加入 axe DOM 语义自动预筛；颜色对比、键盘／焦点、
+PR #516 先为 8 个 Android 初始视图加入 axe DOM 语义自动预筛；PR #519 已扩展至
+canonical registry 的 18 个初始视图并加入覆盖漂移守卫。颜色对比、键盘／焦点、
 真实屏幕阅读器、缩放／reflow、真实浏览器／WebView／Android 设备及用户 QA 仍为
 `NOT_EXECUTED`，不得由自动预筛替代。
 PR #483 已完成 suspended-fourth，PR #482 已完成
@@ -84,7 +86,7 @@ fail-closed。仓库默认分支实时状态仍以 GitHub 为准：
 - P119a 已通过 PR #415 合并为 `28a448faf1f387a1c7f394f5baac6a2a7dbc4eac`；它只建立 Q3 内容盘点和双教师审核证据协议。自动盘点暴露两个基础档各 8 个变体的数量缺口，外部教师审核仍为 `NOT_EXECUTED`。
 - P119b 已通过 PR #417 合并为 `bd5c5af211a3a1b36f4fcfacebdfe89b65fbafc1`；两个基础档各达到 20，当前 30 个自动盘点组满足 V1 数量前置。
 - P119c 已通过 PR #419 合并为 `de9ab7f9a6d050a951e70835fbe97cecc693b9f4`；catalog v10 可复核清单已绑定 P119b source commit、18 个真源文件、1,855 个题目 item、3 个课节和 canonical SHA-256。P119d 已记录产品所有者对仓库外双教师预批准的无身份摘要：30 层各 5 项、3 个课程项，共 153 项；获批批次继续冻结，逐题六维双教师审核与 finding 闭环延期到正式推广测试启动时，专业 40 与教育有效性仍未完成。
-- S1/S2 canonical tie／fermata／slur／单附点／单段歌词／单指法／单音演奏法／单事件力度记号／单事件制音踏板记号／受控和弦标记与 S3 受控单 part／staff／voice MusicXML/MXL 导入、导出及仓库内部 round-trip 已形成连续主线；当前严格子集已纳入首小节 attributes 后唯一 `<sound tempo="N"/>` 表达的全局整数 `30–240 BPM`、scoreCredits title/subtitle/按数组顺序 creators/rightsNotice、未指定或 canonical `0–127` GM1 program 乐器归属（固定 `score-instrument` 与 MusicXML 一基 `midi-program 1–128`）、note/rest 单附点、fermata、`pp`／`p`／`mp`／`mf`／`f`／`ff` 唯一 `<dynamics>`、`down/up` 到紧邻 pedal `start/stop` direction 的映射、credits 到 root-level 严格 `work → movement-title → identification`（导出写出非空字段，导入仅在完全缺省 work-title 时保留既有 fallback），以及自然／单升降根音二十三类、483 个严格 `<harmony>` 组合（含 major-sixth／minor-sixth／suspended-second／suspended-fourth／power／dominant-ninth／major-ninth／minor-ninth／dominant-11th／major-11th／minor-11th／dominant-13th／major-13th／augmented／diminished／augmented-seventh／diminished-seventh／half-diminished）、pitched note 的规范化唯一 lyric、fingering 和 articulations、相邻时间连续 note 的 slur，以及相邻同音高时间连续 note 的 tie start／stop、跨小节、链式关系和 notations 共存。part identity 载体与每个事件的外层 `<note>` 均进一步要求 exact、无 namespace；ID 与名称不做静默 trim，note 不允许属性，非法节点在 event ID 分配前 blocking。2026-08-01 云 Chrome 只完成了课程 loading fail-closed、首页模式切换／刷新保持和三个路由渲染的部分自动化 smoke；它不包含音频／麦克风、完整跨浏览器或辅助技术矩阵，EXT-B 仍为 `NOT_EXECUTED`。浏览器真实导入／下载／重开、Android WebView／真机、MuseScore 等第三方独立阅读器、速度／GM1 音色／credits／和弦／踏板／力度／演奏法／指法显示与真实播放、MIDI channel／bank／program change 与 MIDI 文件、tempo map／中途变速、双升降／Unicode 升降号／转位／其他和弦类别、左右手／替代指法、歌词排版／多 verse／melisma、真实音频与歌唱对齐、教师审核、OMR、完整 MusicXML、完整 S3 与正式版 V1 仍为 `NOT_EXECUTED` 或未完成。
+- S1/S2 canonical tie／fermata／slur／单附点／单段歌词／单指法／单音演奏法／单事件力度记号／单事件制音踏板记号／受控和弦标记与 S3 受控单 part／staff／voice MusicXML/MXL 导入、导出及仓库内部 round-trip 已形成连续主线；当前严格子集已纳入首小节 attributes 后唯一 `<sound tempo="N"/>` 表达的全局整数 `30–240 BPM`、scoreCredits title/subtitle/按数组顺序 creators/rightsNotice、未指定或 canonical `0–127` GM1 program 乐器归属（固定 `score-instrument` 与 MusicXML 一基 `midi-program 1–128`）、note/rest 单附点、fermata、`pp`／`p`／`mp`／`mf`／`f`／`ff` 唯一 `<dynamics>`、`down/up` 到紧邻 pedal `start/stop` direction 的映射、credits 到 root-level 严格 `work → movement-title → identification`（导出写出非空字段，导入仅在完全缺省 work-title 时保留既有 fallback），以及自然／单升降根音二十四类、504 个严格 `<harmony>` 组合（含 major-sixth／minor-sixth／suspended-second／suspended-fourth／power／dominant-ninth／major-ninth／minor-ninth／dominant-11th／major-11th／minor-11th／dominant-13th／major-13th／minor-13th／augmented／diminished／augmented-seventh／diminished-seventh／half-diminished）、pitched note 的规范化唯一 lyric、fingering 和 articulations、相邻时间连续 note 的 slur，以及相邻同音高时间连续 note 的 tie start／stop、跨小节、链式关系和 notations 共存。part identity 载体与每个事件的外层 `<note>` 均进一步要求 exact、无 namespace；ID 与名称不做静默 trim，note 不允许属性，非法节点在 event ID 分配前 blocking。2026-08-01 云 Chrome 只完成了课程 loading fail-closed、首页模式切换／刷新保持和三个路由渲染的部分自动化 smoke；它不包含音频／麦克风、完整跨浏览器或辅助技术矩阵，EXT-B 仍为 `NOT_EXECUTED`。浏览器真实导入／下载／重开、Android WebView／真机、MuseScore 等第三方独立阅读器、速度／GM1 音色／credits／和弦／踏板／力度／演奏法／指法显示与真实播放、MIDI channel／bank／program change 与 MIDI 文件、tempo map／中途变速、双升降／Unicode 升降号／转位／其他和弦类别、左右手／替代指法、歌词排版／多 verse／melisma、真实音频与歌唱对齐、教师审核、OMR、完整 MusicXML、完整 S3 与正式版 V1 仍为 `NOT_EXECUTED` 或未完成。
 
 本次产品决策是：
 
