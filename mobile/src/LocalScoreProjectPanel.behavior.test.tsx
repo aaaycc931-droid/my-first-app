@@ -404,6 +404,24 @@ const selectMusicXmlImportFile = async ({
   );
 };
 
+const dispatchMusicXmlImportFile = ({
+  container,
+  file,
+}: {
+  container: ParentNode;
+  file: File;
+}) => {
+  const input = container.querySelector<HTMLInputElement>(
+    'input[aria-label="选择要导入的 MusicXML 或 MXL"]',
+  );
+  if (!input) throw new Error("找不到本机谱项目 MusicXML 导入输入");
+  Object.defineProperty(input, "files", {
+    configurable: true,
+    value: [file],
+  });
+  input.dispatchEvent(new Event("change", { bubbles: true }));
+};
+
 const createSupportedMusicXmlExportProject = ({
   projectId = "supported-musicxml-export-project",
   title = "受支持导出",
@@ -696,6 +714,59 @@ describe("S1 本机谱项目面板", () => {
       ]);
     expect(container.textContent).toContain("受支持导入");
     expect(container.textContent).toContain("第 1 小节 · C4 · 四分音符");
+  });
+
+  it("快速替换或清除导入文件时忽略过期的异步读取结果", async () => {
+    const store = new MemoryProjectStore();
+    const container = await renderPanel(store);
+    const oldReadState: {
+      release: ((xml: string) => void) | null;
+    } = { release: null };
+    const oldRead = new Promise<string>((resolve) => {
+      oldReadState.release = resolve;
+    });
+    const oldFile = new File(["old"], "旧文件.musicxml", {
+      type: "application/xml",
+    });
+    Object.defineProperty(oldFile, "text", {
+      configurable: true,
+      value: () => oldRead,
+    });
+
+    dispatchMusicXmlImportFile({ container, file: oldFile });
+    await flushReact();
+    expect(container.textContent).toContain("正在本机解析并检查受支持语义");
+
+    const replacementFile = new File(
+      [supportedMusicXml()],
+      "新文件.musicxml",
+      { type: "application/xml" },
+    );
+    Object.defineProperty(replacementFile, "text", {
+      configurable: true,
+      value: async () => supportedMusicXml(),
+    });
+    dispatchMusicXmlImportFile({ container, file: replacementFile });
+    await waitFor(
+      () => container.querySelector(
+        "[data-testid='local-score-project-musicxml-import-draft']",
+      ) !== null,
+      "替换文件生成新候选",
+    );
+    expect(container.textContent).toContain("新文件.musicxml");
+
+    oldReadState.release?.(supportedMusicXml({ pitchStep: "D" }));
+    await flushReact();
+    expect(container.textContent).toContain("新文件.musicxml");
+    expect(container.textContent).not.toContain("旧文件.musicxml");
+
+    await click(findButton(container, "清除导入候选"));
+    expect(container.querySelector(
+      "[data-testid='local-score-project-musicxml-import-draft']",
+    )).toBeNull();
+    expect(container.textContent).toContain(
+      "MusicXML 导入候选已清除；没有写入或修改任何本机项目。",
+    );
   });
 
   it("严格 tie 双标记导入后仅在明确确认时原子保存 canonical tie", async () => {
