@@ -184,7 +184,6 @@ export const createRecognitionWorkflowController = (
     if (disposed) return { accepted: false };
 
     musicXMLGeneration += 1;
-    sharedGeneration += 1;
     update({
       musicXMLFile: null,
       musicXMLImportError: "",
@@ -225,6 +224,7 @@ export const createRecognitionWorkflowController = (
       return { accepted: false };
     }
 
+    sharedGeneration += 1;
     invalidateSharedResult();
     update({
       musicXMLFile: file,

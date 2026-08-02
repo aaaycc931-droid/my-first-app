@@ -246,8 +246,8 @@ const assertAudiverisDevUIBoundary = (
   if (!audiverisHandler) {
     fail(`${controllerFilePath} must keep the Audiveris dev handler explicit.`);
   } else if (
-    audiverisHandler.includes("setRecognizedNotes") ||
-    audiverisHandler.includes("setRecognizeStatus")
+    /\brecognizedNotes\s*:/.test(audiverisHandler) ||
+    /\brecognizeStatus\s*:/.test(audiverisHandler)
   ) {
     fail(
       `${controllerFilePath} must not write Audiveris dev results into the main recognition state.`,

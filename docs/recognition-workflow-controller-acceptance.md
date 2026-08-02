@@ -29,8 +29,10 @@ provider.
 
 `test:recognition-workflow-controller` covers initial no-IO state, preview URL
 replacement/disposal, busy guards, image success/failure, MusicXML extension,
-empty-file and 2 MB boundaries, cross-flow stale responses, Audiveris summary
-isolation, full-notes flag forwarding, and disposal after deferred completion.
+empty-file and 2 MB boundaries, rejected MusicXML selection during a pending
+image request, cross-flow stale responses, Audiveris summary isolation,
+full-notes flag forwarding, React StrictMode lifecycle replay, and disposal
+after deferred completion.
 The existing recognition fail-closed and static boundary validators remain
 required.
 
