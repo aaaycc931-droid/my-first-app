@@ -6,6 +6,10 @@ const apiClientUrl = new URL(
   "../lib/recognition/browserRecognitionApiClient.ts",
   import.meta.url,
 );
+const workflowControllerUrl = new URL(
+  "../lib/recognition/recognitionWorkflowController.ts",
+  import.meta.url,
+);
 const routeUrl = new URL("../app/api/dev/recognize-musicxml/route.ts", import.meta.url);
 const recognizeRouteUrl = new URL("../app/api/recognize/route.ts", import.meta.url);
 const uiDocsUrl = new URL("../docs/musicxml-import-ui.md", import.meta.url);
@@ -14,6 +18,10 @@ const qaDocsUrl = new URL("../docs/musicxml-import-ui-qa.md", import.meta.url);
 try {
   const pageSource = await readFile(pageUrl, "utf8");
   const apiClientSource = await readFile(apiClientUrl, "utf8");
+  const workflowControllerSource = await readFile(
+    workflowControllerUrl,
+    "utf8",
+  );
   const routeSource = await readFile(routeUrl, "utf8");
   const recognizeRouteSource = await readFile(recognizeRouteUrl, "utf8");
 
@@ -24,7 +32,8 @@ try {
   assert.match(routeSource, /extractMusicXMLFromMxl/, ".mxl extraction must stay in the dev-only MusicXML API route.");
   assert.doesNotMatch(recognizeRouteSource, /extractMusicXMLFromMxl|\.mxl|fflate/, "Main image recognition API must not include .mxl extraction.");
   assert.match(routeSource, /file\.size === 0/, "MusicXML dev API must reject empty files.");
-  assert.match(pageSource, /recognitionApiClient\.importMusicXML\(musicXMLFile\)/, "MusicXML import UI must call the injected recognition API client.");
+  assert.match(pageSource, /controller\.importMusicXML\(\)/, "MusicXML import UI must call the injected workflow controller.");
+  assert.match(workflowControllerSource, /apiClient\.importMusicXML\(file\)/, "Recognition workflow controller must call the injected API client.");
   assert.doesNotMatch(pageSource, /\bfetch\s*\(/, "MusicXML import UI must not move fetch back into the page.");
   assert.doesNotMatch(pageSource, /\bFormData\s*\(/, "MusicXML import UI must not move FormData construction back into the page.");
   assert.doesNotMatch(pageSource, /\/api\/dev\/recognize-musicxml/, "MusicXML import UI must not own the dev endpoint literal.");
@@ -44,7 +53,7 @@ try {
   assert.match(pageSource, /支持 \.musicxml、\.xml、\.mxl；\.mxl 只会在 dev API 中解压验证/, "MusicXML import UI must describe dev-only .mxl support.");
   assert.doesNotMatch(pageSource, /改名为 \.zip|手动解压|人工解压/, "MusicXML import UI must not tell users to manually unzip .mxl files.");
   assert.doesNotMatch(pageSource, /extractMusicXMLFromMxl|fflate|unzipSync/, "Browser UI must not contain .mxl decompression logic.");
-  assert.match(pageSource, /setRecognizedNotes\(importedNotes\)/, "Successful MusicXML imports must continue to reuse the recognized notes state.");
+  assert.match(workflowControllerSource, /recognizedNotes: importedNotes/, "Successful MusicXML imports must continue to reuse the recognized notes state.");
   assert.match(pageSource, /正在解析 MusicXML\.\.\./, "MusicXML import UI must show an importing status.");
   assert.match(pageSource, /导入成功，已解析 \{importedMusicXMLNoteCount\} 个音符/, "MusicXML import UI must show the imported note count.");
   assert.match(pageSource, /disabled=\{!musicXMLFile \|\| isImportingMusicXML\}/, "MusicXML import button must remain disabled without a valid file or while importing.");

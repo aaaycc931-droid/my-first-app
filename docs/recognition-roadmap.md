@@ -44,7 +44,8 @@
 
 6. **输出标准识别结果数据**
    - 将识别结果统一为当前前端需要的数据结构。
-   - 每个音符至少包含 pitch、duration、confidence、measure、beat。
+   - 每个音符必须保持当前 `RecognizedNote` 结构：包含 pitch、legacy playback note、
+     duration（`eighth`／`quarter`／`half`／`whole`）、confidence、measure、beat。
    - 保持接口输出稳定，方便前端展示和播放复用。
 
 ## 推荐技术路线
@@ -86,7 +87,8 @@ MVP 阶段优先接入成熟 OMR 工具，而不是直接自研完整识别算�
   "notes": [
     {
       "pitch": "C4",
-      "duration": 1,
+      "note": "C4",
+      "duration": "quarter",
       "confidence": 0.92,
       "measure": 1,
       "beat": 1

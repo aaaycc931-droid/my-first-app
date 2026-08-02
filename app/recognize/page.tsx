@@ -1,9 +1,17 @@
 "use client";
 
 import Link from "next/link";
-import { ChangeEvent, useEffect, useRef, useState } from "react";
+import {
+  ChangeEvent,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 
-import type { RecognizedNote, RecognizeResponse } from "../../lib/recognition";
+import { useRecognitionWorkflowController } from "../../components/recognition/useRecognitionWorkflowController";
+import type { RecognizedNote } from "../../lib/recognition";
 import {
   createBrowserAudioChannel,
   type BrowserAudioChannel,
@@ -11,13 +19,8 @@ import {
 import { noteNameToFrequencyHz } from "../../lib/audio/noteFrequency";
 import {
   createBrowserRecognitionApiClient,
-  type AudiverisDevSummary,
 } from "../../lib/recognition/browserRecognitionApiClient";
 import { browserRecognitionFilePreviewPort } from "../../lib/recognition/browserRecognitionFilePreview";
-
-type RecognizeStatus = "未上传" | "已上传" | "识别中" | "识别完成" | "识别失败";
-type MusicXMLImportStatus = "idle" | "importing" | "success" | "error";
-type AudiverisDevStatus = "idle" | "processing" | "success" | "error";
 
 const durationToBeats: Record<RecognizedNote["duration"], number> = {
   eighth: 0.5,
@@ -29,7 +32,6 @@ const durationToBeats: Record<RecognizedNote["duration"], number> = {
 const minBpm = 40;
 const maxBpm = 240;
 const defaultBpm = 120;
-const maxMusicXMLFileSizeBytes = 2 * 1024 * 1024;
 const isMusicXMLImportEnabled =
   process.env.NEXT_PUBLIC_MUSICXML_IMPORT_ENABLED === "true";
 const isAudiverisDevUIEnabled =
@@ -51,36 +53,16 @@ const durationLabel: Record<RecognizedNote["duration"], string> = {
 };
 
 export default function Home() {
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [fileName, setFileName] = useState("");
-  const [recognizedNotes, setRecognizedNotes] = useState<RecognizedNote[]>([]);
-  const [recognizeStatus, setRecognizeStatus] =
-    useState<RecognizeStatus>("未上传");
-  const [isRecognizing, setIsRecognizing] = useState(false);
-  const [recognizeError, setRecognizeError] = useState("");
   const [playError, setPlayError] = useState("");
   const [isPlaying, setIsPlaying] = useState(false);
   const [playingNoteIndex, setPlayingNoteIndex] = useState<number | null>(null);
   const [bpm, setBpm] = useState(defaultBpm);
-  const [musicXMLFile, setMusicXMLFile] = useState<File | null>(null);
-  const [musicXMLImportError, setMusicXMLImportError] = useState("");
-  const [isImportingMusicXML, setIsImportingMusicXML] = useState(false);
-  const [musicXMLImportStatus, setMusicXMLImportStatus] =
-    useState<MusicXMLImportStatus>("idle");
-  const [importedMusicXMLNoteCount, setImportedMusicXMLNoteCount] = useState(0);
-  const [audiverisDevFile, setAudiverisDevFile] = useState<File | null>(null);
-  const [audiverisDevStatus, setAudiverisDevStatus] =
-    useState<AudiverisDevStatus>("idle");
-  const [audiverisDevError, setAudiverisDevError] = useState("");
-  const [audiverisDevSummary, setAudiverisDevSummary] =
-    useState<AudiverisDevSummary | null>(null);
   const playbackChannelRef = useRef<BrowserAudioChannel | null>(null);
-  if (!playbackChannelRef.current) playbackChannelRef.current = createBrowserAudioChannel();
+  if (!playbackChannelRef.current)
+    playbackChannelRef.current = createBrowserAudioChannel();
   const playbackTimeoutIdsRef = useRef<number[]>([]);
-  const imagePreviewUrlRef = useRef<string | null>(null);
 
-  const stopPlaybackPreview = () => {
+  const stopPlaybackPreview = useCallback(() => {
     playbackTimeoutIdsRef.current.forEach((timeoutId) => {
       window.clearTimeout(timeoutId);
     });
@@ -90,7 +72,7 @@ export default function Home() {
 
     setIsPlaying(false);
     setPlayingNoteIndex(null);
-  };
+  }, []);
 
   useEffect(
     () => () => {
@@ -99,37 +81,44 @@ export default function Home() {
       });
       playbackTimeoutIdsRef.current = [];
       playbackChannelRef.current?.stop();
-      if (imagePreviewUrlRef.current) {
-        browserRecognitionFilePreviewPort.revokePreviewUrl(
-          imagePreviewUrlRef.current,
-        );
-      }
     },
     [],
   );
 
+  const workflowEffects = useMemo(
+    () => ({
+      invalidateSharedResult: stopPlaybackPreview,
+      clearPlayError: () => setPlayError(""),
+    }),
+    [stopPlaybackPreview],
+  );
+  const { controller, state: workflowState } =
+    useRecognitionWorkflowController(
+      recognitionApiClient,
+      browserRecognitionFilePreviewPort,
+      workflowEffects,
+    );
+  const {
+    previewUrl,
+    fileName,
+    recognizedNotes,
+    recognizeStatus,
+    isRecognizing,
+    recognizeError,
+    musicXMLFile,
+    musicXMLImportError,
+    isImportingMusicXML,
+    musicXMLImportStatus,
+    importedMusicXMLNoteCount,
+    audiverisDevFile,
+    audiverisDevStatus,
+    audiverisDevError,
+    audiverisDevSummary,
+  } = workflowState;
+
   const handleImageUpload = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-
-    if (!file) {
-      return;
-    }
-
-    if (imagePreviewUrlRef.current) {
-      browserRecognitionFilePreviewPort.revokePreviewUrl(
-        imagePreviewUrlRef.current,
-      );
-    }
-    const objectUrl = browserRecognitionFilePreviewPort.createPreviewUrl(file);
-    imagePreviewUrlRef.current = objectUrl;
-    setPreviewUrl(objectUrl);
-    setSelectedFile(file);
-    setFileName(file.name);
-    setRecognizedNotes([]);
-    setRecognizeStatus("已上传");
-    setRecognizeError("");
-    setPlayError("");
-    stopPlaybackPreview();
+    controller.selectImage(file ?? null);
   };
 
   const handleBpmChange = (event: ChangeEvent<HTMLInputElement>) => {
@@ -144,160 +133,24 @@ export default function Home() {
 
   const handleMusicXMLSelection = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-
-    setMusicXMLFile(null);
-    setMusicXMLImportError("");
-    setMusicXMLImportStatus("idle");
-    setImportedMusicXMLNoteCount(0);
-
-    if (!file) {
-      return;
-    }
-
-    const extension = file.name.toLowerCase().split(".").pop();
-
-    if (
-      extension !== "musicxml" &&
-      extension !== "xml" &&
-      extension !== "mxl"
-    ) {
-      setMusicXMLImportError("请选择 .musicxml、.xml 或 .mxl 文件。");
-      setMusicXMLImportStatus("error");
-      event.target.value = "";
-      return;
-    }
-
-    if (file.size === 0) {
-      setMusicXMLImportError("MusicXML 文件为空，请选择包含乐谱内容的文件。");
-      setMusicXMLImportStatus("error");
-      event.target.value = "";
-      return;
-    }
-
-    if (file.size > maxMusicXMLFileSizeBytes) {
-      setMusicXMLImportError("MusicXML 文件过大，当前最大支持 2 MB。");
-      setMusicXMLImportStatus("error");
-      event.target.value = "";
-      return;
-    }
-
-    setMusicXMLFile(file);
+    const selection = controller.selectMusicXML(file ?? null);
+    if (file && !selection.accepted) event.target.value = "";
   };
 
-  const handleMusicXMLImport = async () => {
-    if (!musicXMLFile || isImportingMusicXML) {
-      return;
-    }
-
-    setIsImportingMusicXML(true);
-    setMusicXMLImportStatus("importing");
-    setMusicXMLImportError("");
-    setRecognizeError("");
-    setPlayError("");
-
-    try {
-      const data = await recognitionApiClient.importMusicXML(musicXMLFile);
-
-      const importedNotes = data.notes || [];
-
-      setRecognizedNotes(importedNotes);
-      setImportedMusicXMLNoteCount(importedNotes.length);
-      setMusicXMLImportStatus("success");
-      setRecognizeStatus("识别完成");
-      stopPlaybackPreview();
-    } catch (error) {
-      setMusicXMLImportStatus("error");
-      setMusicXMLImportError(
-        error instanceof Error
-          ? error.message
-          : "MusicXML 导入失败，请检查文件和开发 API 开关后重试。",
-      );
-    } finally {
-      setIsImportingMusicXML(false);
-    }
-  };
+  const handleMusicXMLImport = () => void controller.importMusicXML();
 
   const handleAudiverisDevSelection = (
     event: ChangeEvent<HTMLInputElement>,
   ) => {
     const file = event.target.files?.[0];
-
-    setAudiverisDevFile(null);
-    setAudiverisDevStatus("idle");
-    setAudiverisDevError("");
-    setAudiverisDevSummary(null);
-
-    if (!file) {
-      return;
-    }
-
-    if (
-      file.type !== "application/pdf" &&
-      !file.name.toLowerCase().endsWith(".pdf")
-    ) {
-      setAudiverisDevStatus("error");
-      setAudiverisDevError(
-        "仅开发使用的 Local Audiveris 面板只接受 PDF 文件。",
-      );
-      event.target.value = "";
-      return;
-    }
-
-    setAudiverisDevFile(file);
+    const selection = controller.selectAudiverisPdf(file ?? null);
+    if (file && !selection.accepted) event.target.value = "";
   };
 
-  const handleAudiverisDevRecognize = async () => {
-    if (!audiverisDevFile || audiverisDevStatus === "processing") {
-      return;
-    }
+  const handleAudiverisDevRecognize = () =>
+    void controller.recognizeAudiverisPdf(isAudiverisDevFullNotesEnabled);
 
-    setAudiverisDevStatus("processing");
-    setAudiverisDevError("");
-    setAudiverisDevSummary(null);
-
-    try {
-      const summary = await recognitionApiClient.recognizeAudiverisPdf(
-        audiverisDevFile,
-        { includeFullNotes: isAudiverisDevFullNotesEnabled },
-      );
-
-      setAudiverisDevSummary(summary);
-      setAudiverisDevStatus("success");
-    } catch (error) {
-      setAudiverisDevStatus("error");
-      setAudiverisDevError(
-        error instanceof Error
-          ? error.message
-          : "仅开发使用的 Local Audiveris PDF 测试失败。",
-      );
-    }
-  };
-
-  const handleRecognize = async () => {
-    if (!selectedFile || isRecognizing) {
-      return;
-    }
-
-    setIsRecognizing(true);
-    setRecognizeStatus("识别中");
-    setRecognizeError("");
-    setPlayError("");
-
-    try {
-      const data = await recognitionApiClient.recognizeImage(selectedFile);
-
-      setRecognizedNotes(data.notes || []);
-      setRecognizeStatus("识别完成");
-    } catch (error) {
-      setRecognizeStatus("识别失败");
-      setRecognizeError(
-        error instanceof Error ? error.message : "识别失败，请稍后再试。",
-      );
-      setRecognizedNotes([]);
-    } finally {
-      setIsRecognizing(false);
-    }
-  };
+  const handleRecognize = () => void controller.recognizeImage();
 
   const playNotesPreview = async (
     notes: RecognizedNote[],

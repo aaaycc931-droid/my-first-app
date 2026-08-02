@@ -5,6 +5,8 @@ const routePath = "app/api/dev/recognize-audiveris/route.ts";
 const mainApiPath = "app/api/recognize/route.ts";
 const pagePath = "app/recognize/page.tsx";
 const apiClientPath = "lib/recognition/browserRecognitionApiClient.ts";
+const workflowControllerPath =
+  "lib/recognition/recognitionWorkflowController.ts";
 const recognizerFactoryPath = "lib/recognition/recognizerFactory.ts";
 
 const checks = [];
@@ -67,6 +69,8 @@ const assertAudiverisDevUIBoundary = (
   source,
   clientFilePath,
   clientSource,
+  controllerFilePath,
+  controllerSource,
 ) => {
   assertContains(
     filePath,
@@ -75,10 +79,10 @@ const assertAudiverisDevUIBoundary = (
     "includes the NEXT_PUBLIC_AUDIVERIS_DEV_UI_ENABLED gate",
   );
   assertContains(
-    filePath,
-    source,
-    /recognitionApiClient\.recognizeAudiverisPdf\(\s*audiverisDevFile,\s*\{\s*includeFullNotes:\s*isAudiverisDevFullNotesEnabled\s*},?\s*\)/,
-    "calls the recognition API client from the explicit dev UI handler",
+    controllerFilePath,
+    controllerSource,
+    /apiClient\.recognizeAudiverisPdf\(file,\s*\{\s*includeFullNotes,?\s*}\)/,
+    "calls the recognition API client from the explicit workflow handler",
   );
   assertNotContains(
     filePath,
@@ -170,9 +174,9 @@ const assertAudiverisDevUIBoundary = (
     "does not reference execFile",
   );
   assertContains(
-    filePath,
-    source,
-    /recognitionApiClient\.recognizeImage\(selectedFile\)/,
+    controllerFilePath,
+    controllerSource,
+    /apiClient\.recognizeImage\(file\)/,
     "keeps the main upload flow calling the recognition API client",
   );
   assertContains(
@@ -190,7 +194,7 @@ const assertAudiverisDevUIBoundary = (
   assertContains(
     filePath,
     source,
-    /includeFullNotes:\s*isAudiverisDevFullNotesEnabled/,
+    /controller\.recognizeAudiverisPdf\(isAudiverisDevFullNotesEnabled\)/,
     "passes the full notes preview flag to the recognition API client",
   );
   assertContains(
@@ -236,21 +240,21 @@ const assertAudiverisDevUIBoundary = (
     "explains full notes preview safety boundaries",
   );
 
-  const audiverisHandler = source.match(
-    /const handleAudiverisDevRecognize = async \(\) => \{[\s\S]*?\n  };\n\n  const handleRecognize/,
+  const audiverisHandler = controllerSource.match(
+    /const recognizeAudiverisPdf = async \(includeFullNotes: boolean\) => \{[\s\S]*?\n  };\n\n  const dispose/,
   )?.[0];
   if (!audiverisHandler) {
-    fail(`${filePath} must keep the Audiveris dev handler explicit.`);
+    fail(`${controllerFilePath} must keep the Audiveris dev handler explicit.`);
   } else if (
-    audiverisHandler.includes("setRecognizedNotes") ||
-    audiverisHandler.includes("setRecognizeStatus")
+    /\brecognizedNotes\s*:/.test(audiverisHandler) ||
+    /\brecognizeStatus\s*:/.test(audiverisHandler)
   ) {
     fail(
-      `${filePath} must not write Audiveris dev results into the main recognition state.`,
+      `${controllerFilePath} must not write Audiveris dev results into the main recognition state.`,
     );
   } else {
     pass(
-      `${filePath} keeps Audiveris dev results out of the main recognition state.`,
+      `${controllerFilePath} keeps Audiveris dev results out of the main recognition state.`,
     );
   }
 };
@@ -403,11 +407,14 @@ if (changedFiles.includes(mainApiPath)) {
 
 const pageSource = readSource(pagePath);
 const apiClientSource = readSource(apiClientPath);
+const workflowControllerSource = readSource(workflowControllerPath);
 assertAudiverisDevUIBoundary(
   pagePath,
   pageSource,
   apiClientPath,
   apiClientSource,
+  workflowControllerPath,
+  workflowControllerSource,
 );
 
 const mainApiSource = readSource(mainApiPath);
