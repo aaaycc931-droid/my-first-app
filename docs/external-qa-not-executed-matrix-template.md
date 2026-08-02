@@ -106,7 +106,7 @@ fixture ID、打开结果、全部 warning、标题／署名、part／乐器、�
 播放、保存／重开、第三方再次导出的文件 SHA-256 及与原 canonical 的差异。
 
 抽样必须声明覆盖和未覆盖的根音、类别与共存组合。代表性文件通过不能外推为当前
-23 类 × 21 根音的 483 个组合全部通过，更不能外推为完整 MusicXML、MIDI、OMR 或真实
+24 类 × 21 根音的 504 个组合全部通过，更不能外推为完整 MusicXML、MIDI、OMR 或真实
 和弦／踏板／连奏音频语义。
 
 ### 4.5 EXT-E1：独立教师记录
@@ -170,12 +170,12 @@ EXT-B 总体仍为 `NOT_EXECUTED`**。
 
 ### 5.2 2026-08-01 可访问性 DOM 自动预筛
 
-PR #516 在 Quality 中对 8 个 Android 初始视图运行 axe WCAG tag DOM 语义预筛；8/8
+PR #519 在 Quality 中对 canonical registry 的 18 个 Android 初始视图运行 axe WCAG tag DOM 语义预筛；18/18
 focused tests 通过。该记录只属于 **`PARTIAL automated risk reduction`**：模拟 DOM 不能
 可靠产生布局和 computed color 证据，因此 color-contrast rule 被明确禁用；它也没有运行
 真实键盘／焦点路径、屏幕阅读器、缩放／reflow、浏览器、WebView 或 Android 设备。
 
-EXT-A 与可访问性外部 QA 继续保持 `NOT_EXECUTED`，不得把 axe 零 finding 写成 WCAG
+PR #519 的 CI 证据没有形成具备独立 recordId、完整执行环境和原始证据字段的 EXT-A 正式记录，因此不改变 EXT-A 状态。EXT-A 与可访问性外部 QA 继续保持 `NOT_EXECUTED`，不得把 axe 零 finding 写成 WCAG
 通过、人工审计通过或目标用户可用性通过。若后续执行真实辅助技术／设备验证，仍必须按
 本模板另建包含候选 commit、工具／设备版本、步骤、原始证据与 finding 闭环的记录。
 
