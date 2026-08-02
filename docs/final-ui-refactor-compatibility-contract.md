@@ -99,7 +99,7 @@ require 依赖，并阻止其反向引用 `app/`、`components/` 或 `mobile/src
 | `app/practice/page.tsx` | 页面、活动会话、计时器、录音、音频分析和反馈编排 | 提取 practice controller、录音／计时 adapter 和语义化页面状态 |
 | `mobile/src/LocalScoreProjectPanel.tsx` | 编辑 UI、项目存储、MusicXML/MXL 候选、确认和下载 | 提取 score-project controller、exchange use-case 与 file adapter |
 | `mobile/src/App.tsx` | 导航、生命周期和学习流程编排；课程进度、学习画像与复练队列已分别注入 repository | 提取 app shell、navigation state 与 learning controller |
-| `app/recognize/page.tsx` | 文件校验、识别结果和播放预览；API 请求已由可注入 client port／adapter 承接 | 继续提取 recognition controller 与 file adapter；不得把 fetch／FormData 放回页面 |
+| `app/recognize/page.tsx` | 文件校验、识别结果和播放预览；API 请求已由可注入 client port／adapter 承接 | 继续提取 recognition controller 与剩余文件选择／导入编排；preview URL adapter 已抽离；不得把 fetch／FormData 放回页面 |
 | 本机课程／学习概览组件 | 课程进度、学习画像与复练队列 repository 已分别通过 PR #499／#503／#505 由 composition root 注入 | 继续由上层注入 repository、snapshot 和 commands，不把 localStorage 访问放回组件 |
 | 共享实时音高组件 | 本机练声记录 storage 已由平台无关 port 注入；组件仍编排录音、回放、下载与活动状态 | 继续提取音频／录音 adapter 和实时练习 controller；不得把已抽离 storage 重新耦合到组件 |
 

@@ -1,17 +1,17 @@
 # MVP / Android 私测当前状态
 
-最后更新：2026-08-01
+最后更新：2026-08-02
 
 本文件是当前可验证状态总账，不再作为逐次运行日志无限追加。历史细节保留在 Git 提交记录、PR 与 Actions 中。
 
 ## 当前基线
 
-- 最新已合并产品功能基线：登录用户账户数据导出 / PR #513，合并提交 `f04ba847cf8211e4bcd39239269c69781f99401d`；S3 MusicXML/MXL 严格矩阵仍冻结为 23 类 × 21 根音 = 483
+- 最新已合并产品功能基线：严格 MusicXML/MXL 小十三和弦 round-trip / PR #518，合并提交 `71854ff7bff23ece46dc2488a05623a57426fd55`；S3 MusicXML/MXL 严格矩阵现为 24 类 × 21 根音 = 504
 - 最新已合并 UI 边界切片：浏览器 recognition 文件预览 adapter 抽离 / PR #514，合并提交 `f5a1c1ed3feb26c8d3b76650578c50e8c84f5511`
 - 最新已合并验证链修复：recognition 抽离后的静态边界 validator 对齐 / PR #515，合并提交 `a0fa4cba9b970365fbbc815e24cea4931cd2f324`
-- 最新已合并可访问性自动预筛：8 个 Android 初始视图 axe DOM 语义检查 / PR #516，合并提交 `5824ca59b7bc14a11753dd2475da3cbd0a493ad6`；人工无障碍与外部 QA 状态未改变
+- 最新已合并可访问性自动预筛：18 个 Android 初始视图 axe DOM 语义检查与 registry 漂移守卫 / PR #519，合并提交 `07f49c65e380c7bd6eef4ab5344929c23fad7952`；PR #516 的 8 个视图是历史子集；人工无障碍与外部 QA 状态未改变
 - 最新已合并可靠性切片：课程库加载最长等待 10 秒后失败关闭并显示既有错误 / PR #507，合并提交 `a43b323bb14678990cdcb4111c3969cf5fc66f76`
-- PR #505 Quality run `30695255092`、PR #506 `30695503131`、PR #507 `30695628301`、PR #508 `30696194007`、PR #510 `30698278610`、刷新到 PR #510 合并后 main 的 PR #511 `30698677668`、PR #513 `30701011509`、刷新到 PR #513 合并后 main 的 PR #514 `30701443456`、PR #515 `30701864574` 与 PR #516 `30702247755` 的 `quality`、`android-local` 均成功且 Vercel Ready。这些自动门禁和 DOM 预筛不替代 main provenance、真实浏览器完整矩阵、Android 真机、第三方 MusicXML、人工可访问性、教师或目标用户证据。
+- PR #505 Quality run `30695255092`、PR #506 `30695503131`、PR #507 `30695628301`、PR #508 `30696194007`、PR #510 `30698278610`、刷新到 PR #510 合并后 main 的 PR #511 `30698677668`、PR #513 `30701011509`、刷新到 PR #513 合并后 main 的 PR #514 `30701443456`、PR #515 `30701864574`、PR #516 `30702247755`、PR #518 `30726487575` 与 PR #519 `30733763908` 的 `quality`、`android-local` 均成功且 Vercel Ready。这些自动门禁和 DOM 预筛不替代 main provenance、真实浏览器完整矩阵、Android 真机、第三方 MusicXML、人工可访问性、教师或目标用户证据。
 - 最新已合并交换安全加固：MusicXML/MXL note 容器 fail-closed / PR #477，合并提交 `27ae5dff483afa0437b75e1bde0dd091c165bd12`
 - 最新已合并证据准备基线：P119c / PR #419，合并提交 `de9ab7f9a6d050a951e70835fbe97cecc693b9f4`
 - 最近仓库维护：PR #464 清理 323 个已完全合并的远端工作分支；其余分支因未合并或仅能映射到 squash PR 而保留，不能仅凭祖先关系删除
@@ -148,10 +148,10 @@
 - 当前严格子集已把 canonical GM1 program `0–127` 精确双向映射为
   `score-part` 中固定相邻的 `score-instrument` 与一基 `midi-program 1–128`；
   instrument-name 必须与 part name 一致，其他 MIDI／音色语义继续 blocking。全局整数
-  速度、单附点、力度、踏板、自然／单升降根音二十三类、483 个和弦组合（含
+  速度、单附点、力度、踏板、自然／单升降根音二十四类、504 个和弦组合（含
   major-sixth／minor-sixth／suspended-second／suspended-fourth／power／
   dominant-ninth／major-ninth／minor-ninth／dominant-11th／major-11th／minor-11th／augmented／diminished／augmented-seventh／
-  diminished-seventh／half-diminished／dominant-13th／major-13th）、
+  diminished-seventh／half-diminished／dominant-13th／major-13th／minor-13th）、
   lyric、fingering、
   articulations、fermata、slur 和 tie 的既有严格双向映射继续保留；附点真实时值、
   首事件顺序、同小节／跨小节／链式及共存语义均保持确定。其他未列出的语义继续
@@ -174,7 +174,7 @@
 - 属十一和弦独立边界见 `docs/s3-local-score-project-musicxml-dominant-eleventh-round-trip-acceptance.md`；该切片不改变 schema、storage version、迁移链、UI、谱面显示或播放语义。
 - 大十一和弦独立边界见 `docs/s3-local-score-project-musicxml-major-eleventh-round-trip-acceptance.md`；该切片不改变 schema、storage version、迁移链、UI、谱面显示或播放语义。
 - 小十一和弦独立边界见 `docs/s3-local-score-project-musicxml-minor-eleventh-round-trip-acceptance.md`；该切片通过 PR #502 合并。
-- 属十三和弦独立边界见 `docs/s3-local-score-project-musicxml-dominant-thirteenth-round-trip-acceptance.md`；该切片通过 PR #506 合并。大十三和弦独立边界见 `docs/s3-local-score-project-musicxml-major-thirteenth-round-trip-acceptance.md`；该切片通过 PR #510 合并，矩阵现为 23 类 × 21 个根音 = 483。下一交换语义仍为 `NEXT EXCHANGE SLICE UNDER REVIEW`；小十三、add13、add11、MusicXML degree、别名、转位、改变音及其他不同语义继续失败关闭。
+- 属十三和弦独立边界见 `docs/s3-local-score-project-musicxml-dominant-thirteenth-round-trip-acceptance.md`；该切片通过 PR #506 合并。大十三和弦独立边界见 `docs/s3-local-score-project-musicxml-major-thirteenth-round-trip-acceptance.md`；该切片通过 PR #510 合并。小十三和弦独立边界见 `docs/s3-local-score-project-musicxml-minor-thirteenth-round-trip-acceptance.md`；该切片通过 PR #518 合并，矩阵现为 24 类 × 21 个根音 = 504。下一交换语义仍为 `NEXT EXCHANGE SLICE UNDER REVIEW`；add13、add11、MusicXML degree、别名、转位、改变音及其他不同语义继续失败关闭。
 - 本机课程进度 repository 注入边界已通过 PR #499 合并；课程 key、schema、失败关闭、
   save-first／clear-first 与界面行为不变。浏览器 storage adapter 仍由 Android
   composition root 注入；真机跨重启、storage disabled、进程重建、可访问性和目标用户
@@ -204,7 +204,7 @@
   `IN_PROGRESS`。
 - PR #515 修复了 PR #511 后仍要求页面直接 fetch／FormData 的两个过期静态 validator，
   并把当前 page/client 边界注册到 Quality；它没有 runtime、UI、endpoint、schema、
-  storage 或用户行为变化。PR #516 为 8 个 Android 初始视图加入 axe DOM 语义自动预筛，
+  storage 或用户行为变化。PR #516 先为 8 个 Android 初始视图加入 axe DOM 语义自动预筛，PR #519 扩展为 canonical registry 的 18 个初始视图并加入覆盖漂移守卫，
   但模拟 DOM 无法可靠覆盖颜色对比；键盘／焦点、真实屏幕阅读器、颜色对比、缩放／
   reflow、真实浏览器／WebView／Android 设备和目标用户可访问性 QA 仍为 `NOT_EXECUTED`。
 - 课程库加载可靠性切片已通过 PR #507 合并；加载成功和 rejection 行为保持不变，
