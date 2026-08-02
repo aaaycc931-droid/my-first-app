@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
 
 import { getSupabaseBrowserClient, isSupabaseConfigured } from "../../lib/platform/supabaseBrowser";
@@ -15,6 +15,10 @@ import {
   getAuthUiError,
   getMagicLinkCooldownRemaining,
 } from "../../lib/platform/authUiPolicy";
+import {
+  AccountSessionWorkGuard,
+  type AccountSessionWorkToken,
+} from "../../lib/account/accountSessionWorkGuard";
 
 type Status = "idle" | "sending" | "sent" | "error";
 type ExportStatus = "idle" | "exporting" | "exported" | "error";
@@ -34,11 +38,13 @@ export function AccountPanel() {
   const [cooldownSeconds, setCooldownSeconds] = useState(0);
   const [exportStatus, setExportStatus] = useState<ExportStatus>("idle");
   const [exportMessage, setExportMessage] = useState("");
+  const [sessionWorkGuard] = useState(() => new AccountSessionWorkGuard());
 
-  const loadProfile = async (userId: string) => {
+  const loadProfile = useCallback(async (token: AccountSessionWorkToken) => {
     const client = getSupabaseBrowserClient();
     if (!client) return;
-    const { data, error } = await client.from("profiles").select("display_name, timezone, locale").eq("id", userId).maybeSingle();
+    const { data, error } = await client.from("profiles").select("display_name, timezone, locale").eq("id", token.userId).maybeSingle();
+    if (!sessionWorkGuard.isCurrent(token)) return;
     if (error) {
       setMessage("无法读取私人资料，请稍后重试。");
       return;
@@ -49,34 +55,44 @@ export function AccountPanel() {
       setDisplayName(nextProfile.display_name ?? "");
       setTimezone(nextProfile.timezone);
     }
-  };
+  }, [sessionWorkGuard]);
 
   useEffect(() => {
     const client = getSupabaseBrowserClient();
     if (!client) return;
 
     let active = true;
-    void client.auth.getSession().then(({ data }) => {
-      if (active) {
-        setSession(data.session);
-        if (data.session) void loadProfile(data.session.user.id);
-        setIsLoadingSession(false);
-      }
-    });
-    const { data: subscription } = client.auth.onAuthStateChange((_event, nextSession) => {
+    let authEventCount = 0;
+    const applySession = (nextSession: Session | null) => {
+      if (!active) return;
+      sessionWorkGuard.setSession(nextSession?.user.id ?? null);
       setSession(nextSession);
+      setProfile(null);
+      setDisplayName("");
+      setTimezone("Asia/Shanghai");
+      setIsSavingProfile(false);
+      setExportStatus("idle");
+      setExportMessage("");
       setIsLoadingSession(false);
       if (nextSession) {
-        void loadProfile(nextSession.user.id);
+        const token = sessionWorkGuard.capture(nextSession.user.id);
+        if (token) void loadProfile(token);
         setStatus("idle");
         setMessage("");
       }
+    };
+    void client.auth.getSession().then(({ data }) => {
+      if (active && authEventCount === 0) applySession(data.session);
+    });
+    const { data: subscription } = client.auth.onAuthStateChange((_event, nextSession) => {
+      authEventCount += 1;
+      applySession(nextSession);
     });
     return () => {
       active = false;
       subscription.subscription.unsubscribe();
     };
-  }, []);
+  }, [loadProfile, sessionWorkGuard]);
 
   useEffect(() => {
     if (magicLinkSentAtMs === null) return;
@@ -120,15 +136,22 @@ export function AccountPanel() {
   const signOut = async () => {
     const client = getSupabaseBrowserClient();
     if (!client) return;
+    sessionWorkGuard.invalidate();
+    setSession(null);
     await client.auth.signOut();
     setProfile(null);
     setDisplayName("");
+    setIsSavingProfile(false);
+    setExportStatus("idle");
+    setExportMessage("");
   };
 
   const saveProfile = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const client = getSupabaseBrowserClient();
     if (!client || !session) return;
+    const token = sessionWorkGuard.capture(session.user.id);
+    if (!token) return;
     setIsSavingProfile(true);
     setMessage("");
     const { data, error } = await client
@@ -142,6 +165,7 @@ export function AccountPanel() {
       .eq("id", session.user.id)
       .select("display_name, timezone, locale")
       .maybeSingle();
+    if (!sessionWorkGuard.isCurrent(token)) return;
     setIsSavingProfile(false);
     if (error || !data) {
       setMessage("保存私人资料失败，请稍后重试。");
@@ -154,11 +178,14 @@ export function AccountPanel() {
   const exportAccountData = async () => {
     const client = getSupabaseBrowserClient();
     if (!client || !session || exportStatus === "exporting") return;
+    const token = sessionWorkGuard.capture(session.user.id);
+    if (!token) return;
     setExportStatus("exporting");
     setExportMessage("");
     try {
       const generatedAt = new Date();
       const data = await loadSupabaseAccountDataExport(client, session.user.id);
+      if (!sessionWorkGuard.isCurrent(token)) return;
       const exportPackage = createAccountDataExportPackage({
         account: {
           id: session.user.id,
@@ -176,6 +203,7 @@ export function AccountPanel() {
       setExportStatus("exported");
       setExportMessage("账户结构化数据和私有素材清单已导出。原始素材文件不包含在此 JSON 中。");
     } catch {
+      if (!sessionWorkGuard.isCurrent(token)) return;
       setExportStatus("error");
       setExportMessage("数据导出失败，没有生成不完整文件。请稍后重试。");
     }
