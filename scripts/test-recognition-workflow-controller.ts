@@ -241,6 +241,30 @@ const testMusicXMLValidationAndCrossFlowStaleness = async () => {
   assert.equal(harness.controller.getState().musicXMLImportStatus, "error");
 };
 
+const testRejectedMusicXMLSelectionPreservesPendingImage = async () => {
+  for (const rejectedFile of [null, file("score.txt", "text/plain")]) {
+    const harness = createHarness();
+    selectImage(harness.controller);
+    const imageRun = harness.controller.recognizeImage();
+
+    assert.equal(
+      harness.controller.selectMusicXML(rejectedFile).accepted,
+      false,
+    );
+    assert.equal(
+      harness.controller.getState().isRecognizing,
+      true,
+      "a rejected MusicXML selection must not cancel or unlock a pending image request",
+    );
+
+    harness.imageRequests[0]!.result.resolve({ notes: [note("A4")] });
+    await imageRun;
+    assert.equal(harness.controller.getState().isRecognizing, false);
+    assert.equal(harness.controller.getState().recognizeStatus, "识别完成");
+    assert.equal(harness.controller.getState().recognizedNotes[0]?.note, "A4");
+  }
+};
+
 const testAudiverisIsolationAndStaleness = async () => {
   const harness = createHarness();
   assert.equal(
@@ -305,6 +329,7 @@ const run = async () => {
   await testImageLifecycleAndBusyGuard();
   await testImageFailureAndStaleReplacement();
   await testMusicXMLValidationAndCrossFlowStaleness();
+  await testRejectedMusicXMLSelectionPreservesPendingImage();
   await testAudiverisIsolationAndStaleness();
   await testDisposeRejectsLateCompletion();
   console.log("recognition workflow controller tests passed");
