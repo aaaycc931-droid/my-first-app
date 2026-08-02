@@ -7,16 +7,31 @@ QA level recommendation：**none（test/tooling-only，不改变运行时）**
 ## 1. 切片范围
 
 本切片把 `axe-core` 作为直接开发依赖，在 `happy-dom` 中挂载当前 Android 本地 React
-入口，并检查下列八个初始界面：
+入口，并检查 `App` 导出的全部十八个初始界面：
 
 - 首页；
 - 中文课程；
 - 练习统计；
+- 定制练习；
 - 本机谱项目；
 - 实时音高反馈；
 - 单音听辨；
+- 音程听辨；
+- 音程比较与模唱；
+- 和弦与转位；
+- 七和弦听辨；
+- 七和弦排列；
+- 和声进行；
+- 调制听辨；
+- 音阶与调式；
+- 节奏听辨；
 - 旋律听写；
 - 本地参考钢琴。
+
+测试直接从运行时使用的 canonical screen registry 生成参数矩阵，并用完整 label mapping
+约束 registry 漂移；新增或删除初始界面而未同步可访问性标签时，类型检查或 focused test
+会失败。对六个 `Suspense` 懒加载练习，测试会等待加载提示消失并确认练习内按钮已经挂载，
+不会只扫描 fallback DOM。
 
 命令：
 
@@ -31,8 +46,8 @@ Quality workflow。颜色对比规则明确关闭，因为 DOM 模拟器不能�
 
 ## 2. 兼容边界
 
-本切片只新增测试、开发依赖、CI 命令和本文档；不修改 UI、页面文案、schema、storage
-version、迁移、Android 权限、音频／录音行为或其他用户行为。既有 Next ESLint
+本切片只导出既有 Android 初始界面 registry 并扩展测试和本文档；不修改 UI、页面文案、
+schema、storage version、迁移、Android 权限、音频／录音行为或其他用户行为。既有 Next ESLint
 `jsx-a11y` 静态检查继续保留；本筛查补充的是挂载后 DOM 语义，不重复宣称源码 lint
 已经证明的范围。
 
@@ -55,7 +70,7 @@ EXT-E1 和 EXT-E2 均不因本切片改变；EXT-A 也只能记录为自动风�
 ## 4. 失败与扩展规则
 
 - 任一确定性 axe violation 使命令失败，并输出 rule ID 与帮助文本；
-- 新增核心 Android 初始界面时，应把它加入当前代表性界面矩阵或说明为什么不适用；
+- 新增核心 Android 初始界面时，必须加入 canonical screen registry，并补齐完整 label mapping；
 - 依赖真实布局、像素、浏览器、辅助技术或用户判断的规则不得用模拟结果补写为通过；
 - 后续真实浏览器自动扫描必须作为独立切片绑定明确 commit、URL、浏览器版本和 viewport，
   不能静默扩大本测试的结论。

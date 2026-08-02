@@ -81,8 +81,8 @@ const LocalEarTrainingChordPanel = lazy(() =>
   })),
 );
 
-const screens = ["home", "course", "statistics", "custom", "score", "monitor", "pitch", "interval", "compare", "chord", "seventh", "seventh-spacing", "progression", "modulation", "scale", "rhythm", "melody", "piano"] as const;
-type Screen = (typeof screens)[number];
+export const androidInitialScreens = ["home", "course", "statistics", "custom", "score", "monitor", "pitch", "interval", "compare", "chord", "seventh", "seventh-spacing", "progression", "modulation", "scale", "rhythm", "melody", "piano"] as const;
+type Screen = (typeof androidInitialScreens)[number];
 type PracticeScreenName = Exclude<Screen, "home" | "course" | "statistics" | "custom" | "score" | "piano" | "monitor">;
 
 const screenDetails: Record<
@@ -170,7 +170,7 @@ const screenDetails: Record<
 
 function screenFromHash(): Screen {
   const candidate = window.location.hash.replace(/^#\/?/, "");
-  return screens.includes(candidate as Screen) ? (candidate as Screen) : "home";
+  return androidInitialScreens.includes(candidate as Screen) ? (candidate as Screen) : "home";
 }
 
 const screenForReviewTarget = (target: LocalPracticeReviewTarget): PracticeScreenName => {
@@ -792,7 +792,7 @@ export function App({
         aria-label="主要练习"
       >
         <div className="mx-auto flex max-w-3xl gap-1 overflow-x-auto pb-1">
-          {screens.map((screen) => {
+          {androidInitialScreens.map((screen) => {
             const label = screen === "home"
               ? "首页"
               : screen === "score"
