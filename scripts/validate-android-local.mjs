@@ -387,6 +387,10 @@ const pianoLearningPanelSource = readFileSync(
   join(root, "components/piano/LocalPianoLearningPanel.tsx"),
   "utf8",
 );
+const localScoreProjectPanelSource = readFileSync(
+  join(root, "mobile/src/LocalScoreProjectPanel.tsx"),
+  "utf8",
+);
 const pianoProviderSource = readFileSync(join(root, "lib/piano/pianoAudioProvider.ts"), "utf8");
 const pianoEventSource = readFileSync(join(root, "lib/piano/pianoNoteEvents.ts"), "utf8");
 const sampledPianoSource = readFileSync(join(root, "lib/piano/splendidGrandPiano.ts"), "utf8");
@@ -914,6 +918,17 @@ if (
   || pianoTimbreManifest.timbres?.find((item) => item.id === "splendid-grand-profile-pack-v1")?.profileCount !== 6
 ) {
   throw new Error("Android 本地参考钢琴缺少音域、多指、延音或残音清理边界");
+}
+if (
+  !localScoreProjectPanelSource.includes("musicXmlImportGenerationRef")
+  || !localScoreProjectPanelSource.includes(
+    "generation !== musicXmlImportGenerationRef.current",
+  )
+  || !localScoreProjectPanelSource.includes(
+    "musicXmlImportGenerationRef.current += 1",
+  )
+) {
+  throw new Error("本机谱项目 MusicXML/MXL 导入缺少文件读取 generation guard");
 }
 if (
   !offlinePitchSource.includes('OFFLINE_PITCH_ANALYSIS_VERSION = "offline-pitch-multicandidate-v1"')

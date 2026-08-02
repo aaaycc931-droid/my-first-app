@@ -570,6 +570,7 @@ export function LocalScoreProjectPanel({
     "选择 MusicXML、XML 或 MXL 后会先生成内存候选；确认前不会写入项目列表。",
   );
   const musicXmlImportInputRef = useRef<HTMLInputElement | null>(null);
+  const musicXmlImportGenerationRef = useRef(0);
   const [musicXmlExportDraft, setMusicXmlExportDraft] =
     useState<LocalScoreProjectMusicXmlExportDraft | null>(null);
   const [musicXmlExportFormat, setMusicXmlExportFormat] =
@@ -739,6 +740,7 @@ export function LocalScoreProjectPanel({
   };
 
   const clearMusicXmlImport = () => {
+    musicXmlImportGenerationRef.current += 1;
     setMusicXmlImportDraft(null);
     setMusicXmlImportStatus("idle");
     setMusicXmlImportNotice(
@@ -750,6 +752,7 @@ export function LocalScoreProjectPanel({
   };
 
   const readMusicXmlImport = async (file: File | null) => {
+    const generation = ++musicXmlImportGenerationRef.current;
     setMusicXmlImportDraft(null);
     if (!file) {
       setMusicXmlImportStatus("idle");
@@ -792,6 +795,7 @@ export function LocalScoreProjectPanel({
         now: now(),
         createEventId: () => `import-event-${++eventSequence}`,
       });
+      if (generation !== musicXmlImportGenerationRef.current) return;
       setMusicXmlImportDraft(draft);
       setMusicXmlImportStatus(draft.status);
       setMusicXmlImportNotice(
@@ -800,6 +804,7 @@ export function LocalScoreProjectPanel({
           : "该文件包含当前 canonical 无法无损表达的内容，已阻止确认和保存。",
       );
     } catch (error) {
+      if (generation !== musicXmlImportGenerationRef.current) return;
       setMusicXmlImportStatus("error");
       setMusicXmlImportNotice(
         error instanceof Error
@@ -1362,12 +1367,23 @@ export function LocalScoreProjectPanel({
               type="file"
               aria-label="选择要导入的 MusicXML 或 MXL"
               accept=".musicxml,.xml,.mxl,application/vnd.recordare.musicxml+xml,application/vnd.recordare.musicxml,application/xml,text/xml"
-              disabled={musicXmlImportStatus === "reading" || isBusy}
+              disabled={isBusy}
               onChange={(event) =>
                 void readMusicXmlImport(event.target.files?.[0] ?? null)}
               className="mt-2 block w-full text-sm disabled:opacity-50"
             />
           </label>
+          <button
+            type="button"
+            disabled={isBusy || (
+              musicXmlImportStatus === "idle"
+              && !musicXmlImportDraft
+            )}
+            onClick={clearMusicXmlImport}
+            className="mt-2 min-h-10 rounded-xl border border-cyan-300 bg-white px-3 py-2 text-sm font-bold text-cyan-900 disabled:text-slate-400"
+          >
+            清除导入候选
+          </button>
           <p
             className="mt-3 rounded-xl border border-cyan-200 bg-white p-3 text-sm leading-6"
             role="status"
@@ -1442,14 +1458,6 @@ export function LocalScoreProjectPanel({
                   className="min-h-11 rounded-xl bg-cyan-800 px-4 py-2 text-sm font-bold text-white disabled:bg-slate-300"
                 >
                   我已检查，确认新增并保存
-                </button>
-                <button
-                  type="button"
-                  disabled={isBusy || musicXmlImportStatus === "reading"}
-                  onClick={clearMusicXmlImport}
-                  className="min-h-11 rounded-xl border border-cyan-300 bg-white px-4 py-2 text-sm font-bold text-cyan-900 disabled:text-slate-400"
-                >
-                  清除导入候选
                 </button>
               </div>
               {projectCountLimitReached ? (
