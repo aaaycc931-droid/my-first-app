@@ -1,9 +1,14 @@
 import {
   getAuthUiError,
   getPasswordAuthUiError,
+  getPasswordRecoveryRequestOutcome,
+  getPasswordUpdateUiError,
   getMagicLinkCooldownRemaining,
   magicLinkCooldownSeconds,
+  passwordRecoveryAcceptedMessage,
   validatePasswordAuthInput,
+  validatePasswordRecoveryEmail,
+  validatePasswordUpdateInput,
 } from "../lib/platform/authUiPolicy.js";
 
 const assert = (condition: unknown, message: string) => {
@@ -25,5 +30,17 @@ assert(getPasswordAuthUiError({ message: "Invalid login credentials" }, "sign-in
 assert(getPasswordAuthUiError({ message: "Email not confirmed" }, "sign-in").includes("尚未确认"), "unconfirmed email should have a recovery action");
 assert(getPasswordAuthUiError({ status: 429 }, "sign-up").includes("频繁"), "password auth rate limits should be localized");
 assert(getPasswordAuthUiError({ message: "unexpected" }, "sign-up").includes("无法完成注册"), "unknown registration errors should fail safely");
+assert(validatePasswordRecoveryEmail(" learner@example.com ").ok, "password recovery should normalize a valid email");
+assert(!validatePasswordRecoveryEmail("invalid").ok, "password recovery should reject an invalid email locally");
+assert(!validatePasswordUpdateInput({ password: "short", confirmation: "short" }).ok, "password updates should reject short passwords locally");
+assert(!validatePasswordUpdateInput({ password: "secure-pass", confirmation: "different-pass" }).ok, "password updates should reject mismatched confirmation locally");
+assert(validatePasswordUpdateInput({ password: "secure-pass", confirmation: "secure-pass" }).ok, "valid password updates should pass");
+assert(getPasswordRecoveryRequestOutcome({ message: "User not found" }).kind === "accepted", "unknown recovery accounts must not be enumerated");
+assert(getPasswordRecoveryRequestOutcome({ message: "User not found" }).message === passwordRecoveryAcceptedMessage, "unknown recovery accounts should use the generic accepted copy");
+assert(getPasswordRecoveryRequestOutcome({ status: 429 }).message.includes("频繁"), "recovery rate limits should be localized");
+assert(getPasswordRecoveryRequestOutcome({ message: "SMTP failure" }).message.includes("邮件服务"), "recovery email failures should be localized");
+assert(getPasswordRecoveryRequestOutcome({ message: "network timeout" }).message.includes("网络"), "recovery network failures should provide a recovery action");
+assert(getPasswordUpdateUiError({ message: "Auth session missing" }).includes("无效或已过期"), "expired recovery sessions should tell the user to resend");
+assert(getPasswordUpdateUiError({ message: "Weak password" }).includes("安全要求"), "weak recovered passwords should be localized");
 
 console.log("auth UI policy tests passed");
