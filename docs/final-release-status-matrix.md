@@ -15,7 +15,7 @@ UI 重构、浏览器／Android 真机、可访问性或目标用户验收已经
 | ID | 领域 | 当前状态 | 已有真实证据 | 距离 PASS 的主要缺口 |
 | --- | --- | --- | --- | --- |
 | V1-01 | 范围与规范 | PASS | 正式版 DoD、范围分层、退出条件、最终 UI 重构兼容契约 | 后续变更必须走范围变更记录，并保持路线冻结能力而不冻结当前视觉实现 |
-| V1-02 | 账户与会话 | IN_PROGRESS | Supabase Auth、邮箱 magic link、资料读取/更新、生产浏览器 QA；密码注册／登录候选已加入客户端验证、确认邮件提示、重复提交与 stale-response guard | 生产密码注册／登录与真实邮件确认、密码恢复、退出／恢复全矩阵、异常邮件路径、跨浏览器／真机验收 |
+| V1-02 | 账户与会话 | IN_PROGRESS | Supabase Auth、邮箱 magic link、资料读取/更新、生产浏览器 QA；密码注册／登录候选已有客户端验证、确认邮件提示、重复提交与 stale-response guard；密码恢复候选加入防枚举恢复邮件、真实 `PASSWORD_RECOVERY` 事件门禁、新密码确认与 `USER_UPDATED` 竞态保护 | 生产密码注册／登录／恢复、真实邮件确认与恢复、Redirect URL allowlist、过期链接和退出／恢复全矩阵、异常邮件路径、跨浏览器／真机验收 |
 | V1-03 | 数据导出与删除 | IN_PROGRESS | 数据模型有 deletion request 草案；PR #513 已为登录用户提供版本化 JSON 账户数据导出，使用显式字段白名单覆盖 12 个 owner／RLS 数据面，任一查询或下载失败时不产生部分文件 | 删除请求可信服务端入口与执行器、Auth／数据库／Storage 级联删除、原始私有资产归档、24h SLA、生产 RLS／浏览器端到端演练；当前导出不等于完整数据可携带或账户删除 |
 | V1-04 | 系统课程与题库 | IN_PROGRESS | 基础课程；单音、音程、节奏持久化；P115a–P115i、P116a–P116d、P117a–P117e、P118a–P118e implementation candidates 已合并；P118e 组合既有课程、练习事实、复练与可解释建议并分别失败关闭；PR #507 把课程库永不 settle 的请求限制为最多等待 10 秒，随后显示既有错误 | 双教师题量/难度/解释校准；Android 真实用户验证；P119/Q 联合验收；完整浏览器失败恢复矩阵 |
 | V1-05 | 视唱与录音闭环 | IN_PROGRESS | Web 本地录音/回放；Android 实时曲线、录音、本机记录与 P103 观察；本机记录已通过平台无关 repository port 由 Web／Android 显式注入；P112/P113 分析证据、P114f 固定 A4、P115h 音程模唱、P117d 旋律回唱与 P117e 可见目标视唱均已合并 | Browser/Android 真麦克风与 IndexedDB 跨刷新／重启 QA；P113/P114f/P115h/P117d/P117e 真实人声；录音／回放 controller 抽离；正式课程/云端记录；P104 真机同步/延迟/录音设备矩阵 |
