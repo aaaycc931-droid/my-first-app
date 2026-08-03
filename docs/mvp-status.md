@@ -11,6 +11,7 @@
 - 最新已合并验证链修复：recognition 抽离后的静态边界 validator 对齐 / PR #515，合并提交 `a0fa4cba9b970365fbbc815e24cea4931cd2f324`
 - 最新已合并可访问性自动预筛：18 个 Android 初始视图 axe DOM 语义检查与 registry 漂移守卫 / PR #519，合并提交 `07f49c65e380c7bd6eef4ab5344929c23fad7952`；PR #516 的 8 个视图是历史子集；人工无障碍与外部 QA 状态未改变
 - 最新已合并可靠性切片：课程库加载最长等待 10 秒后失败关闭并显示既有错误 / PR #507，合并提交 `a43b323bb14678990cdcb4111c3969cf5fc66f76`
+- 当前账户认证候选：保留邮箱 magic link，并增加邮箱密码注册／登录、注册确认、中文错误恢复和 auth-event／替换方式／卸载后的迟到响应 guard；生产 Auth／真实邮件／浏览器／真机矩阵仍为 `NOT_EXECUTED`
 - PR #505 Quality run `30695255092`、PR #506 `30695503131`、PR #507 `30695628301`、PR #508 `30696194007`、PR #510 `30698278610`、刷新到 PR #510 合并后 main 的 PR #511 `30698677668`、PR #513 `30701011509`、刷新到 PR #513 合并后 main 的 PR #514 `30701443456`、PR #515 `30701864574`、PR #516 `30702247755`、PR #518 `30726487575` 与 PR #519 `30733763908` 的 `quality`、`android-local` 均成功且 Vercel Ready。这些自动门禁和 DOM 预筛不替代 main provenance、真实浏览器完整矩阵、Android 真机、第三方 MusicXML、人工可访问性、教师或目标用户证据。
 - 最新已合并交换安全加固：MusicXML/MXL note 容器 fail-closed / PR #477，合并提交 `27ae5dff483afa0437b75e1bde0dd091c165bd12`
 - 最新已合并证据准备基线：P119c / PR #419，合并提交 `de9ab7f9a6d050a951e70835fbe97cecc693b9f4`

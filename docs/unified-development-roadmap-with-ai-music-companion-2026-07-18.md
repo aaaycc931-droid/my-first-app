@@ -4,7 +4,7 @@
 
 状态：**Canonical integrated roadmap / 统一长期开发主路线**
 
-当前执行状态：**S3 STRICT MINOR-THIRTEENTH INTEGRATED / RECOGNITION CONTROLLER COMPLETE / NEXT EXCHANGE SLICE UNDER REVIEW / V1-03 DATA EXPORT IN_PROGRESS / EXTERNAL QA NOT_EXECUTED / P119d ITEM REVIEW DEFERRED**
+当前执行状态：**V1-02 PASSWORD AUTH CANDIDATE / S3 STRICT MINOR-THIRTEENTH INTEGRATED / RECOGNITION CONTROLLER COMPLETE / NEXT EXCHANGE SLICE UNDER REVIEW / V1-03 DATA EXPORT IN_PROGRESS / EXTERNAL QA NOT_EXECUTED / P119d ITEM REVIEW DEFERRED**
 
 适用项目：`aaaycc931-droid/my-first-app`
 
@@ -51,6 +51,10 @@ URL 单次撤销；真实 OMR 和外部浏览器／WebView／真机验收仍未�
 PR #513 已加入登录用户版本化 JSON 账户数据导出：显式白名单覆盖 12 个 owner／RLS
 数据面，任一查询或下载失败都不产生部分文件；原始私有资产、账户删除、Auth／数据库／
 Storage 级联、24 小时 SLA 与生产端到端证据仍未完成，因此 V1-03 只进入 `IN_PROGRESS`。
+当前 V1-02 密码认证切片保留 magic link，并增加邮箱密码注册／登录、注册确认、中文
+失败恢复和迟到响应 guard；密码不进入仓库存储、日志或导出。生产 Supabase Auth 配置、
+真实确认邮件、密码恢复、浏览器／真机与退出／恢复完整矩阵仍未执行，因此 V1-02 继续为
+`IN_PROGRESS`。
 PR #516 先为 8 个 Android 初始视图加入 axe DOM 语义自动预筛；PR #519 已扩展至
 canonical registry 的 18 个初始视图并加入覆盖漂移守卫。颜色对比、键盘／焦点、
 真实屏幕阅读器、缩放／reflow、真实浏览器／WebView／Android 设备及用户 QA 仍为

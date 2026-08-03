@@ -172,6 +172,7 @@ jobs:
           npm run test:recognition-workflow-controller
           npm run test:recognition-static-boundaries
           npm run test:auth-ui-policy
+          npm run test:account-password-auth
           npm run test:account-data-export
           npm run test:account-data-export-ui-contract
           npm run test:account-session-stale-guard
