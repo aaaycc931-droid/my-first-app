@@ -13,19 +13,30 @@ import {
 } from "../../lib/account/accountDataExport";
 import {
   getAuthUiError,
+  getPasswordAuthUiError,
   getMagicLinkCooldownRemaining,
+  type PasswordAuthMode,
+  validatePasswordAuthInput,
 } from "../../lib/platform/authUiPolicy";
 import {
   AccountSessionWorkGuard,
   type AccountSessionWorkToken,
 } from "../../lib/account/accountSessionWorkGuard";
+import { AccountAuthAttemptGuard } from "../../lib/account/accountAuthAttemptGuard";
 
 type Status = "idle" | "sending" | "sent" | "error";
+type AuthMode = "magic-link" | PasswordAuthMode;
+type PasswordStatus = "idle" | "submitting" | "success" | "error";
 type ExportStatus = "idle" | "exporting" | "exported" | "error";
 type Profile = { display_name: string | null; timezone: string; locale: string };
 
 export function AccountPanel() {
   const [email, setEmail] = useState("");
+  const [authMode, setAuthMode] = useState<AuthMode>("magic-link");
+  const [password, setPassword] = useState("");
+  const [passwordConfirmation, setPasswordConfirmation] = useState("");
+  const [passwordStatus, setPasswordStatus] = useState<PasswordStatus>("idle");
+  const [passwordMessage, setPasswordMessage] = useState("");
   const [session, setSession] = useState<Session | null>(null);
   const [isLoadingSession, setIsLoadingSession] = useState(isSupabaseConfigured);
   const [status, setStatus] = useState<Status>("idle");
@@ -39,6 +50,7 @@ export function AccountPanel() {
   const [exportStatus, setExportStatus] = useState<ExportStatus>("idle");
   const [exportMessage, setExportMessage] = useState("");
   const [sessionWorkGuard] = useState(() => new AccountSessionWorkGuard());
+  const [authAttemptGuard] = useState(() => new AccountAuthAttemptGuard());
 
   const loadProfile = useCallback(async (token: AccountSessionWorkToken) => {
     const client = getSupabaseBrowserClient();
@@ -65,6 +77,7 @@ export function AccountPanel() {
     let authEventCount = 0;
     const applySession = (nextSession: Session | null) => {
       if (!active) return;
+      authAttemptGuard.invalidate();
       sessionWorkGuard.setSession(nextSession?.user.id ?? null);
       setSession(nextSession);
       setProfile(null);
@@ -73,6 +86,10 @@ export function AccountPanel() {
       setIsSavingProfile(false);
       setExportStatus("idle");
       setExportMessage("");
+      setPassword("");
+      setPasswordConfirmation("");
+      setPasswordStatus("idle");
+      setPasswordMessage("");
       setIsLoadingSession(false);
       if (nextSession) {
         const token = sessionWorkGuard.capture(nextSession.user.id);
@@ -90,9 +107,10 @@ export function AccountPanel() {
     });
     return () => {
       active = false;
+      authAttemptGuard.invalidate();
       subscription.subscription.unsubscribe();
     };
-  }, [loadProfile, sessionWorkGuard]);
+  }, [authAttemptGuard, loadProfile, sessionWorkGuard]);
 
   useEffect(() => {
     if (magicLinkSentAtMs === null) return;
@@ -133,9 +151,71 @@ export function AccountPanel() {
     setMessage("登录链接已发送。请在准备登录的同一台设备上，用默认浏览器打开邮件中的链接；链接会回到这里并恢复会话。");
   };
 
+  const submitPasswordAuth = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const client = getSupabaseBrowserClient();
+    if (!client || authMode === "magic-link" || passwordStatus === "submitting") return;
+    const validation = validatePasswordAuthInput({
+      email,
+      password,
+      confirmation: passwordConfirmation,
+      mode: authMode,
+    });
+    if (!validation.ok) {
+      setPasswordStatus("error");
+      setPasswordMessage(validation.message);
+      return;
+    }
+
+    const token = authAttemptGuard.begin();
+    setPasswordStatus("submitting");
+    setPasswordMessage("");
+    try {
+      const result = authMode === "sign-in"
+        ? await client.auth.signInWithPassword({
+          email: validation.email,
+          password: validation.password,
+        })
+        : await client.auth.signUp({
+          email: validation.email,
+          password: validation.password,
+          options: { emailRedirectTo: `${window.location.origin}/account` },
+        });
+      if (!authAttemptGuard.isCurrent(token)) return;
+      if (result.error) {
+        setPasswordStatus("error");
+        setPasswordMessage(getPasswordAuthUiError(result.error, authMode));
+        return;
+      }
+
+      setPassword("");
+      setPasswordConfirmation("");
+      setPasswordStatus("success");
+      setPasswordMessage(authMode === "sign-in" || result.data.session
+        ? "密码验证成功，正在恢复你的私人学习空间。"
+        : "注册请求已提交。请打开确认邮件中的链接完成邮箱确认，再使用密码登录；如果账户服务无需确认，会直接恢复会话。");
+    } catch (caught) {
+      if (!authAttemptGuard.isCurrent(token)) return;
+      setPasswordStatus("error");
+      setPasswordMessage(getPasswordAuthUiError(caught instanceof Error ? caught : {}, authMode));
+    }
+  };
+
+  const selectAuthMode = (nextMode: AuthMode) => {
+    authAttemptGuard.invalidate();
+    setAuthMode(nextMode);
+    setStatus("idle");
+    setMessage("");
+    setPassword("");
+    setPasswordConfirmation("");
+    setPasswordStatus("idle");
+    setPasswordMessage("");
+  };
+
   const signOut = async () => {
     const client = getSupabaseBrowserClient();
     if (!client) return;
+    authAttemptGuard.invalidate();
     sessionWorkGuard.invalidate();
     setSession(null);
     await client.auth.signOut();
@@ -219,5 +299,5 @@ export function AccountPanel() {
     return <section className="rounded-3xl border border-emerald-200 bg-emerald-50 p-6 shadow-sm"><p className="text-sm font-semibold text-emerald-800">已登录</p><h1 className="mt-2 text-3xl font-bold text-emerald-950">你的私有学习空间已准备好</h1><p className="mt-3 leading-7 text-emerald-950">当前账户：{session.user.email ?? "已验证用户"}</p><p className="mt-2 leading-7 text-emerald-950">课程、练习记录、私有素材和数据导出会按账户所有权保存；不会公开给其他用户。</p><form onSubmit={(event) => void saveProfile(event)} className="mt-6 max-w-xl rounded-2xl border border-emerald-200 bg-white p-4"><h2 className="text-lg font-bold text-emerald-950">私人资料</h2><label className="mt-4 block text-sm font-semibold text-slate-800" htmlFor="display-name">显示名称<input id="display-name" value={displayName} onChange={(event) => setDisplayName(event.target.value)} maxLength={80} placeholder="学习者" className="mt-2 block w-full rounded-xl border border-slate-300 px-3 py-2 font-normal outline-none ring-emerald-500 focus:ring-2" /></label><label className="mt-4 block text-sm font-semibold text-slate-800" htmlFor="timezone">时区<select id="timezone" value={timezone} onChange={(event) => setTimezone(event.target.value)} className="mt-2 block w-full rounded-xl border border-slate-300 px-3 py-2 font-normal"><option value="Asia/Shanghai">中国标准时间</option><option value="Asia/Singapore">新加坡时间</option><option value="Asia/Tokyo">日本时间</option></select></label><button type="submit" disabled={isSavingProfile} className="mt-4 rounded-full bg-emerald-700 px-4 py-2 font-semibold text-white disabled:bg-emerald-300">{isSavingProfile ? "正在保存…" : "保存私人资料"}</button>{profile ? <p className="mt-3 text-sm text-slate-600">当前同步状态：已读取你的私人资料。</p> : null}</form>{message ? <p className="mt-4 rounded-xl bg-white p-3 text-sm leading-6 text-emerald-900">{message}</p> : null}<div className="mt-5 max-w-xl rounded-2xl border border-emerald-200 bg-white p-4"><h2 className="text-lg font-bold text-emerald-950">导出账户数据</h2><p className="mt-2 text-sm leading-6 text-slate-600">下载当前账户的结构化数据和私有素材清单。原始音频、图片、PDF 等素材文件不会包含在此 JSON 中。</p><button type="button" onClick={() => void exportAccountData()} disabled={exportStatus === "exporting"} className="mt-4 rounded-full border border-emerald-300 bg-white px-4 py-2 font-semibold text-emerald-800 disabled:cursor-not-allowed disabled:text-emerald-300">{exportStatus === "exporting" ? "正在准备导出…" : "下载账户数据"}</button><div aria-live="polite">{exportMessage ? <p className={`mt-3 text-sm leading-6 ${exportStatus === "error" ? "text-rose-700" : "text-emerald-800"}`}>{exportMessage}</p> : null}</div></div><button type="button" onClick={() => void signOut()} className="mt-5 rounded-full border border-emerald-300 bg-white px-4 py-2 font-semibold text-emerald-800">退出登录</button></section>;
   }
 
-  return <section className="rounded-3xl border border-indigo-200 bg-white p-6 shadow-sm"><p className="text-sm font-semibold text-indigo-700">私人学习账户</p><h1 className="mt-2 text-3xl font-bold text-slate-950">登录后同步你的正式学习数据</h1><p className="mt-3 max-w-2xl leading-7 text-slate-700">输入邮箱后，我们会发送一次性登录链接。账户仅用于你的私有练习、素材、进度、导出与删除，不提供公开主页或社区功能。</p><form onSubmit={(event) => void sendMagicLink(event)} className="mt-6 flex max-w-xl flex-col gap-3 sm:flex-row"><label className="sr-only" htmlFor="account-email">邮箱地址</label><input id="account-email" type="email" autoComplete="email" required value={email} onChange={(event) => setEmail(event.target.value)} placeholder="name@example.com" className="min-w-0 flex-1 rounded-xl border border-slate-300 px-4 py-3 text-slate-950 outline-none ring-indigo-500 focus:ring-2"/><button type="submit" disabled={status === "sending" || cooldownSeconds > 0} className="rounded-xl bg-indigo-700 px-5 py-3 font-semibold text-white disabled:cursor-not-allowed disabled:bg-indigo-300">{status === "sending" ? "正在发送…" : cooldownSeconds > 0 ? `${cooldownSeconds} 秒后可重新发送` : "发送登录链接"}</button></form><div aria-live="polite">{message ? <p className={`mt-4 rounded-xl p-3 leading-6 ${status === "error" ? "bg-rose-50 text-rose-800" : "bg-emerald-50 text-emerald-800"}`}>{message}</p> : null}</div><p className="mt-4 text-sm leading-6 text-slate-500">未收到时请先检查垃圾邮件。不要连续发送；如果你在手机上收信，请用手机默认浏览器打开登录链接。</p></section>;
+  return <section className="rounded-3xl border border-indigo-200 bg-white p-6 shadow-sm"><p className="text-sm font-semibold text-indigo-700">私人学习账户</p><h1 className="mt-2 text-3xl font-bold text-slate-950">登录后同步你的正式学习数据</h1><p className="mt-3 max-w-2xl leading-7 text-slate-700">可以使用邮箱登录链接，或使用邮箱和密码登录／注册。账户仅用于你的私有练习、素材、进度、导出与删除，不提供公开主页或社区功能。</p><div className="mt-6 grid max-w-xl grid-cols-1 gap-2 sm:grid-cols-3" role="group" aria-label="选择账户登录方式"><button type="button" aria-pressed={authMode === "magic-link"} onClick={() => selectAuthMode("magic-link")} className={`min-h-11 rounded-xl px-3 py-2 text-sm font-bold ${authMode === "magic-link" ? "bg-indigo-700 text-white" : "border border-indigo-200 bg-white text-indigo-900"}`}>邮箱登录链接</button><button type="button" aria-pressed={authMode === "sign-in"} onClick={() => selectAuthMode("sign-in")} className={`min-h-11 rounded-xl px-3 py-2 text-sm font-bold ${authMode === "sign-in" ? "bg-indigo-700 text-white" : "border border-indigo-200 bg-white text-indigo-900"}`}>密码登录</button><button type="button" aria-pressed={authMode === "sign-up"} onClick={() => selectAuthMode("sign-up")} className={`min-h-11 rounded-xl px-3 py-2 text-sm font-bold ${authMode === "sign-up" ? "bg-indigo-700 text-white" : "border border-indigo-200 bg-white text-indigo-900"}`}>密码注册</button></div>{authMode === "magic-link" ? <><form onSubmit={(event) => void sendMagicLink(event)} className="mt-4 flex max-w-xl flex-col gap-3 sm:flex-row"><label className="sr-only" htmlFor="account-email">邮箱地址</label><input id="account-email" type="email" autoComplete="email" required value={email} onChange={(event) => setEmail(event.target.value)} placeholder="name@example.com" className="min-w-0 flex-1 rounded-xl border border-slate-300 px-4 py-3 text-slate-950 outline-none ring-indigo-500 focus:ring-2"/><button type="submit" disabled={status === "sending" || cooldownSeconds > 0} className="rounded-xl bg-indigo-700 px-5 py-3 font-semibold text-white disabled:cursor-not-allowed disabled:bg-indigo-300">{status === "sending" ? "正在发送…" : cooldownSeconds > 0 ? `${cooldownSeconds} 秒后可重新发送` : "发送登录链接"}</button></form><div aria-live="polite">{message ? <p className={`mt-4 rounded-xl p-3 leading-6 ${status === "error" ? "bg-rose-50 text-rose-800" : "bg-emerald-50 text-emerald-800"}`}>{message}</p> : null}</div><p className="mt-4 text-sm leading-6 text-slate-500">未收到时请先检查垃圾邮件。不要连续发送；如果你在手机上收信，请用手机默认浏览器打开登录链接。</p></> : <><form onSubmit={(event) => void submitPasswordAuth(event)} className="mt-4 grid max-w-xl gap-3"><label className="text-sm font-semibold text-slate-800" htmlFor="password-account-email">邮箱地址<input id="password-account-email" type="email" autoComplete="email" required value={email} onChange={(event) => setEmail(event.target.value)} placeholder="name@example.com" className="mt-2 block w-full rounded-xl border border-slate-300 px-4 py-3 font-normal text-slate-950 outline-none ring-indigo-500 focus:ring-2"/></label><label className="text-sm font-semibold text-slate-800" htmlFor="account-password">密码<input id="account-password" type="password" autoComplete={authMode === "sign-up" ? "new-password" : "current-password"} required minLength={8} value={password} onChange={(event) => setPassword(event.target.value)} className="mt-2 block w-full rounded-xl border border-slate-300 px-4 py-3 font-normal text-slate-950 outline-none ring-indigo-500 focus:ring-2"/></label>{authMode === "sign-up" ? <label className="text-sm font-semibold text-slate-800" htmlFor="account-password-confirmation">再次输入密码<input id="account-password-confirmation" type="password" autoComplete="new-password" required minLength={8} value={passwordConfirmation} onChange={(event) => setPasswordConfirmation(event.target.value)} className="mt-2 block w-full rounded-xl border border-slate-300 px-4 py-3 font-normal text-slate-950 outline-none ring-indigo-500 focus:ring-2"/></label> : null}<button type="submit" disabled={passwordStatus === "submitting"} className="min-h-12 rounded-xl bg-indigo-700 px-5 py-3 font-semibold text-white disabled:cursor-not-allowed disabled:bg-indigo-300">{passwordStatus === "submitting" ? authMode === "sign-up" ? "正在提交注册…" : "正在登录…" : authMode === "sign-up" ? "创建私人账户" : "使用密码登录"}</button></form><div aria-live="polite">{passwordMessage ? <p className={`mt-4 max-w-xl rounded-xl p-3 leading-6 ${passwordStatus === "error" ? "bg-rose-50 text-rose-800" : "bg-emerald-50 text-emerald-800"}`}>{passwordMessage}</p> : null}</div><p className="mt-4 max-w-xl text-sm leading-6 text-slate-500">密码至少 8 个字符。密码由账户服务处理，不会保存到此页面、日志或仓库。注册后如收到确认邮件，请先完成邮箱确认。</p></>}</section>;
 }
