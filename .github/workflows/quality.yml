@@ -5,12 +5,62 @@ on:
   push:
     branches:
       - main
+  workflow_dispatch:
+    inputs:
+      upload_apk:
+        description: Upload the verified private-test debug APK
+        required: false
+        default: false
+        type: boolean
+  schedule:
+    - cron: "17 3 * * 1"
+
+concurrency:
+  group: quality-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
   contents: read
 
 jobs:
-  quality:
+  classify:
+    name: classify
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      docs_only: ${{ steps.changes.outputs.docs_only }}
+      run_code: ${{ steps.changes.outputs.run_code }}
+      run_web: ${{ steps.changes.outputs.run_web }}
+      run_android: ${{ steps.changes.outputs.run_android }}
+      run_audit: ${{ steps.changes.outputs.run_audit }}
+      full: ${{ steps.changes.outputs.full }}
+      classification: ${{ steps.changes.outputs.classification }}
+
+    steps:
+      - name: Checkout full history
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        with:
+          node-version: 22
+
+      - name: Test CI change policy
+        run: npm run test:ci-change-policy
+
+      - name: Classify changed paths
+        id: changes
+        env:
+          CI_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          CI_BEFORE_SHA: ${{ github.event.before }}
+          CI_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: node scripts/classify-ci-changes.mjs
+
+  quality_suite:
+    name: quality-suite
+    needs: classify
     runs-on: ubuntu-latest
     timeout-minutes: 20
 
@@ -26,22 +76,27 @@ jobs:
           node-version: 22
           cache: npm
 
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Audit production dependencies
-        run: npm audit --omit=dev --audit-level=high
-
       - name: Validate documentation hygiene
         run: npm run test:documentation-hygiene && npm run validate:documentation-hygiene
 
+      - name: Install dependencies
+        if: ${{ needs.classify.outputs.run_code == 'true' }}
+        run: npm ci
+
+      - name: Audit production dependencies
+        if: ${{ needs.classify.outputs.run_audit == 'true' }}
+        run: npm audit --omit=dev --audit-level=high
+
       - name: Lint
+        if: ${{ needs.classify.outputs.run_code == 'true' }}
         run: npm run lint
 
       - name: Type check
+        if: ${{ needs.classify.outputs.run_code == 'true' }}
         run: npm run typecheck
 
       - name: Mobile runtime tests
+        if: ${{ needs.classify.outputs.run_code == 'true' }}
         run: |
           npm run test:accessibility-prefilter
           npm run test:browser-audio-engine
@@ -205,13 +260,22 @@ jobs:
           npm run test:mobile-local-score-project-staff-preview-behavior
           npm run test:mobile-local-score-project-numbered-preview-behavior
 
+      - name: Validate final platform contracts
+        if: ${{ needs.classify.outputs.run_code == 'true' }}
+        run: npm run validate:final-platform-schema && npm run validate:database-least-privilege
+
       - name: Validate local Android bundle
+        if: ${{ needs.classify.outputs.run_android == 'true' }}
         run: npm run validate:repository-hygiene && npm run validate:android-version && npm run android:sync && npm run validate:android-local
 
       - name: Build
+        if: ${{ needs.classify.outputs.run_web == 'true' }}
         run: npm run build
 
-  android-local:
+  android_local:
+    name: android-local
+    needs: classify
+    if: ${{ needs.classify.outputs.run_android == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 25
 
@@ -263,10 +327,57 @@ jobs:
         run: npm run verify:android-local-artifact
 
       - name: Upload verified local Android debug APK
-        if: ${{ success() }}
+        if: ${{ success() && github.event_name == 'workflow_dispatch' && inputs.upload_apk }}
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: solfeggio-local-debug-apk-${{ github.sha }}
           path: artifacts/android-local/
           if-no-files-found: error
           retention-days: 14
+
+  quality:
+    name: quality
+    needs:
+      - classify
+      - quality_suite
+      - android_local
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Enforce required CI results
+        env:
+          CLASSIFY_RESULT: ${{ needs.classify.result }}
+          QUALITY_SUITE_RESULT: ${{ needs.quality_suite.result }}
+          ANDROID_RESULT: ${{ needs.android_local.result }}
+          RUN_ANDROID: ${{ needs.classify.outputs.run_android }}
+          CLASSIFICATION: ${{ needs.classify.outputs.classification }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          {
+            echo "### Required quality gate"
+            echo
+            echo "- Classification: ${CLASSIFICATION:-unavailable}"
+            echo "- classify: $CLASSIFY_RESULT"
+            echo "- quality-suite: $QUALITY_SUITE_RESULT"
+            echo "- android-local: $ANDROID_RESULT"
+            echo "- Android required: ${RUN_ANDROID:-unavailable}"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          if [ "$CLASSIFY_RESULT" != "success" ] || [ "$QUALITY_SUITE_RESULT" != "success" ]; then
+            echo "::error::Required classify or quality-suite job did not succeed."
+            exit 1
+          fi
+
+          if [ "$RUN_ANDROID" = "true" ] && [ "$ANDROID_RESULT" != "success" ]; then
+            echo "::error::Android validation was required but did not succeed."
+            exit 1
+          fi
+
+          if [ "$RUN_ANDROID" != "true" ] && [ "$ANDROID_RESULT" != "skipped" ]; then
+            echo "::error::Android validation ran unexpectedly or returned an unknown result."
+            exit 1
+          fi
