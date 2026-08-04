@@ -97,6 +97,15 @@ assert.deepEqual(normalized.items[0], {
     "/practice?feature=ear-training&mode=interval&exercise=exercise-1",
 });
 
+const capped = createPrivatePracticeHistoryResult(
+  Array.from({ length: 25 }, (_, index) => ({
+    ...validRow,
+    id: `attempt-${index}`,
+  })),
+);
+assert.equal(capped.items.length, 20);
+assert.equal(capped.items.at(-1)?.id, "attempt-19");
+
 const calls: Array<{ name: string; args: unknown[] }> = [];
 const response = Promise.resolve({ data: [validRow], error: null });
 const query = {

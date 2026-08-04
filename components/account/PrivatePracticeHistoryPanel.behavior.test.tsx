@@ -69,6 +69,7 @@ afterEach(async () => {
   if (root) await act(async () => root?.unmount());
   root = null;
   document.body.replaceChildren();
+  vi.clearAllMocks();
   vi.restoreAllMocks();
 });
 
@@ -108,6 +109,30 @@ describe("PrivatePracticeHistoryPanel", () => {
     expect(container.textContent).toContain("重试后的记录");
   });
 
+  it("fails closed when the browser client is unavailable", async () => {
+    platform.getSupabaseBrowserClient.mockReturnValue(null);
+
+    const container = await renderPanel();
+    await act(async () => await Promise.resolve());
+
+    expect(container.textContent).toContain("私人练习记录暂时无法读取");
+    expect(platform.loadSupabasePrivatePracticeHistory).not.toHaveBeenCalled();
+  });
+
+  it("reports ignored records without rendering their raw content", async () => {
+    platform.getSupabaseBrowserClient.mockReturnValue({ client: true });
+    platform.loadSupabasePrivatePracticeHistory.mockResolvedValue({
+      ...historyResult("safe", "可验证记录"),
+      ignoredCount: 2,
+    });
+
+    const container = await renderPanel();
+    await act(async () => await Promise.resolve());
+
+    expect(container.textContent).toContain("有 2 条旧记录");
+    expect(container.textContent).toContain("可验证记录");
+  });
+
   it("ignores a late result after the account changes", async () => {
     platform.getSupabaseBrowserClient.mockReturnValue({ client: true });
     let resolveA: (result: PrivatePracticeHistoryResult) => void = () => undefined;
@@ -138,5 +163,35 @@ describe("PrivatePracticeHistoryPanel", () => {
     await act(async () => resolveA(historyResult("a", "账户 A 的迟到记录")));
     expect(container.textContent).not.toContain("账户 A 的迟到记录");
     expect(container.textContent).toContain("账户 B 的记录");
+  });
+
+  it("ignores a late rejection after the account changes", async () => {
+    platform.getSupabaseBrowserClient.mockReturnValue({ client: true });
+    let rejectA: (error: Error) => void = () => undefined;
+    const resultA = new Promise<PrivatePracticeHistoryResult>((_resolve, reject) => {
+      rejectA = reject;
+    });
+    platform.loadSupabasePrivatePracticeHistory.mockImplementation(
+      (_client: unknown, userId: string) =>
+        userId === "user-a"
+          ? resultA
+          : Promise.resolve(historyResult("b", "账户 B 的记录")),
+    );
+
+    const container = await renderPanel("user-a");
+    await act(async () => {
+      root?.render(
+        <PrivatePracticeHistoryPanel
+          userId="user-b"
+          timeZone="Asia/Shanghai"
+        />,
+      );
+    });
+    await act(async () => await Promise.resolve());
+    expect(container.textContent).toContain("账户 B 的记录");
+
+    await act(async () => rejectA(new Error("late account A failure")));
+    expect(container.textContent).toContain("账户 B 的记录");
+    expect(container.textContent).not.toContain("私人练习记录暂时无法读取");
   });
 });
