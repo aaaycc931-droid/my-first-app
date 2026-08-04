@@ -176,6 +176,7 @@ jobs:
           npm run test:account-data-export
           npm run test:account-data-export-ui-contract
           npm run test:account-session-stale-guard
+          npm run test:web-private-practice-history
           npm run test:course-library-behavior
           npm run test:notation-temporary-practice-progress
           npm run test:notation-reference-melody-playback
