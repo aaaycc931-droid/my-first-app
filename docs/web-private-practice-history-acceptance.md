@@ -1,6 +1,6 @@
 # Web 私人练习历史验收
 
-状态：**V1-12 partial / implementation candidate**
+状态：**MERGED / V1-12 partial**
 
 QA level recommendation：**strict**
 
