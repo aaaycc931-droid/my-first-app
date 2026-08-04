@@ -4,7 +4,7 @@
 
 状态：**Canonical integrated roadmap / 统一长期开发主路线**
 
-当前执行状态：**V1-02 PASSWORD AUTH + RECOVERY CANDIDATES / S3 STRICT MINOR-THIRTEENTH INTEGRATED / RECOGNITION CONTROLLER COMPLETE / NEXT EXCHANGE SLICE UNDER REVIEW / V1-03 DATA EXPORT IN_PROGRESS / EXTERNAL QA NOT_EXECUTED / P119d ITEM REVIEW DEFERRED**
+当前执行状态：**V1-02 PASSWORD AUTH + RECOVERY CANDIDATES / V1-12 WEB PRIVATE PRACTICE HISTORY CANDIDATE / S3 STRICT MINOR-THIRTEENTH INTEGRATED / RECOGNITION CONTROLLER COMPLETE / NEXT EXCHANGE SLICE UNDER REVIEW / V1-03 DATA EXPORT IN_PROGRESS / EXTERNAL QA NOT_EXECUTED / P119d ITEM REVIEW DEFERRED**
 
 适用项目：`aaaycc931-droid/my-first-app`
 
@@ -57,6 +57,11 @@ Storage 级联、24 小时 SLA 与生产端到端证据仍未完成，因此 V1-
 防枚举恢复邮件、60 秒冷却、真实 `PASSWORD_RECOVERY` 事件门禁、新密码确认和
 `USER_UPDATED` 先于更新 promise 的竞态保护；生产 Redirect URL allowlist、真实恢复邮件、
 过期链接与跨端矩阵仍未执行，因此 V1-02 继续为 `IN_PROGRESS`。
+V1-12 Web 私人练习历史候选进一步把既有 owner-bound `practice_attempts` 和课程摘要
+整理为账户页最近 20 条只读历史：只显示当前支持、kind 一致且明确非正式的完成记录，
+支持真实空态、失败重试、换用户迟到结果屏蔽和回到原练习。它不生成分数、正式画像或
+跨设备同步，也不改变 Android 离线存储边界；生产 RLS／多账户、跨浏览器、人工可访问性
+和目标用户 QA 仍未执行。
 PR #516 先为 8 个 Android 初始视图加入 axe DOM 语义自动预筛；PR #519 已扩展至
 canonical registry 的 18 个初始视图并加入覆盖漂移守卫。颜色对比、键盘／焦点、
 真实屏幕阅读器、缩放／reflow、真实浏览器／WebView／Android 设备及用户 QA 仍为

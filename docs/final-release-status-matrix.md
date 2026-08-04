@@ -25,7 +25,7 @@ UI 重构、浏览器／Android 真机、可访问性或目标用户验收已经
 | V1-09 | 图片/PDF OMR | IN_PROGRESS | mock flow、Audiveris fixture/runner 研究基础 | 隔离 worker、私有上传、真实 OMR、草稿编辑、失败恢复 |
 | V1-10 | 私有音频素材 | IN_PROGRESS | 浏览器本地导入、decode、音高曲线草稿、检查与临时目标；P114l 会话内非破坏 MediaProject 候选 | 私有上传、worker、持久项目、保留/删除、任务恢复、版权说明 |
 | V1-11 | 私有云任务 | NOT_STARTED | 数据模型和架构蓝图 | Storage、队列 worker、取消/重试、审计、配额和运行手册 |
-| V1-12 | 学习历史与复习 | IN_PROGRESS | 私有 practice attempts、课程答案摘要；Android 本机最小错题队列；P114m 非评分画像已合并；P115a–P115i 已接入相应练习事实、复练与迁移；P118c–P118e 已合并，继续复用精确 MRU 队列、非评分建议与独立失败关闭总览；学习画像 repository 已通过 PR #503、本机复练队列 repository 已通过 PR #505 由 Android composition root 注入，既有 key、schema／catalog version、迁移、MRU、上限和用户行为不变 | Web 历史 UI、正式技能画像、跨设备同步；Android 跨版本/跨重启和配额真机验证；教育审核 |
+| V1-12 | 学习历史与复习 | IN_PROGRESS | 私有 practice attempts、课程答案摘要；Web 账户页已有 owner-bound 最近 20 条已完成课程核对历史、空态／错误重试、非评分白名单与换用户 stale-result guard，并可回到同一课程练习；Android 本机最小错题队列；P114m 非评分画像已合并；P115a–P115i 已接入相应练习事实、复练与迁移；P118c–P118e 已合并，继续复用精确 MRU 队列、非评分建议与独立失败关闭总览；学习画像 repository 已通过 PR #503、本机复练队列 repository 已通过 PR #505 由 Android composition root 注入，既有 key、schema／catalog version、迁移、MRU、上限和用户行为不变 | Web 完整课程历史与正式技能画像、跨设备同步、生产 RLS／多账户与跨浏览器验收；Android 跨版本/跨重启和配额真机验证；教育审核 |
 | V1-13 | 音高算法基准 | IN_PROGRESS | P111 共同输入/分层基准基础、P112 多候选连续轨迹已合并；P113 `offline-note-alignment-v1` 独立分段、单调目标对齐、三阶段证据和局部拒答已通过 PR #365 合并；实时生产仍为 `autocorrelation-realtime-v1` | P113 真机/真实人声；200 合成/乐器、100 真实人声/20 位/4 类设备最低证据及专业扩展集、三档性能、量化结果和专家审核 |
 | V1-14 | 节奏算法基准 | IN_PROGRESS | DP 对齐回归、tap/onset/latency 测试 | 真实设备/人声/乐器集、量化报告、低置信度校准 |
 | V1-15 | RLS 与最小权限 | IN_PROGRESS | P78 最小权限；P84 生产 RPC 和跨用户事务 smoke QA | 覆盖所有 owner tables、Storage、签名 URL、删除后访问 |

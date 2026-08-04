@@ -31,6 +31,7 @@ import {
   type AccountSessionWorkToken,
 } from "../../lib/account/accountSessionWorkGuard";
 import { AccountAuthAttemptGuard } from "../../lib/account/accountAuthAttemptGuard";
+import { PrivatePracticeHistoryPanel } from "./PrivatePracticeHistoryPanel";
 
 type Status = "idle" | "sending" | "sent" | "error";
 type AuthMode = "magic-link" | "password-recovery" | PasswordAuthMode;
@@ -745,7 +746,107 @@ export function AccountPanel() {
 
 
   if (session) {
-    return <section className="rounded-3xl border border-emerald-200 bg-emerald-50 p-6 shadow-sm"><p className="text-sm font-semibold text-emerald-800">已登录</p><h1 className="mt-2 text-3xl font-bold text-emerald-950">你的私有学习空间已准备好</h1><p className="mt-3 leading-7 text-emerald-950">当前账户：{session.user.email ?? "已验证用户"}</p><p className="mt-2 leading-7 text-emerald-950">课程、练习记录、私有素材和数据导出会按账户所有权保存；不会公开给其他用户。</p><form onSubmit={(event) => void saveProfile(event)} className="mt-6 max-w-xl rounded-2xl border border-emerald-200 bg-white p-4"><h2 className="text-lg font-bold text-emerald-950">私人资料</h2><label className="mt-4 block text-sm font-semibold text-slate-800" htmlFor="display-name">显示名称<input id="display-name" value={displayName} onChange={(event) => setDisplayName(event.target.value)} maxLength={80} placeholder="学习者" className="mt-2 block w-full rounded-xl border border-slate-300 px-3 py-2 font-normal outline-none ring-emerald-500 focus:ring-2" /></label><label className="mt-4 block text-sm font-semibold text-slate-800" htmlFor="timezone">时区<select id="timezone" value={timezone} onChange={(event) => setTimezone(event.target.value)} className="mt-2 block w-full rounded-xl border border-slate-300 px-3 py-2 font-normal"><option value="Asia/Shanghai">中国标准时间</option><option value="Asia/Singapore">新加坡时间</option><option value="Asia/Tokyo">日本时间</option></select></label><button type="submit" disabled={isSavingProfile} className="mt-4 rounded-full bg-emerald-700 px-4 py-2 font-semibold text-white disabled:bg-emerald-300">{isSavingProfile ? "正在保存…" : "保存私人资料"}</button>{profile ? <p className="mt-3 text-sm text-slate-600">当前同步状态：已读取你的私人资料。</p> : null}</form>{message ? <p className="mt-4 rounded-xl bg-white p-3 text-sm leading-6 text-emerald-900">{message}</p> : null}<div className="mt-5 max-w-xl rounded-2xl border border-emerald-200 bg-white p-4"><h2 className="text-lg font-bold text-emerald-950">导出账户数据</h2><p className="mt-2 text-sm leading-6 text-slate-600">下载当前账户的结构化数据和私有素材清单。原始音频、图片、PDF 等素材文件不会包含在此 JSON 中。</p><button type="button" onClick={() => void exportAccountData()} disabled={exportStatus === "exporting"} className="mt-4 rounded-full border border-emerald-300 bg-white px-4 py-2 font-semibold text-emerald-800 disabled:cursor-not-allowed disabled:text-emerald-300">{exportStatus === "exporting" ? "正在准备导出…" : "下载账户数据"}</button><div aria-live="polite">{exportMessage ? <p className={`mt-3 text-sm leading-6 ${exportStatus === "error" ? "text-rose-700" : "text-emerald-800"}`}>{exportMessage}</p> : null}</div></div><button type="button" onClick={() => void signOut()} className="mt-5 rounded-full border border-emerald-300 bg-white px-4 py-2 font-semibold text-emerald-800">退出登录</button></section>;
+    return (
+      <section className="rounded-3xl border border-emerald-200 bg-emerald-50 p-6 shadow-sm">
+        <p className="text-sm font-semibold text-emerald-800">已登录</p>
+        <h1 className="mt-2 text-3xl font-bold text-emerald-950">
+          你的私有学习空间已准备好
+        </h1>
+        <p className="mt-3 leading-7 text-emerald-950">
+          当前账户：{session.user.email ?? "已验证用户"}
+        </p>
+        <p className="mt-2 leading-7 text-emerald-950">
+          课程、练习记录、私有素材和数据导出会按账户所有权保存；不会公开给其他用户。
+        </p>
+        <form
+          onSubmit={(event) => void saveProfile(event)}
+          className="mt-6 max-w-xl rounded-2xl border border-emerald-200 bg-white p-4"
+        >
+          <h2 className="text-lg font-bold text-emerald-950">私人资料</h2>
+          <label
+            className="mt-4 block text-sm font-semibold text-slate-800"
+            htmlFor="display-name"
+          >
+            显示名称
+            <input
+              id="display-name"
+              value={displayName}
+              onChange={(event) => setDisplayName(event.target.value)}
+              maxLength={80}
+              placeholder="学习者"
+              className="mt-2 block w-full rounded-xl border border-slate-300 px-3 py-2 font-normal outline-none ring-emerald-500 focus:ring-2"
+            />
+          </label>
+          <label
+            className="mt-4 block text-sm font-semibold text-slate-800"
+            htmlFor="timezone"
+          >
+            时区
+            <select
+              id="timezone"
+              value={timezone}
+              onChange={(event) => setTimezone(event.target.value)}
+              className="mt-2 block w-full rounded-xl border border-slate-300 px-3 py-2 font-normal"
+            >
+              <option value="Asia/Shanghai">中国标准时间</option>
+              <option value="Asia/Singapore">新加坡时间</option>
+              <option value="Asia/Tokyo">日本时间</option>
+            </select>
+          </label>
+          <button
+            type="submit"
+            disabled={isSavingProfile}
+            className="mt-4 rounded-full bg-emerald-700 px-4 py-2 font-semibold text-white disabled:bg-emerald-300"
+          >
+            {isSavingProfile ? "正在保存…" : "保存私人资料"}
+          </button>
+          {profile ? (
+            <p className="mt-3 text-sm text-slate-600">
+              当前同步状态：已读取你的私人资料。
+            </p>
+          ) : null}
+        </form>
+        {message ? (
+          <p className="mt-4 rounded-xl bg-white p-3 text-sm leading-6 text-emerald-900">
+            {message}
+          </p>
+        ) : null}
+        <PrivatePracticeHistoryPanel
+          userId={session.user.id}
+          timeZone={timezone}
+        />
+        <div className="mt-5 max-w-xl rounded-2xl border border-emerald-200 bg-white p-4">
+          <h2 className="text-lg font-bold text-emerald-950">导出账户数据</h2>
+          <p className="mt-2 text-sm leading-6 text-slate-600">
+            下载当前账户的结构化数据和私有素材清单。原始音频、图片、PDF 等素材文件不会包含在此 JSON 中。
+          </p>
+          <button
+            type="button"
+            onClick={() => void exportAccountData()}
+            disabled={exportStatus === "exporting"}
+            className="mt-4 rounded-full border border-emerald-300 bg-white px-4 py-2 font-semibold text-emerald-800 disabled:cursor-not-allowed disabled:text-emerald-300"
+          >
+            {exportStatus === "exporting" ? "正在准备导出…" : "下载账户数据"}
+          </button>
+          <div aria-live="polite">
+            {exportMessage ? (
+              <p
+                className={`mt-3 text-sm leading-6 ${exportStatus === "error" ? "text-rose-700" : "text-emerald-800"}`}
+              >
+                {exportMessage}
+              </p>
+            ) : null}
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={() => void signOut()}
+          className="mt-5 rounded-full border border-emerald-300 bg-white px-4 py-2 font-semibold text-emerald-800"
+        >
+          退出登录
+        </button>
+      </section>
+    );
   }
 
   if (authMode === "password-recovery") {
