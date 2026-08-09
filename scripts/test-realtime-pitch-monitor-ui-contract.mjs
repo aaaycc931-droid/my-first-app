@@ -17,11 +17,18 @@ for (const expected of [
   "generationRef.current",
   "recordingGenerationRef.current",
   "MediaRecorder",
-  "URL.revokeObjectURL",
+  "useBlobAudioPlaybackController",
+  "stopRecordingBlobPlayback",
   "releaseResources();",
   'echoCancellation: false',
   'noiseSuppression: false',
 ]) requireCopy(hook, expected, "实时音高麦克风生命周期");
+
+for (const forbidden of ["new Audio(", "URL.createObjectURL", "URL.revokeObjectURL"]) {
+  if (hook.includes(forbidden)) {
+    throw new Error(`实时音高 hook 不得绕过 Blob 回放 adapter：${forbidden}`);
+  }
+}
 
 for (const expected of [
   "开始实时反馈",
