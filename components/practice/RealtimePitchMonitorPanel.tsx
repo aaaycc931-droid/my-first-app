@@ -21,7 +21,8 @@ import type { OfflinePitchAnalysisInvalidationDetail, OfflinePitchAnalysisReadyD
 import { ActivityProtocolState } from "./ActivityProtocolState";
 import { useChoiceActivitySession } from "./useChoiceActivitySession";
 import { useRealtimePitchMonitor } from "./useRealtimePitchMonitor";
-import { createBrowserAudioChannel, stopAllBrowserAudio, subscribeBrowserAudioStopAll } from "../../lib/audio/browserAudioEngine";
+import { createBrowserAudioChannel, stopAllBrowserAudio } from "../../lib/audio/browserAudioEngine";
+import { useBlobAudioPlaybackController } from "./useBlobAudioPlaybackController";
 
 const frameCopy = {
   quiet: "声音太轻，正在等待较稳定的单音。",
@@ -60,6 +61,11 @@ export function RealtimePitchMonitorPanel({
   targetExercise?: GeneratedLocalVocalExercise | null;
 }) {
   const monitor = useRealtimePitchMonitor();
+  const {
+    snapshot: savedRecordingPlaybackSnapshot,
+    play: playSavedRecordingBlob,
+    stop: stopSavedRecordingBlobPlayback,
+  } = useBlobAudioPlaybackController();
   const a4Activity = useChoiceActivitySession(fixedA4ActivityDefinition, "local-vocal-a4-microphone-session");
   const [windowSeconds, setWindowSeconds] = useState(10);
   const [targetMidi, setTargetMidi] = useState(69);
@@ -72,14 +78,11 @@ export function RealtimePitchMonitorPanel({
   const [isStorageLoading, setIsStorageLoading] = useState(true);
   const [storageBusy, setStorageBusy] = useState(false);
   const [savingMedia, setSavingMedia] = useState<"curve" | "curve-and-recording" | null>(null);
-  const [playingSavedRecordId, setPlayingSavedRecordId] = useState<string | null>(null);
   const [recordingTargetSnapshot, setRecordingTargetSnapshot] = useState<GeneratedLocalVocalExercise | null>(null);
   const [pendingA4ActivityCheck, setPendingA4ActivityCheck] = useState<PendingA4ActivityCheck | null>(null);
   const [a4ReferenceError, setA4ReferenceError] = useState("");
   const a4RecordingAttemptIdRef = useRef<string | null>(null);
   const a4ReferenceChannelRef = useRef<ReturnType<typeof createBrowserAudioChannel> | null>(null);
-  const savedPlaybackRef = useRef<HTMLAudioElement | null>(null);
-  const savedPlaybackUrlRef = useRef<string | null>(null);
   const isPanelMountedRef = useRef(false);
   const downloadRequestIdRef = useRef(0);
   const isActive = monitor.status === "requesting" || monitor.status === "listening";
@@ -89,20 +92,19 @@ export function RealtimePitchMonitorPanel({
   const targetFeedbackCopy = targetFeedback.state === "close" ? "接近目标音" : targetFeedback.state === "high" ? "当前偏高" : targetFeedback.state === "low" ? "当前偏低" : targetFeedback.state === "unreliable" ? "当前不足以可靠判断" : "等待目标时段或稳定人声";
 
   const stopSavedPlayback = useCallback(() => {
-    savedPlaybackRef.current?.pause();
-    savedPlaybackRef.current = null;
-    if (savedPlaybackUrlRef.current) URL.revokeObjectURL(savedPlaybackUrlRef.current);
-    savedPlaybackUrlRef.current = null;
-    setPlayingSavedRecordId(null);
-  }, []);
+    stopSavedRecordingBlobPlayback();
+  }, [stopSavedRecordingBlobPlayback]);
+
+  const playingSavedRecordId = (
+    savedRecordingPlaybackSnapshot.status === "starting"
+    || savedRecordingPlaybackSnapshot.status === "playing"
+  ) ? savedRecordingPlaybackSnapshot.key : null;
 
   useEffect(() => {
     let active = true;
     void practiceRecordRepository.list().then((items) => { if (active) setRecords(items); }).catch(() => { if (active) setStorageNotice("本机记录暂时不可用；实时练习不受影响。"); }).finally(() => { if (active) setIsStorageLoading(false); });
     return () => { active = false; stopSavedPlayback(); };
   }, [practiceRecordRepository, stopSavedPlayback]);
-
-  useEffect(() => subscribeBrowserAudioStopAll(stopSavedPlayback), [stopSavedPlayback]);
 
   useEffect(() => () => a4ReferenceChannelRef.current?.stop(), []);
 
@@ -141,17 +143,13 @@ export function RealtimePitchMonitorPanel({
   const playSavedRecording = async (record: LocalVocalPracticeRecord) => {
     if (!record.recording) return;
     stopAllBrowserAudio();
-    stopSavedPlayback();
-    try {
-      const url = URL.createObjectURL(record.recording);
-      const audio = new Audio(url);
-      savedPlaybackUrlRef.current = url;
-      savedPlaybackRef.current = audio;
-      setPlayingSavedRecordId(record.id);
-      audio.onended = stopSavedPlayback;
-      audio.onerror = () => { stopSavedPlayback(); setStorageNotice("无法回放这条本机录音。"); };
-      await audio.play();
-    } catch { stopSavedPlayback(); setStorageNotice("系统阻止了本机录音回放，请重试。"); }
+    await playSavedRecordingBlob({
+      blob: record.recording,
+      key: record.id,
+      errorMessage: "无法回放这条本机录音。",
+      playErrorMessage: "系统阻止了本机录音回放，请重试。",
+      onError: (message) => setStorageNotice(message),
+    });
   };
 
   const exportRecord = (record: LocalVocalPracticeRecord) => {
@@ -182,7 +180,7 @@ export function RealtimePitchMonitorPanel({
     }
   };
 
-  const startMonitoring = () => { stopSavedPlayback(); void monitor.start(); };
+  const startMonitoring = () => { stopAllBrowserAudio(); void monitor.start(); };
   const playA4Reference = async () => {
     stopSavedPlayback();
     stopAllBrowserAudio();
@@ -208,8 +206,10 @@ export function RealtimePitchMonitorPanel({
       setA4ReferenceError("当前设备无法播放 A4 参考音。你仍可查看目标并稍后重试。");
     }
   };
-  const playCurrentRecording = () => { stopSavedPlayback(); void monitor.playRecording(); };
+  const playCurrentRecording = () => { stopAllBrowserAudio(); void monitor.playRecording(); };
   const startSessionRecording = () => {
+    monitor.suppressNextGlobalStop();
+    stopAllBrowserAudio();
     setPendingA4ActivityCheck(null);
     a4Activity.restartIfDirty();
     a4RecordingAttemptIdRef.current = null;
@@ -222,6 +222,8 @@ export function RealtimePitchMonitorPanel({
     monitor.startRecording();
   };
   const startA4ActivityRecording = () => {
+    monitor.suppressNextGlobalStop();
+    stopAllBrowserAudio();
     const current = a4Activity.session;
     const dirty = current.lifecycle !== "ready" || current.answer !== undefined || current.checkEvidence !== undefined;
     const attemptId = dirty
@@ -385,7 +387,7 @@ export function RealtimePitchMonitorPanel({
         </section>
         <OfflinePitchAnalysisPanel
           recording={monitor.recordingBlob}
-          onBeforeAnalyze={() => { stopSavedPlayback(); monitor.stopPlayback(); monitor.stop(); }}
+          onBeforeAnalyze={() => { stopAllBrowserAudio(); monitor.stopPlayback(); monitor.stop(); }}
           targetExercise={recordingTargetSnapshot}
           recordingStartedAtMs={monitor.recordingStartedAtMs}
           targetStartedAtMs={recordingTargetSnapshot === fixedA4ActivityExercise ? monitor.recordingStartedAtMs : monitor.listeningStartedAtMs}

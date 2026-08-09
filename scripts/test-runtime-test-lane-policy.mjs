@@ -16,7 +16,11 @@ const manifestScriptSet = new Set(manifestScripts);
 const manifestTestScripts = manifestScripts.filter((script) => script.startsWith("test:"));
 
 assert.equal(manifest.version, 1, "runtime test manifest version must be reviewed");
-assert.equal(manifest.baseline.commandCount, manifest.commands.length);
+assert.equal(manifest.reviewedCommandCount, manifest.commands.length);
+assert.ok(
+  manifest.baseline.commandCount <= manifest.reviewedCommandCount,
+  "measured baseline cannot contain more commands than the reviewed manifest",
+);
 assert.equal(manifest.baseline.durationSeconds, 560.809);
 assert.equal(manifest.baseline.commandDurationSeconds, 560.694);
 assert.equal(

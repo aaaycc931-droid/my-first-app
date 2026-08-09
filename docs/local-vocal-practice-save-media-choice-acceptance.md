@@ -27,7 +27,7 @@ QA level recommendation：**strict**
 ## 保持不变的边界
 
 - IndexedDB database、store、version、key path 和 `schemaVersion: 1` 不变。
-- 最多 20 条、最近 600 帧、备注 200 字、目标快照和单条录音 5 MiB 上限不变。
+- 最多 20 条、最近 600 帧、备注 200 字、目标标签与单一目标音摘要和单条录音 5 MiB 上限不变。
 - JSON 导出仍不含录音二进制；录音只存在应用私有 IndexedDB，不上传、不写账号或云端。
 - 不修改麦克风权限、录音／停止／回放／丢弃生命周期、A4 Activity、本地分析、
   实时音高算法、练声目标、网络权限或 Android 原生配置。

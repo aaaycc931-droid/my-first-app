@@ -106,6 +106,7 @@ jobs:
         run: |
           npm run test:accessibility-prefilter
           npm run test:browser-audio-engine
+          npm run test:blob-audio-playback
           npm run test:mobile-lifecycle
           npm run test:local-practice-answer-lock
           npm run test:local-practice-review-queue

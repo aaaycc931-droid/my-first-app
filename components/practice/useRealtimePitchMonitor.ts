@@ -12,6 +12,7 @@ import {
   type RealtimePitchCurvePoint,
 } from "../../lib/practice/realtimePitchCurve";
 import { subscribeBrowserAudioStopAll } from "../../lib/audio/browserAudioEngine";
+import { useBlobAudioPlaybackController } from "./useBlobAudioPlaybackController";
 
 export type RealtimePitchMonitorStatus = "idle" | "requesting" | "listening" | "error";
 export type RealtimePitchRecordingStatus = "empty" | "recording" | "ready" | "playing" | "error";
@@ -26,6 +27,10 @@ const describeMicrophoneError = (error: unknown): string => {
 };
 
 export function useRealtimePitchMonitor() {
+  const {
+    play: playRecordingBlob,
+    stop: stopRecordingBlobPlayback,
+  } = useBlobAudioPlaybackController();
   const [status, setStatus] = useState<RealtimePitchMonitorStatus>("idle");
   const [frame, setFrame] = useState<RealtimePitchFrameAnalysis | null>(null);
   const [curvePoints, setCurvePoints] = useState<RealtimePitchCurvePoint[]>([]);
@@ -45,22 +50,13 @@ export function useRealtimePitchMonitor() {
   const recordingGenerationRef = useRef(0);
   const recorderRef = useRef<MediaRecorder | null>(null);
   const recordingChunksRef = useRef<Blob[]>([]);
-  const recordingUrlRef = useRef<string | null>(null);
-  const playbackRef = useRef<HTMLAudioElement | null>(null);
   const mountedRef = useRef(true);
   const suppressGlobalStopRef = useRef(0);
 
   const stopPlayback = useCallback(() => {
-    const playback = playbackRef.current;
-    playbackRef.current = null;
-    if (playback) {
-      playback.onended = null;
-      playback.onerror = null;
-      playback.pause();
-      playback.currentTime = 0;
-    }
+    stopRecordingBlobPlayback();
     if (mountedRef.current) setRecordingStatus((current) => current === "playing" ? "ready" : current);
-  }, []);
+  }, [stopRecordingBlobPlayback]);
 
   const discardRecording = useCallback(() => {
     recordingGenerationRef.current += 1;
@@ -74,8 +70,6 @@ export function useRealtimePitchMonitor() {
     }
     recordingChunksRef.current = [];
     stopPlayback();
-    if (recordingUrlRef.current) URL.revokeObjectURL(recordingUrlRef.current);
-    recordingUrlRef.current = null;
     if (mountedRef.current) {
       setRecordingStatus("empty");
       setRecordingError("");
@@ -276,19 +270,8 @@ export function useRealtimePitchMonitor() {
         }
         const blob = new Blob(chunks, { type: recorder.mimeType || "audio/webm" });
         setRecordingBlob(blob);
-        try {
-          if (recordingUrlRef.current) URL.revokeObjectURL(recordingUrlRef.current);
-          recordingUrlRef.current = URL.createObjectURL(blob);
-          setHasRecording(true);
-          setRecordingStatus("ready");
-        } catch {
-          const message = "无法在当前会话中准备录音回放，请重新录制。";
-          recordingUrlRef.current = null;
-          setHasRecording(false);
-          setRecordingStatus("error");
-          setRecordingError(message);
-          onFailure?.(message);
-        }
+        setHasRecording(true);
+        setRecordingStatus("ready");
       };
       recorder.start(250);
       setRecordingStartedAtMs(performance.now());
@@ -307,8 +290,8 @@ export function useRealtimePitchMonitor() {
   }, [discardRecording, status]);
 
   const playRecording = useCallback(async (onFailure?: (message: string) => void) => {
-    const url = recordingUrlRef.current;
-    if (!url) {
+    const playbackRecording = recordingBlob;
+    if (!playbackRecording) {
       const message = "当前没有可回放的录音，请先完成一次录音。";
       setRecordingStatus("error");
       setRecordingError(message);
@@ -318,42 +301,27 @@ export function useRealtimePitchMonitor() {
     stop();
     stopPlayback();
     setCompletedPlaybackRecording(null);
-    let playback: HTMLAudioElement | null = null;
-    try {
-      playback = new Audio(url);
-      const playbackRecording = recordingBlob;
-      playbackRef.current = playback;
-      playback.onended = () => {
-        if (playbackRef.current !== playback) return;
-        playbackRef.current = null;
-        if (mountedRef.current) {
-          setCompletedPlaybackRecording(playbackRecording);
-          setRecordingStatus("ready");
-        }
-      };
-      playback.onerror = () => {
-        if (playbackRef.current !== playback) return;
-        playbackRef.current = null;
-        if (mountedRef.current) {
-          const message = "无法回放本次录音。你可以丢弃后重新录制。";
-          setRecordingStatus("error");
-          setRecordingError(message);
-          onFailure?.(message);
-        }
-      };
-      await playback.play();
-      if (playbackRef.current === playback && mountedRef.current) setRecordingStatus("playing");
-    } catch {
-      if (playback !== null && playbackRef.current !== playback) return;
-      playbackRef.current = null;
-      if (mountedRef.current) {
-        const message = "系统阻止了录音回放，请再次点击播放或重新录制。";
+    const started = await playRecordingBlob({
+      blob: playbackRecording,
+      key: "current-session-recording",
+      errorMessage: "无法回放本次录音。你可以丢弃后重新录制。",
+      playErrorMessage: "系统阻止了录音回放，请再次点击播放或重新录制。",
+      onEnded: () => {
+        if (!mountedRef.current) return;
+        setCompletedPlaybackRecording(playbackRecording);
+        setRecordingStatus("ready");
+      },
+      onError: (message) => {
+        if (!mountedRef.current) return;
         setRecordingStatus("error");
         setRecordingError(message);
         onFailure?.(message);
-      }
+      },
+    });
+    if (started && mountedRef.current) {
+      setRecordingStatus("playing");
     }
-  }, [recordingBlob, stop, stopPlayback]);
+  }, [playRecordingBlob, recordingBlob, stop, stopPlayback]);
 
   const suppressNextGlobalStop = useCallback(() => {
     suppressGlobalStopRef.current += 1;
@@ -387,8 +355,6 @@ export function useRealtimePitchMonitor() {
       }
       recordingChunksRef.current = [];
       stopPlayback();
-      if (recordingUrlRef.current) URL.revokeObjectURL(recordingUrlRef.current);
-      recordingUrlRef.current = null;
       releaseResources();
     };
   }, [releaseResources, stopPlayback]);

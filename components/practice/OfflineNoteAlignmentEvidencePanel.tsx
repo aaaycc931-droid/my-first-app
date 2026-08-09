@@ -1,12 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 
 import type {
   OfflineNoteAlignmentResult,
   OfflineNoteSegment,
   OfflineTargetEvidence,
 } from "../../lib/practice/offlineNoteAlignment";
+import { useBlobAudioPlaybackController } from "./useBlobAudioPlaybackController";
 
 const centsCopy = (value: number | null) => value === null
   ? "无法判断"
@@ -33,65 +34,40 @@ export function OfflineNoteAlignmentEvidencePanel({
   result: OfflineNoteAlignmentResult;
   onBeforePlay: () => void;
 }) {
+  const {
+    snapshot: playbackSnapshot,
+    play: playRecordingSegment,
+    stop: stopRecordingSegment,
+  } = useBlobAudioPlaybackController();
   const [selectedSegmentId, setSelectedSegmentId] = useState<string | null>(null);
-  const [playingSegmentId, setPlayingSegmentId] = useState<string | null>(null);
   const [playbackError, setPlaybackError] = useState("");
-  const playbackRef = useRef<HTMLAudioElement | null>(null);
-  const playbackUrlRef = useRef<string | null>(null);
-  const playbackTimerRef = useRef<number | null>(null);
+  const playingSegmentId = (
+    playbackSnapshot.status === "starting"
+    || playbackSnapshot.status === "playing"
+  ) ? playbackSnapshot.key : null;
   const segmentById = useMemo(
     () => new Map(result.segments.map((segment) => [segment.segmentId, segment])),
     [result.segments],
   );
 
-  const stopPlayback = useCallback(() => {
-    if (playbackTimerRef.current !== null) window.clearTimeout(playbackTimerRef.current);
-    playbackTimerRef.current = null;
-    const audio = playbackRef.current;
-    playbackRef.current = null;
-    if (audio) {
-      audio.onended = null;
-      audio.onerror = null;
-      audio.pause();
-    }
-    if (playbackUrlRef.current) URL.revokeObjectURL(playbackUrlRef.current);
-    playbackUrlRef.current = null;
-    setPlayingSegmentId(null);
-  }, []);
-
-  useEffect(() => () => {
-    if (playbackTimerRef.current !== null) window.clearTimeout(playbackTimerRef.current);
-    playbackRef.current?.pause();
-    if (playbackUrlRef.current) URL.revokeObjectURL(playbackUrlRef.current);
-  }, []);
-
   const playSegment = async (segment: OfflineNoteSegment) => {
     if (playingSegmentId === segment.segmentId) {
-      stopPlayback();
+      stopRecordingSegment();
       return;
     }
-    stopPlayback();
+    stopRecordingSegment();
     onBeforePlay();
     setSelectedSegmentId(segment.segmentId);
     setPlaybackError("");
-    try {
-      const url = URL.createObjectURL(recording);
-      const audio = new Audio(url);
-      playbackUrlRef.current = url;
-      playbackRef.current = audio;
-      audio.currentTime = Math.max(0, segment.startMs / 1_000);
-      audio.onended = stopPlayback;
-      audio.onerror = () => {
-        stopPlayback();
-        setPlaybackError("无法回放这个本机片段；分析证据仍可查看。请重新录制后重试。");
-      };
-      await audio.play();
-      setPlayingSegmentId(segment.segmentId);
-      playbackTimerRef.current = window.setTimeout(stopPlayback, Math.max(100, segment.durationMs));
-    } catch {
-      stopPlayback();
-      setPlaybackError("系统阻止了片段回放；分析证据仍可查看。请再次点击或重新录制。");
-    }
+    await playRecordingSegment({
+      blob: recording,
+      key: segment.segmentId,
+      startMs: segment.startMs,
+      durationMs: Math.max(100, segment.durationMs),
+      errorMessage: "无法回放这个本机片段；分析证据仍可查看。请重新录制后重试。",
+      playErrorMessage: "系统阻止了片段回放；分析证据仍可查看。请再次点击或重新录制。",
+      onError: (message) => setPlaybackError(message),
+    });
   };
 
   return (
