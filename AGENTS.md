@@ -22,39 +22,19 @@
 
 ## Codex 必读文件规则
 
-每次涉及 `/practice`、五线谱识别、制谱、伴奏、钢琴、视唱练耳、练习反馈、云端能力、产品路线或功能规划任务时，开始实现前必须先读取：
+每个新任务先读取 `docs/START-HERE.md`，再按其中的任务路由只读取与本次改动直接相关的规范、实时状态和 acceptance 文档。禁止把 17 份历史路线与交接文档作为所有任务的固定前置读取集。
 
-- `docs/mvp-status.md`
-- `docs/final-release-definition-of-done.md`
-- `docs/final-release-status-matrix.md`
-- `docs/final-ui-refactor-compatibility-contract.md`
-- `docs/android-apk-release-plan.md`
-- `docs/android-offline-professional-product-roadmap.md`
-- `docs/professional-competitive-roadmap-perfect-piano-earmaster.md`
-- `docs/eight-product-unified-competitive-roadmap-2026-07-18.md`
-- `docs/future-development-execution-roadmap-eight-products-2026-07-18.md`
-- `docs/unified-development-roadmap-with-ai-music-companion-2026-07-18.md`
-- `docs/ai-music-companion-agent-roadmap-2026-07-18.md`
-- `docs/ai-music-companion-single-companion-pilot-roadmap-2026-07-18.md`
-- `docs/project-handoff-paused-after-p112-eight-product-rebaseline-2026-07-18.md`
-- `docs/sight-singing-ear-training-feature-detail-map.md`
-- `docs/private-cloud-song-practice-pipeline-plan.md`
+开始实现前必须先以 GitHub 远端真实状态核验默认分支、`main` HEAD、开放 PR、未合并分支和相关 Actions；仓库文档不能覆盖更新的远端事实。跨账号继续时使用 `docs/account-handoff-prompt.md`，不要要求用户重复粘贴整段项目历史。
 
-如存在，也应读取：
+最小通用读取集：
 
-- `docs/future-product-requirements-roadmap.md`
-- `docs/final-product-shape-and-feature-map.md`
+- `docs/START-HERE.md`；
+- 本次功能对应的 acceptance / contract；
+- 只有当任务会改变产品完成声明、V1 范围或当前状态时，才读取并更新 `docs/mvp-status.md`、`docs/final-release-status-matrix.md` 或 `docs/final-release-definition-of-done.md` 中适用的文件。
 
-如果某个文件不存在，必须先说明，不要凭空假设其内容。
+涉及五线谱、乐谱预览、notation draft、识谱、OCR / OMR、乐谱到练习目标、Stage A–F 时，必须额外读取 `docs/sheet-music-to-practice-target-mvp-plan.md` 和当前阶段对应的 acceptance criteria。当前阶段没有 acceptance 文档时必须明确说明，不能假设其内容。
 
-截至 2026-07-24，P106–P113、P114a–P114m、P115a–P115i、P116a–P116d、P117a–P117e、P118a–P118e 已合并；P119a Q3 证据协议、P119b 两个基础档 V1 数量候选与 P119c 可复核审核清单已分别通过 PR #415、#417、#419 合并。当前 30 个自动盘点组均达到每档至少 20 的数量前置，catalog v10 清单已绑定 P119b source commit、18 个真源文件与 canonical SHA-256。产品所有者已确认两名独立教师在仓库外完成资质核验并分别签署，原样批准 P119d 候选的 30 层各 5 项、全部 3 个课程项和共 153 个 item ID，并接受 5 组跨难度相同 variant 作为配对的难度递进审核项；无身份批准摘要绑定候选 SHA-256。获批批次继续冻结，逐题六维双教师审核已由产品所有者延期到正式推广测试启动时；finding 闭环、专业每档 40 和教育有效性仍未完成。工具可以验证批准摘要、候选和工作表的一致性，但不得自行填写教师结论或宣布逐题审核通过。P114i 只冻结“共鸣之旅者”角色、世界观和最终头部资产，没有伙伴运行时。当前统一 Activity 输入以及 `MediaProject`、`ResourcePackage`、`CapabilityResolver`、`LearningEvent/Profile` 均有真实使用者；P115–P118 已交付相应 implementation candidates，但真实 Android、真实人声和教育审核仍是独立外部门槛。学习画像只可表达最小练习事实、错误、复练和建议原因，必须允许关闭建议与独立重置，并与正式能力评级、伙伴关系、账号和原始隐私数据分离。不得把自动测试、候选代码、CI、设备类型声明或角色设定冒充 USB/BLE 真机、伙伴运行时、P104 真实数据或教育证据。
-
-凡涉及五线谱、乐谱预览、notation draft、识谱、OCR / OMR、乐谱到练习目标、Stage A–F 的任务，除上述通用必读文档外，还必须读取：
-
-- `docs/sheet-music-to-practice-target-mvp-plan.md`
-- 当前阶段对应的 acceptance criteria 文档
-
-如果当前阶段还没有 acceptance criteria 文档，必须明确说明，不能假设其内容。
+历史交接、已暂停路线和研究归档只用于追溯，不得作为当前暂停点或完成状态。任何文件缺失、相互冲突或明显过期时，先报告并按 `docs/START-HERE.md` 的优先级处理。
 
 ## 自动结果设计原则
 

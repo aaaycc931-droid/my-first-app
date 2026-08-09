@@ -1,5 +1,7 @@
 # 视唱练耳项目交接：P112 合并后八产品全能路线重定标并暂停
 
+> 文档角色：**Historical snapshot / 已被当前 GitHub 状态取代**。本文件只用于追溯 2026-07-18 的暂停决策，不是当前暂停点。恢复项目请从 `docs/START-HERE.md` 开始并核验 GitHub。
+
 交接日期：2026-07-18
 状态：**PAUSED / 只完成规划，不继续运行时开发**
 项目：`aaaycc931-droid/my-first-app`
