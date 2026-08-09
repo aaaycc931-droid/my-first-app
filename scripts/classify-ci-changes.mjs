@@ -25,6 +25,12 @@ function isRootDocumentation(path) {
   return !path.includes("/") && (/\.md$/i.test(path) || path === "LICENSE");
 }
 
+function isGitHubPullRequestDocumentation(path) {
+  const normalizedPath = path.toLowerCase();
+  return normalizedPath === ".github/pull_request_template.md"
+    || normalizedPath.startsWith(".github/pull_request_template/");
+}
+
 export function classifyChangedPaths(paths, options = {}) {
   const uniquePaths = [...new Set(paths.filter(Boolean))].sort();
   const categories = {
@@ -39,7 +45,7 @@ export function classifyChangedPaths(paths, options = {}) {
   };
 
   for (const path of uniquePaths) {
-    if (path.startsWith("docs/") || isRootDocumentation(path)) {
+    if (path.startsWith("docs/") || isRootDocumentation(path) || isGitHubPullRequestDocumentation(path)) {
       categories.docs = true;
     } else if (path === "package.json" || path === "package-lock.json") {
       categories.infra = true;
