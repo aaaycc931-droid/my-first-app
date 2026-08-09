@@ -12,6 +12,11 @@ import {
   type RealtimePitchCurvePoint,
 } from "../../lib/practice/realtimePitchCurve";
 import { subscribeBrowserAudioStopAll } from "../../lib/audio/browserAudioEngine";
+import {
+  browserMediaRecorderCapturePort,
+  type MediaRecorderCaptureHandle,
+  type MediaRecorderCapturePort,
+} from "../../lib/audio/mediaRecorder";
 import { useBlobAudioPlaybackController } from "./useBlobAudioPlaybackController";
 
 export type RealtimePitchMonitorStatus = "idle" | "requesting" | "listening" | "error";
@@ -26,7 +31,9 @@ const describeMicrophoneError = (error: unknown): string => {
   return "无法启动本地实时音高反馈。请检查麦克风权限后重试。";
 };
 
-export function useRealtimePitchMonitor() {
+export function useRealtimePitchMonitor(
+  mediaRecorderPort: MediaRecorderCapturePort = browserMediaRecorderCapturePort,
+) {
   const {
     play: playRecordingBlob,
     stop: stopRecordingBlobPlayback,
@@ -48,8 +55,7 @@ export function useRealtimePitchMonitor() {
   const timerRef = useRef<number | null>(null);
   const generationRef = useRef(0);
   const recordingGenerationRef = useRef(0);
-  const recorderRef = useRef<MediaRecorder | null>(null);
-  const recordingChunksRef = useRef<Blob[]>([]);
+  const recordingCaptureRef = useRef<MediaRecorderCaptureHandle | null>(null);
   const mountedRef = useRef(true);
   const suppressGlobalStopRef = useRef(0);
 
@@ -60,15 +66,9 @@ export function useRealtimePitchMonitor() {
 
   const discardRecording = useCallback(() => {
     recordingGenerationRef.current += 1;
-    const recorder = recorderRef.current;
-    recorderRef.current = null;
-    if (recorder) {
-      recorder.ondataavailable = null;
-      recorder.onstop = null;
-      recorder.onerror = null;
-      if (recorder.state === "recording") recorder.stop();
-    }
-    recordingChunksRef.current = [];
+    const capture = recordingCaptureRef.current;
+    recordingCaptureRef.current = null;
+    capture?.dispose();
     stopPlayback();
     if (mountedRef.current) {
       setRecordingStatus("empty");
@@ -81,7 +81,9 @@ export function useRealtimePitchMonitor() {
   }, [stopPlayback]);
 
   const finishRecording = useCallback(() => {
-    if (recorderRef.current?.state === "recording") recorderRef.current.stop();
+    if (recordingCaptureRef.current?.getState() === "recording") {
+      recordingCaptureRef.current.stop();
+    }
   }, []);
 
   const releaseResources = useCallback(() => {
@@ -225,7 +227,7 @@ export function useRealtimePitchMonitor() {
       onFailure?.(message);
       return false;
     }
-    if (typeof MediaRecorder === "undefined") {
+    if (!mediaRecorderPort.isSupported()) {
       const message = "当前设备不支持会话内录音。实时曲线仍可继续使用。";
       setRecordingStatus("error");
       setRecordingError(message);
@@ -237,49 +239,43 @@ export function useRealtimePitchMonitor() {
     recordingGenerationRef.current = generation;
     setCompletedPlaybackRecording(null);
     setRecordingError("");
+    let capture: MediaRecorderCaptureHandle | null = null;
     try {
-      const supportedMimeType = ["audio/webm;codecs=opus", "audio/webm", "audio/mp4"]
-        .find((mimeType) => typeof MediaRecorder.isTypeSupported !== "function" || MediaRecorder.isTypeSupported(mimeType));
-      const recorder = supportedMimeType ? new MediaRecorder(stream, { mimeType: supportedMimeType }) : new MediaRecorder(stream);
-      recorderRef.current = recorder;
-      recordingChunksRef.current = [];
-      recorder.ondataavailable = (event) => {
-        if (generation === recordingGenerationRef.current && event.data.size > 0) recordingChunksRef.current.push(event.data);
-      };
-      recorder.onerror = () => {
-        if (!mountedRef.current || generation !== recordingGenerationRef.current) return;
-        const message = "本次录音发生错误，已停止。你可以继续使用实时曲线或重试录音。";
-        setRecordingStatus("error");
-        setRecordingError(message);
-        onFailure?.(message);
-      };
-      recorder.onstop = () => {
-        if (!mountedRef.current || generation !== recordingGenerationRef.current) {
-          recordingChunksRef.current = [];
-          return;
-        }
-        recorderRef.current = null;
-        const chunks = recordingChunksRef.current;
-        recordingChunksRef.current = [];
-        if (chunks.length === 0) {
-          const message = "没有获得可回放的录音数据，请重试。";
+      capture = mediaRecorderPort.create({
+        stream,
+        timesliceMs: 250,
+        onError: () => {
+          if (!mountedRef.current || generation !== recordingGenerationRef.current) return;
+          const message = "本次录音发生错误，已停止。你可以继续使用实时曲线或重试录音。";
           setRecordingStatus("error");
           setRecordingError(message);
           onFailure?.(message);
-          return;
-        }
-        const blob = new Blob(chunks, { type: recorder.mimeType || "audio/webm" });
-        setRecordingBlob(blob);
-        setHasRecording(true);
-        setRecordingStatus("ready");
-      };
-      recorder.start(250);
+        },
+        onStopped: (recording) => {
+          if (!mountedRef.current || generation !== recordingGenerationRef.current) {
+            return;
+          }
+          if (recordingCaptureRef.current === capture) recordingCaptureRef.current = null;
+          if (!recording) {
+            const message = "没有获得可回放的录音数据，请重试。";
+            setRecordingStatus("error");
+            setRecordingError(message);
+            onFailure?.(message);
+            return;
+          }
+          setRecordingBlob(recording);
+          setHasRecording(true);
+          setRecordingStatus("ready");
+        },
+      });
+      recordingCaptureRef.current = capture;
       setRecordingStartedAtMs(performance.now());
       setRecordingStatus("recording");
+      capture.start();
       return true;
     } catch {
-      recorderRef.current = null;
-      recordingChunksRef.current = [];
+      capture?.dispose();
+      if (recordingCaptureRef.current === capture) recordingCaptureRef.current = null;
       const message = "无法开始会话内录音。实时曲线仍可继续使用。";
       setRecordingStatus("error");
       setRecordingError(message);
@@ -287,7 +283,7 @@ export function useRealtimePitchMonitor() {
       onFailure?.(message);
       return false;
     }
-  }, [discardRecording, status]);
+  }, [discardRecording, mediaRecorderPort, status]);
 
   const playRecording = useCallback(async (onFailure?: (message: string) => void) => {
     const playbackRecording = recordingBlob;
@@ -345,15 +341,9 @@ export function useRealtimePitchMonitor() {
       mountedRef.current = false;
       generationRef.current += 1;
       recordingGenerationRef.current += 1;
-      const recorder = recorderRef.current;
-      recorderRef.current = null;
-      if (recorder) {
-        recorder.ondataavailable = null;
-        recorder.onstop = null;
-        recorder.onerror = null;
-        if (recorder.state === "recording") recorder.stop();
-      }
-      recordingChunksRef.current = [];
+      const capture = recordingCaptureRef.current;
+      recordingCaptureRef.current = null;
+      capture?.dispose();
       stopPlayback();
       releaseResources();
     };
