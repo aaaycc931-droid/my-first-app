@@ -231,4 +231,11 @@
   `docs/ui-realtime-pitch-local-record-storage-port-acceptance.md`；PR #496 只抽离 JSON
   下载 side effect，录音／回放编排、真实浏览器、Android WebView／真机和最终 UI
   重构仍为 `NOT_EXECUTED` 或未完成。
+- 本机练声保存区已把持久化介质明确分为“仅保存当前曲线”和用户即时选择的
+  “保存当前曲线和录音”。两种动作都要求已有曲线，后者还要求当前会话录音；仅保存
+  曲线会强制写入 `recording: null`，但不丢弃当前会话录音。repository 完成前不发布
+  成功或更新列表，失败保留既有记录与当前输入。数据库／schema／20 条／600 帧／
+  5 MiB／JSON 和云端边界不变；验收见
+  `docs/local-vocal-practice-save-media-choice-acceptance.md`，真实浏览器、WebView 与真机
+  仍为 `NOT_EXECUTED`。
 - 导入边界见 `docs/s3-local-score-project-musicxml-import-acceptance.md`，导出边界见 `docs/s3-local-score-project-musicxml-export-acceptance.md`，part identity 硬化见 `docs/s3-local-score-project-musicxml-part-identity-hardening-acceptance.md`，note 容器硬化见 `docs/s3-local-score-project-musicxml-note-container-hardening-acceptance.md`，谱面标题、署名与版权双向边界见 `docs/s3-local-score-project-musicxml-score-credits-round-trip-acceptance.md`；全局整数速度边界见 `docs/s3-local-score-project-musicxml-tempo-round-trip-acceptance.md`，单附点、单段歌词、单指法、单音演奏法、单事件力度记号、单事件制音踏板记号、受控和弦标记、fermata、圆滑线和延音线双向边界分别见对应的 S3 round-trip acceptance 文档，其中和弦切片见 `docs/s3-local-score-project-musicxml-chord-symbol-round-trip-acceptance.md`，增三／减三边界见 `docs/s3-local-score-project-musicxml-augmented-diminished-triad-round-trip-acceptance.md`，减七边界见 `docs/s3-local-score-project-musicxml-diminished-seventh-round-trip-acceptance.md`，半减七边界见 `docs/s3-local-score-project-musicxml-half-diminished-seventh-round-trip-acceptance.md`，增七边界见 `docs/s3-local-score-project-musicxml-augmented-seventh-round-trip-acceptance.md`，大六边界见 `docs/s3-local-score-project-musicxml-major-sixth-round-trip-acceptance.md`。浏览器真实导入／下载／重开、Android WebView／真机、第三方独立阅读器、速度／和弦／踏板／力度／演奏法／指法／标题与署名显示及真实播放、tempo map／中途变速、双升降／Unicode 升降号／转位／其他和弦类别、左右手／替代指法、歌词排版／多 verse／melisma、真实音频与歌唱对齐、教师审核、MIDI、OMR、完整 MusicXML、完整 S3 与正式版 V1 均仍为 `NOT_EXECUTED` 或未完成。

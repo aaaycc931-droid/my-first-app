@@ -235,9 +235,10 @@ describe("Android 实时音高反馈行为", () => {
     expect(container.textContent).toContain("保留的记录");
 
     await click(button(container, "开始实时反馈"));
-    await click(button(container, "保存当前曲线与录音"));
+    await click(button(container, "仅保存当前曲线"));
     expect(repository.save).toHaveBeenCalledTimes(1);
-    expect(container.textContent).toContain("已保存到本机应用私有记录");
+    expect(repository.save.mock.calls[0]?.[0].recording).toBeNull();
+    expect(container.textContent).toContain("已仅保存曲线到本机应用私有记录");
 
     const deleteStoredRecord = Array.from(container.querySelectorAll("button")).find(
       (item) => item.getAttribute("aria-label")?.startsWith("删除：")
@@ -271,10 +272,17 @@ describe("Android 实时音高反馈行为", () => {
     repository.remove.mockRejectedValue(new Error("删除失败"));
     repository.clear.mockRejectedValue(new Error("清除失败"));
     const container = await renderPanel(undefined, repository);
+    const note = container.querySelector("textarea") as HTMLTextAreaElement;
+    await act(async () => {
+      const setValue = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value")?.set;
+      setValue?.call(note, "失败后保留这条备注");
+      note.dispatchEvent(new Event("input", { bubbles: true }));
+    });
     await click(button(container, "开始实时反馈"));
-    await click(button(container, "保存当前曲线与录音"));
+    await click(button(container, "仅保存当前曲线"));
     expect(container.textContent).toContain("保存失败");
     expect(container.querySelectorAll('[aria-label^="删除："]')).toHaveLength(1);
+    expect(note.value).toBe("失败后保留这条备注");
 
     await click(container.querySelector('[aria-label^="删除："]') as HTMLElement);
     expect(container.textContent).toContain("删除失败，请重试。");
@@ -332,6 +340,86 @@ describe("Android 实时音高反馈行为", () => {
     await click(button(container, "丢弃本次录音"));
     expect(revokeObjectUrl).toHaveBeenCalledWith("blob:session-recording");
     expect(container.textContent).toContain("状态：尚未录音");
+  });
+
+  it("明确区分仅保存曲线与保存曲线和录音，缺少介质时失败关闭", async () => {
+    const repository = createPracticeRecordRepository();
+    const container = await renderPanel(undefined, repository);
+    const curveOnlyButton = button(container, "仅保存当前曲线") as HTMLButtonElement;
+    const curveAndRecordingButton = button(container, "保存当前曲线和录音") as HTMLButtonElement;
+
+    expect(curveOnlyButton.disabled).toBe(true);
+    expect(curveOnlyButton.title).toBe("先开始实时反馈并获得音高曲线");
+    expect(curveAndRecordingButton.disabled).toBe(true);
+    expect(curveAndRecordingButton.title).toBe("先开始实时反馈并获得音高曲线");
+    expect(container.textContent).toContain("“仅保存曲线”不会保留录音");
+
+    await click(button(container, "开始实时反馈"));
+    expect(curveOnlyButton.disabled).toBe(false);
+    expect(curveAndRecordingButton.disabled).toBe(true);
+    expect(curveAndRecordingButton.title).toBe("先完成一次会话录音");
+
+    await click(button(container, "开始会话录音"));
+    await click(button(container, "停止录音"));
+    expect(curveAndRecordingButton.disabled).toBe(false);
+
+    await click(curveOnlyButton);
+    expect(repository.save).toHaveBeenCalledTimes(1);
+    expect(repository.save.mock.calls[0]?.[0].recording).toBeNull();
+    expect(container.textContent).toContain("已仅保存曲线到本机应用私有记录");
+    expect(container.textContent).toContain("状态：可以回放");
+    expect(container.textContent).toContain("仅曲线");
+
+    await click(curveAndRecordingButton);
+    expect(repository.save).toHaveBeenCalledTimes(2);
+    expect(repository.save.mock.calls[1]?.[0].recording).toBeInstanceOf(Blob);
+    expect(repository.save.mock.calls[1]?.[0].recording?.size).toBeGreaterThan(0);
+    expect(container.textContent).toContain("已保存曲线和录音到本机应用私有记录");
+    expect(container.textContent).toContain("含录音");
+  });
+
+  it("保存未完成或失败时锁定重复提交并保留备注、录音和既有列表", async () => {
+    const repository = createPracticeRecordRepository([storedRecord]);
+    let rejectSave: ((reason?: unknown) => void) | null = null;
+    repository.save.mockImplementationOnce(() => new Promise<void>((_resolve, reject) => {
+      rejectSave = reject;
+    }));
+    const container = await renderPanel(undefined, repository);
+    const note = container.querySelector("textarea") as HTMLTextAreaElement;
+    await act(async () => {
+      const setValue = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value")?.set;
+      setValue?.call(note, "这条备注必须等待保存成功");
+      note.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    await click(button(container, "开始实时反馈"));
+    await click(button(container, "开始会话录音"));
+    await click(button(container, "停止录音"));
+
+    const saveWithRecording = button(container, "保存当前曲线和录音") as HTMLButtonElement;
+    await click(saveWithRecording);
+    expect(repository.save).toHaveBeenCalledTimes(1);
+    expect((button(container, "正在保存曲线和录音…") as HTMLButtonElement).disabled).toBe(true);
+    expect((button(container, "仅保存当前曲线") as HTMLButtonElement).disabled).toBe(true);
+    expect(container.querySelectorAll('[aria-label^="删除："]')).toHaveLength(1);
+    expect(note.value).toBe("这条备注必须等待保存成功");
+    expect(container.textContent).toContain("状态：可以回放");
+    expect(container.textContent).not.toContain("已保存曲线和录音到本机");
+
+    await act(async () => {
+      rejectSave?.(new Error("本机空间不足"));
+      await Promise.resolve();
+    });
+    await flush();
+    expect(container.textContent).toContain("本机空间不足");
+    expect(container.querySelectorAll('[aria-label^="删除："]')).toHaveLength(1);
+    expect(note.value).toBe("这条备注必须等待保存成功");
+    expect(container.textContent).toContain("状态：可以回放");
+
+    await click(button(container, "保存当前曲线和录音"));
+    expect(repository.save).toHaveBeenCalledTimes(2);
+    expect(container.querySelectorAll('[aria-label^="删除："]')).toHaveLength(2);
+    expect(note.value).toBe("");
+    expect(container.textContent).toContain("已保存曲线和录音到本机应用私有记录");
   });
 
   it("录音停止后必须二次确认才执行本地多候选分析，丢弃会使结果失效", async () => {
