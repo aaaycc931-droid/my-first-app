@@ -20,6 +20,12 @@ let getUserMedia: ReturnType<typeof vi.fn>;
 let recorderStop: ReturnType<typeof vi.fn>;
 let audioPlay: ReturnType<typeof vi.fn>;
 let audioPause: ReturnType<typeof vi.fn>;
+let audioInstances: Array<{
+  src: string;
+  currentTime: number;
+  onended: (() => void) | null;
+  onerror: (() => void) | null;
+}>;
 let createObjectUrl: ReturnType<typeof vi.fn>;
 let revokeObjectUrl: ReturnType<typeof vi.fn>;
 let decodeAudioDataMock: ReturnType<typeof vi.fn>;
@@ -99,6 +105,7 @@ beforeEach(() => {
   recorderStop = vi.fn();
   audioPlay = vi.fn().mockResolvedValue(undefined);
   audioPause = vi.fn();
+  audioInstances = [];
   createObjectUrl = vi.fn().mockReturnValue("blob:session-recording");
   revokeObjectUrl = vi.fn();
   getUserMedia = vi.fn().mockResolvedValue({ getTracks: () => [{ stop: trackStop }] });
@@ -148,7 +155,7 @@ beforeEach(() => {
     currentTime = 0;
     onended: (() => void) | null = null;
     onerror: (() => void) | null = null;
-    constructor(public src: string) {}
+    constructor(public src: string) { audioInstances.push(this); }
     play = audioPlay;
     pause = audioPause;
   }
@@ -327,10 +334,11 @@ describe("Android 实时音高反馈行为", () => {
 
     await click(button(container, "停止录音"));
     expect(recorderStop).toHaveBeenCalledTimes(1);
-    expect(createObjectUrl).toHaveBeenCalledTimes(1);
+    expect(createObjectUrl).not.toHaveBeenCalled();
     expect(container.textContent).toContain("状态：可以回放");
 
     await click(button(container, "播放本次录音"));
+    expect(createObjectUrl).toHaveBeenCalledTimes(1);
     expect(trackStop).toHaveBeenCalledTimes(1);
     expect(audioPlay).toHaveBeenCalledTimes(1);
     expect(container.textContent).toContain("状态：正在回放");
@@ -340,6 +348,54 @@ describe("Android 实时音高反馈行为", () => {
     await click(button(container, "丢弃本次录音"));
     expect(revokeObjectUrl).toHaveBeenCalledWith("blob:session-recording");
     expect(container.textContent).toContain("状态：尚未录音");
+  });
+
+  it("已保存录音快速 A→B 切换时忽略 A 的迟到结束与错误", async () => {
+    const recordA = {
+      ...storedRecord,
+      id: "stored-record-a",
+      targetLabel: "目标 A",
+      recording: new Blob(["a"], { type: "audio/webm" }),
+    };
+    const recordB = {
+      ...storedRecord,
+      id: "stored-record-b",
+      createdAt: "2026-07-31T08:01:00.000Z",
+      targetLabel: "目标 B",
+      recording: new Blob(["b"], { type: "audio/webm" }),
+    };
+    createObjectUrl
+      .mockReturnValueOnce("blob:saved-a")
+      .mockReturnValueOnce("blob:saved-b");
+    const container = await renderPanel(
+      undefined,
+      createPracticeRecordRepository([recordA, recordB]),
+    );
+    const articleFor = (label: string) => Array.from(container.querySelectorAll("article"))
+      .find((article) => article.textContent?.includes(label));
+    const playbackButtonFor = (label: string) => articleFor(label)?.querySelector(
+      '[aria-label^="回放录音："], [aria-label^="停止录音："]',
+    ) as HTMLButtonElement | null;
+
+    const playA = playbackButtonFor("目标 A");
+    if (!playA) throw new Error("找不到目标 A 回放按钮");
+    await click(playA);
+    const staleEnded = audioInstances[0]?.onended;
+    const staleError = audioInstances[0]?.onerror;
+
+    const playB = playbackButtonFor("目标 B");
+    if (!playB) throw new Error("找不到目标 B 回放按钮");
+    await click(playB);
+    expect(playbackButtonFor("目标 B")?.textContent).toBe("停止回放");
+    expect(revokeObjectUrl).toHaveBeenCalledWith("blob:saved-a");
+
+    await act(async () => {
+      staleEnded?.();
+      staleError?.();
+    });
+    await flush();
+    expect(playbackButtonFor("目标 B")?.textContent).toBe("停止回放");
+    expect(container.textContent).not.toContain("无法回放这条本机录音");
   });
 
   it("明确区分仅保存曲线与保存曲线和录音，缺少介质时失败关闭", async () => {
@@ -463,6 +519,49 @@ describe("Android 实时音高反馈行为", () => {
     await click(button(container, "丢弃本次录音"));
     expect(container.textContent).toContain("状态：等待本次录音");
     expect(container.textContent).not.toContain("状态：本地分析已完成");
+  });
+
+  it("逐音片段响应全局停止，迟到回调无效且卸载释放当前 URL", async () => {
+    const targetExercise = generateLocalVocalExercise({
+      patternId: "single",
+      rootMidi: 69,
+      direction: "ascending",
+      bpm: 60,
+      octaveShift: 0,
+      loops: 1,
+      referenceMode: "full",
+      intervalSemitones: 7,
+    });
+    const container = await renderPanel(targetExercise);
+    await click(button(container, "开始实时反馈"));
+    await click(button(container, "开始会话录音"));
+    await click(button(container, "停止录音"));
+    await click(button(container, "检查并准备分析本次录音"));
+    await click(button(container, "确认开始本地分析"));
+
+    await click(button(container, "回放本次片段并定位复练"));
+    const firstSegmentAudio = audioInstances.at(-1);
+    const staleEnded = firstSegmentAudio?.onended;
+    expect(firstSegmentAudio?.currentTime).toBeGreaterThanOrEqual(0);
+    const revokesBeforeGlobalStop = revokeObjectUrl.mock.calls.length;
+    await act(async () => stopAllBrowserAudio());
+    await flush();
+    expect(revokeObjectUrl).toHaveBeenCalledTimes(revokesBeforeGlobalStop + 1);
+    expect(container.textContent).toContain("回放本次片段并定位复练");
+
+    await act(async () => staleEnded?.());
+    await flush();
+    expect(container.textContent).toContain("回放本次片段并定位复练");
+
+    await click(button(container, "回放本次片段并定位复练"));
+    const lastSegmentAudio = audioInstances.at(-1);
+    const staleAfterUnmount = lastSegmentAudio?.onended;
+    const revokesBeforeUnmount = revokeObjectUrl.mock.calls.length;
+    await act(async () => root?.unmount());
+    root = null;
+    expect(revokeObjectUrl).toHaveBeenCalledTimes(revokesBeforeUnmount + 1);
+    await act(async () => staleAfterUnmount?.());
+    expect(revokeObjectUrl).toHaveBeenCalledTimes(revokesBeforeUnmount + 1);
   });
 
   it("录音中卸载会停止录制、释放媒体轨且不生成会话 URL", async () => {

@@ -135,7 +135,7 @@ GitHub Draft PR 是首选的持久化暂停点。账号额度不足前：
 - Supabase 生产迁移只接受显式手动 workflow dispatch，不再为每个 `agent/**` push 创建 skipped run；秘密检查、SQL、RLS smoke 和最小权限验证没有删除；
 - 统一 PR 模板已覆盖范围、风险分类、验证、未执行 QA、APK／数据库意图和回滚；PR 模板属于非执行文档，workflow 文件仍为 infra/full；
 - dependency-free 供应链与 workflow 策略测试已移到无条件轻量步骤，因此未来 docs-only PR 模板改动仍受门禁约束，且该测试仍恰好执行一次。
-- runtime test ownership shadow 已建立版本化清单：main Quality #453 实测 159 个 `test:*` 加 1 个 P119 verify 命令串行执行 560.809 秒；当前只报告候选 lane、全量回退原因和理论命令数量，enforcement 保持关闭，实际 160 条命令仍完整执行；清单或新增测试未登记会由轻量策略测试直接失败。
+- runtime test ownership shadow 已建立版本化清单：main Quality #453 实测的 159 个 `test:*` 加 1 个 P119 verify 命令串行基线为 560.809 秒；Blob playback focused test 加入后，当前登记并完整执行 160 个 `test:*` 加 1 个 verify 命令。shadow 仍只报告候选 lane、全量回退原因和基于旧实测 lane 的估算，enforcement 保持关闭；下一个 main 实测基线前不得把 560.809 秒误称为 161 条命令的新实测值。清单或新增测试未登记会由轻量策略测试直接失败。
 
 ## 10. 仍待执行的流程优化
 

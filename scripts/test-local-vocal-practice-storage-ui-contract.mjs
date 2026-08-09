@@ -6,6 +6,9 @@ const storage = readFileSync("lib/platform/indexedDbLocalVocalPracticeRecordRepo
 const panel = readFileSync("components/practice/RealtimePitchMonitorPanel.tsx", "utf8");
 const webRoot = readFileSync("app/practice/page.tsx", "utf8");
 const androidRoot = readFileSync("mobile/src/App.tsx", "utf8");
+const currentSessionPlayback = readFileSync("components/practice/useRealtimePitchMonitor.ts", "utf8");
+const segmentPlayback = readFileSync("components/practice/OfflineNoteAlignmentEvidencePanel.tsx", "utf8");
+const blobPlayback = readFileSync("lib/audio/blobAudioPlayback.ts", "utf8");
 
 const requireCopy = (source, expected, label) => {
   if (!source.includes(expected)) throw new Error(`${label}缺少：${expected}`);
@@ -64,6 +67,28 @@ if (panel.includes('document.createElement("a")')) {
 if (panel.includes("browserFileDownloadPort")) {
   throw new Error("共享实时音高组件必须由 composition root 注入下载端口");
 }
+
+for (const [source, label] of [
+  [currentSessionPlayback, "当前会话录音"],
+  [panel, "已保存练声录音"],
+  [segmentPlayback, "逐音片段"],
+]) {
+  requireCopy(source, "useBlobAudioPlaybackController", `${label}回放 controller 边界`);
+  for (const forbidden of ["new Audio(", "URL.createObjectURL", "URL.revokeObjectURL"]) {
+    if (source.includes(forbidden)) {
+      throw new Error(`${label}共享编排不得直接使用浏览器回放 side effect：${forbidden}`);
+    }
+  }
+}
+for (const expected of [
+  "createBlobAudioPlaybackController",
+  "createBrowserBlobAudioPlaybackPort",
+  "new Audio(url)",
+  "URL.createObjectURL(blob)",
+  "URL.revokeObjectURL(url)",
+  "requestGeneration",
+  "active?.generation === requestGeneration",
+]) requireCopy(blobPlayback, expected, "Blob 音频回放 port/controller 边界");
 
 for (const [source, label] of [[webRoot, "Web"], [androidRoot, "Android"]]) {
   requireCopy(

@@ -238,4 +238,11 @@
   5 MiB／JSON 和云端边界不变；验收见
   `docs/local-vocal-practice-save-media-choice-acceptance.md`，真实浏览器、WebView 与真机
   仍为 `NOT_EXECUTED`。
+- 当前会话录音、已保存练声录音和 P113 逐音片段的 Blob 回放已统一经过平台无关
+  latest-wins controller 与浏览器 adapter；共享 UI 不再直接创建 `Audio` 或 object URL。
+  A→B 快速切换后，A 的迟到 play 结果、ended／error 回调和 duration timer 均不能停止 B、
+  覆盖 B 状态或显示陈旧错误，URL 由 adapter 幂等单次释放。该切片不改变 MediaRecorder、
+  IndexedDB／schema、录音 Blob、曲线、分析、评分或网络边界；验收见
+  `docs/local-blob-audio-playback-controller-acceptance.md`，真实浏览器媒体策略、Android
+  WebView／真机、后台／锁屏和长循环仍为 `NOT_EXECUTED`。
 - 导入边界见 `docs/s3-local-score-project-musicxml-import-acceptance.md`，导出边界见 `docs/s3-local-score-project-musicxml-export-acceptance.md`，part identity 硬化见 `docs/s3-local-score-project-musicxml-part-identity-hardening-acceptance.md`，note 容器硬化见 `docs/s3-local-score-project-musicxml-note-container-hardening-acceptance.md`，谱面标题、署名与版权双向边界见 `docs/s3-local-score-project-musicxml-score-credits-round-trip-acceptance.md`；全局整数速度边界见 `docs/s3-local-score-project-musicxml-tempo-round-trip-acceptance.md`，单附点、单段歌词、单指法、单音演奏法、单事件力度记号、单事件制音踏板记号、受控和弦标记、fermata、圆滑线和延音线双向边界分别见对应的 S3 round-trip acceptance 文档，其中和弦切片见 `docs/s3-local-score-project-musicxml-chord-symbol-round-trip-acceptance.md`，增三／减三边界见 `docs/s3-local-score-project-musicxml-augmented-diminished-triad-round-trip-acceptance.md`，减七边界见 `docs/s3-local-score-project-musicxml-diminished-seventh-round-trip-acceptance.md`，半减七边界见 `docs/s3-local-score-project-musicxml-half-diminished-seventh-round-trip-acceptance.md`，增七边界见 `docs/s3-local-score-project-musicxml-augmented-seventh-round-trip-acceptance.md`，大六边界见 `docs/s3-local-score-project-musicxml-major-sixth-round-trip-acceptance.md`。浏览器真实导入／下载／重开、Android WebView／真机、第三方独立阅读器、速度／和弦／踏板／力度／演奏法／指法／标题与署名显示及真实播放、tempo map／中途变速、双升降／Unicode 升降号／转位／其他和弦类别、左右手／替代指法、歌词排版／多 verse／melisma、真实音频与歌唱对齐、教师审核、MIDI、OMR、完整 MusicXML、完整 S3 与正式版 V1 均仍为 `NOT_EXECUTED` 或未完成。
