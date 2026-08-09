@@ -3,13 +3,16 @@ import { readFile } from "node:fs/promises";
 
 const packageJsonPath = new URL("../package.json", import.meta.url);
 const qualityWorkflowPath = new URL("../.github/workflows/quality.yml", import.meta.url);
+const runtimeManifestPath = new URL("./runtime-test-lanes.json", import.meta.url);
 
-const [packageJsonText, qualityWorkflow] = await Promise.all([
+const [packageJsonText, qualityWorkflow, runtimeManifestText] = await Promise.all([
   readFile(packageJsonPath, "utf8"),
   readFile(qualityWorkflowPath, "utf8"),
+  readFile(runtimeManifestPath, "utf8"),
 ]);
 
 const packageJson = JSON.parse(packageJsonText);
+const runtimeManifest = JSON.parse(runtimeManifestText);
 const packageTestScripts = Object.keys(packageJson.scripts ?? {})
   .filter((scriptName) => scriptName.startsWith("test:"))
   .sort();
@@ -25,12 +28,30 @@ const workflowTestCommands = [
   ...executableWorkflowLines.matchAll(/\bnpm run (test:[a-z0-9:-]+)(?:\s|$)/g),
 ].map((match) => match[1]);
 const workflowTestCommandSet = new Set(workflowTestCommands);
+const runtimeStepMatch = executableWorkflowLines.match(
+  /\n      - name: Mobile runtime tests[\s\S]*?\n      - name: Validate final platform contracts/,
+);
+assert.ok(runtimeStepMatch, "Quality workflow must keep the Mobile runtime tests step");
+const runtimeWorkflowCommands = [
+  ...runtimeStepMatch[0].matchAll(/\bnpm run ([a-z0-9:-]+)(?:\s|$)/g),
+].map((match) => match[1]);
+const manifestCommands = runtimeManifest.commands.map(({ script }) => script);
 
 assert.ok(packageTestScripts.length > 0, "package.json must define test:* scripts");
 assert.equal(
   workflowTestCommands.length,
   workflowTestCommandSet.size,
   "Quality workflow must not run duplicate test:* commands",
+);
+assert.deepEqual(
+  runtimeWorkflowCommands,
+  manifestCommands,
+  "Mobile runtime commands and the reviewed ownership manifest must match exactly and in order",
+);
+assert.equal(
+  (runtimeStepMatch[0].match(/verify:p119-content-review-manifest -- --manifest local-fixtures\/p119-content-education\/review-manifest\.bd5c5af211a3a1b36f4fcfacebdfe89b65fbafc1\.json/g) ?? []).length,
+  1,
+  "Mobile runtime tests must preserve the reviewed P119 manifest verification command",
 );
 
 const missingFromQuality = packageTestScripts.filter(
@@ -81,6 +102,16 @@ assert.match(
   executableWorkflowLines,
   /concurrency:\s*\n\s+group: quality-\$\{\{ github\.event\.pull_request\.number \|\| github\.ref \}\}\s*\n\s+cancel-in-progress: \$\{\{ github\.event_name == 'pull_request' \}\}/,
   "Quality workflow must cancel obsolete runs only for the same pull request",
+);
+assert.match(
+  runtimeStepMatch[0],
+  /if: \$\{\{ needs\.classify\.outputs\.run_code == 'true' \}\}/,
+  "Runtime shadow data must not replace the full code-suite condition",
+);
+assert.doesNotMatch(
+  executableWorkflowLines,
+  /^\s*if:.*runtime_shadow_/m,
+  "Runtime shadow outputs must never control execution during the observation phase",
 );
 assert.match(
   executableWorkflowLines,
