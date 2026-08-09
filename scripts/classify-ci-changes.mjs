@@ -2,6 +2,7 @@ import { appendFileSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
+import { classifyRuntimeTestShadow } from "./runtime-test-lane-policy.mjs";
 
 const SHA_PATTERN = /^[0-9a-f]{40}$/i;
 const ZERO_SHA_PATTERN = /^0{40}$/;
@@ -151,6 +152,18 @@ export function selectComparison({ eventName, baseSha, beforeSha, headSha }) {
   return { forceFullReason: `unsupported-event-${eventName || "unknown"}` };
 }
 
+export function attachRuntimeTestShadow(result) {
+  const runtimeForceFullReason = result.fullReason
+    || (result.full ? `full-category:${result.classification}` : "")
+    || (result.shared ? "shared-category" : "");
+  return {
+    ...result,
+    runtimeShadow: classifyRuntimeTestShadow(result.changedPaths, {
+      forceFullReason: runtimeForceFullReason,
+    }),
+  };
+}
+
 function changedPathsForComparison(comparison) {
   let diffBase = comparison.baseSha;
   if (comparison.useMergeBase) {
@@ -172,6 +185,22 @@ function booleanOutput(value) {
   return value ? "true" : "false";
 }
 
+function singleLineOutput(value) {
+  return String(value).replace(/[\r\n]/g, " ");
+}
+
+function escapeSummaryPath(path) {
+  return JSON.stringify(path)
+    .slice(1, -1)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;");
+}
+
+function inlineCode(value) {
+  return singleLineOutput(value).replaceAll("`", "'");
+}
+
 function writeGitHubOutputs(result) {
   if (!process.env.GITHUB_OUTPUT) return;
   const outputs = {
@@ -184,10 +213,16 @@ function writeGitHubOutputs(result) {
     classification: result.classification,
     changed_count: String(result.changedCount),
     full_reason: result.fullReason,
+    runtime_shadow_full: booleanOutput(result.runtimeShadow.full),
+    runtime_shadow_lanes: result.runtimeShadow.lanes.join(","),
+    runtime_shadow_reason: result.runtimeShadow.reason,
+    runtime_shadow_selected_commands: String(result.runtimeShadow.selectedCommands),
+    runtime_shadow_total_commands: String(result.runtimeShadow.totalCommands),
+    runtime_shadow_estimated_seconds: String(result.runtimeShadow.estimatedSeconds),
   };
   appendFileSync(
     process.env.GITHUB_OUTPUT,
-    `${Object.entries(outputs).map(([key, value]) => `${key}=${value}`).join("\n")}\n`,
+    `${Object.entries(outputs).map(([key, value]) => `${key}=${singleLineOutput(value)}`).join("\n")}\n`,
   );
 }
 
@@ -204,10 +239,24 @@ function writeSummary(result) {
     `- Run code suite: ${booleanOutput(result.runCode)}`,
     `- Run Web build: ${booleanOutput(result.runWeb)}`,
     `- Run Android build: ${booleanOutput(result.runAndroid)}`,
+    "- Runtime lane enforcement: `off` (full suite remains required)",
+    `- Runtime shadow full fallback: ${booleanOutput(result.runtimeShadow.full)}`,
+    `- Runtime shadow lanes: \`${result.runtimeShadow.lanes.join(",") || "none"}\``,
+    `- Runtime shadow reason: \`${inlineCode(result.runtimeShadow.reason)}\``,
+    `- Runtime shadow commands: ${result.runtimeShadow.selectedCommands}/${result.runtimeShadow.totalCommands} (would skip ${result.runtimeShadow.skippedCommands})`,
+    `- Runtime shadow baseline estimate: ${result.runtimeShadow.estimatedSeconds}s/${result.runtimeShadow.baselineSeconds}s`,
   ];
-  if (result.fullReason) lines.push(`- Full reason: \`${result.fullReason}\``);
+  if (result.fullReason) lines.push(`- Full reason: \`${inlineCode(result.fullReason)}\``);
   if (displayedPaths.length) {
-    lines.push("", "<details><summary>Changed paths</summary>", "", "```text", ...displayedPaths, "```", "</details>");
+    lines.push(
+      "",
+      "<details><summary>Changed paths</summary>",
+      "",
+      "<ul>",
+      ...displayedPaths.map((path) => `<li><code>${escapeSummaryPath(path)}</code></li>`),
+      "</ul>",
+      "</details>",
+    );
   }
   if (omitted > 0) lines.push("", `_${omitted} additional paths omitted from this summary._`);
   appendFileSync(process.env.GITHUB_STEP_SUMMARY, `${lines.join("\n")}\n`);
@@ -232,6 +281,8 @@ export function runFromEnvironment(environment = process.env) {
       result = classifyChangedPaths([], { forceFullReason: `diff-error-${reason.replaceAll("\n", " ")}` });
     }
   }
+
+  result = attachRuntimeTestShadow(result);
 
   writeGitHubOutputs(result);
   writeSummary(result);

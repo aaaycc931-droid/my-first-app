@@ -2,7 +2,7 @@
 
 文档角色：**Active process contract / 当前开发执行规范**
 
-版本：1.2
+版本：1.3
 
 最后核验：2026-08-09
 
@@ -135,12 +135,14 @@ GitHub Draft PR 是首选的持久化暂停点。账号额度不足前：
 - Supabase 生产迁移只接受显式手动 workflow dispatch，不再为每个 `agent/**` push 创建 skipped run；秘密检查、SQL、RLS smoke 和最小权限验证没有删除；
 - 统一 PR 模板已覆盖范围、风险分类、验证、未执行 QA、APK／数据库意图和回滚；PR 模板属于非执行文档，workflow 文件仍为 infra/full；
 - dependency-free 供应链与 workflow 策略测试已移到无条件轻量步骤，因此未来 docs-only PR 模板改动仍受门禁约束，且该测试仍恰好执行一次。
+- runtime test ownership shadow 已建立版本化清单：main Quality #453 实测 159 个 `test:*` 加 1 个 P119 verify 命令串行执行 560.809 秒；当前只报告候选 lane、全量回退原因和理论命令数量，enforcement 保持关闭，实际 160 条命令仍完整执行；清单或新增测试未登记会由轻量策略测试直接失败。
 
 ## 10. 仍待执行的流程优化
 
-1. 对当前串行的 mobile runtime scripts 做耗时与领域归属盘点；main run #448 的初始观测为该 step 内 160 个脚本约 553 秒，仍需建立“每个测试恰好属于一个 lane”、shared／unknown 回退 full、每周全量和 shadow 对比，之后才允许按 Web／Android／领域进一步分片；
-2. 观察两周的 Actions 运行时间、平均 PR 等待时间、取消的重复运行、APK artifact 数量和误分类；
-3. 若发现漏检，立即将相关路径回退到 full，并补分类器测试后再优化。
+1. 连续观察两周 shadow 数据：Actions 运行时间、平均 PR 等待时间、取消的重复运行、APK artifact 数量、候选命令比例、full fallback 原因和误分类；成功的全量运行只能说明本次未观察到漏检，不能替代覆盖证明；
+2. 只有 manifest 覆盖保持 100%、weekly／manual full 持续成功、误分类为 0，且普通代码 PR 基于实测 lane wall-time 的候选耗时中位数不高于全量的 70%，才允许先启用 Web-only 分流；Android-only 单独观察后再启用，shared／unknown／infra／dependency／database 继续 full；
+3. 分流仍保留同一个 `quality-suite` job，避免为每个 lane 重复 checkout、Node setup 和 `npm ci`；30 次独立 Vitest 与 116 次独立 TypeScript 编译的启动成本另开候选验证，不能与首轮 lane 激活混在同一 PR；
+4. 若发现漏检，立即将相关路径回退到 full，并补分类器与 ownership 测试后再优化。
 
 ## 11. 变更与回滚
 

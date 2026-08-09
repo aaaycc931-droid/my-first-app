@@ -35,6 +35,12 @@ jobs:
       run_audit: ${{ steps.changes.outputs.run_audit }}
       full: ${{ steps.changes.outputs.full }}
       classification: ${{ steps.changes.outputs.classification }}
+      runtime_shadow_full: ${{ steps.changes.outputs.runtime_shadow_full }}
+      runtime_shadow_lanes: ${{ steps.changes.outputs.runtime_shadow_lanes }}
+      runtime_shadow_reason: ${{ steps.changes.outputs.runtime_shadow_reason }}
+      runtime_shadow_selected_commands: ${{ steps.changes.outputs.runtime_shadow_selected_commands }}
+      runtime_shadow_total_commands: ${{ steps.changes.outputs.runtime_shadow_total_commands }}
+      runtime_shadow_estimated_seconds: ${{ steps.changes.outputs.runtime_shadow_estimated_seconds }}
 
     steps:
       - name: Checkout full history
@@ -48,7 +54,7 @@ jobs:
           node-version: 22
 
       - name: Test CI change policy
-        run: npm run test:ci-change-policy
+        run: npm run test:ci-change-policy && npm run test:runtime-test-lane-policy
 
       - name: Classify changed paths
         id: changes

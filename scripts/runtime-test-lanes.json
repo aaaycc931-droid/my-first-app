@@ -1,0 +1,673 @@
+{
+  "version": 1,
+  "baseline": {
+    "mainRunId": 31293374745,
+    "mainCommit": "4bdaf1d84856304843d201b4f6907878b2419606",
+    "commandCount": 160,
+    "durationSeconds": 560.809,
+    "commandDurationSeconds": 560.694,
+    "laneDurationSeconds": {
+      "learning-practice": 171.959,
+      "notation-composition": 154.571,
+      "audio-rhythm": 104.279,
+      "release-content": 53.771,
+      "piano-midi": 44.609,
+      "account-web": 19.911,
+      "platform": 11.594
+    },
+    "observedAt": "2026-08-09T04:04:08Z"
+  },
+  "excludedScripts": [
+    "test:documentation-hygiene",
+    "test:ci-change-policy",
+    "test:ci-supply-chain-policy",
+    "test:runtime-test-lane-policy"
+  ],
+  "commands": [
+    {
+      "script": "test:accessibility-prefilter",
+      "lane": "platform"
+    },
+    {
+      "script": "test:browser-audio-engine",
+      "lane": "audio-rhythm"
+    },
+    {
+      "script": "test:mobile-lifecycle",
+      "lane": "platform"
+    },
+    {
+      "script": "test:local-practice-answer-lock",
+      "lane": "learning-practice"
+    },
+    {
+      "script": "test:local-practice-review-queue",
+      "lane": "learning-practice"
+    },
+    {
+      "script": "test:local-weak-point-review-queue",
+      "lane": "learning-practice"
+    },
+    {
+      "script": "test:local-explainable-practice-recommendation",
+      "lane": "learning-practice"
+    },
+    {
+      "script": "test:local-learning-overview",
+      "lane": "learning-practice"
+    },
+    {
+      "script": "test:mobile-practice-review-storage",
+      "lane": "learning-practice"
+    },
+    {
+      "script": "test:mobile-practice-review-ui-contract",
+      "lane": "learning-practice"
+    },
+    {
+      "script": "test:mobile-practice-review-behavior",
+      "lane": "learning-practice"
+    },
+    {
+      "script": "test:mobile-weak-point-review-behavior",
+      "lane": "learning-practice"
+    },
+    {
+      "script": "test:mobile-explainable-practice-recommendation-behavior",
+      "lane": "learning-practice"
+    },
+    {
+      "script": "test:mobile-learning-overview-behavior",
+      "lane": "learning-practice"
+    },
+    {
+      "script": "test:learning-event-profile",
+      "lane": "learning-practice"
+    },
+    {
+      "script": "test:mobile-learning-profile-storage",
+      "lane": "learning-practice"
+    },
+    {
+      "script": "test:local-practice-statistics",
+      "lane": "learning-practice"
+    },
+    {
+      "script": "test:mobile-practice-statistics-behavior",
+      "lane": "learning-practice"
+    },
+    {
+      "script": "test:local-course-path",
+      "lane": "learning-practice"
+    },
+    {
+      "script": "test:mobile-course-path-behavior",
+      "lane": "learning-practice"
+    },
+    {
+      "script": "test:mobile-melody-solfege-behavior",
+      "lane": "learning-practice"
+    },
+    {
+      "script": "test:mobile-melody-imitation-behavior",
+      "lane": "learning-practice"
+    },
+    {
+      "script": "test:mobile-melody-sight-singing-target",
+      "lane": "learning-practice"
+    },
+    {
+      "script": "test:mobile-melody-sight-singing-behavior",
+      "lane": "learning-practice"
+    },
+    {
+      "script": "test:mobile-piano-behavior",
+      "lane": "piano-midi"
+    },
+    {
+      "script": "test:piano-audio-foundation",
+      "lane": "piano-midi"
+    },
+    {
+      "script": "test:piano-interaction",
+      "lane": "piano-midi"
+    },
+    {
+      "script": "test:piano-performance",
+      "lane": "piano-midi"
+    },
+    {
+      "script": "test:piano-midi",
+      "lane": "piano-midi"
+    },
+    {
+      "script": "test:piano-learning-score",
+      "lane": "piano-midi"
+    },
+    {
+      "script": "test:android-local-artifact-verifier",
+      "lane": "platform"
+    },
+    {
+      "script": "test:android-version",
+      "lane": "platform"
+    },
+    {
+      "script": "test:quality-workflow-test-coverage",
+      "lane": "platform"
+    },
+    {
+      "script": "test:android-p104-evidence",
+      "lane": "platform"
+    },
+    {
+      "script": "test:pitch-benchmark-protocol",
+      "lane": "release-content"
+    },
+    {
+      "script": "test:p119-content-education-evidence",
+      "lane": "release-content"
+    },
+    {
+      "script": "test:p119-content-review-manifest",
+      "lane": "release-content"
+    },
+    {
+      "script": "verify:p119-content-review-manifest",
+      "args": [
+        "--",
+        "--manifest",
+        "local-fixtures/p119-content-education/review-manifest.bd5c5af211a3a1b36f4fcfacebdfe89b65fbafc1.json"
+      ],
+      "lane": "release-content"
+    },
+    {
+      "script": "test:p119-teacher-review-candidate",
+      "lane": "release-content"
+    },
+    {
+      "script": "test:offline-pitch-analysis",
+      "lane": "audio-rhythm"
+    },
+    {
+      "script": "test:offline-note-alignment",
+      "lane": "audio-rhythm"
+    },
+    {
+      "script": "test:activity-protocol",
+      "lane": "learning-practice"
+    },
+    {
+      "script": "test:musical-time-v1",
+      "lane": "learning-practice"
+    },
+    {
+      "script": "test:note-event-v1",
+      "lane": "learning-practice"
+    },
+    {
+      "script": "test:android-midi-bridge",
+      "lane": "piano-midi"
+    },
+    {
+      "script": "test:android-usb-midi-activity-adapter",
+      "lane": "piano-midi"
+    },
+    {
+      "script": "test:piano-note-event-activity-adapter",
+      "lane": "piano-midi"
+    },
+    {
+      "script": "test:notation-rhythm-activity-adapter",
+      "lane": "notation-composition"
+    },
+    {
+      "script": "test:notation-document-activity",
+      "lane": "notation-composition"
+    },
+    {
+      "script": "test:notation-document-activity-behavior",
+      "lane": "notation-composition"
+    },
+    {
+      "script": "test:shared-project-capability",
+      "lane": "learning-practice"
+    },
+    {
+      "script": "test:piano-learning-activity-adapter",
+      "lane": "piano-midi"
+    },
+    {
+      "script": "test:melody-solfege-activity-adapter",
+      "lane": "learning-practice"
+    },
+    {
+      "script": "test:melody-piano-activity-adapter",
+      "lane": "piano-midi"
+    },
+    {
+      "script": "test:melody-staff-notation-activity-adapter",
+      "lane": "notation-composition"
+    },
+    {
+      "script": "test:melody-numbered-notation-activity-adapter",
+      "lane": "notation-composition"
+    },
+    {
+      "script": "test:local-melody-imitation",
+      "lane": "learning-practice"
+    },
+    {
+      "script": "test:melody-imitation-activity-adapter",
+      "lane": "learning-practice"
+    },
+    {
+      "script": "test:local-melody-sight-singing",
+      "lane": "learning-practice"
+    },
+    {
+      "script": "test:melody-sight-singing-activity-adapter",
+      "lane": "learning-practice"
+    },
+    {
+      "script": "test:legacy-activity-adapters",
+      "lane": "learning-practice"
+    },
+    {
+      "script": "test:analysis-evidence-adapter",
+      "lane": "learning-practice"
+    },
+    {
+      "script": "test:local-vocal-microphone-activity-adapter",
+      "lane": "audio-rhythm"
+    },
+    {
+      "script": "test:companion-activity-bridge",
+      "lane": "learning-practice"
+    },
+    {
+      "script": "test:local-question-scheduler",
+      "lane": "learning-practice"
+    },
+    {
+      "script": "test:local-practice-catalog",
+      "lane": "learning-practice"
+    },
+    {
+      "script": "test:local-practice-customizer",
+      "lane": "learning-practice"
+    },
+    {
+      "script": "test:expanded-local-practice-catalog",
+      "lane": "learning-practice"
+    },
+    {
+      "script": "test:realtime-pitch-frame",
+      "lane": "audio-rhythm"
+    },
+    {
+      "script": "test:realtime-pitch-curve",
+      "lane": "audio-rhythm"
+    },
+    {
+      "script": "test:local-vocal-exercise",
+      "lane": "audio-rhythm"
+    },
+    {
+      "script": "test:mobile-vocal-exercise-behavior",
+      "lane": "audio-rhythm"
+    },
+    {
+      "script": "test:local-vocal-exercise-ui-contract",
+      "lane": "audio-rhythm"
+    },
+    {
+      "script": "test:local-vocal-target-feedback",
+      "lane": "audio-rhythm"
+    },
+    {
+      "script": "test:local-vocal-practice-record",
+      "lane": "audio-rhythm"
+    },
+    {
+      "script": "test:local-vocal-practice-indexeddb",
+      "lane": "audio-rhythm"
+    },
+    {
+      "script": "test:local-vocal-practice-storage-ui-contract",
+      "lane": "audio-rhythm"
+    },
+    {
+      "script": "test:local-vocal-observation",
+      "lane": "audio-rhythm"
+    },
+    {
+      "script": "test:local-vocal-observation-ui-contract",
+      "lane": "audio-rhythm"
+    },
+    {
+      "script": "test:mobile-vocal-observation-behavior",
+      "lane": "audio-rhythm"
+    },
+    {
+      "script": "test:realtime-pitch-monitor-ui-contract",
+      "lane": "audio-rhythm"
+    },
+    {
+      "script": "test:realtime-pitch-monitor-behavior",
+      "lane": "audio-rhythm"
+    },
+    {
+      "script": "test:local-ear-training-single-pitch",
+      "lane": "audio-rhythm"
+    },
+    {
+      "script": "test:local-ear-training-intervals",
+      "lane": "learning-practice"
+    },
+    {
+      "script": "test:local-interval-comparisons",
+      "lane": "learning-practice"
+    },
+    {
+      "script": "test:local-ear-training-chords",
+      "lane": "learning-practice"
+    },
+    {
+      "script": "test:local-seventh-chords",
+      "lane": "learning-practice"
+    },
+    {
+      "script": "test:local-seventh-chord-spacing",
+      "lane": "learning-practice"
+    },
+    {
+      "script": "test:local-modulations",
+      "lane": "learning-practice"
+    },
+    {
+      "script": "test:local-harmony-progressions",
+      "lane": "learning-practice"
+    },
+    {
+      "script": "test:local-scale-modes",
+      "lane": "learning-practice"
+    },
+    {
+      "script": "test:local-ear-training-rhythm",
+      "lane": "audio-rhythm"
+    },
+    {
+      "script": "test:local-rhythm-sight-reading",
+      "lane": "audio-rhythm"
+    },
+    {
+      "script": "test:mobile-rhythm-sight-reading-behavior",
+      "lane": "audio-rhythm"
+    },
+    {
+      "script": "test:local-rhythm-imitation",
+      "lane": "audio-rhythm"
+    },
+    {
+      "script": "test:mobile-rhythm-imitation-behavior",
+      "lane": "audio-rhythm"
+    },
+    {
+      "script": "test:local-rhythm-error-finding",
+      "lane": "audio-rhythm"
+    },
+    {
+      "script": "test:mobile-rhythm-error-finding-behavior",
+      "lane": "audio-rhythm"
+    },
+    {
+      "script": "test:local-rhythm-dictation",
+      "lane": "audio-rhythm"
+    },
+    {
+      "script": "test:mobile-rhythm-dictation-behavior",
+      "lane": "audio-rhythm"
+    },
+    {
+      "script": "test:local-ear-training-melody-dictation",
+      "lane": "learning-practice"
+    },
+    {
+      "script": "test:local-piano-keyboard",
+      "lane": "piano-midi"
+    },
+    {
+      "script": "test:cloud-practice-attempt",
+      "lane": "learning-practice"
+    },
+    {
+      "script": "test:local-melody-guide-validator",
+      "lane": "audio-rhythm"
+    },
+    {
+      "script": "test:local-melody-guide-wav-header-inspector",
+      "lane": "audio-rhythm"
+    },
+    {
+      "script": "test:metronome-foundation",
+      "lane": "audio-rhythm"
+    },
+    {
+      "script": "test:rhythm-tap-feedback",
+      "lane": "audio-rhythm"
+    },
+    {
+      "script": "test:rhythm-latency-calibration",
+      "lane": "audio-rhythm"
+    },
+    {
+      "script": "test:audio-onset-rhythm-feedback",
+      "lane": "audio-rhythm"
+    },
+    {
+      "script": "test:audio-onset-detection",
+      "lane": "audio-rhythm"
+    },
+    {
+      "script": "test:local-melody-guide-audio-import",
+      "lane": "audio-rhythm"
+    },
+    {
+      "script": "test:local-target-pitch-curve-draft",
+      "lane": "audio-rhythm"
+    },
+    {
+      "script": "test:local-target-pitch-curve-review",
+      "lane": "audio-rhythm"
+    },
+    {
+      "script": "test:local-target-pitch-curve-draft-review-controls",
+      "lane": "audio-rhythm"
+    },
+    {
+      "script": "test:local-reviewed-draft-practice-target",
+      "lane": "learning-practice"
+    },
+    {
+      "script": "test:local-sheet-music-import-source",
+      "lane": "notation-composition"
+    },
+    {
+      "script": "test:local-mock-recognition-draft",
+      "lane": "notation-composition"
+    },
+    {
+      "script": "test:local-notation-fragment-draft",
+      "lane": "notation-composition"
+    },
+    {
+      "script": "test:local-notation-draft-validation",
+      "lane": "notation-composition"
+    },
+    {
+      "script": "test:local-notation-draft-practice-target",
+      "lane": "notation-composition"
+    },
+    {
+      "script": "test:non-scoring-notation-target-pitch-feedback",
+      "lane": "notation-composition"
+    },
+    {
+      "script": "test:notation-temporary-rhythm-tap",
+      "lane": "notation-composition"
+    },
+    {
+      "script": "test:practice-module-registry",
+      "lane": "learning-practice"
+    },
+    {
+      "script": "test:note-frequency",
+      "lane": "piano-midi"
+    },
+    {
+      "script": "test:recognition-fail-closed",
+      "lane": "notation-composition"
+    },
+    {
+      "script": "test:recognition-workflow-controller",
+      "lane": "notation-composition"
+    },
+    {
+      "script": "test:recognition-static-boundaries",
+      "lane": "notation-composition"
+    },
+    {
+      "script": "test:auth-ui-policy",
+      "lane": "account-web"
+    },
+    {
+      "script": "test:account-password-auth",
+      "lane": "account-web"
+    },
+    {
+      "script": "test:account-data-export",
+      "lane": "account-web"
+    },
+    {
+      "script": "test:account-data-export-ui-contract",
+      "lane": "account-web"
+    },
+    {
+      "script": "test:account-session-stale-guard",
+      "lane": "account-web"
+    },
+    {
+      "script": "test:web-private-practice-history",
+      "lane": "account-web"
+    },
+    {
+      "script": "test:course-library-behavior",
+      "lane": "learning-practice"
+    },
+    {
+      "script": "test:notation-temporary-practice-progress",
+      "lane": "notation-composition"
+    },
+    {
+      "script": "test:notation-reference-melody-playback",
+      "lane": "notation-composition"
+    },
+    {
+      "script": "test:repository-hygiene",
+      "lane": "platform"
+    },
+    {
+      "script": "test:local-score-project",
+      "lane": "notation-composition"
+    },
+    {
+      "script": "test:local-score-project-templates",
+      "lane": "notation-composition"
+    },
+    {
+      "script": "test:local-score-project-score-credits",
+      "lane": "notation-composition"
+    },
+    {
+      "script": "test:local-score-project-note-fingering",
+      "lane": "notation-composition"
+    },
+    {
+      "script": "test:local-score-project-chord-symbol",
+      "lane": "notation-composition"
+    },
+    {
+      "script": "test:local-score-project-note-articulations",
+      "lane": "notation-composition"
+    },
+    {
+      "script": "test:local-score-project-dynamic-mark",
+      "lane": "notation-composition"
+    },
+    {
+      "script": "test:local-score-project-damper-pedal",
+      "lane": "notation-composition"
+    },
+    {
+      "script": "test:local-score-project-fermata",
+      "lane": "notation-composition"
+    },
+    {
+      "script": "test:local-score-project-slur",
+      "lane": "notation-composition"
+    },
+    {
+      "script": "test:local-score-project-musicxml-import",
+      "lane": "notation-composition"
+    },
+    {
+      "script": "test:local-score-project-musicxml-export",
+      "lane": "notation-composition"
+    },
+    {
+      "script": "test:local-score-project-recovery-candidate",
+      "lane": "notation-composition"
+    },
+    {
+      "script": "test:local-score-project-storage",
+      "lane": "notation-composition"
+    },
+    {
+      "script": "test:local-score-project-capacity",
+      "lane": "notation-composition"
+    },
+    {
+      "script": "test:local-score-project-indexeddb-recovery",
+      "lane": "notation-composition"
+    },
+    {
+      "script": "test:local-score-project-playback",
+      "lane": "notation-composition"
+    },
+    {
+      "script": "test:mobile-local-score-project-playback-behavior",
+      "lane": "notation-composition"
+    },
+    {
+      "script": "test:mobile-local-score-project-metronome-behavior",
+      "lane": "notation-composition"
+    },
+    {
+      "script": "test:mobile-local-score-project-transport-behavior",
+      "lane": "notation-composition"
+    },
+    {
+      "script": "test:mobile-local-score-project-behavior",
+      "lane": "notation-composition"
+    },
+    {
+      "script": "test:mobile-local-score-project-staff-preview-behavior",
+      "lane": "notation-composition"
+    },
+    {
+      "script": "test:mobile-local-score-project-numbered-preview-behavior",
+      "lane": "notation-composition"
+    }
+  ]
+}

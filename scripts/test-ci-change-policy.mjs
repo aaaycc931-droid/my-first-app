@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import {
+  attachRuntimeTestShadow,
   classifyChangedPaths,
   parseNameStatus,
   selectComparison,
@@ -38,6 +39,10 @@ const shared = classifyChangedPaths(["lib/practice/localPracticeCatalog.ts"]);
 assert.equal(shared.runWeb, true);
 assert.equal(shared.runAndroid, true);
 assert.equal(shared.full, false);
+const sharedShadow = attachRuntimeTestShadow(shared);
+assert.equal(sharedShadow.runtimeShadow.full, true);
+assert.equal(sharedShadow.runtimeShadow.reason, "shared-category");
+assert.equal(sharedShadow.runtimeShadow.selectedCommands, 160);
 
 for (const path of [
   ".github/workflows/quality.yml",
@@ -55,6 +60,14 @@ for (const path of [
 const dependency = classifyChangedPaths(["package.json"]);
 assert.equal(dependency.dependency, true);
 assert.equal(dependency.runAudit, true);
+assert.equal(attachRuntimeTestShadow(dependency).runtimeShadow.full, true);
+
+const ownedWebTest = attachRuntimeTestShadow(
+  classifyChangedPaths(["components/account/PrivatePracticeHistoryPanel.behavior.test.tsx"]),
+);
+assert.equal(ownedWebTest.runtimeShadow.full, false);
+assert.deepEqual(ownedWebTest.runtimeShadow.lanes, ["account-web"]);
+assert.ok(ownedWebTest.runtimeShadow.selectedCommands < 160);
 
 const mixed = classifyChangedPaths(["docs/mvp-status.md", "app/page.tsx"]);
 assert.equal(mixed.docsOnly, false);
