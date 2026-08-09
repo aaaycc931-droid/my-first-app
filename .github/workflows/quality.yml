@@ -77,7 +77,7 @@ jobs:
           cache: npm
 
       - name: Validate documentation hygiene
-        run: npm run test:documentation-hygiene && npm run validate:documentation-hygiene
+        run: npm run test:documentation-hygiene && npm run validate:documentation-hygiene && npm run test:ci-supply-chain-policy
 
       - name: Install dependencies
         if: ${{ needs.classify.outputs.run_code == 'true' }}
@@ -130,7 +130,6 @@ jobs:
           npm run test:piano-learning-score
           npm run test:android-local-artifact-verifier
           npm run test:android-version
-          npm run test:ci-supply-chain-policy
           npm run test:quality-workflow-test-coverage
           npm run test:android-p104-evidence
           npm run test:pitch-benchmark-protocol

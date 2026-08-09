@@ -9,11 +9,13 @@ const gradleWrapperPath = new URL(
   import.meta.url,
 );
 const packageJsonPath = new URL("../package.json", import.meta.url);
+const pullRequestTemplatePath = new URL("../.github/pull_request_template.md", import.meta.url);
 
-const [workflowEntries, gradleWrapper, packageJsonText] = await Promise.all([
+const [workflowEntries, gradleWrapper, packageJsonText, pullRequestTemplate] = await Promise.all([
   readdir(workflowsDirectory, { withFileTypes: true }),
   readFile(gradleWrapperPath, "utf8"),
   readFile(packageJsonPath, "utf8"),
+  readFile(pullRequestTemplatePath, "utf8"),
 ]);
 const packageJson = JSON.parse(packageJsonText);
 const workflowNames = workflowEntries
@@ -33,6 +35,7 @@ const workflows = await Promise.all(
     contents: await readFile(new URL(name, workflowsDirectory), "utf8"),
   })),
 );
+const workflowByName = new Map(workflows.map(({ name, contents }) => [name, contents]));
 
 const approvedActions = new Map([
   ["actions/checkout", ["34e114876b0b11c390a56381ad16ebd13914f8d5", "v4.3.1"]],
@@ -136,5 +139,30 @@ assert.equal(
   false,
   "check must delegate the mobile build to android:sync instead of skipping Capacitor sync",
 );
+
+const cleanupWorkflow = workflowByName.get("cleanup-merged-branches.yml") ?? "";
+assert.match(cleanupWorkflow, /^\s{2}workflow_dispatch:\s*$/m);
+assert.match(cleanupWorkflow, /^\s{2}schedule:\s*$/m);
+assert.doesNotMatch(cleanupWorkflow, /^\s{2}push:\s*$/m);
+assert.match(cleanupWorkflow, /^\s+ref: main\s*$/m);
+assert.match(cleanupWorkflow, /merge-base --is-ancestor "\$remote_ref" origin\/main/);
+assert.match(cleanupWorkflow, /merged_pr_heads\["\$branch\|\$head_sha"\]/);
+assert.match(cleanupWorkflow, /open_pr_heads\["\$branch"\]/);
+assert.match(cleanupWorkflow, /\.head\.repo\.full_name == env\.GITHUB_REPOSITORY/);
+
+const deployWorkflow = workflowByName.get("deploy-supabase-practice.yml") ?? "";
+assert.match(deployWorkflow, /^\s{2}workflow_dispatch:\s*$/m);
+assert.doesNotMatch(deployWorkflow, /^\s{2}push:\s*$/m);
+assert.doesNotMatch(deployWorkflow, /\[deploy-supabase\]/);
+
+for (const heading of [
+  "## Scope",
+  "## Risk and CI classification",
+  "## Validation evidence",
+  "## External QA and release",
+  "## Rollback",
+]) {
+  assert.match(pullRequestTemplate, new RegExp(`^${heading}$`, "m"));
+}
 
 console.log(`CI supply-chain policy passed for ${repositoryRoot}`);

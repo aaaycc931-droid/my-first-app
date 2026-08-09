@@ -128,19 +128,21 @@ GitHub Draft PR 是首选的持久化暂停点。账号额度不足前：
 - 不一次性重写或删除 260 份文档。先修入口和明显误导的旧交接，再在触及领域时渐进治理；
 - 文档卫生门禁继续检查截断输出、重复标题等机械污染。
 
-## 9. 仍待执行的流程优化
+## 9. 第二阶段已落地
 
-以下项目在独立的 workflow 维护 PR 中处理，不能因写入本方案就宣称已完成：
+- PR #530 已真实验证 docs-only 路径：stable `quality` 保留并成功，依赖安装、审计、lint、typecheck、runtime tests、Web build、Android job 与 APK 上传均按策略跳过；
+- 合并分支清理不再随每次 `main` push 运行，改为手动或每月一次；开放 PR、非白名单前缀、fork 和含合并后新增提交的分支继续受保护，并可识别 exact squash-merged head；
+- Supabase 生产迁移只接受显式手动 workflow dispatch，不再为每个 `agent/**` push 创建 skipped run；秘密检查、SQL、RLS smoke 和最小权限验证没有删除；
+- 统一 PR 模板已覆盖范围、风险分类、验证、未执行 QA、APK／数据库意图和回滚；PR 模板属于非执行文档，workflow 文件仍为 infra/full；
+- dependency-free 供应链与 workflow 策略测试已移到无条件轻量步骤，因此未来 docs-only PR 模板改动仍受门禁约束，且该测试仍恰好执行一次。
 
-1. 评估退役每次 `main` push 都运行的自动分支清理 workflow，改为低频手动／定时清理，并继续保护开放 PR 与非白名单分支；
-2. 消除每次 `agent/**` push 都产生 Supabase skipped run 的噪声，把生产迁移保持为明确手动动作，同时保留秘密检查、事务失败关闭、RLS 与最小权限验证；
-3. 在不让 required check 消失的前提下，用一个 docs-only PR 真实验证轻量路径；
-4. 增加统一 PR 模板，要求范围、风险分类、本地检查、远端门禁、未执行 QA、数据／迁移、APK 需求和回滚信息；模板本身属于非执行文档，但 `.github/workflows/**` 继续保持 infra/full；
-5. 对当前串行的 mobile runtime scripts 做耗时与领域归属盘点；只有建立“每个测试恰好属于一个 lane”、shared／unknown 回退 full、每周全量和 shadow 对比后，才允许按 Web／Android／领域进一步分片；
-6. 观察两周的 Actions 分钟、平均 PR 等待时间、取消的重复运行、APK artifact 数量和误分类；
-7. 若发现漏检，立即将相关路径回退到 full，并补分类器测试后再优化。
+## 10. 仍待执行的流程优化
 
-## 10. 变更与回滚
+1. 对当前串行的 mobile runtime scripts 做耗时与领域归属盘点；main run #448 的初始观测为该 step 内 160 个脚本约 553 秒，仍需建立“每个测试恰好属于一个 lane”、shared／unknown 回退 full、每周全量和 shadow 对比，之后才允许按 Web／Android／领域进一步分片；
+2. 观察两周的 Actions 运行时间、平均 PR 等待时间、取消的重复运行、APK artifact 数量和误分类；
+3. 若发现漏检，立即将相关路径回退到 full，并补分类器测试后再优化。
+
+## 11. 变更与回滚
 
 流程优化先 shadow 验证再扩大：分类器必须可从实际 diff 重放，weekly／manual full 提供兜底。任何 required gate 缺失、误跳过、主分支失败或安全边界变弱时：
 

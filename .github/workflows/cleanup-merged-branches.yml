@@ -1,9 +1,9 @@
 name: Cleanup merged branches
 
 on:
-  push:
-    branches:
-      - main
+  workflow_dispatch:
+  schedule:
+    - cron: "23 4 1 * *"
 
 permissions:
   contents: write
@@ -22,6 +22,7 @@ jobs:
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
         with:
           fetch-depth: 0
+          ref: main
 
       - name: Delete fully merged work branches
         shell: bash
@@ -43,8 +44,21 @@ jobs:
               --jq '.[].head.ref'
           )
 
+          declare -A merged_pr_heads=()
+          while IFS=$'\t' read -r branch head_sha; do
+            if [ -n "$branch" ] && [ -n "$head_sha" ]; then
+              merged_pr_heads["$branch|$head_sha"]=1
+            fi
+          done < <(
+            gh api --paginate \
+              "repos/${GITHUB_REPOSITORY}/pulls?state=closed&per_page=100" \
+              --jq '.[] | select(.merged_at != null) | select(.head.repo.full_name == env.GITHUB_REPOSITORY) | [.head.ref, .head.sha] | @tsv'
+          )
+
           candidates=0
           deleted=0
+          matched_ancestry=0
+          matched_merged_pr=0
           skipped_open=0
           skipped_prefix=0
           failures=0
@@ -72,12 +86,20 @@ jobs:
               continue
             fi
 
-            if ! git merge-base --is-ancestor "$remote_ref" "$GITHUB_SHA"; then
+            head_sha="$(git rev-parse "$remote_ref")"
+            cleanup_reason=""
+            if git merge-base --is-ancestor "$remote_ref" origin/main; then
+              cleanup_reason="main ancestry"
+              matched_ancestry=$((matched_ancestry + 1))
+            elif [[ -v "merged_pr_heads[$branch|$head_sha]" ]]; then
+              cleanup_reason="exact merged PR head"
+              matched_merged_pr=$((matched_merged_pr + 1))
+            else
               continue
             fi
 
             candidates=$((candidates + 1))
-            echo "Deleting fully merged branch: $branch"
+            echo "Deleting fully merged branch ($cleanup_reason): $branch@$head_sha"
             if gh api \
               --method DELETE \
               "repos/${GITHUB_REPOSITORY}/git/refs/heads/${branch}" \
@@ -99,6 +121,8 @@ jobs:
             echo
             echo "- Candidates: $candidates"
             echo "- Deleted: $deleted"
+            echo "- Matched by main ancestry: $matched_ancestry"
+            echo "- Matched by exact merged PR head: $matched_merged_pr"
             echo "- Skipped because an open PR exists: $skipped_open"
             echo "- Skipped because the prefix is not allowlisted: $skipped_prefix"
             echo "- Failures: $failures"

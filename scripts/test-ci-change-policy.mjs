@@ -12,6 +12,17 @@ assert.equal(docs.runWeb, false);
 assert.equal(docs.runAndroid, false);
 assert.equal(docs.full, false);
 
+for (const path of [
+  ".github/pull_request_template.md",
+  ".github/PULL_REQUEST_TEMPLATE/maintenance.md",
+]) {
+  const pullRequestDocs = classifyChangedPaths([path]);
+  assert.equal(pullRequestDocs.docsOnly, true, `${path} is non-executable PR documentation`);
+  assert.equal(pullRequestDocs.runCode, false);
+  assert.equal(pullRequestDocs.runAndroid, false);
+  assert.equal(pullRequestDocs.full, false);
+}
+
 const web = classifyChangedPaths(["app/account/page.tsx", "components/account/AccountPanel.tsx"]);
 assert.equal(web.runCode, true);
 assert.equal(web.runWeb, true);

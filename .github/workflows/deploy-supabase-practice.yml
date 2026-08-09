@@ -1,10 +1,7 @@
 name: Deploy Supabase Practice Migrations
-# Production deployment is intentionally triggered only by an explicit commit marker.
+# Production deployment requires an explicit manual workflow dispatch on the reviewed ref.
 
 on:
-  push:
-    branches:
-      - "agent/**"
   workflow_dispatch:
 
 permissions:
@@ -12,9 +9,6 @@ permissions:
 
 jobs:
   deploy:
-    if: >-
-      github.event_name == 'workflow_dispatch' ||
-      contains(github.event.head_commit.message, '[deploy-supabase]')
     runs-on: ubuntu-latest
     timeout-minutes: 10
     env:
