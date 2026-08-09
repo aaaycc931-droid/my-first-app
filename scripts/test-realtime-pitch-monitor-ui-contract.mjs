@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 const hook = readFileSync("components/practice/useRealtimePitchMonitor.ts", "utf8");
 const panel = readFileSync("components/practice/RealtimePitchMonitorPanel.tsx", "utf8");
 const chart = readFileSync("components/practice/RealtimePitchCurveChart.tsx", "utf8");
+const recorderPort = readFileSync("lib/audio/mediaRecorder.ts", "utf8");
 const app = readFileSync("mobile/src/App.tsx", "utf8");
 const manifest = readFileSync("android/app/src/main/AndroidManifest.xml", "utf8");
 
@@ -16,13 +17,35 @@ for (const expected of [
   "context.close()",
   "generationRef.current",
   "recordingGenerationRef.current",
-  "MediaRecorder",
+  "browserMediaRecorderCapturePort",
+  "recordingCaptureRef.current",
   "useBlobAudioPlaybackController",
   "stopRecordingBlobPlayback",
   "releaseResources();",
   'echoCancellation: false',
   'noiseSuppression: false',
 ]) requireCopy(hook, expected, "实时音高麦克风生命周期");
+
+for (const forbidden of [
+  "new MediaRecorder(",
+  "typeof MediaRecorder",
+  ".ondataavailable",
+  "recordingChunksRef",
+]) {
+  if (hook.includes(forbidden)) {
+    throw new Error(`实时音高 hook 不得绕过 MediaRecorder capture port：${forbidden}`);
+  }
+}
+
+for (const expected of [
+  "createBrowserMediaRecorderCapturePort",
+  "PREFERRED_MEDIA_RECORDER_MIME_TYPES",
+  "new Recorder(request.stream",
+  "recorder.ondataavailable",
+  "start: () =>",
+  "recorder.start(request.timesliceMs)",
+  "request.onStopped",
+]) requireCopy(recorderPort, expected, "MediaRecorder capture port 边界");
 
 for (const forbidden of ["new Audio(", "URL.createObjectURL", "URL.revokeObjectURL"]) {
   if (hook.includes(forbidden)) {

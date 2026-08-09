@@ -18,6 +18,9 @@ let trackStop: ReturnType<typeof vi.fn>;
 let contextClose: ReturnType<typeof vi.fn>;
 let getUserMedia: ReturnType<typeof vi.fn>;
 let recorderStop: ReturnType<typeof vi.fn>;
+let recorderStopsDuringStart: boolean;
+let recorderErrorsDuringStart: boolean;
+let recorderStopThrows: boolean;
 let audioPlay: ReturnType<typeof vi.fn>;
 let audioPause: ReturnType<typeof vi.fn>;
 let audioInstances: Array<{
@@ -103,6 +106,9 @@ beforeEach(() => {
   trackStop = vi.fn();
   contextClose = vi.fn().mockResolvedValue(undefined);
   recorderStop = vi.fn();
+  recorderStopsDuringStart = false;
+  recorderErrorsDuringStart = false;
+  recorderStopThrows = false;
   audioPlay = vi.fn().mockResolvedValue(undefined);
   audioPause = vi.fn();
   audioInstances = [];
@@ -143,9 +149,14 @@ beforeEach(() => {
     onstop: (() => void) | null = null;
     onerror: (() => void) | null = null;
     constructor(_stream: unknown, options?: { mimeType?: string }) { this.mimeType = options?.mimeType ?? "audio/webm"; }
-    start = () => { this.state = "recording"; };
+    start = () => {
+      this.state = "recording";
+      if (recorderErrorsDuringStart) this.onerror?.();
+      if (recorderStopsDuringStart) this.stop();
+    };
     stop = () => {
       (recorderStop as () => void)();
+      if (recorderStopThrows) throw new Error("stop failed");
       this.state = "inactive";
       this.ondataavailable?.({ data: new Blob(["voice"], { type: this.mimeType }) });
       this.onstop?.();
@@ -606,6 +617,40 @@ describe("Android 实时音高反馈行为", () => {
     expect(container.textContent).toContain("当前设备不支持会话内录音");
     expect(container.textContent).toContain("A4");
     expect(trackStop).not.toHaveBeenCalled();
+  });
+
+  it("MediaRecorder start 同步结束或报错时不被迟到的 recording 状态覆盖", async () => {
+    recorderStopsDuringStart = true;
+    const endedContainer = await renderPanel();
+    await click(button(endedContainer, "开始实时反馈"));
+    await click(button(endedContainer, "开始会话录音"));
+    expect(endedContainer.textContent).toContain("状态：可以回放");
+    expect(endedContainer.textContent).not.toContain("状态：正在录音");
+
+    await act(async () => root?.unmount());
+    root = null;
+    document.body.replaceChildren();
+    recorderStopsDuringStart = false;
+    recorderErrorsDuringStart = true;
+    const errorContainer = await renderPanel();
+    await click(button(errorContainer, "开始实时反馈"));
+    await click(button(errorContainer, "开始会话录音"));
+    expect(errorContainer.textContent).toContain("状态：录音或回放失败");
+    expect(errorContainer.textContent).toContain("本次录音发生错误");
+    expect(errorContainer.textContent).not.toContain("状态：正在录音");
+  });
+
+  it("MediaRecorder stop 抛错时仍可失败关闭并安全丢弃", async () => {
+    recorderStopThrows = true;
+    const container = await renderPanel();
+    await click(button(container, "开始实时反馈"));
+    await click(button(container, "开始会话录音"));
+    await click(button(container, "停止录音"));
+
+    expect(container.textContent).toContain("状态：录音或回放失败");
+    expect(container.textContent).toContain("本次录音发生错误");
+    await click(button(container, "丢弃本次录音"));
+    expect(container.textContent).toContain("状态：尚未录音");
   });
 
   it("停止并清空会删除已采集曲线且释放麦克风", async () => {
