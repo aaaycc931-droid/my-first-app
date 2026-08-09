@@ -9,8 +9,8 @@ QA level recommendation：**strict**
 - Android／共享实时音高组件的会话录音继续由用户主动开始和停止，但浏览器
   `MediaRecorder` 构造、codec 选择、事件绑定、chunk 汇集与底层清理统一进入可替换的
   capture port。
-- React hook 只持有 capture handle、录音 generation 和用户状态；它不再直接构造
-  `MediaRecorder`、绑定 `ondataavailable` 或管理 chunk 数组。
+- 实时音高 controller 持有 capture handle、录音 generation 和用户状态；React hook 不再
+  直接构造 `MediaRecorder`、绑定 `ondataavailable` 或管理 chunk 数组。
 - 本切片只改变依赖方向和可测试接缝，不改变界面、录音数据、分析、保存、回放或活动语义。
 
 ## 保持不变的录音契约
@@ -23,12 +23,12 @@ QA level recommendation：**strict**
   实时曲线仍可使用，不上传、不自动保存，也不生成分数。
 - 正常停止交付当前 Blob；丢弃、清空、替换、全局停止所触发的作废和组件卸载继续释放
   handle、麦克风轨与计时器，且被 dispose 的 recorder 不得交付最终 Blob 或错误。
-- hook 的 recording generation 继续拒绝旧 recorder 的迟到 stop／error；旧回调不得覆盖
+- controller 的 recording generation 继续拒绝旧 recorder 的迟到 stop／error；旧回调不得覆盖
   新录音、恢复已丢弃录音或改变新尝试状态。
 
 ## 重入与清理
 
-- handle 必须先进入 hook 所有权，再执行 `start()`；即使测试 adapter 在 start 内同步
+- handle 必须先进入 controller 所有权，再执行 `start()`；即使测试 adapter 在 start 内同步
   触发 stop／error，最终状态也不得被迟到写回“正在录音”。
 - `stop()` 与 `dispose()` 必须失败关闭；底层 stop 抛错不得中断 React 清理、组件卸载或
   后续丢弃。dispose 后的 data／stop／error 回调全部无效。
@@ -41,7 +41,7 @@ QA level recommendation：**strict**
   Blob 类型、空录音、运行期错误、同步 stop、start/stop 抛错与幂等 dispose。
 - mounted behavior 覆盖开始／停止／丢弃／卸载／全局停止、无 recorder、同步 stop／error、
   stop 抛错以及既有分析与回放回归。
-- source contract 阻止共享实时音高 hook 重新直接构造 `MediaRecorder`、绑定
+- source contract 阻止共享实时音高 controller／hook 重新直接构造 `MediaRecorder`、绑定
   `ondataavailable` 或持有 chunk 数组，并要求 browser adapter 保留上述契约。
 - focused tests、typecheck、lint、移动构建、Android local validator、文档卫生和
   `git diff --check` 必须通过。

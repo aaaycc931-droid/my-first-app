@@ -42,7 +42,7 @@ assert.equal(shared.full, false);
 const sharedShadow = attachRuntimeTestShadow(shared);
 assert.equal(sharedShadow.runtimeShadow.full, true);
 assert.equal(sharedShadow.runtimeShadow.reason, "shared-category");
-assert.equal(sharedShadow.runtimeShadow.selectedCommands, 162);
+assert.equal(sharedShadow.runtimeShadow.selectedCommands, 165);
 
 for (const path of [
   ".github/workflows/quality.yml",
@@ -67,7 +67,7 @@ const ownedWebTest = attachRuntimeTestShadow(
 );
 assert.equal(ownedWebTest.runtimeShadow.full, false);
 assert.deepEqual(ownedWebTest.runtimeShadow.lanes, ["account-web"]);
-assert.ok(ownedWebTest.runtimeShadow.selectedCommands < 162);
+assert.ok(ownedWebTest.runtimeShadow.selectedCommands < 165);
 
 const mixed = classifyChangedPaths(["docs/mvp-status.md", "app/page.tsx"]);
 assert.equal(mixed.docsOnly, false);

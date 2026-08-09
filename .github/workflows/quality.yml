@@ -108,6 +108,8 @@ jobs:
           npm run test:browser-audio-engine
           npm run test:blob-audio-playback
           npm run test:media-recorder-capture
+          npm run test:realtime-pitch-input
+          npm run test:realtime-pitch-monitor-controller
           npm run test:mobile-lifecycle
           npm run test:local-practice-answer-lock
           npm run test:local-practice-review-queue
@@ -188,6 +190,7 @@ jobs:
           npm run test:mobile-vocal-observation-behavior
           npm run test:realtime-pitch-monitor-ui-contract
           npm run test:realtime-pitch-monitor-behavior
+          npm run test:mobile-interval-imitation-behavior
           npm run test:local-ear-training-single-pitch
           npm run test:local-ear-training-intervals
           npm run test:local-interval-comparisons

@@ -101,7 +101,7 @@ require 依赖，并阻止其反向引用 `app/`、`components/` 或 `mobile/src
 | `mobile/src/App.tsx` | 导航、生命周期和学习流程编排；课程进度、学习画像与复练队列已分别注入 repository | 提取 app shell、navigation state 与 learning controller |
 | `app/recognize/page.tsx` | 文件校验、识别结果和文件选择／导入编排已由可注入 recognition workflow controller／薄 React hook 承接；API 请求和 preview URL 也分别由 client／preview adapter 承接 | 继续提取播放调度及其余页面职责；不得把 fetch／FormData 放回页面 |
 | 本机课程／学习概览组件 | 课程进度、学习画像与复练队列 repository 已分别通过 PR #499／#503／#505 由 composition root 注入 | 继续由上层注入 repository、snapshot 和 commands，不把 localStorage 访问放回组件 |
-| 共享实时音高组件 | 本机练声记录 storage 和下载已由 port 注入；三条 Blob 回放已由 latest-wins controller／浏览器 adapter 承接；会话录音的 MediaRecorder 构造、codec、chunk 与清理已由 capture port 承接；hook 仍编排权限、实时分析、录音 generation 与活动状态 | 继续提取完整实时练习 controller；不得把已抽离 storage／下载／回放／recorder side effect 重新耦合到组件 |
+| 共享实时音高组件 | 本机练声记录 storage 和下载已由 port 注入；三条 Blob 回放与会话 MediaRecorder 已由既有 ports／controllers 承接；麦克风申请、实时采样、曲线、会话录音、回放资格与全局停止由框架无关 realtime controller 编排，React hook 只订阅／转发 | 保持固定 A4、保存／下载、OfflinePitchAnalysis、旋律 attempt／count-in 与 Activity 在既有边界；不得把浏览器媒体 side effect 或 generation 编排放回组件 |
 
 这些热点是可控技术债，不代表当前功能错误，也不单独阻塞 S3 或其他边界清楚的能力
 切片。不得据此宣称 UI 重构已完成；也不得继续把新的 schema、迁移、格式解析或业务
@@ -110,9 +110,10 @@ require 依赖，并阻止其反向引用 `app/`、`components/` 或 `mobile/src
 共享实时音高组件的首个 storage port 抽离边界见
 `docs/ui-realtime-pitch-local-record-storage-port-acceptance.md`，Blob 回放抽离边界见
 `docs/local-blob-audio-playback-controller-acceptance.md`，MediaRecorder 抽离边界见
-`docs/local-media-recorder-capture-port-acceptance.md`。这些切片分别承接三条 Blob 回放的
-stale-result 编排，以及当前会话 recorder 构造、codec、chunk 和清理；不表示完整实时
-练习 controller、其余音频路径或最终 UI 已完成重构。
+`docs/local-media-recorder-capture-port-acceptance.md`，完整实时练习 controller 抽离边界见
+`docs/local-realtime-pitch-monitor-controller-acceptance.md`。这些切片分别承接三条 Blob 回放、
+当前会话 recorder、浏览器实时输入和 stale-result 编排；固定 A4、保存／下载、离线分析与
+旋律 attempt／count-in 不属于 controller，也不表示其余音频路径或最终 UI 已完成重构。
 
 本机课程进度 repository 注入边界见
 `docs/ui-mobile-course-progress-repository-port-acceptance.md`，已通过 PR #499 合并为

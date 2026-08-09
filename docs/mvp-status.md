@@ -252,12 +252,19 @@
   IndexedDB／schema、录音 Blob、曲线、分析、评分或网络边界；验收见
   `docs/local-blob-audio-playback-controller-acceptance.md`，真实浏览器媒体策略、Android
   WebView／真机、后台／锁屏和长循环仍为 `NOT_EXECUTED`。
-- 共享实时音高 hook 的本次会话录音已通过可替换 MediaRecorder capture port 承接浏览器
-  构造、codec 选择、250 ms timeslice、非空 chunk 汇集、Blob 生成和底层事件清理。hook
-  继续负责 recording generation、中文错误和当前尝试状态，不再直接构造 recorder、绑定
+- 共享实时音高会话录音已通过可替换 MediaRecorder capture port 承接浏览器构造、codec
+  选择、250 ms timeslice、非空 chunk 汇集、Blob 生成和底层事件清理。上层 controller
+  负责 recording generation、中文错误和当前尝试状态，不再直接构造 recorder、绑定
   `ondataavailable` 或持有 chunk 数组；同步 stop／error 和底层 stop 抛错也不会把旧状态
   写回当前尝试或中断 dispose。该切片不改变 getUserMedia、录音起点、Blob 回放、分析、
   保存、Activity、网络或 schema；验收见
   `docs/local-media-recorder-capture-port-acceptance.md`，真实 codec／麦克风、Android WebView／
   真机、后台／锁屏／来电和长循环仍为 `NOT_EXECUTED`。
+- 当前 realtime practice controller implementation candidate 已把麦克风权限、实时采样、曲线、
+  会话录音、Blob 回放资格、generation 与全局停止编排移入框架无关 controller；浏览器输入
+  由独立 port 承接，薄 React hook 只订阅 snapshot、转发命令并绑定生命周期。四个既有调用方
+  API、中文提示、50 ms／FFT 4096 输入、250 ms 录音、完整自然回放分析资格和 Activity 语义
+  不变；固定 A4、保存／下载、OfflinePitchAnalysis 与旋律 attempt／count-in 明确留在既有边界。
+  验收见 `docs/local-realtime-pitch-monitor-controller-acceptance.md`，真实浏览器、WebView／真机、
+  真实人声、后台／锁屏／来电和长循环仍为 `NOT_EXECUTED`。
 - 导入边界见 `docs/s3-local-score-project-musicxml-import-acceptance.md`，导出边界见 `docs/s3-local-score-project-musicxml-export-acceptance.md`，part identity 硬化见 `docs/s3-local-score-project-musicxml-part-identity-hardening-acceptance.md`，note 容器硬化见 `docs/s3-local-score-project-musicxml-note-container-hardening-acceptance.md`，谱面标题、署名与版权双向边界见 `docs/s3-local-score-project-musicxml-score-credits-round-trip-acceptance.md`；全局整数速度边界见 `docs/s3-local-score-project-musicxml-tempo-round-trip-acceptance.md`，单附点、单段歌词、单指法、单音演奏法、单事件力度记号、单事件制音踏板记号、受控和弦标记、fermata、圆滑线和延音线双向边界分别见对应的 S3 round-trip acceptance 文档，其中和弦切片见 `docs/s3-local-score-project-musicxml-chord-symbol-round-trip-acceptance.md`，增三／减三边界见 `docs/s3-local-score-project-musicxml-augmented-diminished-triad-round-trip-acceptance.md`，减七边界见 `docs/s3-local-score-project-musicxml-diminished-seventh-round-trip-acceptance.md`，半减七边界见 `docs/s3-local-score-project-musicxml-half-diminished-seventh-round-trip-acceptance.md`，增七边界见 `docs/s3-local-score-project-musicxml-augmented-seventh-round-trip-acceptance.md`，大六边界见 `docs/s3-local-score-project-musicxml-major-sixth-round-trip-acceptance.md`。浏览器真实导入／下载／重开、Android WebView／真机、第三方独立阅读器、速度／和弦／踏板／力度／演奏法／指法／标题与署名显示及真实播放、tempo map／中途变速、双升降／Unicode 升降号／转位／其他和弦类别、左右手／替代指法、歌词排版／多 verse／melisma、真实音频与歌唱对齐、教师审核、MIDI、OMR、完整 MusicXML、完整 S3 与正式版 V1 均仍为 `NOT_EXECUTED` 或未完成。
