@@ -68,12 +68,12 @@ if (panel.includes("browserFileDownloadPort")) {
   throw new Error("共享实时音高组件必须由 composition root 注入下载端口");
 }
 
-for (const [source, label] of [
-  [currentSessionPlayback, "当前会话录音"],
-  [panel, "已保存练声录音"],
-  [segmentPlayback, "逐音片段"],
+for (const [source, label, controllerMarker] of [
+  [currentSessionPlayback, "当前会话录音", "createBlobAudioPlaybackController"],
+  [panel, "已保存练声录音", "useBlobAudioPlaybackController"],
+  [segmentPlayback, "逐音片段", "useBlobAudioPlaybackController"],
 ]) {
-  requireCopy(source, "useBlobAudioPlaybackController", `${label}回放 controller 边界`);
+  requireCopy(source, controllerMarker, `${label}回放 controller 边界`);
   for (const forbidden of ["new Audio(", "URL.createObjectURL", "URL.revokeObjectURL"]) {
     if (source.includes(forbidden)) {
       throw new Error(`${label}共享编排不得直接使用浏览器回放 side effect：${forbidden}`);
