@@ -71,6 +71,7 @@ export function RealtimePitchMonitorPanel({
   const [confirmClearRecords, setConfirmClearRecords] = useState(false);
   const [isStorageLoading, setIsStorageLoading] = useState(true);
   const [storageBusy, setStorageBusy] = useState(false);
+  const [savingMedia, setSavingMedia] = useState<"curve" | "curve-and-recording" | null>(null);
   const [playingSavedRecordId, setPlayingSavedRecordId] = useState<string | null>(null);
   const [recordingTargetSnapshot, setRecordingTargetSnapshot] = useState<GeneratedLocalVocalExercise | null>(null);
   const [pendingA4ActivityCheck, setPendingA4ActivityCheck] = useState<PendingA4ActivityCheck | null>(null);
@@ -112,18 +113,29 @@ export function RealtimePitchMonitorPanel({
     };
   }, []);
 
-  const saveSession = async () => {
+  const saveSession = async (includeRecording: boolean) => {
     if (storageBusy || isStorageLoading) return;
+    if (monitor.curvePoints.length === 0) {
+      setStorageNotice("请先开始实时反馈并获得音高曲线，再保存本机记录。");
+      return;
+    }
+    const recording = includeRecording ? monitor.recordingBlob : null;
+    if (includeRecording && !recording) {
+      setStorageNotice("请先完成一次会话录音，再保存曲线和录音。");
+      return;
+    }
+    setStorageNotice("");
+    setSavingMedia(includeRecording ? "curve-and-recording" : "curve");
     setStorageBusy(true);
     try {
-      const record = createLocalVocalPracticeRecord({ note: recordNote, targetLabel, targetMidi, curvePoints: monitor.curvePoints, recording: monitor.recordingBlob });
+      const record = createLocalVocalPracticeRecord({ note: recordNote, targetLabel, targetMidi, curvePoints: monitor.curvePoints, recording });
       await practiceRecordRepository.save(record);
       setRecords((items) => [record, ...items.filter((item) => item.id !== record.id)]);
       setSelectedRecord(record);
       setRecordNote("");
-      setStorageNotice("已保存到本机应用私有记录。卸载或清除应用数据会删除记录。");
+      setStorageNotice(`${includeRecording ? "已保存曲线和录音" : "已仅保存曲线"}到本机应用私有记录。卸载或清除应用数据会删除记录。`);
     } catch (caught) { setStorageNotice(caught instanceof Error ? caught.message : "无法保存本机记录"); }
-    finally { setStorageBusy(false); }
+    finally { setStorageBusy(false); setSavingMedia(null); }
   };
 
   const playSavedRecording = async (record: LocalVocalPracticeRecord) => {
@@ -397,7 +409,11 @@ export function RealtimePitchMonitorPanel({
         <h2 id="local-records-title" className="font-black text-slate-950">本机练声记录</h2>
         <p className="mt-1 text-sm leading-6 text-slate-600">只有点击保存才写入应用私有 IndexedDB；不上传。最多 20 条，单条录音最多 5 MB。导出 JSON 包含曲线和目标摘要，不包含录音文件。</p>
         <label className="mt-3 block text-sm font-bold text-slate-900">本次备注（最多 200 字）<textarea value={recordNote} maxLength={200} onChange={(event) => setRecordNote(event.target.value)} className="mt-1 min-h-20 w-full rounded-xl border border-slate-300 bg-white p-3 font-normal" /></label>
-        <button type="button" onClick={() => void saveSession()} disabled={isStorageLoading || storageBusy || (monitor.curvePoints.length === 0 && !monitor.recordingBlob)} className="mt-3 min-h-11 rounded-xl bg-slate-900 px-4 font-bold text-white disabled:bg-slate-300">{storageBusy ? "正在处理…" : "保存当前曲线与录音"}</button>
+        <p id="local-record-save-help" className="mt-2 text-sm leading-6 text-slate-600">请先开始实时反馈并获得音高曲线。“仅保存曲线”不会保留录音；完成一次会话录音后，才可以选择“保存曲线和录音”。</p>
+        <div className="mt-3 flex flex-wrap gap-2">
+          <button type="button" aria-busy={savingMedia === "curve"} aria-describedby="local-record-save-help" onClick={() => void saveSession(false)} disabled={isStorageLoading || storageBusy || monitor.curvePoints.length === 0} title={monitor.curvePoints.length === 0 ? "先开始实时反馈并获得音高曲线" : undefined} className="min-h-11 rounded-xl bg-slate-900 px-4 font-bold text-white disabled:cursor-not-allowed disabled:bg-slate-300">{savingMedia === "curve" ? "正在保存曲线（不含录音）…" : "仅保存当前曲线"}</button>
+          <button type="button" aria-busy={savingMedia === "curve-and-recording"} aria-describedby="local-record-save-help" onClick={() => void saveSession(true)} disabled={isStorageLoading || storageBusy || monitor.curvePoints.length === 0 || !monitor.recordingBlob} title={monitor.curvePoints.length === 0 ? "先开始实时反馈并获得音高曲线" : !monitor.recordingBlob ? "先完成一次会话录音" : undefined} className="min-h-11 rounded-xl border border-slate-400 bg-white px-4 font-bold text-slate-900 disabled:cursor-not-allowed disabled:opacity-50">{savingMedia === "curve-and-recording" ? "正在保存曲线和录音…" : "保存当前曲线和录音"}</button>
+        </div>
         {storageNotice ? <p className="mt-2 text-sm text-slate-700" role="status">{storageNotice}</p> : null}
         {downloadNotice ? <p className="mt-2 text-sm text-slate-700" role="status">{downloadNotice}</p> : null}
         <div className="mt-4 grid gap-2">{records.map((record) => { const accessibleName = `${new Date(record.createdAt).toLocaleString("zh-CN")} ${record.targetLabel}`; return <article key={record.id} className="rounded-xl border border-slate-200 bg-white p-3"><p className="font-bold text-slate-950">{accessibleName}</p><p className="mt-1 text-sm text-slate-600">{record.curvePoints.length} 帧 · {record.recording ? "含录音" : "仅曲线"}{record.note ? ` · ${record.note}` : ""}</p><div className="mt-2 flex flex-wrap gap-2"><button type="button" aria-label={`回看曲线：${accessibleName}`} aria-pressed={selectedRecord?.id === record.id} onClick={() => setSelectedRecord(record)} className="min-h-10 rounded-lg border border-slate-300 px-3 text-sm font-bold">回看曲线</button>{record.recording ? <button type="button" aria-label={`${playingSavedRecordId === record.id ? "停止" : "回放"}录音：${accessibleName}`} onClick={() => playingSavedRecordId === record.id ? stopSavedPlayback() : void playSavedRecording(record)} className="min-h-10 rounded-lg border border-slate-300 px-3 text-sm font-bold">{playingSavedRecordId === record.id ? "停止回放" : "回放录音"}</button> : null}<button type="button" aria-label={`导出 JSON：${accessibleName}`} onClick={() => exportRecord(record)} className="min-h-10 rounded-lg border border-slate-300 px-3 text-sm font-bold">导出 JSON</button><button type="button" aria-label={`删除：${accessibleName}`} disabled={storageBusy} onClick={() => void deleteRecord(record)} className="min-h-10 rounded-lg border border-rose-300 px-3 text-sm font-bold text-rose-800 disabled:opacity-50">删除</button></div></article>; })}</div>
