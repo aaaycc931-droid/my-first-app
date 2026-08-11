@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { getFullPianoKeys } from "../../lib/piano/localPianoKeyboard";
 import {
@@ -48,6 +48,7 @@ export function LocalPianoLearningPanel({
   const [importState, setImportState] = useState<"idle" | "reading" | "ready" | "error">("idle");
   const [scoreNotice, setScoreNotice] = useState("可直接练习项目原创片段，或在本机导入简单单声部 MusicXML 草稿。");
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const importGenerationRef = useRef(0);
   const keyByMidi = useMemo(() => new Map(getFullPianoKeys().map((key) => [key.midi, key])), []);
   const selectedScore = selectedSource === "imported" && importedDraft
     ? importedDraft
@@ -72,6 +73,7 @@ export function LocalPianoLearningPanel({
   const midi = useLocalPianoMidi({ onEvent: handleMidiEvent, onDisconnect: onStopAll });
 
   const importMusicXML = async (file: File | null) => {
+    const generation = ++importGenerationRef.current;
     onStopPlayback();
     setImportedDraft(null);
     setSelectedSource("original");
@@ -94,17 +96,20 @@ export function LocalPianoLearningPanel({
     setScoreNotice("正在本机读取并生成待检查草稿…");
     try {
       const draft = createPianoLearningDraftFromMusicXML({ xml: await file.text(), fileName: file.name });
+      if (generation !== importGenerationRef.current) return;
       setImportedDraft(draft);
       setSelectedSource("imported");
       setImportState("ready");
       setScoreNotice(`已生成 ${draft.notes.length} 个音符的待检查草稿；确认前不能播放。`);
     } catch (error) {
+      if (generation !== importGenerationRef.current) return;
       setImportState("error");
       setScoreNotice(error instanceof Error ? error.message : "MusicXML 草稿生成失败，请更换文件。");
     }
   };
 
   const clearImport = () => {
+    importGenerationRef.current += 1;
     onStopPlayback();
     setImportedDraft(null);
     setSelectedSource("original");
@@ -112,6 +117,10 @@ export function LocalPianoLearningPanel({
     setScoreNotice("本机 MusicXML 草稿已清除；没有保存或上传文件内容。");
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
+
+  useEffect(() => () => {
+    importGenerationRef.current += 1;
+  }, []);
 
   const removeNote = (noteId: string) => {
     if (!importedDraft) return;
