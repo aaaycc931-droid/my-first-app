@@ -25,6 +25,10 @@ QA level recommendation：**strict**
 - 当前会话录音继续复用 MediaRecorder capture port 的 codec、250 ms timeslice、非空 chunk、
   空录音和错误语义；回放继续复用 Blob playback controller，只有同一 Blob 自然完整结束才
   满足 analysis 的 completed-playback 门禁。
+- MediaRecorder 报错是当前 active recording 的终态失败：必须立即失效 generation、释放
+  capture 并清除录音／分析资格，随后迟到的 `dataavailable`、`stop` 或 error 回调不得把失败
+  录音恢复为 ready。麦克风轨道或 AudioContext 在录音中断开时适用同一失败关闭；已经正常
+  完成并进入 ready 的 Blob 不因之后的 input interruption 被误删。
 - 全局音频停止继续先停止当前回放；明确 suppress 的下一次全局停止只消费一次，不得停止
   正在建立的麦克风会话。组件卸载必须释放 input、capture 与 playback。
 
@@ -32,6 +36,9 @@ QA level recommendation：**strict**
 
 - A→B 输入申请、录音或回放切换后，A 的迟到 permission／prepare／sample／stop／error／ended
   均不得覆盖 B；adapter 先 detach 底层资源，controller generation 再拒绝旧回调。
+- 同一录音的 failure callback 最多通知一次；调用方提供 `onInterrupted` 时由它承接 input
+  interruption 的 Activity 作废，不得再通过 recorder failure callback 重复作废同一次
+  attempt；未提供时仍由 recorder failure callback 承接一次失败通知。
 - input `prepare()` 单次共享进行中的 promise，`start()` 幂等；`onSamples` 同步触发 dispose 时
   不得再排一个无法清除的 timer。dispose、capture stop 或底层 close 抛错不得中断剩余清理。
 - hook 不得重新直接访问 `navigator`、构造 AudioContext／MediaRecorder／Audio、管理 object
@@ -49,7 +56,9 @@ QA level recommendation：**strict**
 - realtime input focused test 覆盖约束、prepare single-flight、start 幂等、50 ms 采样、轨道／
   context 中断、幂等清理，以及 `onSamples` 内 dispose 不遗留 timer。
 - controller focused test 覆盖 start／frame／curve、录音、自然完整回放资格、全局 stop suppress、
-  输入中断、clear／detach、能力缺失和 generation 失败关闭。
+  输入中断、clear／detach、能力缺失和 generation 失败关闭；并覆盖 active recording 的
+  MediaRecorder error／input interruption 终态清理、迟到 stop 不复活、单次通知、错误后重录，
+  以及 ready Blob 在后续 input interruption 后保持可用。
 - 既有 realtime monitor／offline analysis mounted suite 保持 27 项；旋律回唱／视唱行为套件与
   最小音程模唱 mounted 回归验证四个调用方 API 不漂移。
 - source contract、typecheck、lint、移动构建、Android local validator、文档卫生、完整

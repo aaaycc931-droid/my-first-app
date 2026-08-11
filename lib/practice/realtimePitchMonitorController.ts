@@ -84,19 +84,35 @@ export const createRealtimePitchMonitorController = ({ inputPort, recorderPort, 
     playback.stop();
     if (snapshot.recordingStatus === "playing") publish({ recordingStatus: "ready" });
   };
+  const failActiveRecording = (message: string, notifyFailure = true) => {
+    const owned = capture;
+    if (!owned) return false;
+    recordingGeneration += 1;
+    capture = null;
+    const failure = captureFailure;
+    captureFailure = null;
+    try { owned.dispose(); } catch { /* cleanup remains terminal */ }
+    completedPlaybackRecording = null;
+    publish({
+      recordingStatus: "error",
+      recordingError: message,
+      hasRecording: false,
+      recordingBlob: null,
+      hasCompletedRecordingPlayback: false,
+      recordingStartedAtMs: null,
+    });
+    if (notifyFailure) failure?.(message);
+    return true;
+  };
   const stopRecording = () => {
     const owned = capture;
     if (!owned) return;
     try {
       if (owned.getState() === "recording") owned.stop();
     } catch {
-      recordingGeneration += 1;
-      if (capture === owned) capture = null;
-      try { owned.dispose(); } catch { /* cleanup remains terminal */ }
       const message = "本次录音发生错误，已停止。你可以继续使用实时曲线或重试录音。";
-      publish({ recordingStatus: "error", recordingError: message });
-      captureFailure?.(message);
-      captureFailure = null;
+      if (capture === owned) failActiveRecording(message);
+      else try { owned.dispose(); } catch { /* cleanup remains terminal */ }
     }
   };
   const discardRecording = () => {
@@ -139,6 +155,7 @@ export const createRealtimePitchMonitorController = ({ inputPort, recorderPort, 
       const message = kind === "track-ended"
         ? "麦克风媒体轨已中断，本轮录音资格已作废。"
         : "麦克风音频上下文已中断，本轮录音资格已作废。";
+      failActiveRecording(message, !onInterrupted);
       inputGeneration += 1;
       releaseInput();
       publish({ status: "error", error: message });
@@ -189,15 +206,22 @@ export const createRealtimePitchMonitorController = ({ inputPort, recorderPort, 
     discardRecording();
     const generation = ++recordingGeneration;
     completedPlaybackRecording = null;
-    captureFailure = onFailure ?? null;
+    let failureNotified = false;
+    captureFailure = onFailure
+      ? (message) => {
+        if (failureNotified) return;
+        failureNotified = true;
+        onFailure(message);
+      }
+      : null;
     publish({ recordingError: "", hasCompletedRecordingPlayback: false });
     let owned: MediaRecorderCaptureHandle | null = null;
     try {
       owned = recorderPort.create({ stream, timesliceMs: 250,
         onError: () => {
-          if (!attached || generation !== recordingGeneration) return;
+          if (!attached || generation !== recordingGeneration || capture !== owned) return;
           const message = "本次录音发生错误，已停止。你可以继续使用实时曲线或重试录音。";
-          publish({ recordingStatus: "error", recordingError: message }); onFailure?.(message);
+          failActiveRecording(message);
         },
         onStopped: (recording) => {
           if (!attached || generation !== recordingGeneration) return;
@@ -205,7 +229,12 @@ export const createRealtimePitchMonitorController = ({ inputPort, recorderPort, 
           captureFailure = null;
           if (!recording) {
             const message = "没有获得可回放的录音数据，请重试。";
-            publish({ recordingStatus: "error", recordingError: message }); onFailure?.(message); return;
+            publish({ recordingStatus: "error", recordingError: message });
+            if (!failureNotified) {
+              failureNotified = true;
+              onFailure?.(message);
+            }
+            return;
           }
           publish({ recordingBlob: recording, hasRecording: true, recordingStatus: "ready" });
         },
@@ -213,14 +242,18 @@ export const createRealtimePitchMonitorController = ({ inputPort, recorderPort, 
       capture = owned;
       publish({ recordingStartedAtMs: now(), recordingStatus: "recording" });
       owned.start();
-      return true;
+      return generation === recordingGeneration && snapshot.recordingStatus !== "error";
     } catch {
       try { owned?.dispose(); } catch { /* cleanup remains terminal */ }
+      if (generation !== recordingGeneration) return false;
+      recordingGeneration += 1;
       if (capture === owned) capture = null;
+      const failure = captureFailure;
       captureFailure = null;
       const message = "无法开始会话内录音。实时曲线仍可继续使用。";
-      publish({ recordingStatus: "error", recordingError: message, recordingStartedAtMs: null });
-      onFailure?.(message); return false;
+      publish({ recordingStatus: "error", recordingError: message, hasRecording: false,
+        recordingBlob: null, hasCompletedRecordingPlayback: false, recordingStartedAtMs: null });
+      failure?.(message); return false;
     }
   };
 
