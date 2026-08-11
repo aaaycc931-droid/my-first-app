@@ -25,6 +25,9 @@ export type MetronomeSchedulerOptions = {
 export class BrowserMetronomeScheduler {
   private audioContext: AudioContext | null = null;
   private timerId: number | null = null;
+  private pendingStart: Promise<boolean> | null = null;
+  private startGeneration = 0;
+  private running = false;
   private nextBeatTimeSeconds = 0;
   private nextBeatIndex = 0;
   private countInBeatCount = 0;
@@ -41,16 +44,20 @@ export class BrowserMetronomeScheduler {
   }
 
   get isRunning() {
-    return this.audioContext !== null;
+    return this.running;
   }
 
   updateConfig(config: MetronomeConfig) {
     this.config = sanitizeMetronomeConfig(config);
   }
 
-  async start() {
-    if (this.audioContext) {
-      return;
+  start(): Promise<boolean> {
+    if (this.pendingStart) {
+      return this.pendingStart;
+    }
+
+    if (this.running && this.audioContext) {
+      return Promise.resolve(true);
     }
 
     const AudioContextConstructor =
@@ -59,24 +66,70 @@ export class BrowserMetronomeScheduler {
         .webkitAudioContext;
 
     if (!AudioContextConstructor) {
-      throw new Error("Web Audio is not available in this browser.");
+      return Promise.reject(
+        new Error("Web Audio is not available in this browser."),
+      );
     }
 
-    const audioContext = new AudioContextConstructor() as RuntimeAudioContext;
+    let audioContext: RuntimeAudioContext;
+
+    try {
+      audioContext = new AudioContextConstructor() as RuntimeAudioContext;
+    } catch (error) {
+      return Promise.reject(error);
+    }
+
+    const generation = ++this.startGeneration;
     this.audioContext = audioContext;
+    const pendingStart: Promise<boolean> = Promise.resolve()
+      .then(async () => {
+        try {
+          if (audioContext.state === "suspended") {
+            await audioContext.resume();
+          }
 
-    if (audioContext.state === "suspended") {
-      await audioContext.resume();
-    }
+          if (!this.ownsAudioContext(audioContext, generation)) {
+            return false;
+          }
 
-    this.nextBeatIndex = 0;
-    this.countInBeatCount = this.getCountInBeatCount();
-    this.nextBeatTimeSeconds = audioContext.currentTime + 0.06;
-    this.tick();
-    this.timerId = window.setInterval(() => this.tick(), this.lookaheadMs);
+          this.nextBeatIndex = 0;
+          this.countInBeatCount = this.getCountInBeatCount();
+          this.nextBeatTimeSeconds = audioContext.currentTime + 0.06;
+          this.running = true;
+          this.tick(audioContext, generation);
+
+          if (!this.ownsAudioContext(audioContext, generation)) {
+            return false;
+          }
+
+          this.timerId = window.setInterval(
+            () => this.tick(audioContext, generation),
+            this.lookaheadMs,
+          );
+          return true;
+        } catch (error) {
+          if (!this.ownsAudioContext(audioContext, generation)) {
+            return false;
+          }
+
+          this.releaseOwnedAudioContext(audioContext);
+          throw error;
+        }
+      })
+      .finally(() => {
+        if (this.pendingStart === pendingStart) {
+          this.pendingStart = null;
+        }
+      });
+
+    this.pendingStart = pendingStart;
+    return pendingStart;
   }
 
   stop() {
+    this.startGeneration += 1;
+    this.pendingStart = null;
+
     if (this.timerId !== null) {
       window.clearInterval(this.timerId);
       this.timerId = null;
@@ -84,6 +137,7 @@ export class BrowserMetronomeScheduler {
 
     const audioContext = this.audioContext;
     this.audioContext = null;
+    this.running = false;
     this.nextBeatIndex = 0;
     this.countInBeatCount = 0;
     this.nextBeatTimeSeconds = 0;
@@ -93,14 +147,38 @@ export class BrowserMetronomeScheduler {
     }
   }
 
-  private tick() {
-    const audioContext = this.audioContext;
+  private ownsAudioContext(audioContext: AudioContext, generation: number) {
+    return (
+      this.audioContext === audioContext && this.startGeneration === generation
+    );
+  }
 
-    if (!audioContext) {
+  private releaseOwnedAudioContext(audioContext: AudioContext) {
+    if (this.audioContext !== audioContext) {
+      return;
+    }
+
+    if (this.timerId !== null) {
+      window.clearInterval(this.timerId);
+      this.timerId = null;
+    }
+
+    this.startGeneration += 1;
+    this.audioContext = null;
+    this.running = false;
+    this.nextBeatIndex = 0;
+    this.countInBeatCount = 0;
+    this.nextBeatTimeSeconds = 0;
+    void audioContext.close().catch(() => undefined);
+  }
+
+  private tick(audioContext: AudioContext, generation: number) {
+    if (!this.ownsAudioContext(audioContext, generation)) {
       return;
     }
 
     while (
+      this.ownsAudioContext(audioContext, generation) &&
       this.nextBeatTimeSeconds <
       audioContext.currentTime + this.scheduleAheadSeconds
     ) {
@@ -118,6 +196,11 @@ export class BrowserMetronomeScheduler {
       );
       this.scheduleClick(audioContext, beat);
       this.onBeat?.(beat);
+
+      if (!this.ownsAudioContext(audioContext, generation)) {
+        return;
+      }
+
       this.nextBeatIndex += 1;
       this.nextBeatTimeSeconds += getBeatDurationSeconds(this.config.bpm);
     }

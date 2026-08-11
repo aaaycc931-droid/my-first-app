@@ -150,3 +150,28 @@ assert.match(practicePage, /不是节奏分数/);
 assert.match(practicePage, /尚无麦克风起音检测/);
 assert.match(practicePage, /应用当前会话延迟校准/);
 assert.doesNotMatch(practicePage, /accuracyPercentage/);
+assert.equal(
+  practicePage.match(/const started = await scheduler\.start\(\);/g)?.length,
+  4,
+  "all four /practice metronome consumers must inspect the start result",
+);
+assert.equal(
+  practicePage.match(/if \(!started\)/g)?.length,
+  4,
+  "cancelled /practice starts must not be treated as successful",
+);
+assert.match(practicePage, /metronomeSchedulerGenerationRef/);
+assert.match(practicePage, /rhythmSchedulerGenerationRef/);
+assert.match(practicePage, /latencyCalibrationSchedulerGenerationRef/);
+assert.equal(
+  practicePage.match(
+    /const isCurrentScheduler = \(\) =>\s+isMountedRef\.current &&[\s\S]{0,180}?SchedulerGenerationRef\.current ===\s+schedulerGeneration &&[\s\S]{0,120}?SchedulerRef\.current === scheduler;/g,
+  )?.length,
+  4,
+  "every /practice consumer must reject unmounted, replaced, and stale starts",
+);
+assert.match(
+  practicePage,
+  /isMountedRef\.current = false;[\s\S]*stopLatencyCalibrationRuntime\(\);/,
+  "unmount must invalidate and stop latency calibration runtime",
+);

@@ -14,7 +14,7 @@ import {
 } from "../../lib/metronome/metronomeScheduler";
 
 export type LocalScoreProjectMetronomeScheduler = {
-  start: () => Promise<void>;
+  start: () => Promise<boolean>;
   stop: () => void;
 };
 
@@ -77,12 +77,18 @@ export function useLocalScoreProjectMetronome({
     });
     schedulerRef.current = scheduler;
     try {
-      await scheduler.start();
-      if (
-        schedulerRef.current !== scheduler
-        || generationRef.current !== generation
-      ) {
+      const started = await scheduler.start();
+      const ownsScheduler =
+        schedulerRef.current === scheduler
+        && generationRef.current === generation;
+      if (!started || !ownsScheduler) {
         scheduler.stop();
+        if (ownsScheduler) {
+          schedulerRef.current = null;
+          setIsStarting(false);
+          setIsRunning(false);
+          setBeat(null);
+        }
         return false;
       }
       setIsStarting(false);

@@ -13,6 +13,7 @@ import {
   hasRhythmAssessmentFields,
   isStrongBeat,
 } from "../lib/metronome/metronomeGrid";
+import { BrowserMetronomeScheduler } from "../lib/metronome/metronomeScheduler";
 import { getNonScoringImportedTargetPitchFeedback } from "../lib/practice/nonScoringImportedTargetPitchFeedback";
 
 assert.equal(getBeatDurationSeconds(120), 0.5);
@@ -258,4 +259,218 @@ const importedFeedbackAfter = getNonScoringImportedTargetPitchFeedback({
 });
 assert.deepEqual(importedFeedbackAfter, importedFeedbackBefore);
 
-console.log("metronome foundation tests passed");
+type Deferred<T> = {
+  promise: Promise<T>;
+  resolve: (value: T | PromiseLike<T>) => void;
+  reject: (reason?: unknown) => void;
+};
+
+const createDeferred = <T>(): Deferred<T> => {
+  let resolve!: Deferred<T>["resolve"];
+  let reject!: Deferred<T>["reject"];
+  const promise = new Promise<T>((promiseResolve, promiseReject) => {
+    resolve = promiseResolve;
+    reject = promiseReject;
+  });
+  return { promise, resolve, reject };
+};
+
+type FakeAudioContextPlan = {
+  state: AudioContextState;
+  resume?: () => Promise<void>;
+};
+
+class FakeAudioContext {
+  static instances: FakeAudioContext[] = [];
+  static plans: FakeAudioContextPlan[] = [];
+
+  state: AudioContextState;
+  currentTime = 0;
+  readonly destination = {} as AudioDestinationNode;
+  resumeCalls = 0;
+  closeCalls = 0;
+  scheduledClickCount = 0;
+  private readonly resumePlan?: () => Promise<void>;
+
+  constructor() {
+    const plan = FakeAudioContext.plans.shift() ?? { state: "running" };
+    this.state = plan.state;
+    this.resumePlan = plan.resume;
+    FakeAudioContext.instances.push(this);
+  }
+
+  async resume() {
+    this.resumeCalls += 1;
+    await this.resumePlan?.();
+    this.state = "running";
+  }
+
+  async close() {
+    this.closeCalls += 1;
+    this.state = "closed";
+  }
+
+  createOscillator() {
+    this.scheduledClickCount += 1;
+    return {
+      type: "sine",
+      frequency: { setValueAtTime: () => undefined },
+      connect: () => undefined,
+      disconnect: () => undefined,
+      start: () => undefined,
+      stop: () => undefined,
+      onended: null,
+    } as unknown as OscillatorNode;
+  }
+
+  createGain() {
+    return {
+      gain: {
+        setValueAtTime: () => undefined,
+        exponentialRampToValueAtTime: () => undefined,
+      },
+      connect: () => undefined,
+      disconnect: () => undefined,
+    } as unknown as GainNode;
+  }
+}
+
+const intervalCallbacks = new Map<number, () => void>();
+let nextIntervalId = 1;
+
+(globalThis as unknown as { window: Window & typeof globalThis }).window = {
+  AudioContext: FakeAudioContext as unknown as typeof AudioContext,
+  setInterval: (callback: TimerHandler) => {
+    const intervalId = nextIntervalId;
+    nextIntervalId += 1;
+    intervalCallbacks.set(intervalId, callback as () => void);
+    return intervalId;
+  },
+  clearInterval: (intervalId: number) => {
+    intervalCallbacks.delete(intervalId);
+  },
+} as unknown as Window & typeof globalThis;
+
+const resetFakeAudioRuntime = (...plans: FakeAudioContextPlan[]) => {
+  FakeAudioContext.instances = [];
+  FakeAudioContext.plans = [...plans];
+  intervalCallbacks.clear();
+};
+
+const createScheduler = (onBeat?: () => void) =>
+  new BrowserMetronomeScheduler({
+    config: { bpm: 240, meter: "4/4" },
+    onBeat,
+    scheduleAheadSeconds: 1,
+  });
+
+const testMetronomeSchedulerRuntime = async () => {
+  const stoppedResolve = createDeferred<void>();
+  resetFakeAudioRuntime({
+    state: "suspended",
+    resume: () => stoppedResolve.promise,
+  });
+  const stoppedResolveScheduler = createScheduler();
+  const stoppedResolveStart = stoppedResolveScheduler.start();
+  const repeatedPendingStart = stoppedResolveScheduler.start();
+  assert.strictEqual(repeatedPendingStart, stoppedResolveStart);
+  await Promise.resolve();
+  assert.equal(FakeAudioContext.instances.length, 1);
+  assert.equal(FakeAudioContext.instances[0]?.resumeCalls, 1);
+  assert.equal(stoppedResolveScheduler.isRunning, false);
+  stoppedResolveScheduler.stop();
+  stoppedResolveScheduler.stop();
+  assert.equal(
+    FakeAudioContext.instances[0]?.closeCalls,
+    1,
+    "repeated stop must not close the same context twice",
+  );
+  stoppedResolve.resolve();
+  assert.equal(await stoppedResolveStart, false);
+  assert.equal(FakeAudioContext.instances[0]?.closeCalls, 1);
+  assert.equal(FakeAudioContext.instances[0]?.scheduledClickCount, 0);
+  assert.equal(intervalCallbacks.size, 0);
+
+  const stoppedReject = createDeferred<void>();
+  resetFakeAudioRuntime({
+    state: "suspended",
+    resume: () => stoppedReject.promise,
+  });
+  const stoppedRejectScheduler = createScheduler();
+  const stoppedRejectStart = stoppedRejectScheduler.start();
+  await Promise.resolve();
+  stoppedRejectScheduler.stop();
+  stoppedReject.reject(new Error("stale resume rejection"));
+  assert.equal(await stoppedRejectStart, false);
+  assert.equal(FakeAudioContext.instances[0]?.closeCalls, 1);
+  assert.equal(stoppedRejectScheduler.isRunning, false);
+  assert.equal(intervalCallbacks.size, 0);
+
+  const oldResume = createDeferred<void>();
+  resetFakeAudioRuntime(
+    { state: "suspended", resume: () => oldResume.promise },
+    { state: "running" },
+  );
+  const restartedScheduler = createScheduler();
+  const oldStart = restartedScheduler.start();
+  await Promise.resolve();
+  restartedScheduler.stop();
+  const restartedStart = restartedScheduler.start();
+  assert.equal(await restartedStart, true);
+  const restartedContext = FakeAudioContext.instances[1];
+  assert.equal(restartedScheduler.isRunning, true);
+  assert.equal(intervalCallbacks.size, 1);
+  oldResume.resolve();
+  assert.equal(await oldStart, false);
+  assert.equal(restartedScheduler.isRunning, true);
+  assert.equal(restartedContext?.closeCalls, 0);
+  assert.equal(intervalCallbacks.size, 1);
+  restartedScheduler.stop();
+  assert.equal(restartedContext?.closeCalls, 1);
+  assert.equal(intervalCallbacks.size, 0);
+
+  const currentFailure = createDeferred<void>();
+  resetFakeAudioRuntime({
+    state: "suspended",
+    resume: () => currentFailure.promise,
+  });
+  const failingScheduler = createScheduler();
+  const failingStart = failingScheduler.start();
+  const failureAssertion = assert.rejects(
+    failingStart,
+    /current resume failure/,
+  );
+  await Promise.resolve();
+  currentFailure.reject(new Error("current resume failure"));
+  await failureAssertion;
+  assert.equal(failingScheduler.isRunning, false);
+  assert.equal(FakeAudioContext.instances[0]?.closeCalls, 1);
+  assert.equal(intervalCallbacks.size, 0);
+  FakeAudioContext.plans.push({ state: "running" });
+  assert.equal(await failingScheduler.start(), true);
+  assert.equal(failingScheduler.isRunning, true);
+  failingScheduler.stop();
+
+  resetFakeAudioRuntime({ state: "running" });
+  let beatCount = 0;
+  let reentrantScheduler: BrowserMetronomeScheduler;
+  reentrantScheduler = createScheduler(() => {
+    beatCount += 1;
+    reentrantScheduler.stop();
+  });
+  assert.equal(await reentrantScheduler.start(), false);
+  assert.equal(beatCount, 1);
+  assert.equal(FakeAudioContext.instances[0]?.scheduledClickCount, 1);
+  assert.equal(FakeAudioContext.instances[0]?.closeCalls, 1);
+  assert.equal(reentrantScheduler.isRunning, false);
+  assert.equal(intervalCallbacks.size, 0);
+};
+
+void testMetronomeSchedulerRuntime()
+  .then(() => {
+    console.log("metronome foundation tests passed");
+  })
+  .catch((error: unknown) => {
+    console.error(error);
+    process.exitCode = 1;
+  });

@@ -552,7 +552,9 @@ export default function PracticePage() {
     setLocalReviewedDraftPracticeTarget,
   ] = useState<LocalReviewedDraftPracticeTarget | null>(null);
   const metronomeSchedulerRef = useRef<BrowserMetronomeScheduler | null>(null);
+  const metronomeSchedulerGenerationRef = useRef(0);
   const rhythmSchedulerRef = useRef<BrowserMetronomeScheduler | null>(null);
+  const rhythmSchedulerGenerationRef = useRef(0);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const mediaStreamRef = useRef<MediaStream | null>(null);
   const recordingChunksRef = useRef<Blob[]>([]);
@@ -575,6 +577,7 @@ export default function PracticePage() {
   const rhythmTimerIdRef = useRef<number | null>(null);
   const latencyCalibrationSchedulerRef =
     useRef<BrowserMetronomeScheduler | null>(null);
+  const latencyCalibrationSchedulerGenerationRef = useRef(0);
   const latencyCalibrationTimeoutIdsRef = useRef<number[]>([]);
   const latencyCalibrationTimerIdRef = useRef<number | null>(null);
   const latencyCalibrationTapIdRef = useRef(0);
@@ -1015,6 +1018,7 @@ export default function PracticePage() {
   };
 
   const stopRhythmPracticeRuntime = () => {
+    rhythmSchedulerGenerationRef.current += 1;
     rhythmSchedulerRef.current?.stop();
     rhythmSchedulerRef.current = null;
     rhythmTimeoutIdsRef.current.forEach((timeoutId) => {
@@ -1028,6 +1032,7 @@ export default function PracticePage() {
   };
 
   const stopLatencyCalibrationRuntime = () => {
+    latencyCalibrationSchedulerGenerationRef.current += 1;
     latencyCalibrationSchedulerRef.current?.stop();
     latencyCalibrationSchedulerRef.current = null;
     latencyCalibrationTimeoutIdsRef.current.forEach((timeoutId) => {
@@ -1041,10 +1046,13 @@ export default function PracticePage() {
   };
 
   const stopMetronome = () => {
+    metronomeSchedulerGenerationRef.current += 1;
     metronomeSchedulerRef.current?.stop();
     metronomeSchedulerRef.current = null;
-    setIsMetronomeRunning(false);
-    setMetronomeBeat(null);
+    if (isMountedRef.current) {
+      setIsMetronomeRunning(false);
+      setMetronomeBeat(null);
+    }
   };
 
   const stopRecordingTracks = () => {
@@ -1110,8 +1118,10 @@ export default function PracticePage() {
     setSelectedImportedSegmentIndex(null);
   }, [importedResearchTargetCurvePreview]);
 
-  useEffect(
-    () => () => {
+  useEffect(() => {
+    isMountedRef.current = true;
+
+    return () => {
       isMountedRef.current = false;
       shouldDiscardRecordingRef.current = true;
       audioAnalysisRunIdRef.current += 1;
@@ -1127,6 +1137,7 @@ export default function PracticePage() {
       playbackAudioContextRef.current = null;
       stopMetronome();
       stopRhythmPracticeRuntime();
+      stopLatencyCalibrationRuntime();
       stopRecordingTimer();
       if (mediaRecorderRef.current?.state === "recording") {
         mediaRecorderRef.current.stop();
@@ -1134,9 +1145,8 @@ export default function PracticePage() {
       stopRecordingTracks();
       recordingChunksRef.current = [];
       revokeRecordedAudioUrl(recordedAudioUrlRef.current);
-    },
-    [],
-  );
+    };
+  }, []);
 
   const handleLocalMelodyGuideFileChange = async (
     event: React.ChangeEvent<HTMLInputElement>,
@@ -1302,39 +1312,6 @@ export default function PracticePage() {
       rhythmPracticeBarCount * beatsPerBar * beatDurationMs +
       rhythmMatchWindowMs +
       120;
-
-    setRhythmTargets(targets);
-    setRhythmTaps([]);
-    setRhythmNowMs(nowMs);
-    setRhythmPhase(countInBeatCount > 0 ? "count-in" : "practice");
-    setRhythmError("");
-
-    rhythmTimerIdRef.current = window.setInterval(() => {
-      setRhythmNowMs(performance.now());
-    }, 60);
-
-    if (countInBeatCount > 0) {
-      rhythmTimeoutIdsRef.current.push(
-        window.setTimeout(
-          () => {
-            setRhythmPhase("practice");
-          },
-          Math.max(0, practiceStartTimeMs - performance.now()),
-        ),
-      );
-    }
-
-    rhythmTimeoutIdsRef.current.push(
-      window.setTimeout(
-        () => {
-          stopRhythmPracticeRuntime();
-          setRhythmPhase("stopped");
-          setRhythmNowMs(performance.now());
-        },
-        Math.max(0, practiceStartTimeMs - nowMs + practiceDurationMs),
-      ),
-    );
-
     const scheduler = new BrowserMetronomeScheduler({
       config: {
         bpm: metronomeBpm,
@@ -1346,11 +1323,70 @@ export default function PracticePage() {
         subdivision: metronomeSubdivision,
       },
     });
+    const schedulerGeneration =
+      rhythmSchedulerGenerationRef.current + 1;
+    rhythmSchedulerGenerationRef.current = schedulerGeneration;
     rhythmSchedulerRef.current = scheduler;
+    const isCurrentScheduler = () =>
+      isMountedRef.current &&
+      rhythmSchedulerGenerationRef.current === schedulerGeneration &&
+      rhythmSchedulerRef.current === scheduler;
+
+    setRhythmTargets(targets);
+    setRhythmTaps([]);
+    setRhythmNowMs(nowMs);
+    setRhythmPhase(countInBeatCount > 0 ? "count-in" : "practice");
+    setRhythmError("");
+
+    rhythmTimerIdRef.current = window.setInterval(() => {
+      if (!isCurrentScheduler()) return;
+      setRhythmNowMs(performance.now());
+    }, 60);
+
+    if (countInBeatCount > 0) {
+      rhythmTimeoutIdsRef.current.push(
+        window.setTimeout(
+          () => {
+            if (!isCurrentScheduler()) return;
+            setRhythmPhase("practice");
+          },
+          Math.max(0, practiceStartTimeMs - performance.now()),
+        ),
+      );
+    }
+
+    rhythmTimeoutIdsRef.current.push(
+      window.setTimeout(
+        () => {
+          if (!isCurrentScheduler()) return;
+          stopRhythmPracticeRuntime();
+          setRhythmPhase("stopped");
+          setRhythmNowMs(performance.now());
+        },
+        Math.max(0, practiceStartTimeMs - nowMs + practiceDurationMs),
+      ),
+    );
 
     try {
-      await scheduler.start();
+      const started = await scheduler.start();
+      if (!started) {
+        if (isCurrentScheduler()) {
+          stopRhythmPracticeRuntime();
+          setRhythmPhase("idle");
+        } else {
+          scheduler.stop();
+        }
+        return;
+      }
+      if (!isCurrentScheduler()) {
+        scheduler.stop();
+        return;
+      }
     } catch {
+      if (!isCurrentScheduler()) {
+        scheduler.stop();
+        return;
+      }
       stopRhythmPracticeRuntime();
       setRhythmPhase("idle");
       setRhythmError(
@@ -1400,6 +1436,15 @@ export default function PracticePage() {
       target,
       bpm: metronomeBpm,
     });
+    const scheduler = new BrowserMetronomeScheduler({ config });
+    const schedulerGeneration =
+      rhythmSchedulerGenerationRef.current + 1;
+    rhythmSchedulerGenerationRef.current = schedulerGeneration;
+    rhythmSchedulerRef.current = scheduler;
+    const isCurrentScheduler = () =>
+      isMountedRef.current &&
+      rhythmSchedulerGenerationRef.current === schedulerGeneration &&
+      rhythmSchedulerRef.current === scheduler;
 
     setMetronomeMeter(meter);
     setNotationRhythmTapPracticeContext({
@@ -1435,29 +1480,48 @@ export default function PracticePage() {
     setRhythmError("");
 
     rhythmTimerIdRef.current = window.setInterval(() => {
+      if (!isCurrentScheduler()) return;
       setRhythmNowMs(performance.now());
     }, 60);
 
     if (countInBeatCount > 0) {
       rhythmTimeoutIdsRef.current.push(
-        window.setTimeout(() => setRhythmPhase("practice"), Math.max(0, practiceStartTimeMs - performance.now())),
+        window.setTimeout(() => {
+          if (!isCurrentScheduler()) return;
+          setRhythmPhase("practice");
+        }, Math.max(0, practiceStartTimeMs - performance.now())),
       );
     }
 
     rhythmTimeoutIdsRef.current.push(
       window.setTimeout(() => {
+        if (!isCurrentScheduler()) return;
         stopRhythmPracticeRuntime();
         setRhythmPhase("stopped");
         setRhythmNowMs(performance.now());
       }, Math.max(0, practiceStartTimeMs - nowMs + practiceDurationMs)),
     );
 
-    const scheduler = new BrowserMetronomeScheduler({ config });
-    rhythmSchedulerRef.current = scheduler;
-
     try {
-      await scheduler.start();
+      const started = await scheduler.start();
+      if (!started) {
+        if (isCurrentScheduler()) {
+          stopRhythmPracticeRuntime();
+          setRhythmPhase("idle");
+        } else {
+          scheduler.stop();
+        }
+        return;
+      }
+      if (!isCurrentScheduler()) {
+        scheduler.stop();
+        return;
+      }
     } catch {
+      if (!isCurrentScheduler()) {
+        scheduler.stop();
+        return;
+      }
       stopRhythmPracticeRuntime();
       setRhythmPhase("idle");
       setRhythmError("此浏览器无法启动临时节奏目标的节拍器；请确认在用户手势中点击开始。");
@@ -1553,37 +1617,6 @@ export default function PracticePage() {
       rhythmLatencyCalibrationBarCount * beatsPerBar * beatDurationMs +
       rhythmMatchWindowMs +
       120;
-
-    setLatencyCalibrationTargets(targets);
-    setLatencyCalibrationTaps([]);
-    setLatencyCalibrationNowMs(nowMs);
-    setLatencyCalibrationPhase(countInBeatCount > 0 ? "count-in" : "practice");
-    setLatencyCalibrationError("");
-
-    latencyCalibrationTimerIdRef.current = window.setInterval(() => {
-      setLatencyCalibrationNowMs(performance.now());
-    }, 60);
-
-    if (countInBeatCount > 0) {
-      latencyCalibrationTimeoutIdsRef.current.push(
-        window.setTimeout(
-          () => setLatencyCalibrationPhase("practice"),
-          Math.max(0, calibrationStartTimeMs - performance.now()),
-        ),
-      );
-    }
-
-    latencyCalibrationTimeoutIdsRef.current.push(
-      window.setTimeout(
-        () => {
-          stopLatencyCalibrationRuntime();
-          setLatencyCalibrationPhase("stopped");
-          setLatencyCalibrationNowMs(performance.now());
-        },
-        Math.max(0, calibrationStartTimeMs - nowMs + calibrationDurationMs),
-      ),
-    );
-
     const scheduler = new BrowserMetronomeScheduler({
       config: {
         bpm: metronomeBpm,
@@ -1595,11 +1628,71 @@ export default function PracticePage() {
         subdivision: metronomeSubdivision,
       },
     });
+    const schedulerGeneration =
+      latencyCalibrationSchedulerGenerationRef.current + 1;
+    latencyCalibrationSchedulerGenerationRef.current = schedulerGeneration;
     latencyCalibrationSchedulerRef.current = scheduler;
+    const isCurrentScheduler = () =>
+      isMountedRef.current &&
+      latencyCalibrationSchedulerGenerationRef.current ===
+        schedulerGeneration &&
+      latencyCalibrationSchedulerRef.current === scheduler;
+
+    setLatencyCalibrationTargets(targets);
+    setLatencyCalibrationTaps([]);
+    setLatencyCalibrationNowMs(nowMs);
+    setLatencyCalibrationPhase(countInBeatCount > 0 ? "count-in" : "practice");
+    setLatencyCalibrationError("");
+
+    latencyCalibrationTimerIdRef.current = window.setInterval(() => {
+      if (!isCurrentScheduler()) return;
+      setLatencyCalibrationNowMs(performance.now());
+    }, 60);
+
+    if (countInBeatCount > 0) {
+      latencyCalibrationTimeoutIdsRef.current.push(
+        window.setTimeout(
+          () => {
+            if (!isCurrentScheduler()) return;
+            setLatencyCalibrationPhase("practice");
+          },
+          Math.max(0, calibrationStartTimeMs - performance.now()),
+        ),
+      );
+    }
+
+    latencyCalibrationTimeoutIdsRef.current.push(
+      window.setTimeout(
+        () => {
+          if (!isCurrentScheduler()) return;
+          stopLatencyCalibrationRuntime();
+          setLatencyCalibrationPhase("stopped");
+          setLatencyCalibrationNowMs(performance.now());
+        },
+        Math.max(0, calibrationStartTimeMs - nowMs + calibrationDurationMs),
+      ),
+    );
 
     try {
-      await scheduler.start();
+      const started = await scheduler.start();
+      if (!started) {
+        if (isCurrentScheduler()) {
+          stopLatencyCalibrationRuntime();
+          setLatencyCalibrationPhase("idle");
+        } else {
+          scheduler.stop();
+        }
+        return;
+      }
+      if (!isCurrentScheduler()) {
+        scheduler.stop();
+        return;
+      }
     } catch {
+      if (!isCurrentScheduler()) {
+        scheduler.stop();
+        return;
+      }
       stopLatencyCalibrationRuntime();
       setLatencyCalibrationPhase("idle");
       setLatencyCalibrationError(
@@ -1624,6 +1717,9 @@ export default function PracticePage() {
     stopMetronome();
     setMetronomeError("");
 
+    const schedulerGeneration =
+      metronomeSchedulerGenerationRef.current + 1;
+    metronomeSchedulerGenerationRef.current = schedulerGeneration;
     const scheduler = new BrowserMetronomeScheduler({
       config: {
         bpm: metronomeBpm,
@@ -1635,19 +1731,43 @@ export default function PracticePage() {
         subdivision: metronomeSubdivision,
       },
       onBeat: (beat) => {
-        if (isMountedRef.current) {
+        if (
+          isMountedRef.current &&
+          metronomeSchedulerGenerationRef.current === schedulerGeneration &&
+          metronomeSchedulerRef.current === scheduler
+        ) {
           setMetronomeBeat(beat);
         }
       },
     });
 
     metronomeSchedulerRef.current = scheduler;
+    const isCurrentScheduler = () =>
+      isMountedRef.current &&
+      metronomeSchedulerGenerationRef.current === schedulerGeneration &&
+      metronomeSchedulerRef.current === scheduler;
 
     try {
-      await scheduler.start();
+      const started = await scheduler.start();
+      if (!started) {
+        if (isCurrentScheduler()) {
+          stopMetronome();
+        } else {
+          scheduler.stop();
+        }
+        return;
+      }
+      if (!isCurrentScheduler()) {
+        scheduler.stop();
+        return;
+      }
       setIsMetronomeRunning(true);
     } catch {
-      metronomeSchedulerRef.current = null;
+      if (!isCurrentScheduler()) {
+        scheduler.stop();
+        return;
+      }
+      stopMetronome();
       setIsMetronomeRunning(false);
       setMetronomeError(
         "此浏览器无法启动 Web Audio 节拍器；请确认在用户手势中点击开始。",

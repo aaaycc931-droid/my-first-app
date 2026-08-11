@@ -239,7 +239,7 @@ describe("S1 本地乐谱项目统一 transport", () => {
       ...audio,
       createMetronomeScheduler: () => {
         const scheduler: FakeScheduler = {
-          start: async () => undefined,
+          start: async () => true,
           stopCalls: 0,
           stop() {
             scheduler.stopCalls += 1;
@@ -263,7 +263,7 @@ describe("S1 本地乐谱项目统一 transport", () => {
       ...audio,
       createMetronomeScheduler: () => {
         const scheduler: FakeScheduler = {
-          start: async () => undefined,
+          start: async () => true,
           stopCalls: 0,
           stop() {
             scheduler.stopCalls += 1;
@@ -297,13 +297,13 @@ describe("S1 本地乐谱项目统一 transport", () => {
 
   it("pending 节拍器被谱面播放或显式停止后不会复活", async () => {
     const audio = createAudioHarness();
-    const pendingResolvers: Array<() => void> = [];
+    const pendingResolvers: Array<(started: boolean) => void> = [];
     const schedulers: FakeScheduler[] = [];
     await renderTransport({
       ...audio,
       createMetronomeScheduler: () => {
         const scheduler: FakeScheduler = {
-          start: () => new Promise<void>((resolve) => {
+          start: () => new Promise<boolean>((resolve) => {
             pendingResolvers.push(resolve);
           }),
           stopCalls: 0,
@@ -319,7 +319,7 @@ describe("S1 本地乐谱项目统一 transport", () => {
     await click("启动节拍器");
     expect(currentMode()).toBe("metronome-starting");
     await click("播放谱面");
-    pendingResolvers[0]?.();
+    pendingResolvers[0]?.(true);
     await flushMicrotasks();
     expect(currentMode()).toBe("score-playing");
     expect(schedulers[0]?.stopCalls).toBeGreaterThan(0);
@@ -327,7 +327,7 @@ describe("S1 本地乐谱项目统一 transport", () => {
     await click("启动节拍器");
     expect(currentMode()).toBe("metronome-starting");
     await click("全部停止");
-    pendingResolvers[1]?.();
+    pendingResolvers[1]?.(true);
     await flushMicrotasks();
     expect(currentMode()).toBe("idle");
     expect(schedulers[1]?.stopCalls).toBeGreaterThan(0);
@@ -336,7 +336,7 @@ describe("S1 本地乐谱项目统一 transport", () => {
     expect(currentMode()).toBe("metronome-starting");
     await act(async () => root?.unmount());
     root = null;
-    pendingResolvers[2]?.();
+    pendingResolvers[2]?.(true);
     await flushMicrotasks();
     expect(schedulers[2]?.stopCalls).toBeGreaterThan(0);
   });
@@ -358,7 +358,7 @@ describe("S1 本地乐谱项目统一 transport", () => {
       ...audio,
       createMetronomeScheduler: () => {
         const scheduler: FakeScheduler = {
-          start: async () => undefined,
+          start: async () => true,
           stopCalls: 0,
           stop() {
             scheduler.stopCalls += 1;
