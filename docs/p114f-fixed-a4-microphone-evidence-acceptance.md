@@ -1,6 +1,6 @@
 # P114f — 固定 A4 单音麦克风证据接入验收标准
 
-状态：**ACTIVE / implementation candidate（本地共享挂载已形成，远端门禁与真机待完成）**
+状态：**MERGED implementation candidate（Web／Android 共享挂载与远端门禁已完成；外部 QA NOT_EXECUTED）**
 
 QA level recommendation：**strict**
 
@@ -8,7 +8,7 @@ QA level recommendation：**strict**
 
 P114f 把一个项目内置、已确认的 A4 单音长音练习接入 `activity-definition-v1`、`activity-session-v1` 与 P113 `analysis-evidence-v1`，形成首个真实 `microphone` 输入 vertical slice。用户先查看目标说明并主动播放 A4 参考音，再主动开启麦克风和本次录音，停止后再次确认只在本机分析，随后查看“接近目标、整体偏高、整体偏低或证据不足”的非评分解释并开始新尝试。
 
-P114f 本地 implementation candidate 已把共享 A4 活动真实挂载到 Android 音高入口和 Web `/practice` 的手动进入入口，并通过 focused adapter 与挂载行为测试；页面打开不会自动请求麦克风。远端 CI、PR、合并、Web 真麦克风手动 QA、APK 真机验收仍未完成，P104/P113 的真实人声、三档 Android、同步/延迟和教育审核缺口也保持独立。
+P114f implementation candidate 已把共享 A4 活动真实挂载到 Android 音高入口和 Web `/practice` 的手动进入入口；页面打开不会自动请求麦克风。focused adapter、完整仓库测试、远端 CI 与部署门禁已有可核实记录，并已通过 PR #372 合并。Web 真麦克风手动 QA、APK 真机验收、P104/P113 真实人声、三档 Android、同步／延迟和教育审核仍为 `NOT_EXECUTED`，并保持独立缺口。
 
 ## 2. 固定活动与协议身份
 
@@ -133,12 +133,6 @@ P114f 不包含：
 
 ## 9. 完成判定
 
-当前只能写 **ACTIVE / implementation candidate（本地共享挂载已形成）**。以下事实缺一不可时，不得标为已完成或已合并：
+P114f 的代码实现与合并已经完成：固定 A4 Web／Android 挂载、attempt-scoped P113 evidence、自动测试与远端门禁及 PR #372 merge 均已有可核实证据。当前仍是 implementation candidate，而非正式产品验收完成。
 
-1. 固定 A4 麦克风活动真实挂载 Web 与 Android；
-2. 当前 attempt 的 P113 证据真实进入 microphone answer 和 checked 生命周期；
-3. focused、完整仓库、远端 CI 与部署门禁真实通过；
-4. PR 与 merge commit 可核实；
-5. 自动测试、Web 手动 QA、Android 真机 QA 和真实人声/P104 缺口分别诚实记录。
-
-即使代码和 PR 合并，Android 真机、真实人声、三档设备、延迟/同步、教育审核或 P104 基准仍未执行时，也必须继续写为未完成的外部证据缺口，不能用合并事实替代。
+Web 真麦克风、Android WebView／真机与三档设备、真实人声／P104、延迟／同步和教育审核仍为 `NOT_EXECUTED`。这些外部证据缺口不否定实现与合并事实，但在全部完成前不得宣称 P114f 已通过正式产品验收或据此关闭相关 V1 门槛。

@@ -261,6 +261,154 @@ const main = async () => {
     assert.match(failureMessages[0] ?? "", /本次录音发生错误/);
   }
 
+  const terminalCaptures: Array<{
+    request: Parameters<MediaRecorderCapturePort["create"]>[0];
+    handle: MediaRecorderCaptureHandle;
+    disposeCalls: number;
+  }> = [];
+  const terminalInterruptions: Array<
+    (kind: "track-ended" | "context-interrupted") => void
+  > = [];
+  let terminalInputDisposes = 0;
+  const terminalController = createRealtimePitchMonitorController({
+    inputPort: {
+      isSupported: () => true,
+      request: async ({ onInterrupted }) => {
+        terminalInterruptions.push(onInterrupted);
+        return {
+          stream,
+          prepare: async () => undefined,
+          start: () => undefined,
+          dispose: () => {
+            terminalInputDisposes += 1;
+          },
+        };
+      },
+    },
+    recorderPort: {
+      isSupported: () => true,
+      create: (request) => {
+        let state: "inactive" | "recording" = "inactive";
+        const capture = {
+          request,
+          disposeCalls: 0,
+          handle: {
+            getState: () => state,
+            start: () => {
+              state = "recording";
+            },
+            stop: () => {
+              state = "inactive";
+              request.onStopped(new Blob(["replacement"]));
+            },
+            dispose: () => {
+              state = "inactive";
+              capture.disposeCalls += 1;
+            },
+          },
+        } satisfies (typeof terminalCaptures)[number];
+        terminalCaptures.push(capture);
+        return capture.handle;
+      },
+    },
+    playback,
+    now: () => 4_000,
+  });
+  assert.deepEqual(await terminalController.start(), { ok: true });
+  const recorderFailures: string[] = [];
+  assert.equal(
+    terminalController.startRecording((message) =>
+      recorderFailures.push(message),
+    ),
+    true,
+  );
+  const failedCapture = terminalCaptures[0]!;
+  failedCapture.request.onError();
+  assert.equal(failedCapture.disposeCalls, 1);
+  assert.equal(terminalController.getSnapshot().recordingStatus, "error");
+  assert.equal(terminalController.getSnapshot().recordingBlob, null);
+  assert.equal(terminalController.getSnapshot().hasRecording, false);
+  assert.equal(terminalController.getSnapshot().recordingStartedAtMs, null);
+  assert.equal(recorderFailures.length, 1);
+  failedCapture.request.onStopped(new Blob(["stale-after-error"]));
+  failedCapture.request.onError();
+  assert.equal(
+    terminalController.getSnapshot().recordingStatus,
+    "error",
+    "late stop/error callbacks must not revive a failed recording",
+  );
+  assert.equal(terminalController.getSnapshot().recordingBlob, null);
+  assert.equal(recorderFailures.length, 1);
+
+  assert.equal(terminalController.startRecording(), true);
+  const completedCapture = terminalCaptures[1]!;
+  completedCapture.handle.stop();
+  const completedRecording = terminalController.getSnapshot().recordingBlob;
+  assert.equal(await completedRecording?.text(), "replacement");
+  assert.equal(terminalController.getSnapshot().recordingStatus, "ready");
+  terminalInterruptions[0]?.("track-ended");
+  assert.equal(terminalController.getSnapshot().status, "error");
+  assert.equal(
+    terminalController.getSnapshot().recordingBlob,
+    completedRecording,
+    "an input interruption after a complete stop must preserve the ready Blob",
+  );
+  assert.equal(terminalController.getSnapshot().recordingStatus, "ready");
+
+  const interruptionFailures: string[] = [];
+  const recorderCallbacksDuringInterruption: string[] = [];
+  assert.deepEqual(
+    await terminalController.start((message) =>
+      interruptionFailures.push(message),
+    ),
+    { ok: true },
+  );
+  assert.equal(
+    terminalController.startRecording((message) =>
+      recorderCallbacksDuringInterruption.push(message),
+    ),
+    true,
+  );
+  const interruptedCapture = terminalCaptures[2]!;
+  terminalInterruptions[1]?.("context-interrupted");
+  assert.equal(interruptedCapture.disposeCalls, 1);
+  assert.equal(terminalController.getSnapshot().status, "error");
+  assert.equal(terminalController.getSnapshot().recordingStatus, "error");
+  assert.equal(terminalController.getSnapshot().recordingBlob, null);
+  assert.equal(terminalController.getSnapshot().hasRecording, false);
+  assert.equal(terminalController.getSnapshot().recordingStartedAtMs, null);
+  assert.equal(interruptionFailures.length, 1);
+  assert.equal(
+    recorderCallbacksDuringInterruption.length,
+    0,
+    "the input interruption callback owns attempt invalidation and must not be duplicated",
+  );
+  interruptedCapture.request.onStopped(new Blob(["stale-after-interruption"]));
+  interruptedCapture.request.onError();
+  assert.equal(terminalController.getSnapshot().recordingStatus, "error");
+  assert.equal(terminalController.getSnapshot().recordingBlob, null);
+  assert.ok(terminalInputDisposes >= 2);
+
+  const fallbackInterruptionFailures: string[] = [];
+  assert.deepEqual(await terminalController.start(), { ok: true });
+  assert.equal(
+    terminalController.startRecording((message) =>
+      fallbackInterruptionFailures.push(message),
+    ),
+    true,
+  );
+  const fallbackInterruptedCapture = terminalCaptures[3]!;
+  terminalInterruptions[2]?.("track-ended");
+  assert.equal(fallbackInterruptedCapture.disposeCalls, 1);
+  assert.equal(fallbackInterruptionFailures.length, 1);
+  assert.match(fallbackInterruptionFailures[0] ?? "", /媒体轨已中断/);
+  fallbackInterruptedCapture.request.onStopped(new Blob(["stale-fallback"]));
+  fallbackInterruptedCapture.request.onError();
+  terminalInterruptions[2]?.("track-ended");
+  assert.equal(fallbackInterruptionFailures.length, 1);
+  assert.equal(terminalController.getSnapshot().recordingStatus, "error");
+  assert.equal(terminalController.getSnapshot().recordingBlob, null);
+
   console.log("Realtime pitch monitor controller tests passed.");
 };
 

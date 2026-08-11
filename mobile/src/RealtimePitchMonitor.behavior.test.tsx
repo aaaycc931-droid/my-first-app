@@ -619,7 +619,7 @@ describe("Android 实时音高反馈行为", () => {
     expect(trackStop).not.toHaveBeenCalled();
   });
 
-  it("MediaRecorder start 同步结束或报错时不被迟到的 recording 状态覆盖", async () => {
+  it("MediaRecorder start 同步结束可回放，报错则终态失败并清除录音资格", async () => {
     recorderStopsDuringStart = true;
     const endedContainer = await renderPanel();
     await click(button(endedContainer, "开始实时反馈"));
@@ -632,12 +632,17 @@ describe("Android 实时音高反馈行为", () => {
     document.body.replaceChildren();
     recorderStopsDuringStart = false;
     recorderErrorsDuringStart = true;
+    recorderStop.mockClear();
     const errorContainer = await renderPanel();
     await click(button(errorContainer, "开始实时反馈"));
     await click(button(errorContainer, "开始会话录音"));
     expect(errorContainer.textContent).toContain("状态：录音或回放失败");
     expect(errorContainer.textContent).toContain("本次录音发生错误");
     expect(errorContainer.textContent).not.toContain("状态：正在录音");
+    expect(recorderStop).toHaveBeenCalledTimes(1);
+    expect(
+      (button(errorContainer, "播放本次录音") as HTMLButtonElement).disabled,
+    ).toBe(true);
   });
 
   it("MediaRecorder stop 抛错时仍可失败关闭并安全丢弃", async () => {
