@@ -18,11 +18,11 @@
 
 ## 自动验证
 
-- 统一 transport 行为测试：`PASS`（7/7）。
-- 既有谱面播放行为测试：`PASS`（3/3）。
-- 既有节拍器行为测试：`PASS`（4/4）。
-- 本机谱项目面板行为测试：`PASS`（6/6）。
-- Quality workflow `test:*` 注册检查：`PASS`（139/139，恰好一次）。
+- 统一 transport 行为测试：`PASS`。
+- 既有谱面播放行为测试：`PASS`。
+- 既有节拍器行为测试：`PASS`。
+- 本机谱项目面板行为测试：`PASS`。
+- Quality workflow `test:*` 注册检查：`PASS`（每项恰好一次）。
 - `npm run check`：`PASS`。
 - `npm run lint`：`PASS`。
 - `npm run typecheck`：`PASS`。

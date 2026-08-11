@@ -48,7 +48,10 @@ import {
   type PianoPlaybackRate,
   type PianoPlaybackVoiceFilter,
 } from "../../lib/piano/pianoPerformance";
-import { BrowserMetronomeScheduler } from "../../lib/metronome/metronomeScheduler";
+import {
+  BrowserMetronomeScheduler,
+  type MetronomeSchedulerOptions,
+} from "../../lib/metronome/metronomeScheduler";
 import {
   createPianoLearningSchedule,
   P110_ORIGINAL_PIANO_EXERCISE,
@@ -123,9 +126,13 @@ const loadInitialPianoPerformances = (): {
 
 export function LocalPianoPanel({
   createAudioChannel,
+  createMetronomeScheduler = (options) => new BrowserMetronomeScheduler(options),
   voiceProvider,
 }: {
   createAudioChannel?: LocalPianoAudioChannelFactory;
+  createMetronomeScheduler?: (
+    options: MetronomeSchedulerOptions,
+  ) => Pick<BrowserMetronomeScheduler, "start" | "stop" | "updateConfig">;
   voiceProvider?: PianoVoiceProvider;
 }) {
   const [rangeId, setRangeId] = useState<LocalPianoRangeId>(DEFAULT_LOCAL_PIANO_RANGE_ID);
@@ -174,7 +181,10 @@ export function LocalPianoPanel({
   const [metronomeBpm, setMetronomeBpm] = useState(72);
   const [metronomeRunning, setMetronomeRunning] = useState(false);
   const [metronomeBeat, setMetronomeBeat] = useState(0);
-  const metronomeRef = useRef<BrowserMetronomeScheduler | null>(null);
+  const metronomeRef = useRef<
+    Pick<BrowserMetronomeScheduler, "start" | "stop" | "updateConfig"> | null
+  >(null);
+  const metronomeGenerationRef = useRef(0);
   const [pianoActivitySession, setPianoActivitySession] = useState(() =>
     createActivitySession(PIANO_ACTIVITY_DEFINITION, PIANO_ACTIVITY_SESSION_ID));
   const [pianoActivityActive, setPianoActivityActive] = useState(false);
@@ -185,20 +195,25 @@ export function LocalPianoPanel({
     producers: "",
   });
 
-  const handleExternalAudioStop = useCallback(() => {
-    playbackTimersRef.current.forEach((timer) => window.clearTimeout(timer));
-    playbackTimersRef.current = [];
-    setIsPlaying(false);
+  const stopMetronome = useCallback(() => {
+    metronomeGenerationRef.current += 1;
     metronomeRef.current?.stop();
     metronomeRef.current = null;
     setMetronomeRunning(false);
     setMetronomeBeat(0);
+  }, []);
+
+  const handleExternalAudioStop = useCallback(() => {
+    playbackTimersRef.current.forEach((timer) => window.clearTimeout(timer));
+    playbackTimersRef.current = [];
+    setIsPlaying(false);
+    stopMetronome();
     if (recorderRef.current) {
       recorderRef.current = null;
       setIsRecording(false);
       setPerformanceNotice("应用进入后台或切换页面，本次未保存的演奏录制已取消。");
     }
-  }, []);
+  }, [stopMetronome]);
 
   const recordPerformanceEvent = useCallback((event: PianoPerformanceEventInput) => {
     const recorder = recorderRef.current;
@@ -431,23 +446,51 @@ export function LocalPianoPanel({
 
   const toggleMetronome = async () => {
     if (metronomeRef.current) {
-      metronomeRef.current.stop();
-      metronomeRef.current = null;
-      setMetronomeRunning(false);
-      setMetronomeBeat(0);
+      stopMetronome();
       return;
     }
-    const scheduler = new BrowserMetronomeScheduler({
+    const generation = metronomeGenerationRef.current + 1;
+    metronomeGenerationRef.current = generation;
+    let scheduler: Pick<
+      BrowserMetronomeScheduler,
+      "start" | "stop" | "updateConfig"
+    >;
+    scheduler = createMetronomeScheduler({
       config: { bpm: metronomeBpm, meter: "4/4" },
-      onBeat: (beat) => setMetronomeBeat(beat.beatNumber),
+      onBeat: (beat) => {
+        if (
+          metronomeRef.current === scheduler
+          && metronomeGenerationRef.current === generation
+        ) {
+          setMetronomeBeat(beat.beatNumber);
+        }
+      },
     });
     metronomeRef.current = scheduler;
     try {
-      await scheduler.start();
+      const started = await scheduler.start();
+      const ownsScheduler =
+        metronomeRef.current === scheduler
+        && metronomeGenerationRef.current === generation;
+      if (!started || !ownsScheduler) {
+        scheduler.stop();
+        if (ownsScheduler) {
+          metronomeRef.current = null;
+          setMetronomeRunning(false);
+          setMetronomeBeat(0);
+        }
+        return;
+      }
       setMetronomeRunning(true);
     } catch {
       scheduler.stop();
+      if (
+        metronomeRef.current !== scheduler
+        || metronomeGenerationRef.current !== generation
+      ) return;
       metronomeRef.current = null;
+      setMetronomeRunning(false);
+      setMetronomeBeat(0);
       setPerformanceNotice("当前手机无法启动节拍器，请确认媒体音量后重试。");
     }
   };
@@ -462,7 +505,10 @@ export function LocalPianoPanel({
   useEffect(() => () => {
     if (stressTimerRef.current !== null) window.clearTimeout(stressTimerRef.current);
     playbackTimersRef.current.forEach((timer) => window.clearTimeout(timer));
-    metronomeRef.current?.stop();
+    metronomeGenerationRef.current += 1;
+    const scheduler = metronomeRef.current;
+    metronomeRef.current = null;
+    scheduler?.stop();
   }, []);
 
   const changeKeyboard = (change: () => void) => {

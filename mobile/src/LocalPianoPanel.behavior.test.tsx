@@ -12,6 +12,7 @@ import type {
   LocalPianoAudioChannelFactory,
 } from "../../components/piano/useLocalPianoAudio";
 import { COMPATIBILITY_PIANO_VOICE_PROVIDER } from "../../lib/piano/pianoAudioProvider";
+import type { MetronomeSchedulerOptions } from "../../lib/metronome/metronomeScheduler";
 import {
   LOCAL_PIANO_PREPARE_TIMEOUT_MS,
   LOCAL_PIANO_VOICE_WATCHDOG_MS,
@@ -66,6 +67,13 @@ type FakeChannel = LocalPianoAudioChannel & {
   stopped: boolean;
 };
 
+type FakeMetronomeScheduler = {
+  options: MetronomeSchedulerOptions;
+  start: () => Promise<boolean>;
+  stop: () => void;
+  updateConfig: (config: MetronomeSchedulerOptions["config"]) => void;
+};
+
 const createAudioHarness = () => {
   const oscillators: FakeOscillator[] = [];
   const gains: FakeGain[] = [];
@@ -115,12 +123,21 @@ const flush = async () => {
   });
 };
 
-const renderPanel = async (factory: LocalPianoAudioChannelFactory) => {
+const renderPanel = async (
+  factory: LocalPianoAudioChannelFactory,
+  createMetronomeScheduler?: (
+    options: MetronomeSchedulerOptions,
+  ) => FakeMetronomeScheduler,
+) => {
   const container = document.createElement("div");
   document.body.append(container);
   root = createRoot(container);
   await act(async () => root?.render(
-    <StrictMode><LocalPianoPanel createAudioChannel={factory} voiceProvider={COMPATIBILITY_PIANO_VOICE_PROVIDER} /></StrictMode>,
+    <StrictMode><LocalPianoPanel
+      createAudioChannel={factory}
+      createMetronomeScheduler={createMetronomeScheduler}
+      voiceProvider={COMPATIBILITY_PIANO_VOICE_PROVIDER}
+    /></StrictMode>,
   ));
   await flush();
   return container;
@@ -440,6 +457,118 @@ describe("本地钢琴面板行为", () => {
     expect(audio.channels[1]?.stopped).toBe(true);
     expect(c4.getAttribute("aria-pressed")).toBe("false");
     Object.defineProperty(document, "hidden", { configurable: true, value: false });
+  });
+
+  it("pending 节拍器可被按钮、全局停止和卸载取消，迟到成功不会复活", async () => {
+    const audio = createAudioHarness();
+    const starts: Array<ReturnType<typeof createDeferred<boolean>>> = [];
+    const schedulers: FakeMetronomeScheduler[] = [];
+    const createMetronomeScheduler = (options: MetronomeSchedulerOptions) => {
+      const start = createDeferred<boolean>();
+      const scheduler: FakeMetronomeScheduler = {
+        options,
+        start: () => start.promise,
+        stop: vi.fn(),
+        updateConfig: vi.fn(),
+      };
+      starts.push(start);
+      schedulers.push(scheduler);
+      return scheduler;
+    };
+    const container = await renderPanel(audio.factory, createMetronomeScheduler);
+
+    await click(buttonWithText(container, "启动 4/4 节拍器"));
+    await click(buttonWithText(container, "启动 4/4 节拍器"));
+    starts[0]?.resolve(true);
+    await flush();
+    expect(schedulers[0]?.stop).toHaveBeenCalled();
+    expect(container.textContent).toContain("启动 4/4 节拍器");
+
+    await click(buttonWithText(container, "启动 4/4 节拍器"));
+    act(() => stopAllBrowserAudio());
+    starts[1]?.resolve(true);
+    await flush();
+    expect(schedulers[1]?.stop).toHaveBeenCalled();
+    expect(container.textContent).toContain("启动 4/4 节拍器");
+
+    await click(buttonWithText(container, "启动 4/4 节拍器"));
+    await act(async () => root?.unmount());
+    root = null;
+    starts[2]?.resolve(true);
+    await flush();
+    expect(schedulers[2]?.stop).toHaveBeenCalled();
+  });
+
+  it("旧启动失败不停止新节拍器，迟到拍点也不能覆盖当前实例", async () => {
+    const audio = createAudioHarness();
+    const starts: Array<ReturnType<typeof createDeferred<boolean>>> = [];
+    const schedulers: FakeMetronomeScheduler[] = [];
+    const createMetronomeScheduler = (options: MetronomeSchedulerOptions) => {
+      const start = createDeferred<boolean>();
+      const scheduler: FakeMetronomeScheduler = {
+        options,
+        start: () => start.promise,
+        stop: vi.fn(),
+        updateConfig: vi.fn(),
+      };
+      starts.push(start);
+      schedulers.push(scheduler);
+      return scheduler;
+    };
+    const container = await renderPanel(audio.factory, createMetronomeScheduler);
+
+    await click(buttonWithText(container, "启动 4/4 节拍器"));
+    await click(buttonWithText(container, "启动 4/4 节拍器"));
+    await click(buttonWithText(container, "启动 4/4 节拍器"));
+    starts[1]?.resolve(true);
+    await flush();
+    expect(container.textContent).toContain("停止节拍器（第 1 拍）");
+
+    starts[0]?.reject(new Error("stale failure"));
+    await flush();
+    expect(schedulers[1]?.stop).not.toHaveBeenCalled();
+    expect(container.textContent).not.toContain("无法启动节拍器");
+
+    const beat = {
+      phase: "practice" as const,
+      beatIndex: 2,
+      barNumber: 1,
+      beatNumber: 3,
+      scheduledTimeSeconds: 0.3,
+      isStrongBeat: false,
+      meter: "4/4" as const,
+      bpm: 72,
+      subdivisionIndex: 0,
+    };
+    act(() => schedulers[0]?.options.onBeat?.(beat));
+    expect(container.textContent).toContain("停止节拍器（第 1 拍）");
+    act(() => schedulers[1]?.options.onBeat?.(beat));
+    expect(container.textContent).toContain("停止节拍器（第 3 拍）");
+  });
+
+  it("scheduler 返回取消结果时保持空闲且可重新启动", async () => {
+    const audio = createAudioHarness();
+    let attempt = 0;
+    const schedulers: FakeMetronomeScheduler[] = [];
+    const container = await renderPanel(audio.factory, (options) => {
+      attempt += 1;
+      const scheduler: FakeMetronomeScheduler = {
+        options,
+        start: async () => attempt > 1,
+        stop: vi.fn(),
+        updateConfig: vi.fn(),
+      };
+      schedulers.push(scheduler);
+      return scheduler;
+    });
+
+    await click(buttonWithText(container, "启动 4/4 节拍器"));
+    expect(container.textContent).toContain("启动 4/4 节拍器");
+    expect(container.textContent).not.toContain("无法启动节拍器");
+    expect(schedulers[0]?.stop).toHaveBeenCalled();
+
+    await click(buttonWithText(container, "启动 4/4 节拍器"));
+    expect(container.textContent).toContain("停止节拍器（第 1 拍）");
   });
 
   it("首个钢琴 pointerdown 会广播全局停止以抢占旧题目音频", async () => {

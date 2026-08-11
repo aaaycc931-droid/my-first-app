@@ -99,7 +99,7 @@ describe("S1 本机谱项目节拍器 hook", () => {
       const scheduler: FakeScheduler = {
         options,
         stopCalls: 0,
-        start: async () => undefined,
+        start: async () => true,
         stop() {
           scheduler.stopCalls += 1;
         },
@@ -147,7 +147,7 @@ describe("S1 本机谱项目节拍器 hook", () => {
         stopCalls: 0,
         start: attempts === 1
           ? async () => { throw new Error("blocked"); }
-          : async () => undefined,
+          : async () => true,
         stop() {
           scheduler.stopCalls += 1;
         },
@@ -166,14 +166,92 @@ describe("S1 本机谱项目节拍器 hook", () => {
     expect(container.textContent).toContain("运行中");
   });
 
+  it("scheduler 返回取消结果时保持空闲、不显示错误并允许重试", async () => {
+    let attempts = 0;
+    const schedulers: FakeScheduler[] = [];
+    const createScheduler = (options: MetronomeSchedulerOptions) => {
+      attempts += 1;
+      const scheduler: FakeScheduler = {
+        options,
+        stopCalls: 0,
+        start: async () => attempts > 1,
+        stop() {
+          scheduler.stopCalls += 1;
+        },
+      };
+      schedulers.push(scheduler);
+      return scheduler;
+    };
+    const container = await renderHarness({
+      bpm: 90,
+      revision: 1,
+      createScheduler,
+    });
+
+    await click(container, "启动");
+    expect(container.textContent).toContain("空闲");
+    expect(container.textContent).not.toContain("无法启动本机节拍器");
+    expect(schedulers[0]?.stopCalls).toBeGreaterThan(0);
+
+    await click(container, "启动");
+    expect(container.textContent).toContain("运行中");
+  });
+
+  it("旧启动迟到失败不会停止或覆盖新实例", async () => {
+    const starts: Array<{
+      promise: Promise<boolean>;
+      reject: (error: unknown) => void;
+      resolve: (started: boolean) => void;
+    }> = [];
+    const schedulers: FakeScheduler[] = [];
+    const createScheduler = (options: MetronomeSchedulerOptions) => {
+      let reject!: (error: unknown) => void;
+      let resolve!: (started: boolean) => void;
+      const promise = new Promise<boolean>((resolveStart, rejectStart) => {
+        resolve = resolveStart;
+        reject = rejectStart;
+      });
+      starts.push({ promise, reject, resolve });
+      const scheduler: FakeScheduler = {
+        options,
+        stopCalls: 0,
+        start: () => promise,
+        stop() {
+          scheduler.stopCalls += 1;
+        },
+      };
+      schedulers.push(scheduler);
+      return scheduler;
+    };
+    const container = await renderHarness({
+      bpm: 90,
+      revision: 1,
+      createScheduler,
+    });
+
+    await click(container, "启动");
+    await click(container, "停止");
+    await click(container, "启动");
+    starts[1]?.resolve(true);
+    await flush();
+    expect(container.textContent).toContain("运行中");
+    const activeStopCalls = schedulers[1]?.stopCalls;
+
+    starts[0]?.reject(new Error("stale failure"));
+    await flush();
+    expect(container.textContent).toContain("运行中");
+    expect(container.textContent).not.toContain("无法启动本机节拍器");
+    expect(schedulers[1]?.stopCalls).toBe(activeStopCalls);
+  });
+
   it("配置变化、全局停止和卸载都会清理，pending start 不会复活", async () => {
-    let resolveStart: (() => void) | null = null;
+    let resolveStart: ((started: boolean) => void) | null = null;
     const schedulers: FakeScheduler[] = [];
     const createScheduler = (options: MetronomeSchedulerOptions) => {
       const scheduler: FakeScheduler = {
         options,
         stopCalls: 0,
-        start: () => new Promise<void>((resolve) => {
+        start: () => new Promise<boolean>((resolve) => {
           resolveStart = resolve;
         }),
         stop() {
@@ -202,20 +280,20 @@ describe("S1 本机谱项目节拍器 hook", () => {
         </StrictMode>,
       );
     });
-    await act(async () => resolveStart?.());
+    await act(async () => resolveStart?.(true));
     await flush();
     expect(container.textContent).toContain("空闲");
     expect(schedulers[0]?.stopCalls).toBeGreaterThan(0);
 
     await click(container, "启动");
     await act(async () => window.dispatchEvent(new Event("blur")));
-    await act(async () => resolveStart?.());
+    await act(async () => resolveStart?.(true));
     await flush();
     expect(container.textContent).toContain("空闲");
 
     await click(container, "启动");
     await act(async () => {
-      resolveStart?.();
+      resolveStart?.(true);
       await Promise.resolve();
     });
     expect(container.textContent).toContain("运行中");
@@ -224,7 +302,7 @@ describe("S1 本机谱项目节拍器 hook", () => {
 
     await click(container, "启动");
     await act(async () => {
-      resolveStart?.();
+      resolveStart?.(true);
       await Promise.resolve();
     });
     Object.defineProperty(document, "visibilityState", {
@@ -242,7 +320,7 @@ describe("S1 本机谱项目节拍器 hook", () => {
 
     await click(container, "启动");
     await act(async () => {
-      resolveStart?.();
+      resolveStart?.(true);
       await Promise.resolve();
     });
     expect(container.textContent).toContain("运行中");
@@ -270,7 +348,7 @@ describe("S1 本机谱项目节拍器 hook", () => {
       const scheduler: FakeScheduler = {
         options,
         stopCalls: 0,
-        start: async () => undefined,
+        start: async () => true,
         stop() {
           scheduler.stopCalls += 1;
         },
