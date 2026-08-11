@@ -40,6 +40,8 @@ export function useLocalPianoMidi({
   const [status, setStatus] = useState<"idle" | "requesting" | "connected" | "unsupported" | "error">("idle");
   const [notice, setNotice] = useState("点击连接后，系统可能询问 MIDI 设备权限。");
   const accessRef = useRef<MidiAccess | null>(null);
+  const connectionGenerationRef = useRef(0);
+  const mountedRef = useRef(false);
   const selectedDeviceIdRef = useRef<string | null>(null);
   const onEventRef = useRef(onEvent);
   const onDisconnectRef = useRef(onDisconnect);
@@ -48,11 +50,20 @@ export function useLocalPianoMidi({
   useEffect(() => { onDisconnectRef.current = onDisconnect; }, [onDisconnect]);
   useEffect(() => { selectedDeviceIdRef.current = selectedDeviceId; }, [selectedDeviceId]);
 
-  const clearHandlers = useCallback(() => {
-    const access = accessRef.current;
+  const clearInputHandlers = useCallback((access: MidiAccess | null) => {
     if (!access) return;
     Array.from(access.inputs.values()).forEach((input) => { input.onmidimessage = null; });
   }, []);
+
+  const clearAccessHandlers = useCallback((access: MidiAccess | null) => {
+    clearInputHandlers(access);
+    if (!access) return;
+    access.onstatechange = null;
+  }, [clearInputHandlers]);
+
+  const clearHandlers = useCallback(() => {
+    clearInputHandlers(accessRef.current);
+  }, [clearInputHandlers]);
 
   const bindSelectedInput = useCallback((deviceId: string | null) => {
     const access = accessRef.current;
@@ -102,21 +113,34 @@ export function useLocalPianoMidi({
       setNotice("当前 Android System WebView 不支持 Web MIDI；屏幕钢琴仍可正常使用。");
       return;
     }
+    const generation = ++connectionGenerationRef.current;
     setStatus("requesting");
     setNotice("正在等待系统 MIDI 权限与设备列表…");
     try {
       const access = await requestMIDIAccess.call(navigator, { sysex: false, software: false });
+      if (!mountedRef.current || generation !== connectionGenerationRef.current) {
+        return;
+      }
+      if (accessRef.current && accessRef.current !== access) {
+        clearAccessHandlers(accessRef.current);
+      }
       accessRef.current = access;
       access.onstatechange = () => {
+        if (
+          !mountedRef.current
+          || generation !== connectionGenerationRef.current
+          || accessRef.current !== access
+        ) return;
         onDisconnectRef.current();
         refreshDevices(selectedDeviceIdRef.current);
       };
       refreshDevices(selectedDeviceId);
     } catch {
+      if (!mountedRef.current || generation !== connectionGenerationRef.current) return;
       setStatus("error");
       setNotice("MIDI 权限被拒绝或设备不可用；可检查 USB 连接与系统权限后重试。");
     }
-  }, [refreshDevices, selectedDeviceId]);
+  }, [clearAccessHandlers, refreshDevices, selectedDeviceId]);
 
   const selectDevice = useCallback((deviceId: string) => {
     if (bindSelectedInput(deviceId)) {
@@ -127,21 +151,28 @@ export function useLocalPianoMidi({
   }, [bindSelectedInput]);
 
   const disconnect = useCallback(() => {
-    clearHandlers();
-    if (accessRef.current) accessRef.current.onstatechange = null;
+    connectionGenerationRef.current += 1;
+    clearAccessHandlers(accessRef.current);
     accessRef.current = null;
+    selectedDeviceIdRef.current = null;
     setDevices([]);
     setSelectedDeviceId(null);
     setStatus("idle");
     setNotice("MIDI 输入已断开；屏幕钢琴仍可正常使用。");
     onDisconnectRef.current();
-  }, [clearHandlers]);
+  }, [clearAccessHandlers]);
 
-  useEffect(() => () => {
-    clearHandlers();
-    if (accessRef.current) accessRef.current.onstatechange = null;
-    onDisconnectRef.current();
-  }, [clearHandlers]);
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      connectionGenerationRef.current += 1;
+      clearAccessHandlers(accessRef.current);
+      accessRef.current = null;
+      selectedDeviceIdRef.current = null;
+      onDisconnectRef.current();
+    };
+  }, [clearAccessHandlers]);
 
   return {
     devices,

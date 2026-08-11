@@ -174,6 +174,16 @@ const click = async (element: HTMLElement) => {
   await flush();
 };
 
+function createDeferred<T>() {
+  let resolve!: (value: T) => void;
+  let reject!: (error: unknown) => void;
+  const promise = new Promise<T>((resolvePromise, rejectPromise) => {
+    resolve = resolvePromise;
+    reject = rejectPromise;
+  });
+  return { promise, reject, resolve };
+}
+
 beforeEach(() => {
   document.body.replaceChildren();
   window.localStorage.clear();
@@ -718,6 +728,168 @@ describe("本地钢琴面板行为", () => {
     expect(audio.oscillators).toHaveLength(1);
   });
 
+  it("等待 Web MIDI 权限时主动断开会拒绝迟到结果且不重绑输入", async () => {
+    const audio = createAudioHarness();
+    const input = {
+      id: "late-midi",
+      name: "迟到键盘",
+      state: "connected" as const,
+      type: "input",
+      onmidimessage: null as ((event: { data: Uint8Array }) => void) | null,
+    };
+    const access = {
+      inputs: new Map([[input.id, input]]),
+      onstatechange: null as (() => void) | null,
+    };
+    const pending = createDeferred<typeof access>();
+    Object.defineProperty(navigator, "requestMIDIAccess", {
+      configurable: true,
+      value: vi.fn(() => pending.promise),
+    });
+    const container = await renderPanel(audio.factory);
+
+    await click(buttonWithText(container, "连接 MIDI"));
+    expect(container.textContent).toContain("正在等待系统 MIDI 权限");
+    await click(buttonWithText(container, "断开 MIDI"));
+    expect(container.textContent).toContain("MIDI 输入已断开");
+
+    await act(async () => {
+      pending.resolve(access);
+      await pending.promise;
+      await Promise.resolve();
+    });
+    await flush();
+
+    expect(container.textContent).toContain("MIDI 输入已断开");
+    expect(container.textContent).not.toContain("迟到键盘");
+    expect(access.onstatechange).toBeNull();
+    expect(input.onmidimessage).toBeNull();
+  });
+
+  it("卸载时使等待中的 Web MIDI 权限结果失效且不绑定迟到 access", async () => {
+    const audio = createAudioHarness();
+    const input = {
+      id: "unmounted-midi",
+      name: "卸载后键盘",
+      state: "connected" as const,
+      type: "input",
+      onmidimessage: null as ((event: { data: Uint8Array }) => void) | null,
+    };
+    const access = {
+      inputs: new Map([[input.id, input]]),
+      onstatechange: null as (() => void) | null,
+    };
+    const pending = createDeferred<typeof access>();
+    Object.defineProperty(navigator, "requestMIDIAccess", {
+      configurable: true,
+      value: vi.fn(() => pending.promise),
+    });
+    const container = await renderPanel(audio.factory);
+
+    await click(buttonWithText(container, "连接 MIDI"));
+    await act(async () => root?.unmount());
+    root = null;
+    await act(async () => {
+      pending.resolve(access);
+      await pending.promise;
+      await Promise.resolve();
+    });
+
+    expect(container.textContent).toBe("");
+    expect(access.onstatechange).toBeNull();
+    expect(input.onmidimessage).toBeNull();
+    expect(audio.channels).toHaveLength(0);
+  });
+
+  it("旧组件的迟到权限结果不会清除新组件复用 access 的 handlers", async () => {
+    const oldAudio = createAudioHarness();
+    const newAudio = createAudioHarness();
+    const input = {
+      id: "shared-midi",
+      name: "复用键盘",
+      state: "connected" as const,
+      type: "input",
+      onmidimessage: null as ((event: { data: Uint8Array }) => void) | null,
+    };
+    const access = {
+      inputs: new Map([[input.id, input]]),
+      onstatechange: null as (() => void) | null,
+    };
+    const oldPending = createDeferred<typeof access>();
+    Object.defineProperty(navigator, "requestMIDIAccess", {
+      configurable: true,
+      value: vi.fn()
+        .mockImplementationOnce(() => oldPending.promise)
+        .mockImplementationOnce(async () => access),
+    });
+    await renderPanel(oldAudio.factory);
+    await click(buttonWithText(document, "连接 MIDI"));
+    await act(async () => root?.unmount());
+    root = null;
+
+    const currentContainer = await renderPanel(newAudio.factory);
+    await click(buttonWithText(currentContainer, "连接 MIDI"));
+    const currentMessageHandler = input.onmidimessage;
+    const currentStateHandler = access.onstatechange;
+    expect(currentMessageHandler).not.toBeNull();
+    expect(currentStateHandler).not.toBeNull();
+
+    await act(async () => {
+      oldPending.resolve(access);
+      await oldPending.promise;
+      await Promise.resolve();
+    });
+    await flush();
+    expect(input.onmidimessage).toBe(currentMessageHandler);
+    expect(access.onstatechange).toBe(currentStateHandler);
+    await act(async () => input.onmidimessage?.({ data: new Uint8Array([0x90, 60, 100]) }));
+    await flush();
+    expect(newAudio.oscillators).toHaveLength(1);
+  });
+
+  it("旧 Web MIDI 权限拒绝不会覆盖断开后的新连接", async () => {
+    const audio = createAudioHarness();
+    const input = {
+      id: "fresh-midi",
+      name: "新键盘",
+      manufacturer: "本机夹具",
+      state: "connected" as const,
+      type: "input",
+      onmidimessage: null as ((event: { data: Uint8Array }) => void) | null,
+    };
+    const access = {
+      inputs: new Map([[input.id, input]]),
+      onstatechange: null as (() => void) | null,
+    };
+    const stale = createDeferred<typeof access>();
+    Object.defineProperty(navigator, "requestMIDIAccess", {
+      configurable: true,
+      value: vi.fn()
+        .mockImplementationOnce(() => stale.promise)
+        .mockImplementationOnce(async () => access),
+    });
+    const container = await renderPanel(audio.factory);
+
+    await click(buttonWithText(container, "连接 MIDI"));
+    await click(buttonWithText(container, "断开 MIDI"));
+    await click(buttonWithText(container, "连接 MIDI"));
+    expect(container.textContent).toContain("本机夹具 · 新键盘");
+    expect(input.onmidimessage).not.toBeNull();
+
+    await act(async () => {
+      stale.reject(new Error("旧权限请求被拒绝"));
+      await stale.promise.catch(() => undefined);
+      await Promise.resolve();
+    });
+    await flush();
+
+    expect(container.textContent).toContain("MIDI 输入已连接");
+    expect(container.textContent).not.toContain("权限被拒绝");
+    await act(async () => input.onmidimessage?.({ data: new Uint8Array([0x90, 60, 100]) }));
+    await flush();
+    expect(audio.oscillators).toHaveLength(1);
+  });
+
   it("原生 MIDI 明确区分 USB 与 BLE，Web 环境不冒充设备可用", async () => {
     const audio = createAudioHarness();
     const container = await renderPanel(audio.factory);
@@ -797,6 +969,96 @@ describe("本地钢琴面板行为", () => {
     await click(buttonWithText(container, "清除本机草稿"));
     expect(container.textContent).toContain("没有保存或上传文件内容");
     expect(container.textContent).toContain("原创练习：级进与小跳");
+  });
+
+  it("清除 MusicXML 时使进行中的文件读取失效且迟到成功不复活草稿", async () => {
+    const audio = createAudioHarness();
+    const container = await renderPanel(audio.factory);
+    const input = container.querySelector<HTMLInputElement>('input[aria-label="选择本机 MusicXML"]');
+    if (!input) throw new Error("找不到 MusicXML 输入");
+    const pendingText = createDeferred<string>();
+    const file = new File(["pending"], "迟到练习.musicxml", { type: "application/xml" });
+    Object.defineProperty(file, "text", { configurable: true, value: () => pendingText.promise });
+    Object.defineProperty(input, "files", { configurable: true, value: [file] });
+
+    await act(async () => {
+      input.dispatchEvent(new Event("change", { bubbles: true }));
+      await Promise.resolve();
+    });
+    expect(container.textContent).toContain("正在本机读取");
+    await click(buttonWithText(container, "清除本机草稿"));
+    expect(container.textContent).toContain("本机 MusicXML 草稿已清除");
+
+    await act(async () => {
+      pendingText.resolve(`<?xml version="1.0"?><score-partwise version="3.1"><part id="P1"><measure number="1"><attributes><divisions>1</divisions></attributes><note><pitch><step>C</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type></note></measure></part></score-partwise>`);
+      await pendingText.promise;
+      await Promise.resolve();
+    });
+    await flush();
+
+    expect(container.textContent).toContain("本机 MusicXML 草稿已清除");
+    expect(container.textContent).not.toContain("1 个音符的待检查草稿");
+    expect(container.textContent).toContain("原创练习：级进与小跳");
+  });
+
+  it("旧 MusicXML 读取失败不会覆盖清除后的新草稿", async () => {
+    const audio = createAudioHarness();
+    const container = await renderPanel(audio.factory);
+    const input = container.querySelector<HTMLInputElement>('input[aria-label="选择本机 MusicXML"]');
+    if (!input) throw new Error("找不到 MusicXML 输入");
+    const staleText = createDeferred<string>();
+    const staleFile = new File(["stale"], "旧练习.musicxml", { type: "application/xml" });
+    Object.defineProperty(staleFile, "text", { configurable: true, value: () => staleText.promise });
+    Object.defineProperty(input, "files", { configurable: true, value: [staleFile] });
+    await act(async () => {
+      input.dispatchEvent(new Event("change", { bubbles: true }));
+      await Promise.resolve();
+    });
+    await click(buttonWithText(container, "清除本机草稿"));
+
+    const freshXml = `<?xml version="1.0"?><score-partwise version="3.1"><part id="P1"><measure number="1"><attributes><divisions>1</divisions></attributes><note><pitch><step>D</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type></note></measure></part></score-partwise>`;
+    const freshFile = new File([freshXml], "新练习.musicxml", { type: "application/xml" });
+    Object.defineProperty(freshFile, "text", { configurable: true, value: async () => freshXml });
+    Object.defineProperty(input, "files", { configurable: true, value: [freshFile] });
+    await act(async () => {
+      input.dispatchEvent(new Event("change", { bubbles: true }));
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    await flush();
+    expect(container.textContent).toContain("1 个音符的待检查草稿");
+
+    await act(async () => {
+      staleText.reject(new Error("旧文件读取失败"));
+      await staleText.promise.catch(() => undefined);
+      await Promise.resolve();
+    });
+    await flush();
+    expect(container.textContent).toContain("1 个音符的待检查草稿");
+    expect(container.textContent).not.toContain("旧文件读取失败");
+  });
+
+  it("卸载时使进行中的 MusicXML 文件读取失效", async () => {
+    const audio = createAudioHarness();
+    const container = await renderPanel(audio.factory);
+    const input = container.querySelector<HTMLInputElement>('input[aria-label="选择本机 MusicXML"]');
+    if (!input) throw new Error("找不到 MusicXML 输入");
+    const pendingText = createDeferred<string>();
+    const file = new File(["pending"], "卸载后练习.musicxml", { type: "application/xml" });
+    Object.defineProperty(file, "text", { configurable: true, value: () => pendingText.promise });
+    Object.defineProperty(input, "files", { configurable: true, value: [file] });
+    await act(async () => {
+      input.dispatchEvent(new Event("change", { bubbles: true }));
+      await Promise.resolve();
+    });
+    await act(async () => root?.unmount());
+    root = null;
+    await act(async () => {
+      pendingText.resolve("<score-partwise />");
+      await pendingText.promise;
+      await Promise.resolve();
+    });
+    expect(container.textContent).toBe("");
   });
 
   it("原创谱面可切换瀑布视图并通过统一定时器播放后全停", async () => {
