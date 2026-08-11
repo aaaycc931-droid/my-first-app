@@ -71,6 +71,7 @@ import { LocalEarTrainingRhythmPanel } from "../../components/practice/LocalEarT
 import { LocalEarTrainingSinglePitchPanel } from "../../components/practice/LocalEarTrainingSinglePitchPanel";
 import { LocalEarTrainingMelodyDictationPanel } from "../../components/practice/LocalEarTrainingMelodyDictationPanel";
 import { RealtimePitchMonitorPanel } from "../../components/practice/RealtimePitchMonitorPanel";
+import { useLocalRecordingController } from "../../components/practice/useLocalRecordingController";
 import { browserFileDownloadPort } from "../../lib/platform/browserFileDownload";
 import { indexedDbLocalVocalPracticeRecordRepository } from "../../lib/platform/indexedDbLocalVocalPracticeRecordRepository";
 import { LocalTargetPitchCurveDraftPanel } from "../../components/practice/LocalTargetPitchCurveDraftPanel";
@@ -486,10 +487,11 @@ export default function PracticePage() {
   const [playError, setPlayError] = useState("");
   const [activeNoteIndex, setActiveNoteIndex] = useState<number | null>(null);
   const [hasMockFeedback, setHasMockFeedback] = useState(false);
-  const [isRecording, setIsRecording] = useState(false);
-  const [recordingError, setRecordingError] = useState("");
-  const [recordedAudioUrl, setRecordedAudioUrl] = useState<string | null>(null);
-  const [recordedAudioBlob, setRecordedAudioBlob] = useState<Blob | null>(null);
+  const localRecording = useLocalRecordingController();
+  const isRecording = localRecording.status === "recording";
+  const isRequestingRecording = localRecording.status === "requesting";
+  const recordedAudioBlob = localRecording.recordingBlob;
+  const recordingError = localRecording.error;
   const [audioAnalysisResult, setAudioAnalysisResult] =
     useState<AudioAnalysisResult | null>(null);
   const [audioAnalysisError, setAudioAnalysisError] = useState("");
@@ -555,13 +557,8 @@ export default function PracticePage() {
   const metronomeSchedulerGenerationRef = useRef(0);
   const rhythmSchedulerRef = useRef<BrowserMetronomeScheduler | null>(null);
   const rhythmSchedulerGenerationRef = useRef(0);
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const mediaStreamRef = useRef<MediaStream | null>(null);
-  const recordingChunksRef = useRef<Blob[]>([]);
   const recordingTimerIdRef = useRef<number | null>(null);
-  const shouldDiscardRecordingRef = useRef(false);
   const isMountedRef = useRef(true);
-  const recordedAudioUrlRef = useRef<string | null>(null);
   const playbackAudioContextRef = useRef<AudioContext | null>(null);
   const playbackOscillatorsRef = useRef<OscillatorNode[]>([]);
   const playbackTimeoutIdsRef = useRef<number[]>([]);
@@ -1004,12 +1001,6 @@ export default function PracticePage() {
     [selectedImportedSegment, pitchEstimateResult],
   );
 
-  const revokeRecordedAudioUrl = (url: string | null) => {
-    if (url) {
-      URL.revokeObjectURL(url);
-    }
-  };
-
   const stopRecordingTimer = () => {
     if (recordingTimerIdRef.current !== null) {
       window.clearInterval(recordingTimerIdRef.current);
@@ -1055,13 +1046,6 @@ export default function PracticePage() {
     }
   };
 
-  const stopRecordingTracks = () => {
-    mediaStreamRef.current?.getTracks().forEach((track) => {
-      track.stop();
-    });
-    mediaStreamRef.current = null;
-  };
-
   const stopPlayback = () => {
     playbackTimeoutIdsRef.current.forEach((timeoutId) => {
       window.clearTimeout(timeoutId);
@@ -1085,8 +1069,27 @@ export default function PracticePage() {
   };
 
   useEffect(() => {
-    recordedAudioUrlRef.current = recordedAudioUrl;
-  }, [recordedAudioUrl]);
+    stopRecordingTimer();
+    if (!isRecording) {
+      if (isRequestingRecording || localRecording.status === "empty") {
+        setRecordingSeconds(0);
+      }
+      return;
+    }
+    setRecordingSeconds(0);
+    recordingTimerIdRef.current = window.setInterval(() => {
+      setRecordingSeconds((seconds) => seconds + 1);
+    }, 1000);
+    return stopRecordingTimer;
+  }, [isRecording, isRequestingRecording, localRecording.status]);
+
+  useEffect(() => {
+    if (!recordedAudioBlob) return;
+    const nextRecordingAttemptKey = recordingAttemptKeyCounterRef.current + 1;
+    recordingAttemptKeyCounterRef.current = nextRecordingAttemptKey;
+    currentRecordingAttemptKeyRef.current = nextRecordingAttemptKey;
+    recordedPracticeAttemptKeyRef.current = null;
+  }, [recordedAudioBlob]);
 
   useEffect(() => {
     const storedPreview = window.sessionStorage.getItem(
@@ -1123,7 +1126,6 @@ export default function PracticePage() {
 
     return () => {
       isMountedRef.current = false;
-      shouldDiscardRecordingRef.current = true;
       audioAnalysisRunIdRef.current += 1;
       pitchEstimateRunIdRef.current += 1;
       audioOnsetRunIdRef.current += 1;
@@ -1139,12 +1141,6 @@ export default function PracticePage() {
       stopRhythmPracticeRuntime();
       stopLatencyCalibrationRuntime();
       stopRecordingTimer();
-      if (mediaRecorderRef.current?.state === "recording") {
-        mediaRecorderRef.current.stop();
-      }
-      stopRecordingTracks();
-      recordingChunksRef.current = [];
-      revokeRecordedAudioUrl(recordedAudioUrlRef.current);
     };
   }, []);
 
@@ -1910,7 +1906,6 @@ export default function PracticePage() {
     stopPlayback();
     invalidateLocalAudioAsyncWork();
     setHasMockFeedback(false);
-    setRecordingError("");
     setAudioAnalysisError("");
     setAudioAnalysisResult(null);
     setIsAnalyzingAudio(false);
@@ -1923,102 +1918,16 @@ export default function PracticePage() {
     setAudioOnsetError("");
     setIsDetectingAudioOnsets(false);
     setRecordingSeconds(0);
-    revokeRecordedAudioUrl(recordedAudioUrl);
-    setRecordedAudioUrl(null);
-    setRecordedAudioBlob(null);
     currentRecordingAttemptKeyRef.current = null;
     recordedPracticeAttemptKeyRef.current = null;
-
-    if (
-      !navigator.mediaDevices?.getUserMedia ||
-      typeof MediaRecorder === "undefined"
-    ) {
-      setRecordingError("此浏览器不支持本地录音。");
-      return;
-    }
-
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-
-      if (!isMountedRef.current) {
-        stream.getTracks().forEach((track) => {
-          track.stop();
-        });
-        return;
-      }
-
-      const recorder = new MediaRecorder(stream);
-
-      mediaStreamRef.current = stream;
-      mediaRecorderRef.current = recorder;
-      recordingChunksRef.current = [];
-      shouldDiscardRecordingRef.current = false;
-
-      recorder.ondataavailable = (event) => {
-        if (event.data.size > 0) {
-          recordingChunksRef.current.push(event.data);
-        }
-      };
-
-      recorder.onstop = () => {
-        const shouldDiscardRecording = shouldDiscardRecordingRef.current;
-
-        stopRecordingTimer();
-        stopRecordingTracks();
-        mediaRecorderRef.current = null;
-
-        if (shouldDiscardRecording || !isMountedRef.current) {
-          recordingChunksRef.current = [];
-          if (isMountedRef.current) {
-            setIsRecording(false);
-          }
-          return;
-        }
-
-        if (recordingChunksRef.current.length > 0) {
-          const audioBlob = new Blob(recordingChunksRef.current, {
-            type: recorder.mimeType || "audio/webm",
-          });
-          const nextRecordingAttemptKey =
-            recordingAttemptKeyCounterRef.current + 1;
-          recordingAttemptKeyCounterRef.current = nextRecordingAttemptKey;
-          currentRecordingAttemptKeyRef.current = nextRecordingAttemptKey;
-          recordedPracticeAttemptKeyRef.current = null;
-          setRecordedAudioBlob(audioBlob);
-          setRecordedAudioUrl(URL.createObjectURL(audioBlob));
-        }
-
-        recordingChunksRef.current = [];
-        setIsRecording(false);
-      };
-
-      recorder.start();
-      setIsRecording(true);
+    const started = await localRecording.start();
+    if (started) {
       setFlowState("attempting");
-      recordingTimerIdRef.current = window.setInterval(() => {
-        setRecordingSeconds((seconds) => seconds + 1);
-      }, 1000);
-    } catch {
-      stopRecordingTimer();
-      stopRecordingTracks();
-      if (isMountedRef.current) {
-        setIsRecording(false);
-        setRecordingError("需要麦克风权限才能录制本地练习。");
-      }
     }
   };
 
   const handleStopLocalRecording = () => {
-    shouldDiscardRecordingRef.current = false;
-
-    if (mediaRecorderRef.current?.state === "recording") {
-      mediaRecorderRef.current.stop();
-      setIsRecording(false);
-    } else {
-      stopRecordingTimer();
-      stopRecordingTracks();
-      setIsRecording(false);
-    }
+    localRecording.stop();
   };
 
   const handleAnalyzeLocalRecording = async () => {
@@ -2260,14 +2169,7 @@ export default function PracticePage() {
   };
 
   const handlePlayRecordedAttempt = () => {
-    if (!recordedAudioUrl) {
-      return;
-    }
-
-    const audio = new Audio(recordedAudioUrl);
-    void audio.play().catch(() => {
-      setRecordingError("此浏览器无法播放已录制的练习。");
-    });
+    void localRecording.play();
   };
 
   const moveMelodyStep = (direction: -1 | 1) => {
@@ -2340,24 +2242,10 @@ export default function PracticePage() {
   };
 
   const handleClearRecording = () => {
-    shouldDiscardRecordingRef.current = true;
     invalidateLocalAudioAsyncWork();
-
-    if (mediaRecorderRef.current?.state === "recording") {
-      mediaRecorderRef.current.stop();
-      setIsRecording(false);
-    } else {
-      stopRecordingTimer();
-      stopRecordingTracks();
-      setIsRecording(false);
-    }
-
-    revokeRecordedAudioUrl(recordedAudioUrl);
-    setRecordedAudioUrl(null);
-    setRecordedAudioBlob(null);
+    localRecording.clear();
     currentRecordingAttemptKeyRef.current = null;
     recordedPracticeAttemptKeyRef.current = null;
-    setRecordingError("");
     setAudioAnalysisError("");
     setAudioAnalysisResult(null);
     setIsAnalyzingAudio(false);
@@ -2369,7 +2257,6 @@ export default function PracticePage() {
     setAudioOnsetError("");
     setIsDetectingAudioOnsets(false);
     setRecordingSeconds(0);
-    recordingChunksRef.current = [];
   };
 
   const handleShowMockFeedback = () => {
@@ -4570,14 +4457,15 @@ export default function PracticePage() {
                 AI API。
               </p>
               <p className="mt-2 text-sm text-emerald-800">
-                开始本地录音会通过 navigator.mediaDevices.getUserMedia(
-                {"{ audio: true }"}) 向浏览器请求麦克风权限。
+                开始本地录音会向浏览器请求麦克风权限；等待期间可以取消，过期的权限结果不会启动录音。
               </p>
               <p className="mt-2 text-sm font-semibold text-emerald-900">
                 状态：{" "}
-                {isRecording
+                {isRequestingRecording
+                  ? "正在请求麦克风权限…"
+                  : isRecording
                   ? `正在本地录音 ${recordingSeconds}s`
-                  : recordedAudioUrl
+                  : recordedAudioBlob
                     ? "练习录音已可在本地播放"
                     : "还没有本地录音"}
               </p>
@@ -4586,7 +4474,7 @@ export default function PracticePage() {
               <button
                 type="button"
                 onClick={handleStartLocalRecording}
-                disabled={isRecording}
+                disabled={isRecording || isRequestingRecording}
                 className="rounded-full bg-emerald-700 px-4 py-2 text-sm font-semibold text-white disabled:bg-emerald-300"
               >
                 开始本地录音
@@ -4594,15 +4482,17 @@ export default function PracticePage() {
               <button
                 type="button"
                 onClick={handleStopLocalRecording}
-                disabled={!isRecording}
+                disabled={!isRecording && !isRequestingRecording}
                 className="rounded-full border border-emerald-300 bg-white px-4 py-2 text-sm font-semibold text-emerald-800 disabled:text-slate-400"
               >
-                停止录音
+                {isRequestingRecording ? "取消麦克风请求" : "停止录音"}
               </button>
               <button
                 type="button"
                 onClick={handlePlayRecordedAttempt}
-                disabled={!recordedAudioUrl || isRecording}
+                disabled={
+                  !recordedAudioBlob || isRecording || isRequestingRecording
+                }
                 className="rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white disabled:bg-slate-300"
               >
                 播放练习录音
@@ -4610,7 +4500,12 @@ export default function PracticePage() {
               <button
                 type="button"
                 onClick={handleAnalyzeLocalRecording}
-                disabled={!recordedAudioBlob || isRecording || isAnalyzingAudio}
+                disabled={
+                  !recordedAudioBlob ||
+                  isRecording ||
+                  isRequestingRecording ||
+                  isAnalyzingAudio
+                }
                 className="rounded-full bg-emerald-900 px-4 py-2 text-sm font-semibold text-white disabled:bg-slate-300"
               >
                 {isAnalyzingAudio ? "正在本地分析…" : "分析本地录音"}
@@ -4619,7 +4514,10 @@ export default function PracticePage() {
                 type="button"
                 onClick={handleEstimatePitchLocally}
                 disabled={
-                  !recordedAudioBlob || isRecording || isEstimatingPitch
+                  !recordedAudioBlob ||
+                  isRecording ||
+                  isRequestingRecording ||
+                  isEstimatingPitch
                 }
                 className="rounded-full bg-indigo-700 px-4 py-2 text-sm font-semibold text-white disabled:bg-slate-300"
               >
@@ -4629,9 +4527,9 @@ export default function PracticePage() {
                 type="button"
                 onClick={handleClearRecording}
                 disabled={
-                  !recordedAudioUrl &&
                   !recordedAudioBlob &&
                   !isRecording &&
+                  !isRequestingRecording &&
                   !recordingError &&
                   !audioAnalysisError &&
                   !audioAnalysisResult &&
@@ -4685,8 +4583,12 @@ export default function PracticePage() {
               </p>
             </div>
           ) : null}
-          {recordedAudioUrl ? (
-            <audio className="mt-4 w-full" controls src={recordedAudioUrl}>
+          {localRecording.recordingUrl ? (
+            <audio
+              className="mt-4 w-full"
+              controls
+              src={localRecording.recordingUrl}
+            >
               你的浏览器不支持音频播放。
             </audio>
           ) : null}
