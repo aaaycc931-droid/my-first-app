@@ -96,7 +96,7 @@ require 依赖，并阻止其反向引用 `app/`、`components/` 或 `mobile/src
 
 | 热点 | 当前混合职责 | 重构前目标边界 |
 | --- | --- | --- |
-| `app/practice/page.tsx` | 页面、活动会话和反馈编排；本地录音、录音解码／质量／音高／起音分析、本地旋律参考音频解码、普通／谱面节奏 runtime 及目标旋律／单音播放已由 controllers／ports 承接 | 继续提取 latency／独立节拍计时 adapter 和语义化页面状态 |
+| `app/practice/page.tsx` | 页面、活动会话和反馈编排；本地录音、录音解码／质量／音高／起音分析、本地旋律参考音频解码、普通／谱面节奏与点击延迟校准 runtime 及目标旋律／单音播放已由 controllers／ports 承接 | 继续提取独立节拍计时 adapter 和语义化页面状态 |
 | `mobile/src/LocalScoreProjectPanel.tsx` | 编辑 UI、项目存储、MusicXML/MXL 候选、确认和下载 | 提取 score-project controller、exchange use-case 与 file adapter |
 | `mobile/src/App.tsx` | 导航、生命周期和学习流程编排；课程进度、学习画像与复练队列已分别注入 repository | 提取 app shell、navigation state 与 learning controller |
 | `app/recognize/page.tsx` | 文件校验、识别结果和文件选择／导入编排已由可注入 recognition workflow controller／薄 React hook 承接；API 请求和 preview URL 也分别由 client／preview adapter 承接 | 继续提取播放调度及其余页面职责；不得把 fetch／FormData 放回页面 |
@@ -142,7 +142,12 @@ generation 与全局停止，保留音色、包络、BPM 派生时长、目标�
 `docs/practice-rhythm-runtime-controller-acceptance.md`。该切片只承接普通 pattern 与谱面临时
 节奏练习共享的 scheduler、generation、count-in／结束 timer、clock、拍击 ID 和 runtime
 状态，保留 target 算法、Activity session、latency offset、非评分反馈与按键语义；独立
-节拍器、latency calibration、全局音频停止和最终 UI 仍在既有边界。
+节拍器、全局音频停止和最终 UI 仍在既有边界。
+
+练习页点击延迟校准 runtime 边界见
+`docs/practice-latency-runtime-controller-acceptance.md`。该切片以第二个独立实例复用上述
+controller／browser port 与 quarter-pulse run plan，移除页面的 latency scheduler／timer／
+generation 所有权；校准统计、是否应用当前会话 offset、Space 优先级和非评分边界保持不变。
 
 本机课程进度 repository 注入边界见
 `docs/ui-mobile-course-progress-repository-port-acceptance.md`，已通过 PR #499 合并为

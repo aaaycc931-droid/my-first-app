@@ -152,26 +152,52 @@ assert.match(practicePage, /应用当前会话延迟校准/);
 assert.doesNotMatch(practicePage, /accuracyPercentage/);
 assert.equal(
   practicePage.match(/const started = await scheduler\.start\(\);/g)?.length,
-  2,
-  "the two remaining page-owned metronome consumers must inspect the start result",
+  1,
+  "only the standalone metronome remains page-owned",
 );
 assert.equal(
   practicePage.match(/if \(!started\)/g)?.length,
-  2,
-  "cancelled page-owned metronome starts must not be treated as successful",
+  1,
+  "the remaining page-owned metronome must inspect cancelled starts",
 );
 assert.match(practicePage, /metronomeSchedulerGenerationRef/);
 assert.doesNotMatch(practicePage, /rhythmSchedulerGenerationRef/);
-assert.match(practicePage, /latencyCalibrationSchedulerGenerationRef/);
+assert.doesNotMatch(practicePage, /latencyCalibrationSchedulerGenerationRef/);
+assert.doesNotMatch(practicePage, /latencyCalibrationTimeoutIdsRef/);
+assert.doesNotMatch(practicePage, /latencyCalibrationTimerIdRef/);
+assert.doesNotMatch(practicePage, /latencyCalibrationTapIdRef/);
+assert.doesNotMatch(practicePage, /createRhythmLatencyCalibrationTargets/);
+assert.equal(
+  practicePage.match(/usePracticeRhythmRuntimeController\(\)/g)?.length,
+  2,
+  "rhythm practice and latency calibration must use independent runtime instances",
+);
+assert.match(
+  practicePage,
+  /const latencyCalibrationRuntime = usePracticeRhythmRuntimeController\(\);/,
+);
+assert.match(
+  practicePage,
+  /pattern: "quarter-note-pulse",[\s\S]{0,160}?await latencyCalibrationRuntime\.start\(plan\);/,
+);
+assert.match(
+  practicePage,
+  /const handleResetLatencyCalibration = \(\) => \{\s+latencyCalibrationRuntime\.reset\(\);\s+setApplyLatencyCalibration\(false\);/,
+);
+assert.match(
+  practicePage,
+  /if \(latencyCalibrationPhase === "practice"\) \{\s+handleLatencyCalibrationTap\(\);\s+return;\s+\}\s+handleRhythmTap\(\);/,
+  "Space must keep calibration priority over rhythm taps",
+);
 assert.equal(
   practicePage.match(
     /const isCurrentScheduler = \(\) =>\s+isMountedRef\.current &&[\s\S]{0,180}?SchedulerGenerationRef\.current ===\s+schedulerGeneration &&[\s\S]{0,120}?SchedulerRef\.current === scheduler;/g,
   )?.length,
-  2,
-  "remaining page-owned consumers must reject unmounted, replaced, and stale starts",
+  1,
+  "the standalone metronome must reject unmounted, replaced, and stale starts",
 );
-assert.match(
+assert.doesNotMatch(
   practicePage,
-  /isMountedRef\.current = false;[\s\S]*stopLatencyCalibrationRuntime\(\);/,
-  "unmount must invalidate and stop latency calibration runtime",
+  /stopLatencyCalibrationRuntime/,
+  "latency cleanup belongs to the controller lifecycle",
 );

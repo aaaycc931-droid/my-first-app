@@ -5,6 +5,7 @@ import type {
   PracticeRhythmRuntimeScheduler,
 } from "../lib/metronome/practiceRhythmRuntime";
 import type { NotationTemporaryPracticeTarget } from "../lib/practice/localNotationDraftPracticeTarget";
+import { createRhythmLatencyCalibrationTargets } from "../lib/rhythm/rhythmLatencyCalibration";
 import {
   createNotationRhythmRunPlan,
   createPatternRhythmRunPlan,
@@ -39,6 +40,15 @@ assert.equal(patternPlan.practiceStartTimeMs, 2180);
 assert.equal(patternPlan.initialPhase, "count-in");
 assert.equal(patternPlan.targets.length, 8);
 assert.equal(patternPlan.runDurationMs, 4300);
+assert.deepEqual(
+  patternPlan.targets,
+  createRhythmLatencyCalibrationTargets({
+    config,
+    calibrationStartTimeMs: patternPlan.practiceStartTimeMs,
+    barCount: 2,
+  }),
+  "latency calibration must reuse the same frozen quarter-pulse plan",
+);
 
 const notationTarget = {
   id: "notation-1",
@@ -145,6 +155,7 @@ nowMs = 310;
 const secondTap = controller.tap();
 assert.deepEqual([firstTap?.id, secondTap?.id], [1, 2]);
 assert.deepEqual(controller.getSnapshot().taps.map((tap) => tap.timestampMs), [275, 310]);
+assert.equal(controller.getSnapshot().nowMs, 310);
 
 controller.stop();
 assert.equal(controller.getSnapshot().phase, "stopped");
@@ -239,6 +250,38 @@ phaseTimeouts[1]?.();
 assert.equal(phaseController.getSnapshot().phase, "stopped");
 assert.equal(phaseController.getSnapshot().nowMs, phaseNowMs);
 assert.equal(throwingStopCount, 1);
+
+const isolatedRhythm = createPracticeRhythmRuntimeController(port);
+const isolatedLatency = createPracticeRhythmRuntimeController(port);
+const isolatedRhythmStart = isolatedRhythm.start(noCountInPlan);
+const isolatedRhythmStartIndex = starts.length - 1;
+const isolatedLatencyStart = isolatedLatency.start(noCountInPlan);
+const isolatedLatencyStartIndex = starts.length - 1;
+starts[isolatedRhythmStartIndex].resolve(true);
+starts[isolatedLatencyStartIndex].resolve(true);
+assert.equal(await isolatedRhythmStart, true);
+assert.equal(await isolatedLatencyStart, true);
+nowMs = 350;
+assert.equal(isolatedRhythm.tap()?.id, 1);
+assert.equal(isolatedLatency.getSnapshot().taps.length, 0);
+nowMs = 375;
+assert.equal(isolatedLatency.tap()?.id, 1);
+assert.equal(isolatedRhythm.getSnapshot().taps.length, 1);
+const rhythmBeforeLatencyStop = isolatedRhythm.getSnapshot();
+isolatedLatency.stop();
+assert.equal(isolatedLatency.getSnapshot().phase, "stopped");
+assert.deepEqual(isolatedRhythm.getSnapshot(), rhythmBeforeLatencyStop);
+const latencyBeforeRhythmReset = isolatedLatency.getSnapshot();
+isolatedRhythm.reset();
+assert.equal(isolatedRhythm.getSnapshot().phase, "idle");
+assert.deepEqual(isolatedLatency.getSnapshot(), latencyBeforeRhythmReset);
+const latencyTimerIds = Array.from(timerCallbacks.keys()).slice(-2);
+isolatedLatency.reset();
+for (const id of latencyTimerIds) timerCallbacks.get(id)?.();
+assert.equal(isolatedLatency.getSnapshot().phase, "idle");
+assert.equal(isolatedRhythm.getSnapshot().phase, "idle");
+isolatedRhythm.dispose();
+isolatedLatency.dispose();
 
 console.log("practice rhythm runtime controller tests passed");
 };

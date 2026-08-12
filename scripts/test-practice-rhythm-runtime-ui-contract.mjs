@@ -36,8 +36,13 @@ for (const formerPageOwner of [
 }
 assert.equal(
   page.match(/const started = await scheduler\.start\(\);/g)?.length,
+  1,
+  "only the standalone metronome remains page-owned",
+);
+assert.equal(
+  page.match(/usePracticeRhythmRuntimeController\(\)/g)?.length,
   2,
-  "only standalone metronome and latency calibration remain page-owned",
+  "rhythm and latency must use isolated runtime controller instances",
 );
 assert.match(hook, /useSyncExternalStore/);
 assert.match(hook, /activeEffectCount/);
