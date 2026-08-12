@@ -72,6 +72,7 @@ import { LocalEarTrainingSinglePitchPanel } from "../../components/practice/Loca
 import { LocalEarTrainingMelodyDictationPanel } from "../../components/practice/LocalEarTrainingMelodyDictationPanel";
 import { RealtimePitchMonitorPanel } from "../../components/practice/RealtimePitchMonitorPanel";
 import { useLocalRecordingController } from "../../components/practice/useLocalRecordingController";
+import { usePracticeTargetPlaybackController } from "../../components/practice/usePracticeTargetPlaybackController";
 import { browserFileDownloadPort } from "../../lib/platform/browserFileDownload";
 import { indexedDbLocalVocalPracticeRecordRepository } from "../../lib/platform/indexedDbLocalVocalPracticeRecordRepository";
 import { LocalTargetPitchCurveDraftPanel } from "../../components/practice/LocalTargetPitchCurveDraftPanel";
@@ -422,15 +423,6 @@ const getComparisonHint = (centsFromTarget: number) => {
 
 const calculateTargetNoteSeconds = () => 60 / mockExercise.suggestedBpm;
 
-const stopOscillator = (oscillator: OscillatorNode) => {
-  try {
-    oscillator.stop();
-  } catch {
-    // The oscillator may have already ended naturally.
-  }
-  oscillator.disconnect();
-};
-
 export default function PracticePage() {
   const [activeFeatureView, setActiveFeatureView] =
     useState<PracticeFeatureView>("local-melody");
@@ -484,9 +476,14 @@ export default function PracticePage() {
   const [latencyCalibrationNowMs, setLatencyCalibrationNowMs] = useState(0);
   const [latencyCalibrationError, setLatencyCalibrationError] = useState("");
   const [applyLatencyCalibration, setApplyLatencyCalibration] = useState(false);
-  const [playError, setPlayError] = useState("");
-  const [activeNoteIndex, setActiveNoteIndex] = useState<number | null>(null);
   const [hasMockFeedback, setHasMockFeedback] = useState(false);
+  const targetPlayback = usePracticeTargetPlaybackController();
+  const playError = targetPlayback.error;
+  const activeNoteIndex = targetPlayback.activeNoteIndex;
+  const isSelectedTargetNotePlaying =
+    targetPlayback.mode === "note" &&
+    (targetPlayback.status === "preparing" ||
+      targetPlayback.status === "playing");
   const localRecording = useLocalRecordingController();
   const isRecording = localRecording.status === "recording";
   const isRequestingRecording = localRecording.status === "requesting";
@@ -515,8 +512,6 @@ export default function PracticePage() {
   const [focusedAudioOnsetCandidateIndex, setFocusedAudioOnsetCandidateIndex] =
     useState<number | null>(null);
   const [currentMelodyStepIndex, setCurrentMelodyStepIndex] = useState(0);
-  const [isSelectedTargetNotePlaying, setIsSelectedTargetNotePlaying] =
-    useState(false);
   const [recordingSeconds, setRecordingSeconds] = useState(0);
   const [practiceAttempts, setPracticeAttempts] = useState<
     PracticeAttemptSummary[]
@@ -559,9 +554,6 @@ export default function PracticePage() {
   const rhythmSchedulerGenerationRef = useRef(0);
   const recordingTimerIdRef = useRef<number | null>(null);
   const isMountedRef = useRef(true);
-  const playbackAudioContextRef = useRef<AudioContext | null>(null);
-  const playbackOscillatorsRef = useRef<OscillatorNode[]>([]);
-  const playbackTimeoutIdsRef = useRef<number[]>([]);
   const audioAnalysisRunIdRef = useRef(0);
   const pitchEstimateRunIdRef = useRef(0);
   const audioOnsetRunIdRef = useRef(0);
@@ -1046,21 +1038,7 @@ export default function PracticePage() {
     }
   };
 
-  const stopPlayback = () => {
-    playbackTimeoutIdsRef.current.forEach((timeoutId) => {
-      window.clearTimeout(timeoutId);
-    });
-    playbackTimeoutIdsRef.current = [];
-    playbackOscillatorsRef.current.forEach(stopOscillator);
-    playbackOscillatorsRef.current = [];
-    void playbackAudioContextRef.current?.close();
-    playbackAudioContextRef.current = null;
-    setActiveNoteIndex(null);
-    setIsSelectedTargetNotePlaying(false);
-    setFlowState((currentState) =>
-      currentState === "listening" ? "idle" : currentState,
-    );
-  };
+  const stopPlayback = targetPlayback.stop;
 
   const invalidateLocalAudioAsyncWork = () => {
     audioAnalysisRunIdRef.current += 1;
@@ -1082,6 +1060,20 @@ export default function PracticePage() {
     }, 1000);
     return stopRecordingTimer;
   }, [isRecording, isRequestingRecording, localRecording.status]);
+
+  useEffect(() => {
+    const isSequenceActive =
+      targetPlayback.mode === "sequence" &&
+      (targetPlayback.status === "preparing" ||
+        targetPlayback.status === "playing");
+    if (isSequenceActive) {
+      setFlowState("listening");
+      return;
+    }
+    setFlowState((currentState) =>
+      currentState === "listening" ? "idle" : currentState,
+    );
+  }, [targetPlayback.mode, targetPlayback.status]);
 
   useEffect(() => {
     if (!recordedAudioBlob) return;
@@ -1130,13 +1122,6 @@ export default function PracticePage() {
       pitchEstimateRunIdRef.current += 1;
       audioOnsetRunIdRef.current += 1;
       localMelodyGuideRunIdRef.current += 1;
-      playbackTimeoutIdsRef.current.forEach((timeoutId) => {
-        window.clearTimeout(timeoutId);
-      });
-      playbackOscillatorsRef.current.forEach(stopOscillator);
-      playbackOscillatorsRef.current = [];
-      void playbackAudioContextRef.current?.close();
-      playbackAudioContextRef.current = null;
       stopMetronome();
       stopRhythmPracticeRuntime();
       stopLatencyCalibrationRuntime();
@@ -1775,125 +1760,26 @@ export default function PracticePage() {
     stopMetronome();
   };
 
-  const handleListenToTarget = async () => {
-    stopPlayback();
-    setFlowState("listening");
-    setPlayError("");
-
-    try {
-      const audioContext = new AudioContext();
-      playbackAudioContextRef.current = audioContext;
-      const startTime = audioContext.currentTime + 0.05;
-      const noteSeconds = calculateTargetNoteSeconds();
-
-      mockExercise.targetNotes.forEach((note, index) => {
-        const noteOffset = index * noteSeconds;
-        const noteStartTime = startTime + noteOffset;
-        const oscillator = audioContext.createOscillator();
-        const gain = audioContext.createGain();
-
-        oscillator.type = "sine";
-        oscillator.frequency.value =
-          noteFrequencies[note] ?? noteFrequencies.C4;
-        gain.gain.setValueAtTime(0.0001, noteStartTime);
-        gain.gain.exponentialRampToValueAtTime(0.18, noteStartTime + 0.02);
-        gain.gain.exponentialRampToValueAtTime(
-          0.0001,
-          noteStartTime + noteSeconds * 0.9,
-        );
-
-        oscillator.connect(gain);
-        gain.connect(audioContext.destination);
-        oscillator.start(noteStartTime);
-        oscillator.stop(noteStartTime + noteSeconds * 0.95);
-        playbackOscillatorsRef.current.push(oscillator);
-
-        const noteTimeoutId = window.setTimeout(() => {
-          setActiveNoteIndex(index);
-        }, noteOffset * 1000);
-        playbackTimeoutIdsRef.current.push(noteTimeoutId);
-      });
-
-      const totalSeconds = mockExercise.targetNotes.length * noteSeconds;
-      const completionTimeoutId = window.setTimeout(
-        () => {
-          playbackOscillatorsRef.current = [];
-          void audioContext.close();
-          if (playbackAudioContextRef.current === audioContext) {
-            playbackAudioContextRef.current = null;
-          }
-          playbackTimeoutIdsRef.current = [];
-          setActiveNoteIndex(null);
-          setFlowState("idle");
-        },
-        totalSeconds * 1000 + 500,
-      );
-      playbackTimeoutIdsRef.current.push(completionTimeoutId);
-    } catch {
-      setPlayError("目标音播放失败。此原型仍只使用模拟反馈，不提供正式评分。");
-      stopPlayback();
-    }
+  const handleListenToTarget = () => {
+    void targetPlayback.playSequence({
+      frequenciesHz: mockExercise.targetNotes.map(
+        (note) => noteFrequencies[note] ?? noteFrequencies.C4,
+      ),
+      noteSeconds: calculateTargetNoteSeconds(),
+      errorMessage:
+        "目标音播放失败。此原型仍只使用模拟反馈，不提供正式评分。",
+    });
   };
 
-  const handlePlaySelectedTargetNote = async () => {
-    stopPlayback();
-    setPlayError("");
-
+  const handlePlaySelectedTargetNote = () => {
     const targetFrequency = noteFrequencies[selectedTargetNote];
-
-    if (!targetFrequency) {
-      setPlayError(`目标音 ${selectedTargetNote} 暂时无法播放。`);
-      return;
-    }
-
-    try {
-      const audioContext = new AudioContext();
-      const oscillator = audioContext.createOscillator();
-      const gain = audioContext.createGain();
-      const startTime = audioContext.currentTime + 0.05;
-      const noteSeconds = 1;
-
-      playbackAudioContextRef.current = audioContext;
-      playbackOscillatorsRef.current = [oscillator];
-      setIsSelectedTargetNotePlaying(true);
-
-      oscillator.type = "sine";
-      oscillator.frequency.value = targetFrequency;
-      gain.gain.setValueAtTime(0.0001, startTime);
-      gain.gain.exponentialRampToValueAtTime(0.18, startTime + 0.02);
-      gain.gain.exponentialRampToValueAtTime(
-        0.0001,
-        startTime + noteSeconds * 0.9,
-      );
-
-      oscillator.connect(gain);
-      gain.connect(audioContext.destination);
-      oscillator.start(startTime);
-      oscillator.stop(startTime + noteSeconds);
-
-      const completionTimeoutId = window.setTimeout(
-        () => {
-          playbackOscillatorsRef.current =
-            playbackOscillatorsRef.current.filter(
-              (currentOscillator) => currentOscillator !== oscillator,
-            );
-          void audioContext.close();
-          if (playbackAudioContextRef.current === audioContext) {
-            playbackAudioContextRef.current = null;
-          }
-          playbackTimeoutIdsRef.current = playbackTimeoutIdsRef.current.filter(
-            (timeoutId) => timeoutId !== completionTimeoutId,
-          );
-          setIsSelectedTargetNotePlaying(false);
-        },
-        noteSeconds * 1000 + 200,
-      );
-
-      playbackTimeoutIdsRef.current.push(completionTimeoutId);
-    } catch {
-      setPlayError("此浏览器无法播放所选目标音。");
-      stopPlayback();
-    }
+    void targetPlayback.playNote({
+      frequencyHz: targetFrequency ?? 0,
+      noteSeconds: 1,
+      errorMessage: targetFrequency
+        ? "此浏览器无法播放所选目标音。"
+        : `目标音 ${selectedTargetNote} 暂时无法播放。`,
+    });
   };
 
   const handleStartMockAttempt = () => {
@@ -2268,7 +2154,6 @@ export default function PracticePage() {
   const handleRetry = () => {
     stopPlayback();
     setHasMockFeedback(false);
-    setPlayError("");
     setFlowState("idle");
   };
 
