@@ -1,6 +1,6 @@
 # 正式版 V1 状态矩阵
 
-最后更新：2026-08-09
+最后更新：2026-08-12
 规范来源：`docs/final-release-definition-of-done.md`
 UI 重构兼容来源：`docs/final-ui-refactor-compatibility-contract.md`
 外部 QA 证据模板：`docs/external-qa-not-executed-matrix-template.md`
@@ -23,7 +23,7 @@ UI 重构、浏览器／Android 真机、可访问性或目标用户验收已经
 | V1-07 | 钢琴辅助 | IN_PROGRESS | P106–P110 已合并；P114g 共享事件/目标与 P114h Android 原生 USB MIDI 已合并；P114j 已有原生 TYPE_BLUETOOTH 候选 | P114j 远端门禁与 BLE 真机；三档真机低延迟/听感/10 指/32 音与设备断连证据；完整应用内 BLE 扫描/选择另行决策；竞品完整任务差距闭环 |
 | V1-08 | MusicXML/MXL | IN_PROGRESS | parser、fixture 与 dev import；P114k 最小确认 ScoreDocument；本机谱项目已有受控单 part/staff/voice 导入，以及同一严格子集的 `.musicxml`／`.mxl` 导出候选、blocking ledger、明确确认和仓库内部 re-import／legacy parser 交叉验证；全局整数 `30–240 BPM` 速度、scoreCredits title/subtitle、按数组顺序的 composer／lyricist／arranger creators、rightsNotice、未指定或 canonical `0–127` GM1 program 乐器归属、note/rest 单附点、fermata、`pp`／`p`／`mp`／`mf`／`f`／`ff` 单事件力度记号、`down/up` 单事件制音踏板记号与自然／单升降根音二十四类、504 个受控和弦标记组合（含 major-sixth／minor-sixth／suspended-second／suspended-fourth／power／dominant-ninth／major-ninth／minor-ninth／dominant-11th／major-11th／minor-11th／dominant-13th／major-13th／minor-13th／augmented／diminished／augmented-seventh／diminished-seventh／half-diminished），pitched note 规范化单段歌词、`1–5` 单指法和 accent／staccato／tenuto 单音演奏法、相邻时间连续 note 的 slur，以及相邻同音高时间连续 note 的 tie start/stop、跨小节及链式关系已纳入严格双向映射；GM1 program 精确映射为固定 score-instrument 与 MusicXML 一基 `midi-program 1–128`；credits 导出总是写严格 root-level work/movement-title/identification（可选字段非空时），导入保留既有缺省 work-title fallback；part identity 与 note 事件容器均已要求 exact、无 namespace，ID 与名称不做静默 trim，note 不允许属性，非法节点在 event ID 分配前 blocking | 下一交换语义仍为 `NEXT EXCHANGE SLICE UNDER REVIEW`；浏览器真实导入／下载／重开、Android WebView／真机、MuseScore 等外部独立阅读器、速度／GM1 音色／和弦／踏板／力度／演奏法／指法／credits 显示与真实播放、MIDI channel／bank／program change、tempo map／中途变速、双升降／Unicode 升降号／转位／其他和弦类别、左右手／替代指法、歌词排版／多 verse／melisma、真实音频与歌唱对齐、教师审核、MIDI 文件、OMR、完整 MusicXML、完整 S3 与正式版 V1 均为 `NOT_EXECUTED` 或未完成 |
 | V1-09 | 图片/PDF OMR | IN_PROGRESS | mock flow、Audiveris fixture/runner 研究基础 | 隔离 worker、私有上传、真实 OMR、草稿编辑、失败恢复 |
-| V1-10 | 私有音频素材 | IN_PROGRESS | 浏览器本地导入、decode、音高曲线草稿、检查与临时目标；P114l 会话内非破坏 MediaProject 候选 | 私有上传、worker、持久项目、保留/删除、任务恢复、版权说明 |
+| V1-10 | 私有音频素材 | IN_PROGRESS | 浏览器本地导入、decode、音高曲线草稿、检查与临时目标；P114l 会话内非破坏 MediaProject 候选；本地旋律参考音频的浏览器 decode、首声道会话副本、latest-wins 来源替换与卸载失效已由独立 port／controller 承接 | 真实跨浏览器／Android WebView codec 与长文件 QA；私有上传、worker、持久项目、保留/删除、任务恢复、版权说明 |
 | V1-11 | 私有云任务 | NOT_STARTED | 数据模型和架构蓝图 | Storage、队列 worker、取消/重试、审计、配额和运行手册 |
 | V1-12 | 学习历史与复习 | IN_PROGRESS | 私有 practice attempts、课程答案摘要；Web 账户页 owner-bound 最近 20 条已完成课程核对历史已通过 PR #527 进入 `main`，包含系统课程／发布状态双层验证、空态／错误重试、非评分白名单与换用户 stale-result guard，并可回到同一课程练习；Android 本机最小错题队列；P114m 非评分画像已合并；P115a–P115i 已接入相应练习事实、复练与迁移；P118c–P118e 已合并，继续复用精确 MRU 队列、非评分建议与独立失败关闭总览；学习画像 repository 已通过 PR #503、本机复练队列 repository 已通过 PR #505 由 Android composition root 注入，既有 key、schema／catalog version、迁移、MRU、上限和用户行为不变 | Web 完整课程历史与正式技能画像、跨设备同步、生产 RLS／多账户与跨浏览器验收；Android 跨版本/跨重启和配额真机验证；教育审核 |
 | V1-13 | 音高算法基准 | IN_PROGRESS | P111 共同输入/分层基准基础、P112 多候选连续轨迹已合并；P113 `offline-note-alignment-v1` 独立分段、单调目标对齐、三阶段证据和局部拒答已通过 PR #365 合并；实时生产仍为 `autocorrelation-realtime-v1` | P113 真机/真实人声；200 合成/乐器、100 真实人声/20 位/4 类设备最低证据及专业扩展集、三档性能、量化结果和专家审核 |
