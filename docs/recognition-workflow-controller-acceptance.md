@@ -5,7 +5,9 @@
 This slice extracts the /recognize page's image, MusicXML, and dev-only
 Audiveris file/async orchestration into a pure controller with an injectable API
 client, preview port, and playback-invalidation effects. The page keeps DOM
-file-input wiring, JSX, BPM state, and note playback scheduling.
+file-input wiring, JSX, and BPM state. Note playback scheduling is now owned by
+the separate latest-wins boundary in
+`docs/recognition-notes-playback-controller-acceptance.md`.
 
 The only intentional runtime hardening is fail-closed source replacement:
 
@@ -34,7 +36,7 @@ image request, cross-flow stale responses, Audiveris summary isolation,
 full-notes flag forwarding, React StrictMode lifecycle replay, and disposal
 after deferred completion.
 The existing recognition fail-closed and static boundary validators remain
-required.
+required, together with the recognition notes playback controller regression.
 
 This is automated controller evidence only. Browser manual QA, Android
 WebView/real-device testing, real OMR, third-party MusicXML interoperability,

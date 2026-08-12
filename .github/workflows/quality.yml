@@ -240,6 +240,7 @@ jobs:
           npm run test:note-frequency
           npm run test:recognition-fail-closed
           npm run test:recognition-workflow-controller
+          npm run test:recognition-notes-playback-controller
           npm run test:recognition-static-boundaries
           npm run test:auth-ui-policy
           npm run test:account-password-auth

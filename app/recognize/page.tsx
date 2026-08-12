@@ -3,31 +3,16 @@
 import Link from "next/link";
 import {
   ChangeEvent,
-  useCallback,
-  useEffect,
   useMemo,
-  useRef,
   useState,
 } from "react";
 
+import { useRecognitionNotesPlaybackController } from "../../components/recognition/useRecognitionNotesPlaybackController";
 import { useRecognitionWorkflowController } from "../../components/recognition/useRecognitionWorkflowController";
-import type { RecognizedNote } from "../../lib/recognition";
-import {
-  createBrowserAudioChannel,
-  type BrowserAudioChannel,
-} from "../../lib/audio/browserAudioEngine";
-import { noteNameToFrequencyHz } from "../../lib/audio/noteFrequency";
 import {
   createBrowserRecognitionApiClient,
 } from "../../lib/recognition/browserRecognitionApiClient";
 import { browserRecognitionFilePreviewPort } from "../../lib/recognition/browserRecognitionFilePreview";
-
-const durationToBeats: Record<RecognizedNote["duration"], number> = {
-  eighth: 0.5,
-  quarter: 1,
-  half: 2,
-  whole: 4,
-};
 
 const minBpm = 40;
 const maxBpm = 240;
@@ -40,12 +25,7 @@ const isAudiverisDevFullNotesEnabled =
   process.env.NEXT_PUBLIC_AUDIVERIS_DEV_FULL_NOTES_ENABLED === "true";
 const recognitionApiClient = createBrowserRecognitionApiClient();
 
-const calculateDurationSeconds = (
-  duration: RecognizedNote["duration"],
-  bpm: number,
-) => durationToBeats[duration] * (60 / bpm);
-
-const durationLabel: Record<RecognizedNote["duration"], string> = {
+const durationLabel = {
   eighth: "八分音符",
   quarter: "四分音符",
   half: "二分音符",
@@ -53,44 +33,20 @@ const durationLabel: Record<RecognizedNote["duration"], string> = {
 };
 
 export default function Home() {
-  const [playError, setPlayError] = useState("");
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [playingNoteIndex, setPlayingNoteIndex] = useState<number | null>(null);
   const [bpm, setBpm] = useState(defaultBpm);
-  const playbackChannelRef = useRef<BrowserAudioChannel | null>(null);
-  if (!playbackChannelRef.current)
-    playbackChannelRef.current = createBrowserAudioChannel();
-  const playbackTimeoutIdsRef = useRef<number[]>([]);
-
-  const stopPlaybackPreview = useCallback(() => {
-    playbackTimeoutIdsRef.current.forEach((timeoutId) => {
-      window.clearTimeout(timeoutId);
-    });
-    playbackTimeoutIdsRef.current = [];
-
-    playbackChannelRef.current?.stop();
-
-    setIsPlaying(false);
-    setPlayingNoteIndex(null);
-  }, []);
-
-  useEffect(
-    () => () => {
-      playbackTimeoutIdsRef.current.forEach((timeoutId) => {
-        window.clearTimeout(timeoutId);
-      });
-      playbackTimeoutIdsRef.current = [];
-      playbackChannelRef.current?.stop();
-    },
-    [],
-  );
+  const playback = useRecognitionNotesPlaybackController();
+  const playError = playback.error;
+  const isPlaying = playback.status === "playing";
+  const playingNoteIndex = playback.activeNoteIndex;
+  const stopPlaybackPreview = playback.stop;
+  const clearPlayError = playback.clearError;
 
   const workflowEffects = useMemo(
     () => ({
       invalidateSharedResult: stopPlaybackPreview,
-      clearPlayError: () => setPlayError(""),
+      clearPlayError,
     }),
-    [stopPlaybackPreview],
+    [clearPlayError, stopPlaybackPreview],
   );
   const { controller, state: workflowState } =
     useRecognitionWorkflowController(
@@ -152,80 +108,29 @@ export default function Home() {
 
   const handleRecognize = () => void controller.recognizeImage();
 
-  const playNotesPreview = async (
-    notes: RecognizedNote[],
-    trackMainResultIndex: boolean,
-  ) => {
-    if (notes.length === 0) {
-      return;
-    }
+  const handlePlayRecognizedNotes = () =>
+    playback.play({
+      notes: recognizedNotes,
+      bpm,
+      trackActiveNote: true,
+      errorMessage: "播放失败，请稍后再试。",
+    });
 
-    stopPlaybackPreview();
-    setIsPlaying(true);
-    setPlayError("");
-    setPlayingNoteIndex(null);
+  const handlePlayAudiverisFirstNotesPreview = () =>
+    playback.play({
+      notes: audiverisDevSummary?.firstNotes ?? [],
+      bpm,
+      trackActiveNote: false,
+      errorMessage: "播放失败，请稍后再试。",
+    });
 
-    try {
-      const audioContext = playbackChannelRef.current!.getContext();
-      const startTime = audioContext.currentTime + 0.04;
-      let offset = 0;
-
-      notes.forEach(({ note, duration }, index) => {
-        const noteOffset = offset;
-        const noteDuration = calculateDurationSeconds(duration, bpm);
-        const frequencyHz = noteNameToFrequencyHz(note);
-        if (frequencyHz === null) throw new Error(`Unsupported note: ${note}`);
-        const noteStartTime = startTime + noteOffset;
-        const oscillator = audioContext.createOscillator();
-        const gain = audioContext.createGain();
-        oscillator.type = "sine";
-        oscillator.frequency.value = frequencyHz;
-        gain.gain.setValueAtTime(0.0001, noteStartTime);
-        gain.gain.exponentialRampToValueAtTime(0.16, noteStartTime + 0.015);
-        gain.gain.exponentialRampToValueAtTime(0.0001, noteStartTime + Math.max(0.03, noteDuration - 0.02));
-        oscillator.connect(gain);
-        gain.connect(audioContext.destination);
-        playbackChannelRef.current!.trackSource(oscillator, [gain]);
-        oscillator.start(noteStartTime);
-        oscillator.stop(noteStartTime + noteDuration);
-
-        if (trackMainResultIndex) {
-          const noteTimeoutId = window.setTimeout(() => {
-            setPlayingNoteIndex(index);
-          }, noteOffset * 1000);
-          playbackTimeoutIdsRef.current.push(noteTimeoutId);
-        }
-
-        offset += noteDuration;
-      });
-
-      const completionTimeoutId = window.setTimeout(
-        () => {
-          playbackChannelRef.current?.stop();
-          playbackTimeoutIdsRef.current = [];
-          setPlayingNoteIndex(null);
-          setIsPlaying(false);
-        },
-        offset * 1000 + 500,
-      );
-      playbackTimeoutIdsRef.current.push(completionTimeoutId);
-    } catch {
-      setPlayError("播放失败，请稍后再试。");
-      stopPlaybackPreview();
-    }
-  };
-
-  const handlePlayRecognizedNotes = async () => {
-    await playNotesPreview(recognizedNotes, true);
-  };
-
-  const handlePlayAudiverisFirstNotesPreview = async () => {
-    await playNotesPreview(audiverisDevSummary?.firstNotes ?? [], false);
-  };
-
-  const handlePlayAudiverisFullNotesPreview = async () => {
-    await playNotesPreview(audiverisDevSummary?.notes ?? [], false);
-  };
+  const handlePlayAudiverisFullNotesPreview = () =>
+    playback.play({
+      notes: audiverisDevSummary?.notes ?? [],
+      bpm,
+      trackActiveNote: false,
+      errorMessage: "播放失败，请稍后再试。",
+    });
 
   return (
     <main className="min-h-screen bg-slate-50 px-4 py-10 text-slate-900 sm:px-6">
