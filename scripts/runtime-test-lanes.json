@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "reviewedCommandCount": 167,
+  "reviewedCommandCount": 168,
   "baseline": {
     "mainRunId": 31293374745,
     "mainCommit": "4bdaf1d84856304843d201b4f6907878b2419606",
@@ -47,6 +47,10 @@
     },
     {
       "script": "test:practice-local-recording-controller",
+      "lane": "audio-rhythm"
+    },
+    {
+      "script": "test:practice-recording-analysis-controller",
       "lane": "audio-rhythm"
     },
     {

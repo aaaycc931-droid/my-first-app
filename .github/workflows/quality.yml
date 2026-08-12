@@ -110,6 +110,7 @@ jobs:
           npm run test:blob-audio-playback
           npm run test:media-recorder-capture
           npm run test:practice-local-recording-controller
+          npm run test:practice-recording-analysis-controller
           npm run test:realtime-pitch-input
           npm run test:realtime-pitch-monitor-controller
           npm run test:mobile-lifecycle
