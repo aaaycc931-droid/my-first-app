@@ -47,8 +47,6 @@ import {
 } from "../../lib/rhythm/rhythmLatencyCalibration";
 import {
   audioOnsetSensitivityPresets,
-  detectAudioOnsets,
-  type AudioOnsetDetectionResult,
   type AudioOnsetSensitivityPreset,
 } from "../../lib/rhythm/audioOnsetDetection";
 import {
@@ -73,6 +71,8 @@ import { LocalEarTrainingMelodyDictationPanel } from "../../components/practice/
 import { RealtimePitchMonitorPanel } from "../../components/practice/RealtimePitchMonitorPanel";
 import { useLocalRecordingController } from "../../components/practice/useLocalRecordingController";
 import { usePracticeTargetPlaybackController } from "../../components/practice/usePracticeTargetPlaybackController";
+import { usePracticeRecordingAnalysisController } from "../../components/practice/usePracticeRecordingAnalysisController";
+import { canAppendPracticeRecordingPitchAttempt } from "../../lib/practice/practiceRecordingAnalysisController";
 import { browserFileDownloadPort } from "../../lib/platform/browserFileDownload";
 import { indexedDbLocalVocalPracticeRecordRepository } from "../../lib/platform/indexedDbLocalVocalPracticeRecordRepository";
 import { LocalTargetPitchCurveDraftPanel } from "../../components/practice/LocalTargetPitchCurveDraftPanel";
@@ -141,23 +141,12 @@ import {
 } from "../../lib/practice/research-target-curve-handoff-json";
 import type { ResearchTargetPitchCurveDiagnostic } from "../../lib/research/local-audio-decode/research-target-pitch-curve-diagnostics";
 import {
-  estimateLocalPitch,
-  type PitchEstimateResult,
-} from "../../lib/practice/pitchEstimate";
-import {
   applyLocalMelodyGuideDecodedMetadata,
   createLocalMelodyGuideFileSummary,
   type LocalMelodyGuideAudioSource,
 } from "../../lib/practice/localMelodyGuideAudio";
 
 type PracticeFlowState = "idle" | "listening" | "attempting" | "feedback";
-
-type AudioAnalysisResult = {
-  durationSeconds: number;
-  peakLevel: number;
-  rmsLevel: number;
-  simpleLevelHint: string;
-};
 
 type NotationPracticePitchFeedbackContext = {
   targetId: string;
@@ -489,24 +478,22 @@ export default function PracticePage() {
   const isRequestingRecording = localRecording.status === "requesting";
   const recordedAudioBlob = localRecording.recordingBlob;
   const recordingError = localRecording.error;
-  const [audioAnalysisResult, setAudioAnalysisResult] =
-    useState<AudioAnalysisResult | null>(null);
-  const [audioAnalysisError, setAudioAnalysisError] = useState("");
-  const [isAnalyzingAudio, setIsAnalyzingAudio] = useState(false);
-  const [pitchEstimateResult, setPitchEstimateResult] =
-    useState<PitchEstimateResult | null>(null);
-  const [pitchEstimateImportedSegmentKey, setPitchEstimateImportedSegmentKey] =
-    useState<string | null>(null);
-  const [pitchEstimateNotationTargetKey, setPitchEstimateNotationTargetKey] =
-    useState<string | null>(null);
-  const [pitchEstimateError, setPitchEstimateError] = useState("");
-  const [isEstimatingPitch, setIsEstimatingPitch] = useState(false);
-  const [audioOnsetResult, setAudioOnsetResult] =
-    useState<AudioOnsetDetectionResult | null>(null);
-  const [audioOnsetError, setAudioOnsetError] = useState("");
+  const recordingAnalysis = usePracticeRecordingAnalysisController();
+  const audioAnalysisResult = recordingAnalysis.level.result;
+  const audioAnalysisError = recordingAnalysis.level.error;
+  const isAnalyzingAudio = recordingAnalysis.level.status === "running";
+  const pitchEstimateResult = recordingAnalysis.pitch.result?.estimate ?? null;
+  const pitchEstimateImportedSegmentKey =
+    recordingAnalysis.pitch.result?.context.importedSegmentKey ?? null;
+  const pitchEstimateNotationTargetKey =
+    recordingAnalysis.pitch.result?.context.notationTargetKey ?? null;
+  const pitchEstimateError = recordingAnalysis.pitch.error;
+  const isEstimatingPitch = recordingAnalysis.pitch.status === "running";
+  const audioOnsetResult = recordingAnalysis.onset.result;
+  const audioOnsetError = recordingAnalysis.onset.error;
   const [audioOnsetSensitivityPreset, setAudioOnsetSensitivityPreset] =
     useState<AudioOnsetSensitivityPreset>("balanced");
-  const [isDetectingAudioOnsets, setIsDetectingAudioOnsets] = useState(false);
+  const isDetectingAudioOnsets = recordingAnalysis.onset.status === "running";
   const [audioOnsetAlignmentMode, setAudioOnsetAlignmentMode] =
     useState<AudioOnsetRhythmAlignmentMode>("recording-start");
   const [focusedAudioOnsetCandidateIndex, setFocusedAudioOnsetCandidateIndex] =
@@ -554,10 +541,8 @@ export default function PracticePage() {
   const rhythmSchedulerGenerationRef = useRef(0);
   const recordingTimerIdRef = useRef<number | null>(null);
   const isMountedRef = useRef(true);
-  const audioAnalysisRunIdRef = useRef(0);
-  const pitchEstimateRunIdRef = useRef(0);
-  const audioOnsetRunIdRef = useRef(0);
   const practiceAttemptIdRef = useRef(0);
+  const practiceAttemptHistoryGenerationRef = useRef(0);
   const recordingAttemptKeyCounterRef = useRef(0);
   const currentRecordingAttemptKeyRef = useRef<number | null>(null);
   const recordedPracticeAttemptKeyRef = useRef<number | null>(null);
@@ -1040,12 +1025,6 @@ export default function PracticePage() {
 
   const stopPlayback = targetPlayback.stop;
 
-  const invalidateLocalAudioAsyncWork = () => {
-    audioAnalysisRunIdRef.current += 1;
-    pitchEstimateRunIdRef.current += 1;
-    audioOnsetRunIdRef.current += 1;
-  };
-
   useEffect(() => {
     stopRecordingTimer();
     if (!isRecording) {
@@ -1084,6 +1063,47 @@ export default function PracticePage() {
   }, [recordedAudioBlob]);
 
   useEffect(() => {
+    const pitchAnalysis = recordingAnalysis.pitch.result;
+    if (!pitchAnalysis) return;
+    const { context, estimate } = pitchAnalysis;
+    if (!canAppendPracticeRecordingPitchAttempt({
+      context,
+      currentRecordingAttemptKey: currentRecordingAttemptKeyRef.current,
+      currentHistoryGeneration: practiceAttemptHistoryGenerationRef.current,
+      recordedPracticeAttemptKey: recordedPracticeAttemptKeyRef.current,
+    })) {
+      return;
+    }
+    const targetFrequencyHz = noteFrequencies[context.targetNote];
+    if (!targetFrequencyHz) return;
+    const centsFromTarget = calculateCentsFromTarget(
+      estimate.estimatedFrequencyHz,
+      targetFrequencyHz,
+    );
+    const nextAttemptId = practiceAttemptIdRef.current + 1;
+    practiceAttemptIdRef.current = nextAttemptId;
+    recordedPracticeAttemptKeyRef.current = context.recordingAttemptKey;
+    setPracticeAttempts((currentAttempts) =>
+      [
+        {
+          id: nextAttemptId,
+          label: `Attempt ${nextAttemptId}`,
+          melodyStepId: context.melodyStepId,
+          melodyStepIndex: context.melodyStepIndex,
+          melodyStepNumber: context.melodyStepIndex + 1,
+          targetNote: context.targetNote,
+          nearestNote: estimate.nearestNote,
+          estimatedFrequencyHz: estimate.estimatedFrequencyHz,
+          centsFromTarget,
+          confidence: estimate.confidence,
+          feedbackLabel: getComparisonHint(centsFromTarget).toLowerCase(),
+        },
+        ...currentAttempts,
+      ].slice(0, maxPracticeAttemptHistory),
+    );
+  }, [recordingAnalysis.pitch.result]);
+
+  useEffect(() => {
     const storedPreview = window.sessionStorage.getItem(
       practiceResearchTargetCurveDiagnosticPreviewKey,
     );
@@ -1118,9 +1138,6 @@ export default function PracticePage() {
 
     return () => {
       isMountedRef.current = false;
-      audioAnalysisRunIdRef.current += 1;
-      pitchEstimateRunIdRef.current += 1;
-      audioOnsetRunIdRef.current += 1;
       localMelodyGuideRunIdRef.current += 1;
       stopMetronome();
       stopRhythmPracticeRuntime();
@@ -1790,19 +1807,8 @@ export default function PracticePage() {
 
   const handleStartLocalRecording = async () => {
     stopPlayback();
-    invalidateLocalAudioAsyncWork();
+    recordingAnalysis.clear();
     setHasMockFeedback(false);
-    setAudioAnalysisError("");
-    setAudioAnalysisResult(null);
-    setIsAnalyzingAudio(false);
-    setPitchEstimateResult(null);
-    setPitchEstimateImportedSegmentKey(null);
-    setPitchEstimateNotationTargetKey(null);
-    setPitchEstimateError("");
-    setIsEstimatingPitch(false);
-    setAudioOnsetResult(null);
-    setAudioOnsetError("");
-    setIsDetectingAudioOnsets(false);
     setRecordingSeconds(0);
     currentRecordingAttemptKeyRef.current = null;
     recordedPracticeAttemptKeyRef.current = null;
@@ -1817,97 +1823,10 @@ export default function PracticePage() {
   };
 
   const handleAnalyzeLocalRecording = async () => {
-    if (!recordedAudioBlob) {
-      setAudioAnalysisError("请先录制一次本地练习，再运行本地音频分析。");
-      return;
-    }
-
-    setAudioAnalysisError("");
-    setAudioAnalysisResult(null);
-    setIsAnalyzingAudio(true);
-
-    const audioAnalysisRunId = audioAnalysisRunIdRef.current + 1;
-    audioAnalysisRunIdRef.current = audioAnalysisRunId;
-
-    let audioContext: AudioContext | null = null;
-
-    try {
-      audioContext = new AudioContext();
-      const audioData = await recordedAudioBlob.arrayBuffer();
-      const audioBuffer = await audioContext.decodeAudioData(audioData);
-      let peakLevel = 0;
-      let squaredSampleSum = 0;
-      let sampleCount = 0;
-
-      for (
-        let channelIndex = 0;
-        channelIndex < audioBuffer.numberOfChannels;
-        channelIndex += 1
-      ) {
-        const channelData = audioBuffer.getChannelData(channelIndex);
-
-        for (
-          let sampleIndex = 0;
-          sampleIndex < channelData.length;
-          sampleIndex += 1
-        ) {
-          const sampleLevel = Math.abs(channelData[sampleIndex]);
-          peakLevel = Math.max(peakLevel, sampleLevel);
-          squaredSampleSum += channelData[sampleIndex] ** 2;
-          sampleCount += 1;
-        }
-      }
-
-      const rmsLevel =
-        sampleCount > 0 ? Math.sqrt(squaredSampleSum / sampleCount) : 0;
-      let simpleLevelHint = "录音电平看起来可用";
-
-      if (peakLevel >= 0.98) {
-        simpleLevelHint = "录音可能削波";
-      } else if (peakLevel < 0.08 || rmsLevel < 0.015) {
-        simpleLevelHint = "录音可能太轻";
-      }
-
-      if (
-        !isMountedRef.current ||
-        audioAnalysisRunId !== audioAnalysisRunIdRef.current
-      ) {
-        return;
-      }
-
-      setAudioAnalysisResult({
-        durationSeconds: audioBuffer.duration,
-        peakLevel,
-        rmsLevel,
-        simpleLevelHint,
-      });
-    } catch {
-      if (
-        isMountedRef.current &&
-        audioAnalysisRunId === audioAnalysisRunIdRef.current
-      ) {
-        setAudioAnalysisError("此浏览器无法完成本地音频分析。");
-      }
-    } finally {
-      if (audioContext) {
-        await audioContext.close().catch(() => undefined);
-      }
-
-      if (
-        isMountedRef.current &&
-        audioAnalysisRunId === audioAnalysisRunIdRef.current
-      ) {
-        setIsAnalyzingAudio(false);
-      }
-    }
+    await recordingAnalysis.analyzeLevel(recordedAudioBlob);
   };
 
   const handleEstimatePitchLocally = async () => {
-    if (!recordedAudioBlob) {
-      setPitchEstimateError("请先录制一次本地练习，再进行本地音高估计。");
-      return;
-    }
-
     const recordingAttemptKey = currentRecordingAttemptKeyRef.current;
     const attemptedMelodyStepIndex = currentMelodyStepIndex;
     const attemptedMelodyStep =
@@ -1915,143 +1834,22 @@ export default function PracticePage() {
     const attemptedImportedSegmentKey = selectedImportedSegmentKey;
     const attemptedNotationTargetKey = notationPracticePitchFeedbackContextKey;
 
-    setPitchEstimateError("");
-    setPitchEstimateResult(null);
-    setPitchEstimateImportedSegmentKey(null);
-    setPitchEstimateNotationTargetKey(null);
-    setIsEstimatingPitch(true);
-
-    const pitchEstimateRunId = pitchEstimateRunIdRef.current + 1;
-    pitchEstimateRunIdRef.current = pitchEstimateRunId;
-    let audioContext: AudioContext | null = null;
-
-    try {
-      audioContext = new AudioContext();
-      const audioData = await recordedAudioBlob.arrayBuffer();
-      const audioBuffer = await audioContext.decodeAudioData(audioData);
-      const result = estimateLocalPitch(audioBuffer);
-
-      if (
-        isMountedRef.current &&
-        pitchEstimateRunId === pitchEstimateRunIdRef.current &&
-        recordingAttemptKey === currentRecordingAttemptKeyRef.current
-      ) {
-        const targetNote = attemptedMelodyStep.targetNote;
-        const targetFrequencyHz = noteFrequencies[targetNote];
-
-        setPitchEstimateResult(result);
-        setPitchEstimateImportedSegmentKey(attemptedImportedSegmentKey);
-        setPitchEstimateNotationTargetKey(attemptedNotationTargetKey);
-
-        if (
-          targetFrequencyHz &&
-          recordedPracticeAttemptKeyRef.current !== recordingAttemptKey
-        ) {
-          const centsFromTarget = calculateCentsFromTarget(
-            result.estimatedFrequencyHz,
-            targetFrequencyHz,
-          );
-          const nextAttemptId = practiceAttemptIdRef.current + 1;
-          practiceAttemptIdRef.current = nextAttemptId;
-          recordedPracticeAttemptKeyRef.current = recordingAttemptKey;
-
-          setPracticeAttempts((currentAttempts) =>
-            [
-              {
-                id: nextAttemptId,
-                label: `Attempt ${nextAttemptId}`,
-                melodyStepId: attemptedMelodyStep.id,
-                melodyStepIndex: attemptedMelodyStepIndex,
-                melodyStepNumber: attemptedMelodyStepIndex + 1,
-                targetNote,
-                nearestNote: result.nearestNote,
-                estimatedFrequencyHz: result.estimatedFrequencyHz,
-                centsFromTarget,
-                confidence: result.confidence,
-                feedbackLabel: getComparisonHint(centsFromTarget).toLowerCase(),
-              },
-              ...currentAttempts,
-            ].slice(0, maxPracticeAttemptHistory),
-          );
-        }
-      }
-    } catch (error) {
-      if (
-        isMountedRef.current &&
-        pitchEstimateRunId === pitchEstimateRunIdRef.current
-      ) {
-        setPitchEstimateError(
-          error instanceof Error
-            ? error.message
-            : "此浏览器无法完成本地音高估计。",
-        );
-      }
-    } finally {
-      if (audioContext) {
-        await audioContext.close().catch(() => undefined);
-      }
-
-      if (
-        isMountedRef.current &&
-        pitchEstimateRunId === pitchEstimateRunIdRef.current
-      ) {
-        setIsEstimatingPitch(false);
-      }
-    }
+    await recordingAnalysis.estimatePitch(recordedAudioBlob, {
+      recordingAttemptKey,
+      attemptHistoryGeneration: practiceAttemptHistoryGenerationRef.current,
+      melodyStepId: attemptedMelodyStep.id,
+      melodyStepIndex: attemptedMelodyStepIndex,
+      targetNote: attemptedMelodyStep.targetNote,
+      importedSegmentKey: attemptedImportedSegmentKey,
+      notationTargetKey: attemptedNotationTargetKey,
+    });
   };
 
   const handleDetectAudioOnsets = async () => {
-    if (!recordedAudioBlob) {
-      setAudioOnsetError(
-        "请先录制一次本地练习，再运行浏览器本地起音检测。",
-      );
-      return;
-    }
-
-    setAudioOnsetError("");
-    setAudioOnsetResult(null);
-    setIsDetectingAudioOnsets(true);
-
-    const audioOnsetRunId = audioOnsetRunIdRef.current + 1;
-    audioOnsetRunIdRef.current = audioOnsetRunId;
-    let audioContext: AudioContext | null = null;
-
-    try {
-      audioContext = new AudioContext();
-      const audioData = await recordedAudioBlob.arrayBuffer();
-      const audioBuffer = await audioContext.decodeAudioData(audioData);
-      const channelData = audioBuffer.getChannelData(0);
-      const result = detectAudioOnsets(channelData, audioBuffer.sampleRate, {
-        sensitivityPreset: audioOnsetSensitivityPreset,
-      });
-
-      if (
-        isMountedRef.current &&
-        audioOnsetRunId === audioOnsetRunIdRef.current
-      ) {
-        setAudioOnsetResult(result);
-      }
-    } catch {
-      if (
-        isMountedRef.current &&
-        audioOnsetRunId === audioOnsetRunIdRef.current
-      ) {
-        setAudioOnsetError(
-          "此浏览器无法完成本地起音检测。音频不会上传，也不会调用 AI。",
-        );
-      }
-    } finally {
-      if (audioContext) {
-        await audioContext.close().catch(() => undefined);
-      }
-
-      if (
-        isMountedRef.current &&
-        audioOnsetRunId === audioOnsetRunIdRef.current
-      ) {
-        setIsDetectingAudioOnsets(false);
-      }
-    }
+    await recordingAnalysis.detectOnsets(
+      recordedAudioBlob,
+      audioOnsetSensitivityPreset,
+    );
   };
 
   const handlePlayRecordedAttempt = () => {
@@ -2123,25 +1921,16 @@ export default function PracticePage() {
   };
 
   const handleClearPracticeAttempts = () => {
+    practiceAttemptHistoryGenerationRef.current += 1;
     setPracticeAttempts([]);
     recordedPracticeAttemptKeyRef.current = null;
   };
 
   const handleClearRecording = () => {
-    invalidateLocalAudioAsyncWork();
+    recordingAnalysis.clear();
     localRecording.clear();
     currentRecordingAttemptKeyRef.current = null;
     recordedPracticeAttemptKeyRef.current = null;
-    setAudioAnalysisError("");
-    setAudioAnalysisResult(null);
-    setIsAnalyzingAudio(false);
-    setPitchEstimateResult(null);
-    setPitchEstimateImportedSegmentKey(null);
-    setPitchEstimateError("");
-    setIsEstimatingPitch(false);
-    setAudioOnsetResult(null);
-    setAudioOnsetError("");
-    setIsDetectingAudioOnsets(false);
     setRecordingSeconds(0);
   };
 

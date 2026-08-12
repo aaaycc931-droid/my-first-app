@@ -96,7 +96,7 @@ require 依赖，并阻止其反向引用 `app/`、`components/` 或 `mobile/src
 
 | 热点 | 当前混合职责 | 重构前目标边界 |
 | --- | --- | --- |
-| `app/practice/page.tsx` | 页面、活动会话、计时器、音频分析和反馈编排；本地录音及目标旋律／单音播放已由 controllers／ports 承接 | 继续提取 practice controller、其余计时 adapter 和语义化页面状态 |
+| `app/practice/page.tsx` | 页面、活动会话、计时器和反馈编排；本地录音、录音解码／质量／音高／起音分析及目标旋律／单音播放已由 controllers／ports 承接 | 继续提取 practice controller、其余计时 adapter 和语义化页面状态 |
 | `mobile/src/LocalScoreProjectPanel.tsx` | 编辑 UI、项目存储、MusicXML/MXL 候选、确认和下载 | 提取 score-project controller、exchange use-case 与 file adapter |
 | `mobile/src/App.tsx` | 导航、生命周期和学习流程编排；课程进度、学习画像与复练队列已分别注入 repository | 提取 app shell、navigation state 与 learning controller |
 | `app/recognize/page.tsx` | 文件校验、识别结果和文件选择／导入编排已由可注入 recognition workflow controller／薄 React hook 承接；API 请求和 preview URL 也分别由 client／preview adapter 承接 | 继续提取播放调度及其余页面职责；不得把 fetch／FormData 放回页面 |
@@ -118,8 +118,13 @@ require 依赖，并阻止其反向引用 `app/`、`components/` 或 `mobile/src
 练习页本地录音 controller 边界见
 `docs/practice-local-recording-controller-acceptance.md`。该切片只承接 `/practice` 旧本地
 录音原型的权限请求、MediaRecorder、Blob 按钮回放、generation 与迟到结果 cleanup，
-保留音频质量分析、音高估计、起音检测、练习 attempt 和原生音频预览的既有用户流程；
-它不表示页面其余 timer／analysis 编排或最终 UI 已完成抽离。
+保留音频质量分析、音高估计、起音检测、练习 attempt 和原生音频预览的既有用户流程。
+
+其后的录音解码与分析 controller 边界见
+`docs/practice-recording-analysis-controller-acceptance.md`。该切片承接上述三种主动分析的
+浏览器 decode port、独立 latest-wins 状态、来源／目标 identity 与迟到结果 cleanup，保留
+既有算法、阈值、非评分文案、practice attempt 和起音预设语义；它不包含本地旋律导入的
+独立解码，也不表示页面其余 timer／反馈编排或最终 UI 已完成抽离。
 
 练习目标音播放 controller 边界见
 `docs/practice-target-playback-controller-acceptance.md`。该切片只承接 `/practice` 固定目标
