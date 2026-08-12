@@ -112,6 +112,7 @@ jobs:
           npm run test:practice-local-recording-controller
           npm run test:practice-recording-analysis-controller
           npm run test:local-melody-guide-decode-controller
+          npm run test:practice-rhythm-runtime-controller
           npm run test:realtime-pitch-input
           npm run test:realtime-pitch-monitor-controller
           npm run test:mobile-lifecycle

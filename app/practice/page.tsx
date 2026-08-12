@@ -29,7 +29,6 @@ import {
   getRelativeNotationRhythmTapOnsetMs,
 } from "../../lib/activity/notationRhythmActivityAdapter";
 import {
-  createRhythmTargetPattern,
   getRhythmTapFeedback,
   rhythmCloseToleranceMs,
   rhythmMatchWindowMs,
@@ -37,7 +36,6 @@ import {
   rhythmTargetPatternTapGuidance,
   type RhythmPracticePhase,
   type RhythmTargetPattern,
-  type RhythmTapEvent,
   type RhythmTargetEvent,
 } from "../../lib/rhythm/rhythmTapFeedback";
 import {
@@ -73,7 +71,12 @@ import { useLocalRecordingController } from "../../components/practice/useLocalR
 import { useLocalMelodyGuideDecodeController } from "../../components/practice/useLocalMelodyGuideDecodeController";
 import { usePracticeTargetPlaybackController } from "../../components/practice/usePracticeTargetPlaybackController";
 import { usePracticeRecordingAnalysisController } from "../../components/practice/usePracticeRecordingAnalysisController";
+import { usePracticeRhythmRuntimeController } from "../../components/practice/usePracticeRhythmRuntimeController";
 import { canAppendPracticeRecordingPitchAttempt } from "../../lib/practice/practiceRecordingAnalysisController";
+import {
+  createNotationRhythmRunPlan,
+  createPatternRhythmRunPlan,
+} from "../../lib/practice/practiceRhythmRuntimeController";
 import { browserFileDownloadPort } from "../../lib/platform/browserFileDownload";
 import { indexedDbLocalVocalPracticeRecordRepository } from "../../lib/platform/indexedDbLocalVocalPracticeRecordRepository";
 import { LocalTargetPitchCurveDraftPanel } from "../../components/practice/LocalTargetPitchCurveDraftPanel";
@@ -115,10 +118,6 @@ import {
   getNonScoringNotationTargetPitchFeedback,
   getNotationTargetPitchFrequencyHz,
 } from "../../lib/practice/nonScoringNotationTargetPitchFeedback";
-import {
-  createNotationTemporaryRhythmTapTargets,
-  getNotationTemporaryRhythmTotalBeats,
-} from "../../lib/practice/notationTemporaryRhythmTap";
 import {
   createLocalTargetPitchCurveDraft,
   type LocalTargetPitchCurveDraft,
@@ -435,13 +434,16 @@ export default function PracticePage() {
   const [metronomeBeat, setMetronomeBeat] =
     useState<MetronomeBeatMetadata | null>(null);
   const [metronomeError, setMetronomeError] = useState("");
-  const [rhythmPhase, setRhythmPhase] = useState<RhythmPracticePhase>("idle");
   const [rhythmTargetPattern, setRhythmTargetPattern] =
     useState<RhythmTargetPattern>("quarter-note-pulse");
-  const [rhythmTargets, setRhythmTargets] = useState<RhythmTargetEvent[]>([]);
-  const [rhythmTaps, setRhythmTaps] = useState<RhythmTapEvent[]>([]);
-  const [rhythmNowMs, setRhythmNowMs] = useState(0);
-  const [rhythmError, setRhythmError] = useState("");
+  const rhythmRuntime = usePracticeRhythmRuntimeController();
+  const rhythmPhase = rhythmRuntime.phase;
+  const rhythmTargets = rhythmRuntime.targets;
+  const rhythmTaps = rhythmRuntime.taps;
+  const rhythmNowMs = rhythmRuntime.nowMs;
+  const rhythmError = rhythmRuntime.error;
+  const cancelRhythmRuntime = rhythmRuntime.cancel;
+  const recordRhythmTap = rhythmRuntime.tap;
   const [latencyCalibrationPhase, setLatencyCalibrationPhase] =
     useState<RhythmPracticePhase>("idle");
   const [latencyCalibrationTargets, setLatencyCalibrationTargets] = useState<
@@ -523,8 +525,6 @@ export default function PracticePage() {
   ] = useState<LocalReviewedDraftPracticeTarget | null>(null);
   const metronomeSchedulerRef = useRef<BrowserMetronomeScheduler | null>(null);
   const metronomeSchedulerGenerationRef = useRef(0);
-  const rhythmSchedulerRef = useRef<BrowserMetronomeScheduler | null>(null);
-  const rhythmSchedulerGenerationRef = useRef(0);
   const recordingTimerIdRef = useRef<number | null>(null);
   const isMountedRef = useRef(true);
   const practiceAttemptIdRef = useRef(0);
@@ -532,9 +532,6 @@ export default function PracticePage() {
   const recordingAttemptKeyCounterRef = useRef(0);
   const currentRecordingAttemptKeyRef = useRef<number | null>(null);
   const recordedPracticeAttemptKeyRef = useRef<number | null>(null);
-  const rhythmTapIdRef = useRef(0);
-  const rhythmTimeoutIdsRef = useRef<number[]>([]);
-  const rhythmTimerIdRef = useRef<number | null>(null);
   const latencyCalibrationSchedulerRef =
     useRef<BrowserMetronomeScheduler | null>(null);
   const latencyCalibrationSchedulerGenerationRef = useRef(0);
@@ -639,14 +636,14 @@ export default function PracticePage() {
       return;
     }
 
-    stopRhythmPracticeRuntime();
+    cancelRhythmRuntime();
     setNotationRhythmTapPracticeContext(null);
     setNotationRhythmActivitySession(null);
-    setRhythmPhase("idle");
-    setRhythmTargets([]);
-    setRhythmTaps([]);
-    setRhythmNowMs(0);
-  }, [notationTemporaryPracticeTarget, notationRhythmTapPracticeContext]);
+  }, [
+    cancelRhythmRuntime,
+    notationTemporaryPracticeTarget,
+    notationRhythmTapPracticeContext,
+  ]);
 
   const notationRhythmActivityDefinition = useMemo(() => {
     const target = notationTemporaryPracticeTarget;
@@ -970,20 +967,6 @@ export default function PracticePage() {
     }
   };
 
-  const stopRhythmPracticeRuntime = () => {
-    rhythmSchedulerGenerationRef.current += 1;
-    rhythmSchedulerRef.current?.stop();
-    rhythmSchedulerRef.current = null;
-    rhythmTimeoutIdsRef.current.forEach((timeoutId) => {
-      window.clearTimeout(timeoutId);
-    });
-    rhythmTimeoutIdsRef.current = [];
-    if (rhythmTimerIdRef.current !== null) {
-      window.clearInterval(rhythmTimerIdRef.current);
-      rhythmTimerIdRef.current = null;
-    }
-  };
-
   const stopLatencyCalibrationRuntime = () => {
     latencyCalibrationSchedulerGenerationRef.current += 1;
     latencyCalibrationSchedulerRef.current?.stop();
@@ -1124,7 +1107,6 @@ export default function PracticePage() {
     return () => {
       isMountedRef.current = false;
       stopMetronome();
-      stopRhythmPracticeRuntime();
       stopLatencyCalibrationRuntime();
       stopRecordingTimer();
     };
@@ -1176,12 +1158,7 @@ export default function PracticePage() {
   };
 
   const resetRhythmPracticeRuntimeState = () => {
-    stopRhythmPracticeRuntime();
-    setRhythmPhase("idle");
-    setRhythmTargets([]);
-    setRhythmTaps([]);
-    setRhythmNowMs(0);
-    setRhythmError("");
+    rhythmRuntime.reset();
   };
 
   const handleResetRhythmPractice = () => {
@@ -1206,9 +1183,7 @@ export default function PracticePage() {
   };
 
   const handleStopRhythmPractice = () => {
-    stopRhythmPracticeRuntime();
-    setRhythmPhase("stopped");
-    setRhythmNowMs(performance.now());
+    rhythmRuntime.stop();
   };
 
   const handleStartRhythmPractice = async () => {
@@ -1216,14 +1191,8 @@ export default function PracticePage() {
     setNotationRhythmActivitySession(null);
     resetRhythmPracticeRuntimeState();
 
-    const beatsPerBar = getBeatsPerBar(metronomeMeter);
-    const beatDurationMs = (60 / metronomeBpm) * 1000;
-    const countInBeatCount = metronomeCountInBars * beatsPerBar;
-    const startDelayMs = 80;
     const nowMs = performance.now();
-    const practiceStartTimeMs =
-      nowMs + startDelayMs + countInBeatCount * beatDurationMs;
-    const targets = createRhythmTargetPattern({
+    const plan = createPatternRhythmRunPlan({
       config: {
         bpm: metronomeBpm,
         meter: metronomeMeter,
@@ -1233,95 +1202,13 @@ export default function PracticePage() {
         },
         subdivision: metronomeSubdivision,
       },
-      practiceStartTimeMs,
       barCount: rhythmPracticeBarCount,
       pattern: rhythmTargetPattern,
-    });
-    const practiceDurationMs =
-      rhythmPracticeBarCount * beatsPerBar * beatDurationMs +
-      rhythmMatchWindowMs +
-      120;
-    const scheduler = new BrowserMetronomeScheduler({
-      config: {
-        bpm: metronomeBpm,
-        meter: metronomeMeter,
-        countIn: {
-          enabled: metronomeCountInBars > 0,
-          bars: metronomeCountInBars,
-        },
-        subdivision: metronomeSubdivision,
-      },
-    });
-    const schedulerGeneration =
-      rhythmSchedulerGenerationRef.current + 1;
-    rhythmSchedulerGenerationRef.current = schedulerGeneration;
-    rhythmSchedulerRef.current = scheduler;
-    const isCurrentScheduler = () =>
-      isMountedRef.current &&
-      rhythmSchedulerGenerationRef.current === schedulerGeneration &&
-      rhythmSchedulerRef.current === scheduler;
-
-    setRhythmTargets(targets);
-    setRhythmTaps([]);
-    setRhythmNowMs(nowMs);
-    setRhythmPhase(countInBeatCount > 0 ? "count-in" : "practice");
-    setRhythmError("");
-
-    rhythmTimerIdRef.current = window.setInterval(() => {
-      if (!isCurrentScheduler()) return;
-      setRhythmNowMs(performance.now());
-    }, 60);
-
-    if (countInBeatCount > 0) {
-      rhythmTimeoutIdsRef.current.push(
-        window.setTimeout(
-          () => {
-            if (!isCurrentScheduler()) return;
-            setRhythmPhase("practice");
-          },
-          Math.max(0, practiceStartTimeMs - performance.now()),
-        ),
-      );
-    }
-
-    rhythmTimeoutIdsRef.current.push(
-      window.setTimeout(
-        () => {
-          if (!isCurrentScheduler()) return;
-          stopRhythmPracticeRuntime();
-          setRhythmPhase("stopped");
-          setRhythmNowMs(performance.now());
-        },
-        Math.max(0, practiceStartTimeMs - nowMs + practiceDurationMs),
-      ),
-    );
-
-    try {
-      const started = await scheduler.start();
-      if (!started) {
-        if (isCurrentScheduler()) {
-          stopRhythmPracticeRuntime();
-          setRhythmPhase("idle");
-        } else {
-          scheduler.stop();
-        }
-        return;
-      }
-      if (!isCurrentScheduler()) {
-        scheduler.stop();
-        return;
-      }
-    } catch {
-      if (!isCurrentScheduler()) {
-        scheduler.stop();
-        return;
-      }
-      stopRhythmPracticeRuntime();
-      setRhythmPhase("idle");
-      setRhythmError(
+      nowMs,
+      startError:
         "此浏览器无法启动节奏练习节拍器；请确认在用户手势中点击开始。",
-      );
-    }
+    });
+    await rhythmRuntime.start(plan);
   };
 
   const handleStartNotationRhythmPractice = async (
@@ -1334,54 +1221,37 @@ export default function PracticePage() {
     resetRhythmPracticeRuntimeState();
 
     const targetEventCount = target.events.filter((event) => event.type === "note").length;
-    if (targetEventCount === 0) {
+    const meter = target.timeSignature as MetronomeMeter;
+    const planResult = createNotationRhythmRunPlan({
+      config: {
+        bpm: metronomeBpm,
+        meter,
+        countIn: { enabled: metronomeCountInBars > 0, bars: metronomeCountInBars },
+        subdivision: metronomeSubdivision,
+      },
+      target,
+      nowMs: performance.now(),
+      startError:
+        "此浏览器无法启动临时节奏目标的节拍器；请确认在用户手势中点击开始。",
+      emptyTargetError: "当前临时节奏目标没有需要拍击的音符事件。",
+    });
+    if (!planResult.ok) {
       setNotationRhythmTapPracticeContext(null);
-      setRhythmError("当前临时节奏目标没有需要拍击的音符事件。");
+      rhythmRuntime.rejectStart(planResult.error);
       return;
     }
-
-    const meter = target.timeSignature as MetronomeMeter;
-    const beatsPerBar = getBeatsPerBar(meter);
-    const beatDurationMs = (60 / metronomeBpm) * 1000;
-    const countInBeatCount = metronomeCountInBars * beatsPerBar;
-    const nowMs = performance.now();
-    const practiceStartTimeMs = nowMs + 80 + countInBeatCount * beatDurationMs;
-    const config = {
-      bpm: metronomeBpm,
-      meter,
-      countIn: { enabled: metronomeCountInBars > 0, bars: metronomeCountInBars },
-      subdivision: metronomeSubdivision,
-    } as const;
-    const targets = createNotationTemporaryRhythmTapTargets({
-      draft: target,
-      config,
-      practiceStartTimeMs,
-    });
-    const practiceDurationMs =
-      getNotationTemporaryRhythmTotalBeats(target.events) * beatDurationMs +
-      rhythmMatchWindowMs +
-      120;
+    const plan = planResult.plan;
     const activityDefinition = createNotationRhythmActivityDefinition({
       target,
       bpm: metronomeBpm,
     });
-    const scheduler = new BrowserMetronomeScheduler({ config });
-    const schedulerGeneration =
-      rhythmSchedulerGenerationRef.current + 1;
-    rhythmSchedulerGenerationRef.current = schedulerGeneration;
-    rhythmSchedulerRef.current = scheduler;
-    const isCurrentScheduler = () =>
-      isMountedRef.current &&
-      rhythmSchedulerGenerationRef.current === schedulerGeneration &&
-      rhythmSchedulerRef.current === scheduler;
-
     setMetronomeMeter(meter);
     setNotationRhythmTapPracticeContext({
       targetId: target.id,
       draftFingerprint: target.draftFingerprint,
       targetEventCount,
       bpm: metronomeBpm,
-      practiceStartTimeMs,
+      practiceStartTimeMs: plan.practiceStartTimeMs,
     });
     setNotationRhythmActivitySession((currentSession) => {
       if (
@@ -1402,72 +1272,13 @@ export default function PracticePage() {
       }
       return currentSession;
     });
-    setRhythmTargets(targets);
-    setRhythmTaps([]);
-    setRhythmNowMs(nowMs);
-    setRhythmPhase(countInBeatCount > 0 ? "count-in" : "practice");
-    setRhythmError("");
-
-    rhythmTimerIdRef.current = window.setInterval(() => {
-      if (!isCurrentScheduler()) return;
-      setRhythmNowMs(performance.now());
-    }, 60);
-
-    if (countInBeatCount > 0) {
-      rhythmTimeoutIdsRef.current.push(
-        window.setTimeout(() => {
-          if (!isCurrentScheduler()) return;
-          setRhythmPhase("practice");
-        }, Math.max(0, practiceStartTimeMs - performance.now())),
-      );
-    }
-
-    rhythmTimeoutIdsRef.current.push(
-      window.setTimeout(() => {
-        if (!isCurrentScheduler()) return;
-        stopRhythmPracticeRuntime();
-        setRhythmPhase("stopped");
-        setRhythmNowMs(performance.now());
-      }, Math.max(0, practiceStartTimeMs - nowMs + practiceDurationMs)),
-    );
-
-    try {
-      const started = await scheduler.start();
-      if (!started) {
-        if (isCurrentScheduler()) {
-          stopRhythmPracticeRuntime();
-          setRhythmPhase("idle");
-        } else {
-          scheduler.stop();
-        }
-        return;
-      }
-      if (!isCurrentScheduler()) {
-        scheduler.stop();
-        return;
-      }
-    } catch {
-      if (!isCurrentScheduler()) {
-        scheduler.stop();
-        return;
-      }
-      stopRhythmPracticeRuntime();
-      setRhythmPhase("idle");
-      setRhythmError("此浏览器无法启动临时节奏目标的节拍器；请确认在用户手势中点击开始。");
-    }
+    await rhythmRuntime.start(plan);
   };
 
   const handleRhythmTap = useCallback(() => {
-    const timestampMs = performance.now();
-    if (rhythmPhase !== "practice") {
-      return;
-    }
-    const nextTapId = rhythmTapIdRef.current + 1;
-    rhythmTapIdRef.current = nextTapId;
-    setRhythmTaps((currentTaps) => [
-      ...currentTaps,
-      { id: nextTapId, timestampMs, phase: "practice" },
-    ]);
+    const tap = recordRhythmTap();
+    if (!tap) return;
+    const timestampMs = tap.timestampMs;
     if (
       notationRhythmActivityDefinition &&
       typeof notationRhythmTapPracticeContext?.practiceStartTimeMs === "number"
@@ -1496,11 +1307,10 @@ export default function PracticePage() {
         );
       });
     }
-    setRhythmNowMs(timestampMs);
   }, [
     notationRhythmActivityDefinition,
     notationRhythmTapPracticeContext,
-    rhythmPhase,
+    recordRhythmTap,
   ]);
 
   const handleResetLatencyCalibration = () => {
