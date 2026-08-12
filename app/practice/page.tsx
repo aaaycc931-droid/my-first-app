@@ -34,14 +34,10 @@ import {
   rhythmMatchWindowMs,
   rhythmTargetPatternLabels,
   rhythmTargetPatternTapGuidance,
-  type RhythmPracticePhase,
   type RhythmTargetPattern,
-  type RhythmTargetEvent,
 } from "../../lib/rhythm/rhythmTapFeedback";
 import {
-  createRhythmLatencyCalibrationTargets,
   getRhythmLatencyCalibration,
-  type RhythmLatencyCalibrationTap,
 } from "../../lib/rhythm/rhythmLatencyCalibration";
 import {
   audioOnsetSensitivityPresets,
@@ -52,10 +48,7 @@ import {
   getAudioOnsetRhythmMarkerDensitySummary,
   type AudioOnsetRhythmAlignmentMode,
 } from "../../lib/rhythm/audioOnsetRhythmFeedback";
-import {
-  getBeatsPerBar,
-  type MetronomeBeatMetadata,
-} from "../../lib/metronome/metronomeGrid";
+import type { MetronomeBeatMetadata } from "../../lib/metronome/metronomeGrid";
 
 type EarTrainingExerciseMode = "单音" | "音程" | "节奏" | "旋律听写";
 
@@ -444,16 +437,13 @@ export default function PracticePage() {
   const rhythmError = rhythmRuntime.error;
   const cancelRhythmRuntime = rhythmRuntime.cancel;
   const recordRhythmTap = rhythmRuntime.tap;
-  const [latencyCalibrationPhase, setLatencyCalibrationPhase] =
-    useState<RhythmPracticePhase>("idle");
-  const [latencyCalibrationTargets, setLatencyCalibrationTargets] = useState<
-    RhythmTargetEvent[]
-  >([]);
-  const [latencyCalibrationTaps, setLatencyCalibrationTaps] = useState<
-    RhythmLatencyCalibrationTap[]
-  >([]);
-  const [latencyCalibrationNowMs, setLatencyCalibrationNowMs] = useState(0);
-  const [latencyCalibrationError, setLatencyCalibrationError] = useState("");
+  const latencyCalibrationRuntime = usePracticeRhythmRuntimeController();
+  const latencyCalibrationPhase = latencyCalibrationRuntime.phase;
+  const latencyCalibrationTargets = latencyCalibrationRuntime.targets;
+  const latencyCalibrationTaps = latencyCalibrationRuntime.taps;
+  const latencyCalibrationNowMs = latencyCalibrationRuntime.nowMs;
+  const latencyCalibrationError = latencyCalibrationRuntime.error;
+  const recordLatencyCalibrationTap = latencyCalibrationRuntime.tap;
   const [applyLatencyCalibration, setApplyLatencyCalibration] = useState(false);
   const [hasMockFeedback, setHasMockFeedback] = useState(false);
   const targetPlayback = usePracticeTargetPlaybackController();
@@ -532,12 +522,6 @@ export default function PracticePage() {
   const recordingAttemptKeyCounterRef = useRef(0);
   const currentRecordingAttemptKeyRef = useRef<number | null>(null);
   const recordedPracticeAttemptKeyRef = useRef<number | null>(null);
-  const latencyCalibrationSchedulerRef =
-    useRef<BrowserMetronomeScheduler | null>(null);
-  const latencyCalibrationSchedulerGenerationRef = useRef(0);
-  const latencyCalibrationTimeoutIdsRef = useRef<number[]>([]);
-  const latencyCalibrationTimerIdRef = useRef<number | null>(null);
-  const latencyCalibrationTapIdRef = useRef(0);
   const localMelodyGuideInputRef = useRef<HTMLInputElement | null>(null);
 
   const localTargetPitchCurveDraftSelectedDiagnostics = useMemo(
@@ -967,20 +951,6 @@ export default function PracticePage() {
     }
   };
 
-  const stopLatencyCalibrationRuntime = () => {
-    latencyCalibrationSchedulerGenerationRef.current += 1;
-    latencyCalibrationSchedulerRef.current?.stop();
-    latencyCalibrationSchedulerRef.current = null;
-    latencyCalibrationTimeoutIdsRef.current.forEach((timeoutId) => {
-      window.clearTimeout(timeoutId);
-    });
-    latencyCalibrationTimeoutIdsRef.current = [];
-    if (latencyCalibrationTimerIdRef.current !== null) {
-      window.clearInterval(latencyCalibrationTimerIdRef.current);
-      latencyCalibrationTimerIdRef.current = null;
-    }
-  };
-
   const stopMetronome = () => {
     metronomeSchedulerGenerationRef.current += 1;
     metronomeSchedulerRef.current?.stop();
@@ -1107,7 +1077,6 @@ export default function PracticePage() {
     return () => {
       isMountedRef.current = false;
       stopMetronome();
-      stopLatencyCalibrationRuntime();
       stopRecordingTimer();
     };
   }, []);
@@ -1314,32 +1283,19 @@ export default function PracticePage() {
   ]);
 
   const handleResetLatencyCalibration = () => {
-    stopLatencyCalibrationRuntime();
-    setLatencyCalibrationPhase("idle");
-    setLatencyCalibrationTargets([]);
-    setLatencyCalibrationTaps([]);
-    setLatencyCalibrationNowMs(0);
-    setLatencyCalibrationError("");
+    latencyCalibrationRuntime.reset();
     setApplyLatencyCalibration(false);
   };
 
   const handleStopLatencyCalibration = () => {
-    stopLatencyCalibrationRuntime();
-    setLatencyCalibrationPhase("stopped");
-    setLatencyCalibrationNowMs(performance.now());
+    latencyCalibrationRuntime.stop();
   };
 
   const handleStartLatencyCalibration = async () => {
     handleResetLatencyCalibration();
 
-    const beatsPerBar = getBeatsPerBar(metronomeMeter);
-    const beatDurationMs = (60 / metronomeBpm) * 1000;
-    const countInBeatCount = metronomeCountInBars * beatsPerBar;
-    const startDelayMs = 80;
     const nowMs = performance.now();
-    const calibrationStartTimeMs =
-      nowMs + startDelayMs + countInBeatCount * beatDurationMs;
-    const targets = createRhythmLatencyCalibrationTargets({
+    const plan = createPatternRhythmRunPlan({
       config: {
         bpm: metronomeBpm,
         meter: metronomeMeter,
@@ -1349,108 +1305,18 @@ export default function PracticePage() {
         },
         subdivision: metronomeSubdivision,
       },
-      calibrationStartTimeMs,
       barCount: rhythmLatencyCalibrationBarCount,
-    });
-    const calibrationDurationMs =
-      rhythmLatencyCalibrationBarCount * beatsPerBar * beatDurationMs +
-      rhythmMatchWindowMs +
-      120;
-    const scheduler = new BrowserMetronomeScheduler({
-      config: {
-        bpm: metronomeBpm,
-        meter: metronomeMeter,
-        countIn: {
-          enabled: metronomeCountInBars > 0,
-          bars: metronomeCountInBars,
-        },
-        subdivision: metronomeSubdivision,
-      },
-    });
-    const schedulerGeneration =
-      latencyCalibrationSchedulerGenerationRef.current + 1;
-    latencyCalibrationSchedulerGenerationRef.current = schedulerGeneration;
-    latencyCalibrationSchedulerRef.current = scheduler;
-    const isCurrentScheduler = () =>
-      isMountedRef.current &&
-      latencyCalibrationSchedulerGenerationRef.current ===
-        schedulerGeneration &&
-      latencyCalibrationSchedulerRef.current === scheduler;
-
-    setLatencyCalibrationTargets(targets);
-    setLatencyCalibrationTaps([]);
-    setLatencyCalibrationNowMs(nowMs);
-    setLatencyCalibrationPhase(countInBeatCount > 0 ? "count-in" : "practice");
-    setLatencyCalibrationError("");
-
-    latencyCalibrationTimerIdRef.current = window.setInterval(() => {
-      if (!isCurrentScheduler()) return;
-      setLatencyCalibrationNowMs(performance.now());
-    }, 60);
-
-    if (countInBeatCount > 0) {
-      latencyCalibrationTimeoutIdsRef.current.push(
-        window.setTimeout(
-          () => {
-            if (!isCurrentScheduler()) return;
-            setLatencyCalibrationPhase("practice");
-          },
-          Math.max(0, calibrationStartTimeMs - performance.now()),
-        ),
-      );
-    }
-
-    latencyCalibrationTimeoutIdsRef.current.push(
-      window.setTimeout(
-        () => {
-          if (!isCurrentScheduler()) return;
-          stopLatencyCalibrationRuntime();
-          setLatencyCalibrationPhase("stopped");
-          setLatencyCalibrationNowMs(performance.now());
-        },
-        Math.max(0, calibrationStartTimeMs - nowMs + calibrationDurationMs),
-      ),
-    );
-
-    try {
-      const started = await scheduler.start();
-      if (!started) {
-        if (isCurrentScheduler()) {
-          stopLatencyCalibrationRuntime();
-          setLatencyCalibrationPhase("idle");
-        } else {
-          scheduler.stop();
-        }
-        return;
-      }
-      if (!isCurrentScheduler()) {
-        scheduler.stop();
-        return;
-      }
-    } catch {
-      if (!isCurrentScheduler()) {
-        scheduler.stop();
-        return;
-      }
-      stopLatencyCalibrationRuntime();
-      setLatencyCalibrationPhase("idle");
-      setLatencyCalibrationError(
+      pattern: "quarter-note-pulse",
+      nowMs,
+      startError:
         "此浏览器无法启动校准点击；请确认在用户手势中点击开始。",
-      );
-    }
+    });
+    await latencyCalibrationRuntime.start(plan);
   };
 
   const handleLatencyCalibrationTap = useCallback(() => {
-    const timestampMs = performance.now();
-    if (latencyCalibrationPhase !== "practice") return;
-    const nextTapId = latencyCalibrationTapIdRef.current + 1;
-    latencyCalibrationTapIdRef.current = nextTapId;
-    setLatencyCalibrationTaps((currentTaps) => [
-      ...currentTaps,
-      { id: nextTapId, timestampMs },
-    ]);
-    setLatencyCalibrationNowMs(timestampMs);
-  }, [latencyCalibrationPhase]);
+    recordLatencyCalibrationTap();
+  }, [recordLatencyCalibrationTap]);
 
   const handleStartMetronome = async () => {
     stopMetronome();

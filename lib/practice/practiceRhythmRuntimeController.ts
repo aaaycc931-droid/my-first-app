@@ -333,7 +333,11 @@ export const createPracticeRhythmRuntimeController = (
       timestampMs: port.now(),
       phase: "practice",
     };
-    publish({ ...snapshot, taps: [...snapshot.taps, event] });
+    publish({
+      ...snapshot,
+      taps: [...snapshot.taps, event],
+      nowMs: event.timestampMs,
+    });
     return event;
   };
 
