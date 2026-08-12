@@ -73,6 +73,7 @@ import {
   type ScreenPianoActivityProducer,
 } from "../../lib/activity/pianoNoteEventActivityAdapter";
 import type { NoteEventV1 } from "../../lib/music/noteEvent";
+import type { PianoPlaybackRuntimeEvent } from "../../lib/piano/pianoPlaybackRuntimeController";
 import { midiPointerToken } from "../../lib/piano/pianoMidi";
 import {
   useLocalPianoAudio,
@@ -81,6 +82,7 @@ import {
 import { LocalPianoLearningPanel } from "./LocalPianoLearningPanel";
 import { PianoActivityProtocolPanel } from "./PianoActivityProtocolPanel";
 import { AndroidUsbMidiActivityPanel } from "./AndroidUsbMidiActivityPanel";
+import { usePianoPlaybackRuntimeController } from "./usePianoPlaybackRuntimeController";
 
 const rangeLabels: Record<LocalPianoRangeId, string> = {
   "C3-C4": "低音区：C3 到 C4",
@@ -169,8 +171,7 @@ export function LocalPianoPanel({
   const [selectedPerformanceId, setSelectedPerformanceId] = useState<string | null>(initialPerformanceLibrary.items[0]?.id ?? null);
   const [isRecording, setIsRecording] = useState(false);
   const recorderRef = useRef<PianoPerformanceRecorder | null>(null);
-  const [isPlaying, setIsPlaying] = useState(false);
-  const playbackTimersRef = useRef<number[]>([]);
+  const playbackCancelRef = useRef<() => void>(() => undefined);
   const [playbackRate, setPlaybackRate] = useState<PianoPlaybackRate>(1);
   const [voiceFilter, setVoiceFilter] = useState<PianoPlaybackVoiceFilter>("all");
   const [loopEnabled, setLoopEnabled] = useState(false);
@@ -204,9 +205,7 @@ export function LocalPianoPanel({
   }, []);
 
   const handleExternalAudioStop = useCallback(() => {
-    playbackTimersRef.current.forEach((timer) => window.clearTimeout(timer));
-    playbackTimersRef.current = [];
-    setIsPlaying(false);
+    playbackCancelRef.current();
     stopMetronome();
     if (recorderRef.current) {
       recorderRef.current = null;
@@ -272,6 +271,17 @@ export function LocalPianoPanel({
     sustainRef.current = setSustainEnabled;
     stopAllRef.current = stopAll;
   }, [pressKey, releasePointer, setSustainEnabled, stopAll]);
+  const playback = usePianoPlaybackRuntimeController({
+    pressKey: (...args) => pressKeyRef.current(...args),
+    releasePointer: (...args) => releasePointerRef.current(...args),
+    setSustain: (...args) => sustainRef.current(...args),
+    stopAll: () => stopAllRef.current(),
+  });
+  const isPlaying = playback.status === "playing";
+
+  useEffect(() => {
+    playbackCancelRef.current = playback.cancel;
+  }, [playback.cancel]);
 
   useEffect(() => {
     metronomeRef.current?.updateConfig({ bpm: metronomeBpm, meter: "4/4" });
@@ -291,15 +301,10 @@ export function LocalPianoPanel({
     }
   };
 
-  const stopPlayback = useCallback(() => {
-    playbackTimersRef.current.forEach((timer) => window.clearTimeout(timer));
-    playbackTimersRef.current = [];
-    setIsPlaying(false);
-    stopAllRef.current();
-  }, []);
+  const stopPlayback = playback.stop;
 
   const startPlayback = (performanceItem: PianoPerformance) => {
-    stopPlayback();
+    if (!stopPlayback()) return;
     if (transpose !== performanceItem.transpose) setTranspose(performanceItem.transpose);
     const fromMs = loopEnabled ? loopFromSeconds * 1_000 : 0;
     const toMs = loopEnabled ? loopToSeconds * 1_000 : performanceItem.durationMs;
@@ -321,42 +326,40 @@ export function LocalPianoPanel({
       voiceFilter,
     });
     const baseDelay = transpose === performanceItem.transpose ? 0 : 60;
-    setIsPlaying(true);
-    let cycleIndex = 0;
-    const runCycle = () => {
-      const cycleBaseDelay = cycleIndex === 0 ? baseDelay : 0;
-      cycleIndex += 1;
-      playbackTimersRef.current = [];
-      schedule.forEach((event, index) => {
-        const timer = window.setTimeout(() => {
-          if (event.type === "note-on") {
-            pressKeyRef.current(`playback-${event.keyId}`, event.keyId, event.velocity ?? 0.65);
-          } else if (event.type === "note-off") {
-            releasePointerRef.current(`playback-${event.keyId}`);
-          } else if (event.type === "pedal") {
-            sustainRef.current(event.down);
-          } else {
-            stopAllRef.current();
-          }
-        }, cycleBaseDelay + event.delayMs);
-        playbackTimersRef.current[index] = timer;
-      });
-      const duration = cycleBaseDelay + (schedule.at(-1)?.delayMs ?? 0) + 30;
-      const finishTimer = window.setTimeout(() => {
-        stopAllRef.current();
-        if (loopEnabled) runCycle();
-        else {
-          playbackTimersRef.current = [];
-          setIsPlaying(false);
+    playback.play({
+      events: schedule.map((event) => {
+        if (event.type === "note-on") {
+          return {
+            type: "note-on" as const,
+            delayMs: event.delayMs,
+            pointerId: `playback-${event.keyId}`,
+            keyId: event.keyId,
+            velocity: event.velocity ?? 0.65,
+          };
         }
-      }, duration);
-      playbackTimersRef.current.push(finishTimer);
-    };
-    runCycle();
+        if (event.type === "note-off") {
+          return {
+            type: "note-off" as const,
+            delayMs: event.delayMs,
+            pointerId: `playback-${event.keyId}`,
+          };
+        }
+        if (event.type === "pedal") {
+          return {
+            type: "pedal" as const,
+            delayMs: event.delayMs,
+            down: event.down,
+          };
+        }
+        return { type: "all-notes-off" as const, delayMs: event.delayMs };
+      }),
+      baseDelayMs: baseDelay,
+      loop: loopEnabled,
+    });
   };
 
   const startLearningPlayback = (score: PianoLearningScore, bpm: number) => {
-    stopPlayback();
+    if (!stopPlayback()) return;
     const schedule = createPianoLearningSchedule(score, bpm);
     if (schedule.length === 0) {
       setPerformanceNotice("请先检查并确认谱面草稿，再开始播放。");
@@ -364,26 +367,39 @@ export function LocalPianoPanel({
     }
     const baseDelay = transpose === 0 ? 0 : 60;
     if (transpose !== 0) setTranspose(0);
-    setIsPlaying(true);
-    playbackTimersRef.current = schedule.map((event) => window.setTimeout(() => {
-      if (event.type === "note-on" && event.keyId && event.pointerId) {
-        pressKeyRef.current(event.pointerId, event.keyId, 0.68);
-      } else if (event.type === "note-off" && event.pointerId) {
-        releasePointerRef.current(event.pointerId);
-      } else if (event.type === "all-notes-off") {
-        stopAllRef.current();
-      }
-    }, baseDelay + event.delayMs));
-    const finishTimer = window.setTimeout(() => {
-      stopAllRef.current();
-      playbackTimersRef.current = [];
-      setIsPlaying(false);
-    }, baseDelay + (schedule.at(-1)?.delayMs ?? 0) + 30);
-    playbackTimersRef.current.push(finishTimer);
+    playback.play({
+      events: schedule.flatMap<PianoPlaybackRuntimeEvent>((event) => {
+        if (event.type === "note-on" && event.keyId && event.pointerId) {
+          return [{
+            type: "note-on" as const,
+            delayMs: event.delayMs,
+            pointerId: event.pointerId,
+            keyId: event.keyId,
+            velocity: 0.68,
+          }];
+        }
+        if (event.type === "note-off" && event.pointerId) {
+          return [{
+            type: "note-off" as const,
+            delayMs: event.delayMs,
+            pointerId: event.pointerId,
+          }];
+        }
+        if (event.type === "all-notes-off") {
+          return [{
+            type: "all-notes-off" as const,
+            delayMs: event.delayMs,
+          }];
+        }
+        return [];
+      }),
+      baseDelayMs: baseDelay,
+      loop: false,
+    });
   };
 
   const startRecording = () => {
-    stopPlayback();
+    if (!stopPlayback()) return;
     recorderRef.current = createPianoPerformanceRecorder(performance.now());
     setIsRecording(true);
     setPerformanceNotice("正在录制本机演奏事件；不录制麦克风或音频文件。");
@@ -504,7 +520,6 @@ export function LocalPianoPanel({
 
   useEffect(() => () => {
     if (stressTimerRef.current !== null) window.clearTimeout(stressTimerRef.current);
-    playbackTimersRef.current.forEach((timer) => window.clearTimeout(timer));
     metronomeGenerationRef.current += 1;
     const scheduler = metronomeRef.current;
     metronomeRef.current = null;

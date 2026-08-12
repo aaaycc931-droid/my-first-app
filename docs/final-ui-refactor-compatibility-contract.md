@@ -186,6 +186,12 @@ Audiveris 预览共用的 browser channel、音符／完成 timers 和 active-no
 controller／port，阻止旧播放 callback 停止或覆盖替换后的新播放；BPM、音色／包络、按钮、
 中文文案、workflow invalidation 和 Audiveris 主结果隔离保持不变。
 
+本地钢琴演奏记录／学习谱面回放 latest-wins 边界见
+`docs/local-piano-playback-controller-acceptance.md`。两类 schedule 仍由既有纯 domain helper
+生成；controller 只承接 timer/run/cycle ownership 与 keyboard audio commands，阻止旧回放
+callback 停止新播放、重建旧循环或污染随后开始的用户演奏录制。storage、MusicXML、
+Activity、MIDI、节拍器、音色和 UI 保持原边界。
+
 PR #515 随后把两个静态 validator 对齐到上述 page／client 依赖方向：endpoint、POST、
 字段和条件参数仍在 client 检查，页面重新出现 fetch、FormData 或 dev endpoint literal
 会失败。该维护不改变 runtime 或界面，但防止后续重构把已抽离的平台依赖重新放回页面。

@@ -752,6 +752,80 @@ describe("本地钢琴面板行为", () => {
     expect(JSON.parse(window.localStorage.getItem("solfeggio.piano.performances.v1") ?? "[]")).toEqual([]);
   });
 
+  it("停止旧回放后强制执行已清回调也不会污染新的用户录制", async () => {
+    window.localStorage.setItem("solfeggio.piano.performances.v1", JSON.stringify([{
+      schemaVersion: 1,
+      id: "stale-playback-take",
+      name: "旧回放",
+      createdAt: "2026-08-13T00:00:00.000Z",
+      durationMs: 3_000,
+      transpose: 0,
+      events: [
+        { type: "note-on", atMs: 1_000, keyId: "d4", note: 62, velocity: 0.7 },
+        { type: "pedal", atMs: 1_500, down: true },
+        { type: "note-off", atMs: 2_000, keyId: "d4", note: 62 },
+        { type: "all-notes-off", atMs: 3_000 },
+      ],
+    }]));
+    const audio = createAudioHarness();
+    const container = await renderPanel(audio.factory);
+    const staleCallbacks: Array<() => void> = [];
+    vi.spyOn(globalThis, "setTimeout").mockImplementation((callback) => {
+      staleCallbacks.push(callback as () => void);
+      return (10_000 + staleCallbacks.length) as unknown as ReturnType<typeof setTimeout>;
+    });
+
+    await act(async () => {
+      buttonWithText(container, "回放所选记录").click();
+      await Promise.resolve();
+    });
+    const playbackCallbacks = [...staleCallbacks];
+    await act(async () => {
+      buttonWithText(container, "停止回放").click();
+      await Promise.resolve();
+    });
+    await act(async () => {
+      buttonWithText(container, "开始录制演奏事件").click();
+      await Promise.resolve();
+    });
+    await act(async () => {
+      playbackCallbacks.forEach((callback) => callback());
+      await Promise.resolve();
+    });
+
+    const c4 = pianoKey(container, "c4");
+    await act(async () => {
+      c4.dispatchEvent(new PointerEvent("pointerdown", {
+        bubbles: true,
+        button: 0,
+        pointerId: 901,
+        pointerType: "touch",
+      }));
+      await Promise.resolve();
+      c4.dispatchEvent(new PointerEvent("pointerup", {
+        bubbles: true,
+        button: 0,
+        pointerId: 901,
+        pointerType: "touch",
+      }));
+      await Promise.resolve();
+    });
+    await act(async () => {
+      buttonWithText(container, "停止并保存事件").click();
+      await Promise.resolve();
+    });
+
+    const stored = JSON.parse(
+      window.localStorage.getItem("solfeggio.piano.performances.v1") ?? "[]",
+    ) as Array<{ events: Array<{ type: string; keyId?: string }> }>;
+    expect(stored[0]?.events.map(({ type }) => type)).toEqual([
+      "note-on",
+      "note-off",
+      "all-notes-off",
+    ]);
+    expect(stored[0]?.events.filter(({ keyId }) => keyId === "d4")).toEqual([]);
+  });
+
   it("本机演奏记录写入失败时保留内存记录并显示中文恢复边界", async () => {
     const setItem = vi.spyOn(window.localStorage, "setItem").mockImplementation(() => {
       throw new Error("quota");
