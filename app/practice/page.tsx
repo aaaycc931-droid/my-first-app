@@ -70,6 +70,7 @@ import { LocalEarTrainingSinglePitchPanel } from "../../components/practice/Loca
 import { LocalEarTrainingMelodyDictationPanel } from "../../components/practice/LocalEarTrainingMelodyDictationPanel";
 import { RealtimePitchMonitorPanel } from "../../components/practice/RealtimePitchMonitorPanel";
 import { useLocalRecordingController } from "../../components/practice/useLocalRecordingController";
+import { useLocalMelodyGuideDecodeController } from "../../components/practice/useLocalMelodyGuideDecodeController";
 import { usePracticeTargetPlaybackController } from "../../components/practice/usePracticeTargetPlaybackController";
 import { usePracticeRecordingAnalysisController } from "../../components/practice/usePracticeRecordingAnalysisController";
 import { canAppendPracticeRecordingPitchAttempt } from "../../lib/practice/practiceRecordingAnalysisController";
@@ -140,11 +141,6 @@ import {
   type ParseResearchTargetCurveHandoffJsonResult,
 } from "../../lib/practice/research-target-curve-handoff-json";
 import type { ResearchTargetPitchCurveDiagnostic } from "../../lib/research/local-audio-decode/research-target-pitch-curve-diagnostics";
-import {
-  applyLocalMelodyGuideDecodedMetadata,
-  createLocalMelodyGuideFileSummary,
-  type LocalMelodyGuideAudioSource,
-} from "../../lib/practice/localMelodyGuideAudio";
 
 type PracticeFlowState = "idle" | "listening" | "attempting" | "feedback";
 
@@ -195,14 +191,6 @@ type ResearchTargetCurvePreviewState =
   | { status: "idle" }
   | { status: "invalid"; message: string }
   | { status: "valid"; diagnostic: ResearchTargetPitchCurveDiagnostic };
-
-type LocalMelodyGuideDecodedAudio = {
-  channelData: Float32Array;
-  sampleRate: number;
-  durationSeconds: number;
-  channelCount: number;
-  analysisReady: boolean;
-};
 
 type PracticeAttemptSummary = {
   id: number;
@@ -517,12 +505,10 @@ export default function PracticePage() {
     useState(false);
   const [selectedImportedSegmentIndex, setSelectedImportedSegmentIndex] =
     useState<number | null>(null);
-  const [localMelodyGuideSource, setLocalMelodyGuideSource] =
-    useState<LocalMelodyGuideAudioSource | null>(null);
-  const [localMelodyGuideDecodeError, setLocalMelodyGuideDecodeError] =
-    useState("");
-  const [localMelodyGuideDecodedAudio, setLocalMelodyGuideDecodedAudio] =
-    useState<LocalMelodyGuideDecodedAudio | null>(null);
+  const localMelodyGuideDecode = useLocalMelodyGuideDecodeController();
+  const localMelodyGuideSource = localMelodyGuideDecode.source;
+  const localMelodyGuideDecodeError = localMelodyGuideDecode.error;
+  const localMelodyGuideDecodedAudio = localMelodyGuideDecode.decodedAudio;
   const [localTargetPitchCurveDraft, setLocalTargetPitchCurveDraft] =
     useState<LocalTargetPitchCurveDraft | null>(null);
   const [
@@ -556,7 +542,6 @@ export default function PracticePage() {
   const latencyCalibrationTimerIdRef = useRef<number | null>(null);
   const latencyCalibrationTapIdRef = useRef(0);
   const localMelodyGuideInputRef = useRef<HTMLInputElement | null>(null);
-  const localMelodyGuideRunIdRef = useRef(0);
 
   const localTargetPitchCurveDraftSelectedDiagnostics = useMemo(
     () =>
@@ -1138,7 +1123,6 @@ export default function PracticePage() {
 
     return () => {
       isMountedRef.current = false;
-      localMelodyGuideRunIdRef.current += 1;
       stopMetronome();
       stopRhythmPracticeRuntime();
       stopLatencyCalibrationRuntime();
@@ -1149,68 +1133,15 @@ export default function PracticePage() {
   const handleLocalMelodyGuideFileChange = async (
     event: React.ChangeEvent<HTMLInputElement>,
   ) => {
-    const file = event.target.files?.[0];
-    const runId = localMelodyGuideRunIdRef.current + 1;
-    localMelodyGuideRunIdRef.current = runId;
-    setLocalMelodyGuideDecodeError("");
-    setLocalMelodyGuideDecodedAudio(null);
+    const file = event.target.files?.[0] ?? null;
     setLocalTargetPitchCurveDraft(null);
     resetLocalTargetPitchCurveDraftReviewSelection();
     clearLocalReviewedDraftPracticeTarget();
-
-    if (!file) {
-      setLocalMelodyGuideSource(null);
-      return;
-    }
-
-    const selectedSummary = createLocalMelodyGuideFileSummary(
-      file,
-      `local-melody-guide-${runId}`,
-    );
-    setLocalMelodyGuideSource({ ...selectedSummary, status: "decoding" });
-
-    let audioContext: AudioContext | null = null;
-
-    try {
-      audioContext = new AudioContext();
-      const audioData = await file.arrayBuffer();
-      const audioBuffer = await audioContext.decodeAudioData(audioData);
-
-      if (isMountedRef.current && runId === localMelodyGuideRunIdRef.current) {
-        setLocalMelodyGuideSource(
-          applyLocalMelodyGuideDecodedMetadata(selectedSummary, {
-            decodedDurationSeconds: audioBuffer.duration,
-            sampleRate: audioBuffer.sampleRate,
-            channelCount: audioBuffer.numberOfChannels,
-          }),
-        );
-        setLocalMelodyGuideDecodedAudio({
-          channelData: new Float32Array(audioBuffer.getChannelData(0)),
-          sampleRate: audioBuffer.sampleRate,
-          durationSeconds: audioBuffer.duration,
-          channelCount: audioBuffer.numberOfChannels,
-          analysisReady: true,
-        });
-      }
-    } catch {
-      if (isMountedRef.current && runId === localMelodyGuideRunIdRef.current) {
-        setLocalMelodyGuideSource({ ...selectedSummary, status: "error" });
-        setLocalMelodyGuideDecodeError(
-          "This browser could not decode the selected local melody guide audio. Try another WAV, MP3, or M4A file supported by this browser.",
-        );
-      }
-    } finally {
-      if (audioContext) {
-        await audioContext.close().catch(() => undefined);
-      }
-    }
+    await localMelodyGuideDecode.select(file);
   };
 
   const handleClearLocalMelodyGuide = () => {
-    localMelodyGuideRunIdRef.current += 1;
-    setLocalMelodyGuideSource(null);
-    setLocalMelodyGuideDecodeError("");
-    setLocalMelodyGuideDecodedAudio(null);
+    localMelodyGuideDecode.clear();
     setLocalTargetPitchCurveDraft(null);
     resetLocalTargetPitchCurveDraftReviewSelection();
     clearLocalReviewedDraftPracticeTarget();

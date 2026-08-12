@@ -1,6 +1,6 @@
 # MVP / Android 私测当前状态
 
-最后更新：2026-08-09
+最后更新：2026-08-12
 
 本文件是当前可验证状态总账，不再作为逐次运行日志无限追加。历史细节保留在 Git 提交记录、PR 与 Actions 中。
 
@@ -13,6 +13,11 @@
   `69803c47146ad3aa2a9517394685019b49077ad2`。当前会话、已保存录音与 P113 片段的 Blob
   回放统一由 stale-safe latest-wins controller／浏览器 adapter 承接；真实浏览器、Android
   WebView／真机、后台／锁屏与长循环 QA 状态未改变。
+- 最新已合并音频／生命周期可靠性链：PR #535–#542 已把会话 MediaRecorder、实时音高
+  controller、中断失败关闭、钢琴输入、节拍器 pending start、`/practice` 本地录音、目标
+  播放和录音分析分别收紧到 stale-safe ports／controllers；本分支继续把本地旋律参考音频
+  的浏览器解码与首声道会话副本移出页面。所有真实 codec、浏览器、Android WebView／真机、
+  麦克风、后台／锁屏与长循环 QA 仍为 `NOT_EXECUTED`。
 - 最新已合并产品功能基线：严格 MusicXML/MXL 小十三和弦 round-trip / PR #518，合并提交 `71854ff7bff23ece46dc2488a05623a57426fd55`；S3 MusicXML/MXL 严格矩阵现为 24 类 × 21 根音 = 504
 - 最新已合并 UI 边界切片：浏览器 recognition 文件预览 adapter 抽离 / PR #514，合并提交 `f5a1c1ed3feb26c8d3b76650578c50e8c84f5511`
 - 最新已合并验证链修复：recognition 抽离后的静态边界 validator 对齐 / PR #515，合并提交 `a0fa4cba9b970365fbbc815e24cea4931cd2f324`
@@ -267,4 +272,10 @@
   不变；固定 A4、保存／下载、OfflinePitchAnalysis 与旋律 attempt／count-in 明确留在既有边界。
   验收见 `docs/local-realtime-pitch-monitor-controller-acceptance.md`，真实浏览器、WebView／真机、
   真实人声、后台／锁屏／来电和长循环仍为 `NOT_EXECUTED`。
+- 本地旋律参考音频导入的 `AudioContext`、文件读取、decode 与首声道复制已由可替换
+  browser port 承接；框架无关 controller 负责来源状态、latest-wins generation、清除和卸载
+  失效，React hook 只订阅 snapshot 并转发选择／清除。既有草稿生成、检查／确认、
+  `MediaProject`、本地非上传和非评分边界不变；验收见
+  `docs/local-melody-guide-decode-controller-acceptance.md`。真实 codec、浏览器、Android
+  WebView／真机、长文件性能和目标用户 QA 仍为 `NOT_EXECUTED`。
 - 导入边界见 `docs/s3-local-score-project-musicxml-import-acceptance.md`，导出边界见 `docs/s3-local-score-project-musicxml-export-acceptance.md`，part identity 硬化见 `docs/s3-local-score-project-musicxml-part-identity-hardening-acceptance.md`，note 容器硬化见 `docs/s3-local-score-project-musicxml-note-container-hardening-acceptance.md`，谱面标题、署名与版权双向边界见 `docs/s3-local-score-project-musicxml-score-credits-round-trip-acceptance.md`；全局整数速度边界见 `docs/s3-local-score-project-musicxml-tempo-round-trip-acceptance.md`，单附点、单段歌词、单指法、单音演奏法、单事件力度记号、单事件制音踏板记号、受控和弦标记、fermata、圆滑线和延音线双向边界分别见对应的 S3 round-trip acceptance 文档，其中和弦切片见 `docs/s3-local-score-project-musicxml-chord-symbol-round-trip-acceptance.md`，增三／减三边界见 `docs/s3-local-score-project-musicxml-augmented-diminished-triad-round-trip-acceptance.md`，减七边界见 `docs/s3-local-score-project-musicxml-diminished-seventh-round-trip-acceptance.md`，半减七边界见 `docs/s3-local-score-project-musicxml-half-diminished-seventh-round-trip-acceptance.md`，增七边界见 `docs/s3-local-score-project-musicxml-augmented-seventh-round-trip-acceptance.md`，大六边界见 `docs/s3-local-score-project-musicxml-major-sixth-round-trip-acceptance.md`。浏览器真实导入／下载／重开、Android WebView／真机、第三方独立阅读器、速度／和弦／踏板／力度／演奏法／指法／标题与署名显示及真实播放、tempo map／中途变速、双升降／Unicode 升降号／转位／其他和弦类别、左右手／替代指法、歌词排版／多 verse／melisma、真实音频与歌唱对齐、教师审核、MIDI、OMR、完整 MusicXML、完整 S3 与正式版 V1 均仍为 `NOT_EXECUTED` 或未完成。

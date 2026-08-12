@@ -151,6 +151,6 @@ export const markLocalMelodyGuideDecodeError = (
   analysisReady: false,
   warnings: [
     ...source.warnings,
-    "This browser could not decode the selected local audio file.",
+    "此浏览器无法解码所选的本地音频文件。",
   ],
 });
