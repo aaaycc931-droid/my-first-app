@@ -22,6 +22,10 @@
 - 最新已合并产品功能基线：严格 MusicXML/MXL 小十三和弦 round-trip / PR #518，合并提交 `71854ff7bff23ece46dc2488a05623a57426fd55`；S3 MusicXML/MXL 严格矩阵现为 24 类 × 21 根音 = 504
 - 最新已合并 UI 边界切片：浏览器 recognition 文件预览 adapter 抽离 / PR #514，合并提交 `f5a1c1ed3feb26c8d3b76650578c50e8c84f5511`
 - 最新已合并验证链修复：recognition 抽离后的静态边界 validator 对齐 / PR #515，合并提交 `a0fa4cba9b970365fbbc815e24cea4931cd2f324`
+- 当前正确性切片：`/recognize` 主结果与开发态 Audiveris 预览的音符播放改由同一
+  latest-wins controller／browser port 承接，旧音符／完成 timer 不再能停止、清空或覆盖
+  替换后的新播放；真实浏览器音频、Safari、Android WebView／真机与音频焦点 QA 仍为
+  `NOT_EXECUTED`。
 - 最新已合并可访问性自动预筛：18 个 Android 初始视图 axe DOM 语义检查与 registry 漂移守卫 / PR #519，合并提交 `07f49c65e380c7bd6eef4ab5344929c23fad7952`；PR #516 的 8 个视图是历史子集；人工无障碍与外部 QA 状态未改变
 - 最新已合并可靠性切片：课程库加载最长等待 10 秒后失败关闭并显示既有错误 / PR #507，合并提交 `a43b323bb14678990cdcb4111c3969cf5fc66f76`
 - 当前账户认证候选：保留邮箱 magic link，并增加邮箱密码注册／登录、注册确认、中文错误恢复和 auth-event／替换方式／卸载后的迟到响应 guard；生产 Auth／真实邮件／浏览器／真机矩阵仍为 `NOT_EXECUTED`
@@ -211,7 +215,9 @@
   创建／释放抽到可注入 file preview adapter，保持文件校验、预览时机和用户行为不变；
   PR #521 已完成 recognition workflow controller 与薄 React subscription hook，承接
   图片、MusicXML 和开发态 Audiveris 的文件选择及异步编排，并覆盖源替换 stale-result
-  guard、迟到回调屏蔽和 dispose 后 preview URL 单次撤销。真实 OMR、浏览器、Android 真机、
+  guard、迟到回调屏蔽和 dispose 后 preview URL 单次撤销；本分支继续把三种音符预览的
+  channel／timer／active-note state 收进 latest-wins playback controller，防止旧 completion
+  停止新播放或遗失新 timer 所有权。真实 OMR、浏览器、Android 真机、
   可访问性、教师和目标用户 QA 仍未完成或为
   `NOT_EXECUTED`。
 - 登录用户账户数据导出已通过 PR #513 合并；版本化 JSON 以显式字段白名单覆盖账户

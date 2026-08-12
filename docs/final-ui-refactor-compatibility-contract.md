@@ -99,7 +99,7 @@ require 依赖，并阻止其反向引用 `app/`、`components/` 或 `mobile/src
 | `app/practice/page.tsx` | 页面、活动会话和反馈编排；本地录音、录音解码／质量／音高／起音分析、本地旋律参考音频解码、普通／谱面节奏与点击延迟校准 runtime 及目标旋律／单音播放已由 controllers／ports 承接 | 继续提取独立节拍计时 adapter 和语义化页面状态 |
 | `mobile/src/LocalScoreProjectPanel.tsx` | 编辑 UI、项目存储、MusicXML/MXL 候选、确认和下载 | 提取 score-project controller、exchange use-case 与 file adapter |
 | `mobile/src/App.tsx` | 导航、生命周期和学习流程编排；课程进度、学习画像与复练队列已分别注入 repository | 提取 app shell、navigation state 与 learning controller |
-| `app/recognize/page.tsx` | 文件校验、识别结果和文件选择／导入编排已由可注入 recognition workflow controller／薄 React hook 承接；API 请求和 preview URL 也分别由 client／preview adapter 承接 | 继续提取播放调度及其余页面职责；不得把 fetch／FormData 放回页面 |
+| `app/recognize/page.tsx` | 文件校验、识别结果和文件选择／导入编排已由可注入 recognition workflow controller／薄 React hook 承接；API 请求、preview URL 和音符播放调度也分别由 client／preview adapter／latest-wins playback controller 承接 | 继续提取其余语义化页面职责；不得把 fetch／FormData／AudioContext 调度放回页面 |
 | 本机课程／学习概览组件 | 课程进度、学习画像与复练队列 repository 已分别通过 PR #499／#503／#505 由 composition root 注入 | 继续由上层注入 repository、snapshot 和 commands，不把 localStorage 访问放回组件 |
 | 共享实时音高组件 | 本机练声记录 storage 和下载已由 port 注入；三条 Blob 回放与会话 MediaRecorder 已由既有 ports／controllers 承接；麦克风申请、实时采样、曲线、会话录音、回放资格与全局停止由框架无关 realtime controller 编排，React hook 只订阅／转发 | 保持固定 A4、保存／下载、OfflinePitchAnalysis、旋律 attempt／count-in 与 Activity 在既有边界；不得把浏览器媒体 side effect 或 generation 编排放回组件 |
 
@@ -179,6 +179,12 @@ preview adapter 承接；文件校验、选择／清空时机、预览显示、e
 subscription hook，承接图片、MusicXML 和开发态 Audiveris 的文件选择及异步编排，并加入
 源替换 stale-result guard、迟到回调屏蔽和 dispose 后 preview URL 单次撤销。该切片仍不
 改变真实 OMR、浏览器／WebView／真机或最终 UI 验收状态。
+
+Recognition 音符播放 latest-wins 边界见
+`docs/recognition-notes-playback-controller-acceptance.md`。该切片把主识别结果与两种开发态
+Audiveris 预览共用的 browser channel、音符／完成 timers 和 active-note state 移到可注入
+controller／port，阻止旧播放 callback 停止或覆盖替换后的新播放；BPM、音色／包络、按钮、
+中文文案、workflow invalidation 和 Audiveris 主结果隔离保持不变。
 
 PR #515 随后把两个静态 validator 对齐到上述 page／client 依赖方向：endpoint、POST、
 字段和条件参数仍在 client 检查，页面重新出现 fetch、FormData 或 dev endpoint literal
