@@ -106,6 +106,7 @@ jobs:
         run: |
           npm run test:accessibility-prefilter
           npm run test:browser-audio-engine
+          npm run test:practice-target-playback-controller
           npm run test:blob-audio-playback
           npm run test:media-recorder-capture
           npm run test:practice-local-recording-controller
