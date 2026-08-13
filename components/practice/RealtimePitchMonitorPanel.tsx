@@ -20,8 +20,9 @@ import { OfflinePitchAnalysisPanel } from "./OfflinePitchAnalysisPanel";
 import type { OfflinePitchAnalysisInvalidationDetail, OfflinePitchAnalysisReadyDetail } from "./OfflinePitchAnalysisPanel";
 import { ActivityProtocolState } from "./ActivityProtocolState";
 import { useChoiceActivitySession } from "./useChoiceActivitySession";
+import { useNotationReferencePlaybackController } from "./useNotationReferencePlaybackController";
 import { useRealtimePitchMonitor } from "./useRealtimePitchMonitor";
-import { createBrowserAudioChannel, stopAllBrowserAudio } from "../../lib/audio/browserAudioEngine";
+import { stopAllBrowserAudio } from "../../lib/audio/browserAudioEngine";
 import { useBlobAudioPlaybackController } from "./useBlobAudioPlaybackController";
 
 const frameCopy = {
@@ -61,6 +62,7 @@ export function RealtimePitchMonitorPanel({
   targetExercise?: GeneratedLocalVocalExercise | null;
 }) {
   const monitor = useRealtimePitchMonitor();
+  const a4ReferencePlayback = useNotationReferencePlaybackController();
   const {
     snapshot: savedRecordingPlaybackSnapshot,
     play: playSavedRecordingBlob,
@@ -80,9 +82,8 @@ export function RealtimePitchMonitorPanel({
   const [savingMedia, setSavingMedia] = useState<"curve" | "curve-and-recording" | null>(null);
   const [recordingTargetSnapshot, setRecordingTargetSnapshot] = useState<GeneratedLocalVocalExercise | null>(null);
   const [pendingA4ActivityCheck, setPendingA4ActivityCheck] = useState<PendingA4ActivityCheck | null>(null);
-  const [a4ReferenceError, setA4ReferenceError] = useState("");
+  const a4ReferenceError = a4ReferencePlayback.error;
   const a4RecordingAttemptIdRef = useRef<string | null>(null);
-  const a4ReferenceChannelRef = useRef<ReturnType<typeof createBrowserAudioChannel> | null>(null);
   const isPanelMountedRef = useRef(false);
   const downloadRequestIdRef = useRef(0);
   const isActive = monitor.status === "requesting" || monitor.status === "listening";
@@ -105,8 +106,6 @@ export function RealtimePitchMonitorPanel({
     void practiceRecordRepository.list().then((items) => { if (active) setRecords(items); }).catch(() => { if (active) setStorageNotice("本机记录暂时不可用；实时练习不受影响。"); }).finally(() => { if (active) setIsStorageLoading(false); });
     return () => { active = false; stopSavedPlayback(); };
   }, [practiceRecordRepository, stopSavedPlayback]);
-
-  useEffect(() => () => a4ReferenceChannelRef.current?.stop(), []);
 
   useEffect(() => {
     isPanelMountedRef.current = true;
@@ -181,30 +180,13 @@ export function RealtimePitchMonitorPanel({
   };
 
   const startMonitoring = () => { stopAllBrowserAudio(); void monitor.start(); };
-  const playA4Reference = async () => {
+  const playA4Reference = () => {
     stopSavedPlayback();
-    stopAllBrowserAudio();
-    setA4ReferenceError("");
-    try {
-      const channel = a4ReferenceChannelRef.current ?? createBrowserAudioChannel();
-      a4ReferenceChannelRef.current = channel;
-      const context = await channel.prepareForUserGesture();
-      const oscillator = context.createOscillator();
-      const gain = context.createGain();
-      const startAt = context.currentTime + 0.03;
-      oscillator.type = "sine";
-      oscillator.frequency.setValueAtTime(440, startAt);
-      gain.gain.setValueAtTime(0.0001, startAt);
-      gain.gain.exponentialRampToValueAtTime(0.16, startAt + 0.02);
-      gain.gain.exponentialRampToValueAtTime(0.0001, startAt + 0.85);
-      oscillator.connect(gain);
-      gain.connect(context.destination);
-      channel.trackSource(oscillator, [gain]);
-      oscillator.start(startAt);
-      oscillator.stop(startAt + 0.9);
-    } catch {
-      setA4ReferenceError("当前设备无法播放 A4 参考音。你仍可查看目标并稍后重试。");
-    }
+    void a4ReferencePlayback.playTone({
+      frequencyHz: 440,
+      releaseOffsetSeconds: 0.85,
+      errorMessage: "当前设备无法播放 A4 参考音。你仍可查看目标并稍后重试。",
+    });
   };
   const playCurrentRecording = () => { stopAllBrowserAudio(); void monitor.playRecording(); };
   const startSessionRecording = () => {

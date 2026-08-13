@@ -102,6 +102,25 @@ const testToneAndMelodyTiming = async () => {
     error: "",
   });
 
+  assert.equal(
+    await controller.playTone({
+      frequencyHz: 440,
+      releaseOffsetSeconds: 0.85,
+      errorMessage: TONE_ERROR,
+    }),
+    true,
+  );
+  assert.deepEqual(fake.tones.at(-1), {
+    frequencyHz: 440,
+    startTimeSeconds: 10.03,
+    endTimeSeconds: 10.93,
+    peakGain: 0.16,
+    attackSeconds: 0.02,
+    releaseTimeSeconds: 10.879999999999999,
+  });
+  assert.equal(fake.timers.get(2)?.delayMs, 1_050);
+  fake.timers.get(2)?.callback();
+
   assert.equal(await controller.playMelody({
     events: [
       { eventIndex: 0, frequencyHz: 261.63, offsetSeconds: 0, durationSeconds: 0.6 },
@@ -129,7 +148,7 @@ const testToneAndMelodyTiming = async () => {
       releaseTimeSeconds: 12.120000000000001,
     },
   ]);
-  assert.ok(Math.abs((fake.timers.get(2)?.delayMs ?? 0) - 2_300) < 0.001);
+  assert.ok(Math.abs((fake.timers.get(3)?.delayMs ?? 0) - 2_300) < 0.001);
 };
 
 const testStaleCompletionAndTimerReuse = async () => {
@@ -154,6 +173,44 @@ const testStaleCompletionAndTimerReuse = async () => {
   assert.equal(fake.timers.get(1)?.cleared, false);
   controller.stop();
   assert.equal(fake.timers.get(1)?.cleared, true);
+};
+
+const testToneReleaseOffsetValidationDoesNotInterruptPlayback = async () => {
+  const fake = createFakePort();
+  const controller = createNotationReferencePlaybackController(fake.port);
+  assert.equal(
+    await controller.playTone({ frequencyHz: 440, errorMessage: TONE_ERROR }),
+    true,
+  );
+  const playing = controller.getSnapshot();
+  for (const releaseOffsetSeconds of [
+    Number.NaN,
+    Number.POSITIVE_INFINITY,
+    0.019,
+    0.901,
+  ]) {
+    assert.equal(await controller.playTone({
+      frequencyHz: 440,
+      releaseOffsetSeconds,
+      errorMessage: TONE_ERROR,
+    }), false);
+    assert.equal(controller.getSnapshot(), playing);
+  }
+  assert.equal(fake.tones.length, 1);
+
+  controller.stop();
+  for (const releaseOffsetSeconds of [0.02, 0.9]) {
+    assert.equal(await controller.playTone({
+      frequencyHz: 440,
+      releaseOffsetSeconds,
+      errorMessage: TONE_ERROR,
+    }), true);
+    assert.equal(
+      fake.tones.at(-1)?.releaseTimeSeconds,
+      10.03 + releaseOffsetSeconds,
+    );
+    controller.stop();
+  }
 };
 
 const testPendingPrepareReplacement = async () => {
@@ -311,6 +368,7 @@ const testBrowserPortEnvelope = async () => {
 const run = async () => {
   await testToneAndMelodyTiming();
   await testStaleCompletionAndTimerReuse();
+  await testToneReleaseOffsetValidationDoesNotInterruptPlayback();
   await testPendingPrepareReplacement();
   await testFailuresRetryAndDispose();
   await testBrowserPortEnvelope();

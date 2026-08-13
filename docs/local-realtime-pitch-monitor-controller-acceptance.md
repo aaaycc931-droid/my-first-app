@@ -46,7 +46,8 @@ QA level recommendation：**strict**
 
 ## 明确不进入 controller 的职责
 
-- 固定 A4 参考音、本机练声保存／下载、IndexedDB repository、P112/P113
+- 固定 A4 参考音仍不进入 realtime monitor controller，但其 browser audio ownership 复用
+  `docs/realtime-a4-reference-playback-acceptance.md` 的独立 latest-wins controller；本机练声保存／下载、IndexedDB repository、P112/P113
   `OfflinePitchAnalysis`、旋律回唱／视唱 attempt、count-in 和 Activity 提交仍由既有边界负责。
 - 不新增网络、上传、账号、schema、评分、等级、通过／失败或专业声乐判断；不宣称最终 UI
   重构完成。
@@ -59,7 +60,8 @@ QA level recommendation：**strict**
   输入中断、clear／detach、能力缺失和 generation 失败关闭；并覆盖 active recording 的
   MediaRecorder error／input interruption 终态清理、迟到 stop 不复活、单次通知、错误后重录，
   以及 ready Blob 在后续 input interruption 后保持可用。
-- 既有 realtime monitor／offline analysis mounted suite 保持 27 项；旋律回唱／视唱行为套件与
+- 既有 realtime monitor／offline analysis mounted suite 保持完整，并覆盖 A4 pending prepare
+  在监听／录音启动后的迟到恢复隔离；旋律回唱／视唱行为套件与
   最小音程模唱 mounted 回归验证四个调用方 API 不漂移。
 - source contract、typecheck、lint、移动构建、Android local validator、文档卫生、完整
   `npm run check` 和 `git diff --check` 必须通过。

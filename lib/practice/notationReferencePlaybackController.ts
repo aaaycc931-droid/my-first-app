@@ -17,6 +17,7 @@ export type NotationReferencePlaybackController = {
   subscribe: (listener: () => void) => () => void;
   playTone: (request: {
     frequencyHz: number;
+    releaseOffsetSeconds?: number;
     errorMessage: string;
   }) => Promise<boolean>;
   playMelody: (request: {
@@ -135,9 +136,16 @@ export const createNotationReferencePlaybackController = (
 
   const playTone: NotationReferencePlaybackController["playTone"] = ({
     frequencyHz,
+    releaseOffsetSeconds = 0.81,
     errorMessage,
   }) => {
-    if (!Number.isFinite(frequencyHz) || frequencyHz <= 0) {
+    if (
+      !Number.isFinite(frequencyHz) ||
+      frequencyHz <= 0 ||
+      !Number.isFinite(releaseOffsetSeconds) ||
+      releaseOffsetSeconds < 0.02 ||
+      releaseOffsetSeconds > 0.9
+    ) {
       return Promise.resolve(false);
     }
     return start("tone", errorMessage, (prepared, requestGeneration) => {
@@ -149,7 +157,7 @@ export const createNotationReferencePlaybackController = (
         endTimeSeconds: startTimeSeconds + durationSeconds,
         peakGain: 0.16,
         attackSeconds: 0.02,
-        releaseTimeSeconds: startTimeSeconds + durationSeconds * 0.9,
+        releaseTimeSeconds: startTimeSeconds + releaseOffsetSeconds,
       });
       return setCompletion(
         requestGeneration,

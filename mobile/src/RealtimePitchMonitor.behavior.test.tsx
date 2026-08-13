@@ -32,6 +32,10 @@ let audioInstances: Array<{
 let createObjectUrl: ReturnType<typeof vi.fn>;
 let revokeObjectUrl: ReturnType<typeof vi.fn>;
 let decodeAudioDataMock: ReturnType<typeof vi.fn>;
+let suspendNextAudioContext: boolean;
+let resolveAudioContextResume: (() => void) | null;
+let oscillatorStart: ReturnType<typeof vi.fn>;
+let oscillatorStop: ReturnType<typeof vi.fn>;
 
 const flush = async () => {
   await act(async () => { await new Promise((resolve) => window.setTimeout(resolve, 10)); });
@@ -122,11 +126,30 @@ beforeEach(() => {
     sampleRate: 48_000,
     getChannelData: () => decodedSamples,
   });
+  suspendNextAudioContext = false;
+  resolveAudioContextResume = null;
+  oscillatorStart = vi.fn();
+  oscillatorStop = vi.fn();
   Object.defineProperty(navigator, "mediaDevices", { configurable: true, value: { getUserMedia } });
   class FakeAudioContext {
     sampleRate = 48_000;
-    state = "running";
-    resume = vi.fn().mockResolvedValue(undefined);
+    state: AudioContextState;
+    constructor() {
+      this.state = suspendNextAudioContext ? "suspended" : "running";
+      suspendNextAudioContext = false;
+    }
+    resume = vi.fn(() => {
+      if (this.state === "running") return Promise.resolve();
+      return new Promise<void>((resolve) => {
+        resolveAudioContextResume = () => {
+          this.state = "running";
+          resolve();
+        };
+      });
+    });
+    suspend = vi.fn(async () => {
+      this.state = "suspended";
+    });
     close = contextClose;
     decodeAudioData = decodeAudioDataMock;
     createMediaStreamSource = () => ({ connect: vi.fn(), disconnect: vi.fn() });
@@ -139,6 +162,25 @@ beforeEach(() => {
         }
       },
     });
+    createOscillator = () => ({
+      type: "square",
+      frequency: { setValueAtTime: vi.fn() },
+      addEventListener: vi.fn(),
+      connect: vi.fn(),
+      disconnect: vi.fn(),
+      start: oscillatorStart,
+      stop: oscillatorStop,
+    });
+    createGain = () => ({
+      gain: {
+        setValueAtTime: vi.fn(),
+        exponentialRampToValueAtTime: vi.fn(),
+      },
+      connect: vi.fn(),
+      disconnect: vi.fn(),
+    });
+    destination = {};
+    currentTime = 4;
   }
   vi.stubGlobal("AudioContext", FakeAudioContext);
   class FakeMediaRecorder {
@@ -185,6 +227,29 @@ afterEach(async () => {
 });
 
 describe("Android 实时音高反馈行为", () => {
+  it("开始麦克风录音会取消 pending A4 参考音，迟到 resume 不得串入本轮证据", async () => {
+    const container = await renderPanel();
+    suspendNextAudioContext = true;
+
+    await click(button(container, "播放 A4 参考音"));
+    expect(resolveAudioContextResume).not.toBeNull();
+    expect(oscillatorStart).not.toHaveBeenCalled();
+
+    await click(button(container, "开始实时反馈"));
+    await click(button(container, "开始会话录音"));
+    expect(container.textContent).toContain("状态：正在录音");
+
+    await act(async () => resolveAudioContextResume?.());
+    await flush();
+    expect(oscillatorStart).not.toHaveBeenCalled();
+    expect(container.textContent).not.toContain(
+      "当前设备无法播放 A4 参考音。你仍可查看目标并稍后重试。",
+    );
+
+    await click(button(container, "播放 A4 参考音"));
+    expect(oscillatorStart).toHaveBeenCalledTimes(1);
+  });
+
   it("练声记录 JSON 只通过注入的下载端口导出，并在启动或清理失败时保持记录", async () => {
     const repository = createPracticeRecordRepository([storedRecord]);
     const fileDownloadPort = createFileDownloadPort();

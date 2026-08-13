@@ -31,6 +31,8 @@ audio channel port 与 StrictMode-safe hook。临时目标、练习进度、纯�
 
 - 短音：sine、`currentTime + 0.03s`、0.9s、gain `0.0001 → 0.16`（+0.02s）
   `→ 0.0001`（+0.81s）、oscillator stop +0.9s、自然完成 1050ms；
+- 固定 A4 参考音可显式复用同一 tone 能力并保留其历史 +0.85s release；未传 override 的
+  临时乐谱短音继续严格使用 +0.81s；
 - 旋律：sine、`currentTime + 0.05s`、gain `0.0001 → 0.13`（+0.02s），release 为
   `max(noteStart + 0.03s, noteEnd - 0.03s)`，oscillator 在 noteEnd 停止；
 - rest 不创建 oscillator 但保留 offset；完成仍为纯 plan 总时长 +200ms；

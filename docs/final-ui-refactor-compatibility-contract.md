@@ -101,7 +101,7 @@ require 依赖，并阻止其反向引用 `app/`、`components/` 或 `mobile/src
 | `mobile/src/App.tsx` | 导航、生命周期和学习流程编排；课程进度、学习画像与复练队列已分别注入 repository | 提取 app shell、navigation state 与 learning controller |
 | `app/recognize/page.tsx` | 文件校验、识别结果和文件选择／导入编排已由可注入 recognition workflow controller／薄 React hook 承接；API 请求、preview URL 和音符播放调度也分别由 client／preview adapter／latest-wins playback controller 承接 | 继续提取其余语义化页面职责；不得把 fetch／FormData／AudioContext 调度放回页面 |
 | 本机课程／学习概览组件 | 课程进度、学习画像与复练队列 repository 已分别通过 PR #499／#503／#505 由 composition root 注入 | 继续由上层注入 repository、snapshot 和 commands，不把 localStorage 访问放回组件 |
-| 共享实时音高组件 | 本机练声记录 storage 和下载已由 port 注入；三条 Blob 回放与会话 MediaRecorder 已由既有 ports／controllers 承接；麦克风申请、实时采样、曲线、会话录音、回放资格与全局停止由框架无关 realtime controller 编排，React hook 只订阅／转发 | 保持固定 A4、保存／下载、OfflinePitchAnalysis、旋律 attempt／count-in 与 Activity 在既有边界；不得把浏览器媒体 side effect 或 generation 编排放回组件 |
+| 共享实时音高组件 | 本机练声记录 storage 和下载已由 port 注入；三条 Blob 回放、固定 A4 参考音与会话 MediaRecorder 已由既有 ports／controllers 承接；麦克风申请、实时采样、曲线、会话录音、回放资格与全局停止由框架无关 realtime controller 编排，React hook 只订阅／转发 | 保持固定 A4 Activity、保存／下载、OfflinePitchAnalysis、旋律 attempt／count-in 在既有边界；不得把浏览器媒体 side effect 或 generation 编排放回组件 |
 
 这些热点是可控技术债，不代表当前功能错误，也不单独阻塞 S3 或其他边界清楚的能力
 切片。不得据此宣称 UI 重构已完成；也不得继续把新的 schema、迁移、格式解析或业务
@@ -202,6 +202,11 @@ channel、tone/melody sources 与完成 timer，阻止旧旋律完成 callback �
 `docs/practice-standalone-metronome-controller-acceptance.md`。controller／hook 承接 scheduler、
 starting/running、beat 与全局／后台／feature-exit 生命周期，避免隐藏的 click 继续播放并串入
 后续麦克风会话；scheduler 音色、BPM／拍号／预备拍／细分、非评分说明和 UI 保持不变。
+
+实时音高固定 A4 参考音 ownership 见
+`docs/realtime-a4-reference-playback-acceptance.md`。面板复用独立 latest-wins tone controller，
+使监听／录音的全局停止能取消 pending prepare，阻止迟到 440 Hz 串入当前 Blob 或 Activity
+证据；A4 包络、文案、目标、录音／分析和 UI 保持不变。
 
 PR #515 随后把两个静态 validator 对齐到上述 page／client 依赖方向：endpoint、POST、
 字段和条件参数仍在 client 检查，页面重新出现 fetch、FormData 或 dev endpoint literal
