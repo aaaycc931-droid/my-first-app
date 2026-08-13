@@ -36,8 +36,8 @@ for (const formerPageOwner of [
 }
 assert.equal(
   page.match(/const started = await scheduler\.start\(\);/g)?.length,
-  1,
-  "only the standalone metronome remains page-owned",
+  undefined,
+  "standalone metronome ownership also leaves the page",
 );
 assert.equal(
   page.match(/usePracticeRhythmRuntimeController\(\)/g)?.length,

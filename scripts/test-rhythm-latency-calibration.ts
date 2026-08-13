@@ -152,15 +152,15 @@ assert.match(practicePage, /应用当前会话延迟校准/);
 assert.doesNotMatch(practicePage, /accuracyPercentage/);
 assert.equal(
   practicePage.match(/const started = await scheduler\.start\(\);/g)?.length,
-  1,
-  "only the standalone metronome remains page-owned",
+  undefined,
+  "standalone metronome start ownership must leave the page",
 );
 assert.equal(
   practicePage.match(/if \(!started\)/g)?.length,
-  1,
-  "the remaining page-owned metronome must inspect cancelled starts",
+  undefined,
+  "standalone metronome cancellation must leave the page",
 );
-assert.match(practicePage, /metronomeSchedulerGenerationRef/);
+assert.doesNotMatch(practicePage, /metronomeSchedulerGenerationRef/);
 assert.doesNotMatch(practicePage, /rhythmSchedulerGenerationRef/);
 assert.doesNotMatch(practicePage, /latencyCalibrationSchedulerGenerationRef/);
 assert.doesNotMatch(practicePage, /latencyCalibrationTimeoutIdsRef/);
@@ -189,13 +189,7 @@ assert.match(
   /if \(latencyCalibrationPhase === "practice"\) \{\s+handleLatencyCalibrationTap\(\);\s+return;\s+\}\s+handleRhythmTap\(\);/,
   "Space must keep calibration priority over rhythm taps",
 );
-assert.equal(
-  practicePage.match(
-    /const isCurrentScheduler = \(\) =>\s+isMountedRef\.current &&[\s\S]{0,180}?SchedulerGenerationRef\.current ===\s+schedulerGeneration &&[\s\S]{0,120}?SchedulerRef\.current === scheduler;/g,
-  )?.length,
-  1,
-  "the standalone metronome must reject unmounted, replaced, and stale starts",
-);
+assert.match(practicePage, /usePracticeStandaloneMetronomeController\(\)/);
 assert.doesNotMatch(
   practicePage,
   /stopLatencyCalibrationRuntime/,

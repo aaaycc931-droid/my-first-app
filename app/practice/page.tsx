@@ -12,7 +12,6 @@ import {
   type MetronomeMeter,
   type MetronomeSubdivision,
 } from "../../lib/metronome/metronomeConfig";
-import { BrowserMetronomeScheduler } from "../../lib/metronome/metronomeScheduler";
 import { AudioOnsetRhythmFeedbackPanel } from "../../components/practice/AudioOnsetRhythmFeedbackPanel";
 import { AudioOnsetTimelinePreview } from "../../components/practice/AudioOnsetTimelinePreview";
 import { ActivityProtocolState } from "../../components/practice/ActivityProtocolState";
@@ -48,7 +47,6 @@ import {
   getAudioOnsetRhythmMarkerDensitySummary,
   type AudioOnsetRhythmAlignmentMode,
 } from "../../lib/rhythm/audioOnsetRhythmFeedback";
-import type { MetronomeBeatMetadata } from "../../lib/metronome/metronomeGrid";
 
 type EarTrainingExerciseMode = "单音" | "音程" | "节奏" | "旋律听写";
 
@@ -65,6 +63,7 @@ import { useLocalMelodyGuideDecodeController } from "../../components/practice/u
 import { usePracticeTargetPlaybackController } from "../../components/practice/usePracticeTargetPlaybackController";
 import { usePracticeRecordingAnalysisController } from "../../components/practice/usePracticeRecordingAnalysisController";
 import { usePracticeRhythmRuntimeController } from "../../components/practice/usePracticeRhythmRuntimeController";
+import { usePracticeStandaloneMetronomeController } from "../../components/practice/usePracticeStandaloneMetronomeController";
 import { canAppendPracticeRecordingPitchAttempt } from "../../lib/practice/practiceRecordingAnalysisController";
 import {
   createNotationRhythmRunPlan,
@@ -423,10 +422,11 @@ export default function PracticePage() {
     useState<CountInBars>(0);
   const [metronomeSubdivision, setMetronomeSubdivision] =
     useState<MetronomeSubdivision>("quarter");
-  const [isMetronomeRunning, setIsMetronomeRunning] = useState(false);
-  const [metronomeBeat, setMetronomeBeat] =
-    useState<MetronomeBeatMetadata | null>(null);
-  const [metronomeError, setMetronomeError] = useState("");
+  const metronome = usePracticeStandaloneMetronomeController();
+  const isMetronomeBusy = metronome.status !== "idle";
+  const metronomeBeat = metronome.beat;
+  const metronomeError = metronome.error;
+  const stopMetronome = metronome.stop;
   const [rhythmTargetPattern, setRhythmTargetPattern] =
     useState<RhythmTargetPattern>("quarter-note-pulse");
   const rhythmRuntime = usePracticeRhythmRuntimeController();
@@ -513,10 +513,7 @@ export default function PracticePage() {
     localReviewedDraftPracticeTarget,
     setLocalReviewedDraftPracticeTarget,
   ] = useState<LocalReviewedDraftPracticeTarget | null>(null);
-  const metronomeSchedulerRef = useRef<BrowserMetronomeScheduler | null>(null);
-  const metronomeSchedulerGenerationRef = useRef(0);
   const recordingTimerIdRef = useRef<number | null>(null);
-  const isMountedRef = useRef(true);
   const practiceAttemptIdRef = useRef(0);
   const practiceAttemptHistoryGenerationRef = useRef(0);
   const recordingAttemptKeyCounterRef = useRef(0);
@@ -568,6 +565,10 @@ export default function PracticePage() {
   useEffect(() => {
     if (activeFeatureView !== "feedback") setIsA4MicrophoneActivityOpen(false);
   }, [activeFeatureView]);
+
+  useEffect(() => {
+    if (activeFeatureView !== "rhythm") stopMetronome();
+  }, [activeFeatureView, stopMetronome]);
 
   useEffect(() => {
     setNotationTemporaryPracticeTarget((currentTarget) =>
@@ -951,16 +952,6 @@ export default function PracticePage() {
     }
   };
 
-  const stopMetronome = () => {
-    metronomeSchedulerGenerationRef.current += 1;
-    metronomeSchedulerRef.current?.stop();
-    metronomeSchedulerRef.current = null;
-    if (isMountedRef.current) {
-      setIsMetronomeRunning(false);
-      setMetronomeBeat(null);
-    }
-  };
-
   const stopPlayback = targetPlayback.stop;
 
   useEffect(() => {
@@ -1071,15 +1062,7 @@ export default function PracticePage() {
     setSelectedImportedSegmentIndex(null);
   }, [importedResearchTargetCurvePreview]);
 
-  useEffect(() => {
-    isMountedRef.current = true;
-
-    return () => {
-      isMountedRef.current = false;
-      stopMetronome();
-      stopRecordingTimer();
-    };
-  }, []);
+  useEffect(() => () => stopRecordingTimer(), []);
 
   const handleLocalMelodyGuideFileChange = async (
     event: React.ChangeEvent<HTMLInputElement>,
@@ -1319,13 +1302,7 @@ export default function PracticePage() {
   }, [recordLatencyCalibrationTap]);
 
   const handleStartMetronome = async () => {
-    stopMetronome();
-    setMetronomeError("");
-
-    const schedulerGeneration =
-      metronomeSchedulerGenerationRef.current + 1;
-    metronomeSchedulerGenerationRef.current = schedulerGeneration;
-    const scheduler = new BrowserMetronomeScheduler({
+    await metronome.start({
       config: {
         bpm: metronomeBpm,
         meter: metronomeMeter,
@@ -1335,49 +1312,9 @@ export default function PracticePage() {
         },
         subdivision: metronomeSubdivision,
       },
-      onBeat: (beat) => {
-        if (
-          isMountedRef.current &&
-          metronomeSchedulerGenerationRef.current === schedulerGeneration &&
-          metronomeSchedulerRef.current === scheduler
-        ) {
-          setMetronomeBeat(beat);
-        }
-      },
-    });
-
-    metronomeSchedulerRef.current = scheduler;
-    const isCurrentScheduler = () =>
-      isMountedRef.current &&
-      metronomeSchedulerGenerationRef.current === schedulerGeneration &&
-      metronomeSchedulerRef.current === scheduler;
-
-    try {
-      const started = await scheduler.start();
-      if (!started) {
-        if (isCurrentScheduler()) {
-          stopMetronome();
-        } else {
-          scheduler.stop();
-        }
-        return;
-      }
-      if (!isCurrentScheduler()) {
-        scheduler.stop();
-        return;
-      }
-      setIsMetronomeRunning(true);
-    } catch {
-      if (!isCurrentScheduler()) {
-        scheduler.stop();
-        return;
-      }
-      stopMetronome();
-      setIsMetronomeRunning(false);
-      setMetronomeError(
+      errorMessage:
         "此浏览器无法启动 Web Audio 节拍器；请确认在用户手势中点击开始。",
-      );
-    }
+    });
   };
 
   const handleStopMetronome = () => {
@@ -1992,7 +1929,7 @@ export default function PracticePage() {
                 onChange={(event) =>
                   setMetronomeBpm(Number(event.target.value))
                 }
-                disabled={isMetronomeRunning}
+                disabled={isMetronomeBusy}
                 className="mt-2 w-full rounded-xl border border-teal-200 px-3 py-2 text-slate-900 disabled:bg-slate-100"
               />
             </label>
@@ -2003,7 +1940,7 @@ export default function PracticePage() {
                 onChange={(event) =>
                   setMetronomeMeter(event.target.value as MetronomeMeter)
                 }
-                disabled={isMetronomeRunning}
+                disabled={isMetronomeBusy}
                 className="mt-2 w-full rounded-xl border border-teal-200 px-3 py-2 text-slate-900 disabled:bg-slate-100"
               >
                 {supportedMetronomeMeters.map((meter) => (
@@ -2022,7 +1959,7 @@ export default function PracticePage() {
                     Number(event.target.value) as CountInBars,
                   )
                 }
-                disabled={isMetronomeRunning}
+                disabled={isMetronomeBusy}
                 className="mt-2 w-full rounded-xl border border-teal-200 px-3 py-2 text-slate-900 disabled:bg-slate-100"
               >
                 {supportedCountInBars.map((bars) => (
@@ -2041,7 +1978,7 @@ export default function PracticePage() {
                     event.target.value as MetronomeSubdivision,
                   )
                 }
-                disabled={isMetronomeRunning}
+                disabled={isMetronomeBusy}
                 className="mt-2 w-full rounded-xl border border-teal-200 px-3 py-2 text-slate-900 disabled:bg-slate-100"
               >
                 {supportedMetronomeSubdivisions.map((subdivision) => (
@@ -2073,7 +2010,7 @@ export default function PracticePage() {
             <button
               type="button"
               onClick={handleStartMetronome}
-              disabled={isMetronomeRunning}
+              disabled={isMetronomeBusy}
               className="rounded-full bg-teal-700 px-4 py-2 text-sm font-semibold text-white disabled:bg-teal-300"
             >
               开始节拍器
@@ -2081,7 +2018,7 @@ export default function PracticePage() {
             <button
               type="button"
               onClick={handleStopMetronome}
-              disabled={!isMetronomeRunning}
+              disabled={!isMetronomeBusy}
               className="rounded-full border border-teal-300 bg-white px-4 py-2 text-sm font-semibold text-teal-800 disabled:text-slate-400"
             >
               停止节拍器

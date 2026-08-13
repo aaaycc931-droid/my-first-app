@@ -13,11 +13,11 @@
   `69803c47146ad3aa2a9517394685019b49077ad2`。当前会话、已保存录音与 P113 片段的 Blob
   回放统一由 stale-safe latest-wins controller／浏览器 adapter 承接；真实浏览器、Android
   WebView／真机、后台／锁屏与长循环 QA 状态未改变。
-- 最新已合并音频／生命周期可靠性链：PR #535–#547 已把会话 MediaRecorder、实时音高
+- 最新已合并音频／生命周期可靠性链：PR #535–#548 已把会话 MediaRecorder、实时音高
   controller、中断失败关闭、钢琴输入、节拍器 pending start、`/practice` 本地录音、目标
   播放、录音分析、本地旋律参考音频解码、普通／谱面节奏、点击延迟校准与 recognition
-  音符播放与钢琴回放分别收紧到 stale-safe ports／controllers；本分支继续收紧临时乐谱
-  短参考音／旋律的 shared-audio、timer 与 target lifecycle ownership。所有真实 codec、浏览器、Android
+  音符播放、钢琴回放与临时乐谱参考音频分别收紧到 stale-safe ports／controllers；本分支
+  继续收紧 `/practice` 独立节拍器的 global-audio、feature 与 background lifecycle ownership。所有真实 codec、浏览器、Android
   WebView／真机、麦克风、后台／锁屏与长循环 QA 仍为 `NOT_EXECUTED`。
 - 最新已合并产品功能基线：严格 MusicXML/MXL 小十三和弦 round-trip / PR #518，合并提交 `71854ff7bff23ece46dc2488a05623a57426fd55`；S3 MusicXML/MXL 严格矩阵现为 24 类 × 21 根音 = 504
 - 最新已合并 UI 边界切片：浏览器 recognition 文件预览 adapter 抽离 / PR #514，合并提交 `f5a1c1ed3feb26c8d3b76650578c50e8c84f5511`
@@ -34,6 +34,10 @@
   browser audio channel 承接；旧旋律 completion 不再能停止替换播放，全局停止与同 id
   target 失效会同步清 timer/source/UI。真实浏览器音频、WebView／真机、后台／锁屏与音频
   焦点 QA 仍为 `NOT_EXECUTED`。
+- 当前独立节拍器生命周期切片：`/practice` 基础节拍器的 scheduler／starting／beat ownership
+  改由 controller 承接；全局停止、离开节奏功能区、blur／hidden 与录音启动会停止 click，
+  避免隐藏节拍串入当前会话麦克风诊断。真实浏览器、WebView／真机、真实串音、后台／锁屏
+  与音频焦点 QA 仍为 `NOT_EXECUTED`。
 - 最新已合并可访问性自动预筛：18 个 Android 初始视图 axe DOM 语义检查与 registry 漂移守卫 / PR #519，合并提交 `07f49c65e380c7bd6eef4ab5344929c23fad7952`；PR #516 的 8 个视图是历史子集；人工无障碍与外部 QA 状态未改变
 - 最新已合并可靠性切片：课程库加载最长等待 10 秒后失败关闭并显示既有错误 / PR #507，合并提交 `a43b323bb14678990cdcb4111c3969cf5fc66f76`
 - 当前账户认证候选：保留邮箱 magic link，并增加邮箱密码注册／登录、注册确认、中文错误恢复和 auth-event／替换方式／卸载后的迟到响应 guard；生产 Auth／真实邮件／浏览器／真机矩阵仍为 `NOT_EXECUTED`
