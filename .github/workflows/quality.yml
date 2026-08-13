@@ -252,6 +252,7 @@ jobs:
           npm run test:course-library-behavior
           npm run test:notation-temporary-practice-progress
           npm run test:notation-reference-melody-playback
+          npm run test:notation-reference-playback-controller
           npm run test:repository-hygiene
           npm run test:local-score-project
           npm run test:local-score-project-templates
