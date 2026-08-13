@@ -141,6 +141,7 @@ jobs:
           npm run test:piano-audio-foundation
           npm run test:piano-interaction
           npm run test:piano-performance
+          npm run test:piano-playback-controller
           npm run test:piano-midi
           npm run test:piano-learning-score
           npm run test:android-local-artifact-verifier
