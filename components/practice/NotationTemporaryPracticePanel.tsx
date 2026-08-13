@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 
 import type { NotationTemporaryPracticeTarget } from "../../lib/practice/localNotationDraftPracticeTarget";
 import type { NotationDraftEvent } from "../../lib/practice/localNotationFragmentDraft";
@@ -6,6 +6,7 @@ import type { NotationTemporaryPracticeProgress } from "../../lib/practice/notat
 import { isNotationTemporaryPracticeRoundComplete } from "../../lib/practice/notationTemporaryPracticeProgress";
 import { getNotationTargetPitchFrequencyHz } from "../../lib/practice/nonScoringNotationTargetPitchFeedback";
 import { getNotationReferenceMelodyPlaybackDurationSeconds, getNotationReferenceMelodyPlaybackPlan, type NotationReferenceMelodyPlaybackRate } from "../../lib/practice/notationReferenceMelodyPlayback";
+import { useNotationReferencePlaybackController } from "./useNotationReferencePlaybackController";
 
 type Props = {
   target: NotationTemporaryPracticeTarget | null;
@@ -22,43 +23,18 @@ const durationLabels = { half: "二分", quarter: "四分", eighth: "八分" } a
 
 export function NotationTemporaryPracticePanel({ target, onGoToSheetMusic, onClear, onPracticeCurrentNote, onPracticeRhythmTarget, progress, onToggleEventCompletion, onRestartPracticeRound }: Props) {
   const [eventIndex, setEventIndex] = useState(0);
-  const [isReferenceTonePlaying, setIsReferenceTonePlaying] = useState(false);
-  const [referencePlaybackKind, setReferencePlaybackKind] = useState<"tone" | "melody" | null>(null);
   const [referenceMelodyRate, setReferenceMelodyRate] = useState<NotationReferenceMelodyPlaybackRate>(1);
   const [referenceMelodyScope, setReferenceMelodyScope] = useState<"full" | "current-measure">("full");
-  const [referenceToneError, setReferenceToneError] = useState("");
-  const referenceToneContextRef = useRef<AudioContext | null>(null);
-  const referenceToneOscillatorRef = useRef<OscillatorNode | null>(null);
-  const referenceMelodyOscillatorsRef = useRef<OscillatorNode[]>([]);
-  const referenceMelodyTimeoutRef = useRef<number | null>(null);
-
-  const stopReferenceTone = () => {
-    if (referenceMelodyTimeoutRef.current !== null) {
-      window.clearTimeout(referenceMelodyTimeoutRef.current);
-      referenceMelodyTimeoutRef.current = null;
-    }
-    const oscillator = referenceToneOscillatorRef.current;
-    if (oscillator) {
-      try { oscillator.stop(); } catch { /* The short tone may already have stopped. */ }
-    }
-    referenceToneOscillatorRef.current = null;
-    for (const melodyOscillator of referenceMelodyOscillatorsRef.current) {
-      try { melodyOscillator.stop(); } catch { /* The scheduled note may already have stopped. */ }
-    }
-    referenceMelodyOscillatorsRef.current = [];
-    const context = referenceToneContextRef.current;
-    referenceToneContextRef.current = null;
-    if (context) void context.close();
-    setIsReferenceTonePlaying(false);
-    setReferencePlaybackKind(null);
-  };
+  const referencePlayback = useNotationReferencePlaybackController();
+  const isReferenceTonePlaying = referencePlayback.status !== "idle";
+  const referencePlaybackKind = referencePlayback.mode;
+  const referenceToneError = referencePlayback.error;
+  const stopReferenceTone = referencePlayback.stop;
 
   useEffect(() => {
     setEventIndex(0);
     stopReferenceTone();
-  }, [target?.id]);
-
-  useEffect(() => () => stopReferenceTone(), []);
+  }, [stopReferenceTone, target?.id, target?.status]);
 
   if (!target) {
     return (
@@ -92,80 +68,30 @@ export function NotationTemporaryPracticePanel({ target, onGoToSheetMusic, onCle
     ? getNotationTargetPitchFrequencyHz(event.pitch)
     : null;
 
-  const playReferenceTone = async () => {
+  const playReferenceTone = () => {
     if (referenceToneHz === null) return;
-    stopReferenceTone();
-    setReferenceToneError("");
-
-    try {
-      const context = new AudioContext();
-      const oscillator = context.createOscillator();
-      const gain = context.createGain();
-      const startTime = context.currentTime + 0.03;
-      const durationSeconds = 0.9;
-
-      referenceToneContextRef.current = context;
-      referenceToneOscillatorRef.current = oscillator;
-      oscillator.type = "sine";
-      oscillator.frequency.setValueAtTime(referenceToneHz, startTime);
-      gain.gain.setValueAtTime(0.0001, startTime);
-      gain.gain.exponentialRampToValueAtTime(0.16, startTime + 0.02);
-      gain.gain.exponentialRampToValueAtTime(0.0001, startTime + durationSeconds * 0.9);
-      oscillator.connect(gain);
-      gain.connect(context.destination);
-      oscillator.start(startTime);
-      oscillator.stop(startTime + durationSeconds);
-      setIsReferenceTonePlaying(true);
-      setReferencePlaybackKind("tone");
-      window.setTimeout(() => {
-        if (referenceToneOscillatorRef.current === oscillator) stopReferenceTone();
-      }, (durationSeconds + 0.15) * 1000);
-    } catch {
-      setReferenceToneError("当前浏览器无法播放参考音。你仍可继续查看音符并进行本地跟练。");
-      stopReferenceTone();
-    }
+    void referencePlayback.playTone({
+      frequencyHz: referenceToneHz,
+      errorMessage: "当前浏览器无法播放参考音。你仍可继续查看音符并进行本地跟练。",
+    });
   };
 
-  const playReferenceMelody = async () => {
+  const playReferenceMelody = () => {
     if (!isSightSinging) return;
-    stopReferenceTone();
-    setReferenceToneError("");
-
-    try {
-      const context = new AudioContext();
-      const startTime = context.currentTime + 0.05;
-      const playbackEvents = referenceMelodyScope === "current-measure"
-        ? target.events.filter((candidate) => candidate.measure === event.measure)
-        : target.events;
-      const plan = getNotationReferenceMelodyPlaybackPlan(playbackEvents, referenceMelodyRate);
-      const oscillators: OscillatorNode[] = [];
-
-      referenceToneContextRef.current = context;
-      for (const playbackEvent of plan) {
-        if (playbackEvent.frequencyHz === null) continue;
-        const oscillator = context.createOscillator();
-        const gain = context.createGain();
-        const noteStartTime = startTime + playbackEvent.offsetSeconds;
-        const noteEndTime = noteStartTime + playbackEvent.durationSeconds;
-        oscillator.type = "sine";
-        oscillator.frequency.setValueAtTime(playbackEvent.frequencyHz, noteStartTime);
-        gain.gain.setValueAtTime(0.0001, noteStartTime);
-        gain.gain.exponentialRampToValueAtTime(0.13, noteStartTime + 0.02);
-        gain.gain.exponentialRampToValueAtTime(0.0001, Math.max(noteStartTime + 0.03, noteEndTime - 0.03));
-        oscillator.connect(gain);
-        gain.connect(context.destination);
-        oscillator.start(noteStartTime);
-        oscillator.stop(noteEndTime);
-        oscillators.push(oscillator);
-      }
-      referenceMelodyOscillatorsRef.current = oscillators;
-      setIsReferenceTonePlaying(true);
-      setReferencePlaybackKind("melody");
-      referenceMelodyTimeoutRef.current = window.setTimeout(() => stopReferenceTone(), (getNotationReferenceMelodyPlaybackDurationSeconds(playbackEvents, referenceMelodyRate) + 0.2) * 1000);
-    } catch {
-      setReferenceToneError("当前浏览器无法播放参考旋律。你仍可逐个查看音符并进行本地跟练。");
-      stopReferenceTone();
-    }
+    const playbackEvents = referenceMelodyScope === "current-measure"
+      ? target.events.filter((candidate) => candidate.measure === event.measure)
+      : target.events;
+    void referencePlayback.playMelody({
+      events: getNotationReferenceMelodyPlaybackPlan(
+        playbackEvents,
+        referenceMelodyRate,
+      ),
+      totalDurationSeconds: getNotationReferenceMelodyPlaybackDurationSeconds(
+        playbackEvents,
+        referenceMelodyRate,
+      ),
+      errorMessage: "当前浏览器无法播放参考旋律。你仍可逐个查看音符并进行本地跟练。",
+    });
   };
 
   return (

@@ -192,6 +192,12 @@ controller／port，阻止旧播放 callback 停止或覆盖替换后的新播�
 callback 停止新播放、重建旧循环或污染随后开始的用户演奏录制。storage、MusicXML、
 Activity、MIDI、节拍器、音色和 UI 保持原边界。
 
+临时乐谱短参考音／参考旋律 latest-wins 边界见
+`docs/notation-reference-playback-controller-acceptance.md`。专用 controller 承接共享 browser
+channel、tone/melody sources 与完成 timer，阻止旧旋律完成 callback 停止替换播放，并让
+全局停止及同 id 目标失效同步清除播放；纯 plan、音色／包络、休止时长、速度、范围、文案
+和 UI 保持不变。
+
 PR #515 随后把两个静态 validator 对齐到上述 page／client 依赖方向：endpoint、POST、
 字段和条件参数仍在 client 检查，页面重新出现 fetch、FormData 或 dev endpoint literal
 会失败。该维护不改变 runtime 或界面，但防止后续重构把已抽离的平台依赖重新放回页面。
