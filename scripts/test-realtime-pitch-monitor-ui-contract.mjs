@@ -122,6 +122,25 @@ for (const expected of [
 ]) requireCopy(panel, expected, "实时音高中文界面");
 
 for (const expected of [
+  "useNotationReferencePlaybackController",
+  "a4ReferencePlayback.playTone",
+  "frequencyHz: 440",
+  "releaseOffsetSeconds: 0.85",
+  "当前设备无法播放 A4 参考音。你仍可查看目标并稍后重试。",
+]) requireCopy(panel, expected, "A4 参考音 controller 边界");
+
+for (const forbidden of [
+  "createBrowserAudioChannel",
+  "a4ReferenceChannelRef",
+  "createOscillator",
+  "createGain",
+]) {
+  if (panel.includes(forbidden)) {
+    throw new Error(`A4 参考音不得重新承担 raw browser audio：${forbidden}`);
+  }
+}
+
+for (const expected of [
   "splitReliablePitchCurveSegments",
   "最近 {windowSeconds} 秒音高曲线",
   "断线：不足以判断",
