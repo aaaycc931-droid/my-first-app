@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "reviewedCommandCount": 173,
+  "reviewedCommandCount": 174,
   "baseline": {
     "mainRunId": 31293374745,
     "mainCommit": "4bdaf1d84856304843d201b4f6907878b2419606",
@@ -59,6 +59,10 @@
     },
     {
       "script": "test:practice-rhythm-runtime-controller",
+      "lane": "audio-rhythm"
+    },
+    {
+      "script": "test:practice-standalone-metronome-controller",
       "lane": "audio-rhythm"
     },
     {

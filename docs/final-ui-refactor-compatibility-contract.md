@@ -96,7 +96,7 @@ require 依赖，并阻止其反向引用 `app/`、`components/` 或 `mobile/src
 
 | 热点 | 当前混合职责 | 重构前目标边界 |
 | --- | --- | --- |
-| `app/practice/page.tsx` | 页面、活动会话和反馈编排；本地录音、录音解码／质量／音高／起音分析、本地旋律参考音频解码、普通／谱面节奏与点击延迟校准 runtime 及目标旋律／单音播放已由 controllers／ports 承接 | 继续提取独立节拍计时 adapter 和语义化页面状态 |
+| `app/practice/page.tsx` | 页面、活动会话和反馈编排；本地录音、录音解码／质量／音高／起音分析、本地旋律参考音频解码、独立节拍器、普通／谱面节奏与点击延迟校准 runtime 及目标旋律／单音播放已由 controllers／ports 承接 | 继续提取语义化页面状态；不得把 browser scheduler ownership 放回页面 |
 | `mobile/src/LocalScoreProjectPanel.tsx` | 编辑 UI、项目存储、MusicXML/MXL 候选、确认和下载 | 提取 score-project controller、exchange use-case 与 file adapter |
 | `mobile/src/App.tsx` | 导航、生命周期和学习流程编排；课程进度、学习画像与复练队列已分别注入 repository | 提取 app shell、navigation state 与 learning controller |
 | `app/recognize/page.tsx` | 文件校验、识别结果和文件选择／导入编排已由可注入 recognition workflow controller／薄 React hook 承接；API 请求、preview URL 和音符播放调度也分别由 client／preview adapter／latest-wins playback controller 承接 | 继续提取其余语义化页面职责；不得把 fetch／FormData／AudioContext 调度放回页面 |
@@ -197,6 +197,11 @@ Activity、MIDI、节拍器、音色和 UI 保持原边界。
 channel、tone/melody sources 与完成 timer，阻止旧旋律完成 callback 停止替换播放，并让
 全局停止及同 id 目标失效同步清除播放；纯 plan、音色／包络、休止时长、速度、范围、文案
 和 UI 保持不变。
+
+`/practice` 独立基础节拍器 consumer 边界见
+`docs/practice-standalone-metronome-controller-acceptance.md`。controller／hook 承接 scheduler、
+starting/running、beat 与全局／后台／feature-exit 生命周期，避免隐藏的 click 继续播放并串入
+后续麦克风会话；scheduler 音色、BPM／拍号／预备拍／细分、非评分说明和 UI 保持不变。
 
 PR #515 随后把两个静态 validator 对齐到上述 page／client 依赖方向：endpoint、POST、
 字段和条件参数仍在 client 检查，页面重新出现 fetch、FormData 或 dev endpoint literal
