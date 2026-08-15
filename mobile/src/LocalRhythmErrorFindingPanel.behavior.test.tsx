@@ -7,6 +7,13 @@ import { createLocalEarTrainingRhythmQuestion } from "../../lib/practice/localEa
 import { createLocalRhythmErrorFindingChallenge } from "../../lib/practice/localRhythmErrorFinding";
 import { LocalRhythmErrorFindingPanel } from "../../components/practice/LocalRhythmErrorFindingPanel";
 
+let audioCurrentTime = 0;
+let audioState: AudioContextState = "running";
+const audioStateChangeListeners = new Set<() => void>();
+const removeAudioStateListener = vi.fn((listener: () => void) => {
+  audioStateChangeListeners.delete(listener);
+});
+
 vi.mock("../../components/practice/useLocalAudioPlayback", () => ({
   useLocalAudioPlayback: () => ({
     isPlaying: false,
@@ -15,7 +22,19 @@ vi.mock("../../components/practice/useLocalAudioPlayback", () => ({
     play: async (schedule: (context: AudioContext, channel: { trackSource: (source: unknown) => unknown }) => number) => {
       const oscillator = { type: "sine", frequency: { value: 0 }, connect: vi.fn(), start: vi.fn(), stop: vi.fn(), addEventListener: vi.fn(), disconnect: vi.fn() };
       const gain = { gain: { setValueAtTime: vi.fn(), exponentialRampToValueAtTime: vi.fn() }, connect: vi.fn(), disconnect: vi.fn() };
-      schedule({ currentTime: 0, destination: {}, createOscillator: () => oscillator, createGain: () => gain } as unknown as AudioContext, { trackSource: (source) => source });
+      schedule({
+        get currentTime() { return audioCurrentTime; },
+        get state() { return audioState; },
+        destination: {},
+        createOscillator: () => oscillator,
+        createGain: () => gain,
+        addEventListener: (type: string, listener: () => void) => {
+          if (type === "statechange") audioStateChangeListeners.add(listener);
+        },
+        removeEventListener: (type: string, listener: () => void) => {
+          if (type === "statechange") removeAudioStateListener(listener);
+        },
+      } as unknown as AudioContext, { trackSource: (source) => source });
       return null;
     },
   }),
@@ -32,8 +51,28 @@ const findButton = (container: ParentNode, label: string) => {
 };
 const click = async (button: HTMLElement) => act(async () => button.dispatchEvent(new MouseEvent("click", { bubbles: true })));
 
-beforeEach(() => { vi.useFakeTimers(); document.body.replaceChildren(); });
-afterEach(async () => { if (root) await act(async () => root?.unmount()); root = null; vi.useRealTimers(); vi.restoreAllMocks(); });
+const changeAudioState = async (state: AudioContextState) => {
+  audioState = state;
+  await act(async () => {
+    Array.from(audioStateChangeListeners).forEach((listener) => listener());
+  });
+};
+
+beforeEach(() => {
+  vi.useFakeTimers();
+  audioCurrentTime = 0;
+  audioState = "running";
+  audioStateChangeListeners.clear();
+  removeAudioStateListener.mockClear();
+  document.body.replaceChildren();
+});
+afterEach(async () => {
+  if (root) await act(async () => root?.unmount());
+  root = null;
+  audioStateChangeListeners.clear();
+  vi.useRealTimers();
+  vi.restoreAllMocks();
+});
 
 describe("Android 挂载节奏找错行为", () => {
   it("完整播放前锁定选项，播放后可标记并只显示题内非评分事件答案", async () => {
@@ -45,6 +84,7 @@ describe("Android 挂载节奏找错行为", () => {
     expect(container.querySelectorAll('[data-testid="rhythm-error-finding-target"] span[title]')).toHaveLength(question.pattern.onsetBeats.length);
 
     await click(findButton(container, "播放含一处变化的版本"));
+    audioCurrentTime = 3;
     await act(async () => vi.advanceTimersByTime(3_000));
     expect(container.textContent).toContain("状态：播放完成，可以标记");
     expect(findButton(container, challenge.correctCandidate.label).disabled).toBe(false);
@@ -65,5 +105,60 @@ describe("Android 挂载节奏找错行为", () => {
     await act(async () => vi.advanceTimersByTime(20_000));
     expect(container.textContent).toContain("状态：等待完整播放");
     expect(findButton(container, challenge.correctCandidate.label).disabled).toBe(true);
+  });
+
+  it("墙上计时器先到但音频 currentTime 未到预期结束点时保持锁定", async () => {
+    const container = document.createElement("div"); document.body.append(container); root = createRoot(container);
+    await act(async () => root?.render(<LocalRhythmErrorFindingPanel question={question} sessionSeed={0} />));
+    await click(findButton(container, "播放含一处变化的版本"));
+
+    audioCurrentTime = 0.5;
+    await act(async () => vi.advanceTimersByTime(20_000));
+    expect(container.textContent).toContain("音频时间线未完整结束");
+    expect(container.textContent).toContain("状态：等待完整播放");
+    expect(findButton(container, challenge.correctCandidate.label).disabled).toBe(true);
+
+    audioCurrentTime = 30;
+    await act(async () => vi.runOnlyPendingTimers());
+    expect(container.textContent).toContain("状态：等待完整播放");
+    expect(findButton(container, challenge.correctCandidate.label).disabled).toBe(true);
+  });
+
+  it.each(["suspended", "closed"] as const)("AudioContext %s 会撤销已取得的资格且迟到回调不能恢复", async (interruptedState) => {
+    const container = document.createElement("div"); document.body.append(container); root = createRoot(container);
+    await act(async () => root?.render(<LocalRhythmErrorFindingPanel question={question} sessionSeed={0} />));
+    await click(findButton(container, "播放含一处变化的版本"));
+    audioCurrentTime = 3;
+    await act(async () => vi.advanceTimersByTime(3_000));
+    expect(findButton(container, challenge.correctCandidate.label).disabled).toBe(false);
+
+    await changeAudioState(interruptedState);
+    expect(container.textContent).toContain("音频时间线已中断");
+    expect(container.textContent).toContain("状态：等待完整播放");
+    expect(findButton(container, challenge.correctCandidate.label).disabled).toBe(true);
+    await act(async () => vi.advanceTimersByTime(20_000));
+    expect(findButton(container, challenge.correctCandidate.label).disabled).toBe(true);
+  });
+
+  it("重播撤销旧选择和脏 attempt，卸载移除状态监听与完成计时器", async () => {
+    const container = document.createElement("div"); document.body.append(container); root = createRoot(container);
+    await act(async () => root?.render(<LocalRhythmErrorFindingPanel question={question} sessionSeed={0} />));
+    await click(findButton(container, "播放含一处变化的版本"));
+    audioCurrentTime = 3;
+    await act(async () => vi.advanceTimersByTime(3_000));
+    await click(findButton(container, challenge.correctCandidate.label));
+    expect(container.textContent).toContain("已作答，等待检查");
+
+    audioCurrentTime = 3;
+    await click(findButton(container, "重新播放变化版本"));
+    expect(findButton(container, challenge.correctCandidate.label).disabled).toBe(true);
+    expect(container.textContent).toContain("第 2 次尝试");
+    expect(audioStateChangeListeners.size).toBe(1);
+
+    await act(async () => root?.unmount());
+    root = null;
+    expect(audioStateChangeListeners.size).toBe(0);
+    expect(removeAudioStateListener).toHaveBeenCalled();
+    expect(vi.getTimerCount()).toBe(0);
   });
 });

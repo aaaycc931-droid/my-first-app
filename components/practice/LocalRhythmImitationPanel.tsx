@@ -33,6 +33,8 @@ import { useLocalAudioPlayback } from "./useLocalAudioPlayback";
 
 type ImitationStage = "idle" | "reference" | "ready" | "count-in" | "practice" | "stopped";
 
+const AUDIO_TIMELINE_EARLY_TOLERANCE_SECONDS = 0.02;
+
 const scheduleClick = (
   context: AudioContext,
   channel: BrowserAudioChannel,
@@ -77,6 +79,7 @@ export function LocalRhythmImitationPanel({
   const [notice, setNotice] = useState("");
   const timerIdsRef = useRef<number[]>([]);
   const intervalIdRef = useRef<number | null>(null);
+  const audioStateCleanupRef = useRef<(() => void) | null>(null);
   const runtimeTokenRef = useRef(0);
   const tapIdRef = useRef(0);
   const practiceStartTimeMsRef = useRef<number | null>(null);
@@ -95,6 +98,8 @@ export function LocalRhythmImitationPanel({
     timerIdsRef.current = [];
     if (intervalIdRef.current !== null) window.clearInterval(intervalIdRef.current);
     intervalIdRef.current = null;
+    audioStateCleanupRef.current?.();
+    audioStateCleanupRef.current = null;
   }, []);
 
   const setRuntimeStage = useCallback((next: ImitationStage) => {
@@ -202,12 +207,34 @@ export function LocalRhythmImitationPanel({
       const beatDurationMs = 60_000 / question.bpm;
       const startDelayMs = 80;
       const audioStart = context.currentTime + startDelayMs / 1000;
+      const expectedAudioEnd = audioStart + getLocalRhythmImitationDurationMs(question) / 1_000;
       question.pattern.onsetBeats.forEach((onsetBeat) => {
         scheduleClick(context, channel, audioStart + onsetBeat * beatDurationMs / 1000, onsetBeat === 0 ? 880 : 660);
       });
+      const handleAudioStateChange = () => {
+        if (
+          token === runtimeTokenRef.current
+          && stageRef.current === "reference"
+          && context.state !== "running"
+        ) {
+          invalidateAttempt("隐藏节奏播放被音频中断，本轮没有获得回模资格；请重新完整听题。");
+        }
+      };
+      context.addEventListener("statechange", handleAudioStateChange);
+      audioStateCleanupRef.current = () =>
+        context.removeEventListener("statechange", handleAudioStateChange);
       setRuntimeStage("reference");
       timerIdsRef.current.push(window.setTimeout(() => {
         if (token !== runtimeTokenRef.current || stageRef.current !== "reference") return;
+        if (
+          context.state !== "running"
+          || context.currentTime + AUDIO_TIMELINE_EARLY_TOLERANCE_SECONDS < expectedAudioEnd
+        ) {
+          invalidateAttempt("隐藏节奏时间线没有完整结束，本轮没有获得回模资格；请重新播放。");
+          return;
+        }
+        audioStateCleanupRef.current?.();
+        audioStateCleanupRef.current = null;
         stopPlayback();
         setRuntimeStage("ready");
       }, startDelayMs + getLocalRhythmImitationDurationMs(question)));
@@ -232,6 +259,7 @@ export function LocalRhythmImitationPanel({
       const countInDurationMs = LOCAL_RHYTHM_IMITATION_COUNT_IN_BEATS * beatDurationMs;
       const startDelayMs = 80;
       const audioStart = context.currentTime + startDelayMs / 1000;
+      const expectedPracticeStart = audioStart + countInDurationMs / 1_000;
       const practiceStartTimeMs = performance.now() + startDelayMs + countInDurationMs;
       practiceStartTimeMsRef.current = practiceStartTimeMs;
       Array.from({ length: LOCAL_RHYTHM_IMITATION_COUNT_IN_BEATS }, (_, index) => {
@@ -243,15 +271,44 @@ export function LocalRhythmImitationPanel({
       const nextTargets = createLocalRhythmImitationTargets({ question, practiceStartTimeMs });
       targetsRef.current = nextTargets;
       setTargets(nextTargets);
+      const handleAudioStateChange = () => {
+        if (
+          token === runtimeTokenRef.current
+          && (stageRef.current === "count-in" || stageRef.current === "practice")
+          && context.state !== "running"
+        ) {
+          invalidateAttempt("节奏回模时间线被音频中断，本轮已作废；请重新完整听题。");
+        }
+      };
+      context.addEventListener("statechange", handleAudioStateChange);
+      audioStateCleanupRef.current = () =>
+        context.removeEventListener("statechange", handleAudioStateChange);
       setRuntimeStage("count-in");
       setNowMs(performance.now());
       intervalIdRef.current = window.setInterval(() => setNowMs(performance.now()), 50);
       timerIdsRef.current.push(window.setTimeout(() => {
-        if (token === runtimeTokenRef.current) setRuntimeStage("practice");
+        if (token !== runtimeTokenRef.current) return;
+        if (
+          context.state !== "running"
+          || context.currentTime + AUDIO_TIMELINE_EARLY_TOLERANCE_SECONDS < expectedPracticeStart
+        ) {
+          invalidateAttempt("四拍预备时间线没有完整到达练习起点，本轮已作废；请重新完整听题。");
+          return;
+        }
+        setRuntimeStage("practice");
       }, startDelayMs + countInDurationMs));
       const practiceDurationMs = getLocalRhythmImitationDurationMs(question);
+      const expectedAudioEnd = expectedPracticeStart + practiceDurationMs / 1_000;
       timerIdsRef.current.push(window.setTimeout(() => {
-        if (token === runtimeTokenRef.current) finishPractice();
+        if (token !== runtimeTokenRef.current) return;
+        if (
+          context.state !== "running"
+          || context.currentTime + AUDIO_TIMELINE_EARLY_TOLERANCE_SECONDS < expectedAudioEnd
+        ) {
+          invalidateAttempt("节奏回模音频时间线没有完整结束，本轮已作废；请重新完整听题。");
+          return;
+        }
+        finishPractice();
       }, startDelayMs + countInDurationMs + practiceDurationMs + rhythmMatchWindowMs));
       return startDelayMs + countInDurationMs + practiceDurationMs + rhythmMatchWindowMs + 200;
     });
