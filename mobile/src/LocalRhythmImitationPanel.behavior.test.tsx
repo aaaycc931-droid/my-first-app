@@ -6,6 +6,10 @@ import { stopAllBrowserAudio } from "../../lib/audio/browserAudioEngine";
 import { createLocalEarTrainingRhythmQuestion } from "../../lib/practice/localEarTrainingRhythm";
 import { LocalRhythmImitationPanel } from "../../components/practice/LocalRhythmImitationPanel";
 
+let audioState: AudioContextState = "running";
+let frozenAudioTimeSeconds: number | null = null;
+let audioStateListeners = new Set<() => void>();
+
 vi.mock("../../components/practice/useLocalAudioPlayback", () => ({
   useLocalAudioPlayback: () => ({
     isPlaying: false,
@@ -21,7 +25,21 @@ vi.mock("../../components/practice/useLocalAudioPlayback", () => ({
         connect: vi.fn(), disconnect: vi.fn(),
       };
       schedule({
-        currentTime: 0, destination: {}, createOscillator: () => oscillator, createGain: () => gain,
+        get currentTime() {
+          return frozenAudioTimeSeconds ?? performance.now() / 1_000;
+        },
+        get state() {
+          return audioState;
+        },
+        destination: {},
+        createOscillator: () => oscillator,
+        createGain: () => gain,
+        addEventListener: (event: string, listener: () => void) => {
+          if (event === "statechange") audioStateListeners.add(listener);
+        },
+        removeEventListener: (event: string, listener: () => void) => {
+          if (event === "statechange") audioStateListeners.delete(listener);
+        },
       } as unknown as AudioContext, { trackSource: (source) => source });
       return null;
     },
@@ -48,9 +66,19 @@ const click = async (button: HTMLElement) => {
   await act(async () => button.dispatchEvent(new MouseEvent("click", { bubbles: true })));
 };
 
+const interruptAudioTimeline = async (state: AudioContextState) => {
+  await act(async () => {
+    audioState = state;
+    Array.from(audioStateListeners).forEach((listener) => listener());
+  });
+};
+
 beforeEach(() => {
   vi.useFakeTimers();
   document.body.replaceChildren();
+  audioState = "running";
+  frozenAudioTimeSeconds = null;
+  audioStateListeners = new Set();
 });
 
 afterEach(async () => {
@@ -110,6 +138,85 @@ describe("Android 挂载节奏回模行为", () => {
     await act(async () => vi.advanceTimersByTime(20_000));
     expect(container.textContent).toContain("状态：尚未听题");
     expect(container.textContent).not.toContain("状态：听题完成，可以开始回模");
+  });
+
+  it("隐藏节奏音频状态中断时不授予回模资格，迟到计时器也不能解锁", async () => {
+    const container = document.createElement("div");
+    document.body.append(container);
+    root = createRoot(container);
+    await act(async () => root?.render(<LocalRhythmImitationPanel question={question} sessionSeed={0} />));
+    await click(findButton(container, "听一遍隐藏节奏"));
+    expect(container.textContent).toContain("状态：正在听题");
+
+    await act(async () => vi.advanceTimersByTime(500));
+    await interruptAudioTimeline("suspended");
+    expect(container.textContent).toContain("隐藏节奏播放被音频中断");
+    expect(container.textContent).toContain("状态：尚未听题");
+    expect(findButton(container, "开始节奏回模").disabled).toBe(true);
+
+    await act(async () => vi.advanceTimersByTime(20_000));
+    expect(container.textContent).toContain("状态：尚未听题");
+    expect(container.textContent).not.toContain("状态：听题完成，可以开始回模");
+  });
+
+  it("隐藏节奏墙钟结束但音频时钟未到终点时保持 fail closed", async () => {
+    frozenAudioTimeSeconds = 0;
+    const container = document.createElement("div");
+    document.body.append(container);
+    root = createRoot(container);
+    await act(async () => root?.render(<LocalRhythmImitationPanel question={question} sessionSeed={0} />));
+    await click(findButton(container, "听一遍隐藏节奏"));
+
+    await act(async () => vi.advanceTimersByTime(3_000));
+    expect(container.textContent).toContain("隐藏节奏时间线没有完整结束");
+    expect(container.textContent).toContain("状态：尚未听题");
+    expect(findButton(container, "开始节奏回模").disabled).toBe(true);
+  });
+
+  it("四拍预备音频中断时作废本轮且不产生迟到反馈", async () => {
+    const results: boolean[] = [];
+    const container = document.createElement("div");
+    document.body.append(container);
+    root = createRoot(container);
+    await act(async () => root?.render(<LocalRhythmImitationPanel question={question} sessionSeed={0} onLocalAnswerResult={(result) => results.push(result.isCorrect)} />));
+    await click(findButton(container, "听一遍隐藏节奏"));
+    await act(async () => vi.advanceTimersByTime(3_000));
+    await click(findButton(container, "开始节奏回模"));
+    expect(container.textContent).toContain("状态：预备拍");
+
+    await act(async () => vi.advanceTimersByTime(500));
+    await interruptAudioTimeline("suspended");
+    expect(container.textContent).toContain("节奏回模时间线被音频中断");
+    expect(container.textContent).toContain("状态：尚未听题");
+
+    await act(async () => vi.advanceTimersByTime(20_000));
+    expect(container.textContent).not.toContain("逐拍非评分反馈");
+    expect(results).toEqual([]);
+  });
+
+  it("回模墙钟结束但音频时钟停滞时不生成反馈或学习事实", async () => {
+    const results: boolean[] = [];
+    const container = document.createElement("div");
+    document.body.append(container);
+    root = createRoot(container);
+    await act(async () => root?.render(<LocalRhythmImitationPanel question={question} sessionSeed={0} onLocalAnswerResult={(result) => results.push(result.isCorrect)} />));
+    await click(findButton(container, "听一遍隐藏节奏"));
+    await act(async () => vi.advanceTimersByTime(3_000));
+    await click(findButton(container, "开始节奏回模"));
+    await act(async () => vi.advanceTimersByTime(2_950));
+    expect(container.textContent).toContain("状态：回模中");
+
+    frozenAudioTimeSeconds = performance.now() / 1_000;
+    for (let index = 0; index < 4; index += 1) {
+      await click(findButton(container, "按记忆点击"));
+      if (index < 3) await act(async () => vi.advanceTimersByTime(714));
+    }
+    await act(async () => vi.advanceTimersByTime(5_000));
+
+    expect(container.textContent).toContain("节奏回模音频时间线没有完整结束");
+    expect(container.textContent).toContain("状态：尚未听题");
+    expect(container.textContent).not.toContain("逐拍非评分反馈");
+    expect(results).toEqual([]);
   });
 
   it("预备拍中手动停止后作废输入，迟到练习计时器不能重新开启", async () => {

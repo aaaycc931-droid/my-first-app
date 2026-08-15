@@ -208,6 +208,11 @@ starting/running、beat 与全局／后台／feature-exit 生命周期，避免�
 使监听／录音的全局停止能取消 pending prepare，阻止迟到 440 Hz 串入当前 Blob 或 Activity
 证据；A4 包络、文案、目标、录音／分析和 UI 保持不变。
 
+本机练声音型参考播放 ownership 见
+`docs/local-vocal-reference-playback-controller-acceptance.md`。完整音型和所选音三次复练由
+独立 latest-wins controller／browser port／hook 承接；全局停止可取消尚未完成的音频准备，
+避免迟到参考音串入实时监听或录音。音型生成、目标、包络、文案和 UI 保持既有边界。
+
 PR #515 随后把两个静态 validator 对齐到上述 page／client 依赖方向：endpoint、POST、
 字段和条件参数仍在 client 检查，页面重新出现 fetch、FormData 或 dev endpoint literal
 会失败。该维护不改变 runtime 或界面，但防止后续重构把已抽离的平台依赖重新放回页面。
