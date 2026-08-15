@@ -1,6 +1,6 @@
 # MVP / Android 私测当前状态
 
-最后更新：2026-08-12
+最后更新：2026-08-15
 
 本文件是当前可验证状态总账，不再作为逐次运行日志无限追加。历史细节保留在 Git 提交记录、PR 与 Actions 中。
 
@@ -13,11 +13,12 @@
   `69803c47146ad3aa2a9517394685019b49077ad2`。当前会话、已保存录音与 P113 片段的 Blob
   回放统一由 stale-safe latest-wins controller／浏览器 adapter 承接；真实浏览器、Android
   WebView／真机、后台／锁屏与长循环 QA 状态未改变。
-- 最新已合并音频／生命周期可靠性链：PR #535–#549 已把会话 MediaRecorder、实时音高
+- 最新音频／生命周期可靠性链：PR #535–#550 已把会话 MediaRecorder、实时音高
   controller、中断失败关闭、钢琴输入、节拍器 pending start、`/practice` 本地录音、目标
   播放、录音分析、本地旋律参考音频解码、普通／谱面节奏、点击延迟校准与 recognition
-  音符播放、钢琴回放、临时乐谱参考音频与 `/practice` 独立节拍器分别收紧到 stale-safe
-  ports／controllers；本分支继续收紧实时音高固定 A4 参考音的 pending prepare ownership。所有真实 codec、浏览器、Android
+  音符播放、钢琴回放、临时乐谱参考音频、`/practice` 独立节拍器与实时音高固定 A4
+  参考音分别收紧到 stale-safe ports／controllers；本切片进一步让全局停止取消本机练声音型
+  尚未完成的音频准备，避免迟到参考音串入监听或录音。所有真实 codec、浏览器、Android
   WebView／真机、麦克风、后台／锁屏与长循环 QA 仍为 `NOT_EXECUTED`。
 - 最新已合并产品功能基线：严格 MusicXML/MXL 小十三和弦 round-trip / PR #518，合并提交 `71854ff7bff23ece46dc2488a05623a57426fd55`；S3 MusicXML/MXL 严格矩阵现为 24 类 × 21 根音 = 504
 - 最新已合并 UI 边界切片：浏览器 recognition 文件预览 adapter 抽离 / PR #514，合并提交 `f5a1c1ed3feb26c8d3b76650578c50e8c84f5511`

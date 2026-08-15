@@ -1,27 +1,50 @@
 import { act, StrictMode } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from "vitest";
 
 import { LocalVocalExercisePanel } from "../../components/practice/LocalVocalExercisePanel";
+import { stopAllBrowserAudio } from "../../lib/audio/browserAudioEngine";
+import type {
+  LocalVocalReferencePlaybackPort,
+  LocalVocalReferencePlaybackTone,
+  PreparedLocalVocalReferencePlayback,
+} from "../../lib/audio/localVocalReferencePlayback";
+import { createLocalVocalReferencePlaybackController } from "../../lib/practice/localVocalReferencePlaybackController";
 
 let root: Root | null = null;
-let channelStop: ReturnType<typeof vi.fn>;
-let oscillatorStart: ReturnType<typeof vi.fn>;
-let oscillatorStop: ReturnType<typeof vi.fn>;
-let prepare: ReturnType<typeof vi.fn>;
+let portStop: Mock<() => void>;
+let scheduleTone: Mock<(tone: LocalVocalReferencePlaybackTone) => void>;
+let prepare: Mock<() => Promise<PreparedLocalVocalReferencePlayback>>;
+let timers: Map<number, () => void>;
+let nextTimer: number;
 
 const flush = async () => act(async () => { await new Promise((resolve) => window.setTimeout(resolve, 10)); });
 
 const renderPanel = async () => {
   const container = document.createElement("div");
   document.body.append(container);
-  const createChannel = () => ({
-    prepareForUserGesture: () => (prepare as unknown as () => Promise<AudioContext>)(),
-    stop: () => (channelStop as unknown as () => void)(),
-    trackSource: <T,>(source: T) => source,
-  });
+  const port: LocalVocalReferencePlaybackPort = {
+    prepare: () => prepare(),
+    stop: portStop,
+    dispose: portStop,
+    setTimer: (callback) => {
+      const timer = nextTimer++;
+      timers.set(timer, callback);
+      return timer;
+    },
+    clearTimer: (timer) => {
+      timers.delete(timer as number);
+    },
+  };
   root = createRoot(container);
-  await act(async () => root?.render(<StrictMode><LocalVocalExercisePanel createChannel={createChannel} /></StrictMode>));
+  await act(async () => root?.render(
+    <StrictMode>
+      <LocalVocalExercisePanel
+        createPlaybackController={() =>
+          createLocalVocalReferencePlaybackController(port)}
+      />
+    </StrictMode>,
+  ));
   await flush();
   return container;
 };
@@ -38,16 +61,11 @@ const click = async (element: HTMLElement) => {
 };
 
 beforeEach(() => {
-  channelStop = vi.fn();
-  oscillatorStart = vi.fn();
-  oscillatorStop = vi.fn();
-  const context = {
-    currentTime: 10,
-    destination: {},
-    createOscillator: () => ({ type: "sine", frequency: { value: 0 }, connect: vi.fn(), start: oscillatorStart, stop: oscillatorStop }),
-    createGain: () => ({ gain: { setValueAtTime: vi.fn(), exponentialRampToValueAtTime: vi.fn() }, connect: vi.fn() }),
-  };
-  prepare = vi.fn().mockResolvedValue(context);
+  portStop = vi.fn();
+  scheduleTone = vi.fn();
+  prepare = vi.fn().mockResolvedValue({ scheduleTone });
+  timers = new Map();
+  nextTimer = 1;
 });
 
 afterEach(async () => {
@@ -63,10 +81,10 @@ describe("Android 本地练声目标生成器", () => {
     expect(container.textContent).toContain("目标预览（18 音 / 2 组）");
     await click(button(container, "播放参考音型"));
     expect(prepare).toHaveBeenCalledTimes(1);
-    expect(oscillatorStart).toHaveBeenCalledTimes(18);
+    expect(scheduleTone).toHaveBeenCalledTimes(18);
     expect(container.textContent).toContain("正在播放参考音型");
     await click(button(container, "停止参考播放"));
-    expect(channelStop).toHaveBeenCalled();
+    expect(portStop).toHaveBeenCalled();
   });
 
   it("参考音频准备失败显示中文恢复提示", async () => {
@@ -82,13 +100,37 @@ describe("Android 本地练声目标生成器", () => {
     await click(button(container, "播放参考音型"));
     await act(async () => root?.unmount());
     root = null;
-    expect(channelStop).toHaveBeenCalled();
+    await flush();
+    expect(portStop).toHaveBeenCalled();
   });
 
   it("可手动选择片段并循环三次参考音", async () => {
     const container = await renderPanel();
     await click(button(container, "重复所选片段 3 次"));
-    expect(oscillatorStart).toHaveBeenCalledTimes(3);
+    expect(scheduleTone).toHaveBeenCalledTimes(3);
     expect(container.textContent).toContain("正在播放参考音型");
+  });
+
+  it("全局停止会取消尚未完成的参考音准备且迟到结果不会进入录音", async () => {
+    let resolvePrepare: ((value: { scheduleTone: typeof scheduleTone }) => void) | null = null;
+    prepare.mockImplementation(() => new Promise((resolve) => {
+      resolvePrepare = resolve;
+    }));
+    const container = await renderPanel();
+
+    await click(button(container, "播放参考音型"));
+    expect(container.textContent).toContain("正在准备参考音型");
+    expect(button(container, "停止参考播放").disabled).toBe(false);
+
+    await act(async () => stopAllBrowserAudio());
+    expect(container.textContent).toContain("播放参考音型");
+
+    await act(async () => resolvePrepare?.({ scheduleTone }));
+    await flush();
+    expect(scheduleTone).not.toHaveBeenCalled();
+    expect(container.textContent).toContain("播放参考音型");
+
+    await click(button(container, "播放参考音型"));
+    expect(prepare).toHaveBeenCalledTimes(2);
   });
 });
