@@ -155,6 +155,28 @@ assert.match(deployWorkflow, /^\s{2}workflow_dispatch:\s*$/m);
 assert.doesNotMatch(deployWorkflow, /^\s{2}push:\s*$/m);
 assert.doesNotMatch(deployWorkflow, /\[deploy-supabase\]/);
 
+const qualityWorkflow = workflowByName.get("quality.yml") ?? "";
+assert.equal(
+  (qualityWorkflow.match(/npm audit --omit=dev --audit-level=high/g) ?? []).length,
+  1,
+  "Quality must audit production dependencies at high severity exactly once",
+);
+assert.equal(
+  (qualityWorkflow.match(/npm audit --include=dev --audit-level=high/g) ?? []).length,
+  1,
+  "Quality must audit development dependencies at high severity exactly once",
+);
+assert.match(
+  qualityWorkflow,
+  /- name: Audit production dependencies\n\s+if: \$\{\{ needs\.classify\.outputs\.run_audit == 'true' \}\}\n\s+run: npm audit --omit=dev --audit-level=high/,
+  "Production audit must stay behind the reviewed dependency-audit classifier",
+);
+assert.match(
+  qualityWorkflow,
+  /- name: Audit dependencies including development tools\n\s+if: \$\{\{ needs\.classify\.outputs\.run_audit == 'true' \}\}\n\s+run: npm audit --include=dev --audit-level=high/,
+  "Development audit must fail closed behind the reviewed dependency-audit classifier",
+);
+
 for (const heading of [
   "## Scope",
   "## Risk and CI classification",

@@ -93,6 +93,10 @@ jobs:
         if: ${{ needs.classify.outputs.run_audit == 'true' }}
         run: npm audit --omit=dev --audit-level=high
 
+      - name: Audit dependencies including development tools
+        if: ${{ needs.classify.outputs.run_audit == 'true' }}
+        run: npm audit --include=dev --audit-level=high
+
       - name: Lint
         if: ${{ needs.classify.outputs.run_code == 'true' }}
         run: npm run lint
