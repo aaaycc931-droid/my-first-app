@@ -186,6 +186,7 @@ jobs:
           npm run test:realtime-pitch-frame
           npm run test:realtime-pitch-curve
           npm run test:local-vocal-exercise
+          npm run test:local-vocal-reference-playback-controller
           npm run test:mobile-vocal-exercise-behavior
           npm run test:local-vocal-exercise-ui-contract
           npm run test:local-vocal-target-feedback
