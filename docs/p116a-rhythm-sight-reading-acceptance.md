@@ -1,5 +1,7 @@
 # P116a 节奏视读验收
 
+最后更新：2026-08-15
+
 ## 目标
 
 P116a 是 P116 节奏专业套件的第一个最小完整纵向切片。它复用现有版本化节奏题库、Activity `tap` 输入、单调动态规划逐拍反馈、本机复练、学习画像与 Android 生命周期边界，提供“看目标—听预备拍—屏幕点击—逐拍非评分反馈”的离线闭环。
@@ -17,6 +19,8 @@ P116a 是 P116 节奏专业套件的第一个最小完整纵向切片。它复�
 
 - 页面切换、Android 后台、全局音频停止、组件卸载、重置和新一轮开始都会使当前 runtime token 失效并清除 tap、目标和校准。
 - 迟到 timer 只有 token 仍匹配时才能改变状态，不能恢复已经失效的 attempt。
+- 四拍预备和点击练习持续监听 `AudioContext` 状态；暂停、关闭或音频焦点丢失会作废当前运行，不能保留 tap、反馈或学习事实。
+- 墙钟 timer 只能触发复核；进入点击窗口及自动结束前，`AudioContext` 必须仍为 `running`，且音频时钟已实际到达对应起点或终点。音频时钟停滞时必须 fail closed。
 - 预备拍点击不进入答案；没有 tap 或目标时只返回证据不足。
 - 练习不请求麦克风，不读取或上传录音，不新增账户、云端、数据库或依赖。
 - 本机复练与学习画像只接收既有最小 rhythm target 和一致／不一致事实，不保存逐拍时间戳或校准样本。
@@ -31,7 +35,7 @@ P116a 是 P116 节奏专业套件的第一个最小完整纵向切片。它复�
 ## 自动验收
 
 - focused domain tests：节奏题到绝对目标映射、四分／八分／三连音标签、Activity tap 答案、接近／不同／证据不足和无评分字段。
-- 真实 React 挂载行为：预备拍禁用、练习 tap、停止检查、清除重来、attempt 递增、全局停止与迟到 timer fail closed。
+- 真实 React 挂载行为：预备拍禁用、练习 tap、停止检查、清除重来、attempt 递增、全局停止、音频暂停／关闭、音频时钟停滞、监听清理与迟到 timer fail closed。
 - Android App 行为回归：现有“节奏听辨”真实挂载 P116a 面板，旧 choice Activity、复练和画像保持兼容。
 - Android validator：源码、bundle 文案、会话校准、Activity 非评分与生命周期 token 均为必需项。
 - 合并门禁：完整 `check`、Android sync／validator、GitHub `quality` 与 `android-local`，APK 工件独立验证。

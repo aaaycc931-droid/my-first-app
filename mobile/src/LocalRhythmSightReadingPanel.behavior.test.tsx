@@ -6,6 +6,10 @@ import { stopAllBrowserAudio } from "../../lib/audio/browserAudioEngine";
 import { createLocalEarTrainingRhythmQuestion } from "../../lib/practice/localEarTrainingRhythm";
 import { LocalRhythmSightReadingPanel } from "../../components/practice/LocalRhythmSightReadingPanel";
 
+let audioState: AudioContextState = "running";
+let frozenAudioTimeSeconds: number | null = null;
+let audioStateListeners = new Set<() => void>();
+
 vi.mock("../../components/practice/useLocalAudioPlayback", () => ({
   useLocalAudioPlayback: () => ({
     isPlaying: false,
@@ -27,10 +31,21 @@ vi.mock("../../components/practice/useLocalAudioPlayback", () => ({
         disconnect: vi.fn(),
       };
       schedule({
-        currentTime: 0,
+        get currentTime() {
+          return frozenAudioTimeSeconds ?? performance.now() / 1_000;
+        },
+        get state() {
+          return audioState;
+        },
         destination: {},
         createOscillator: () => oscillator,
         createGain: () => gain,
+        addEventListener: (event: string, listener: () => void) => {
+          if (event === "statechange") audioStateListeners.add(listener);
+        },
+        removeEventListener: (event: string, listener: () => void) => {
+          if (event === "statechange") audioStateListeners.delete(listener);
+        },
       } as unknown as AudioContext, { trackSource: (source) => source });
       return null;
     },
@@ -58,8 +73,18 @@ const click = async (button: HTMLElement) => {
   await act(async () => button.dispatchEvent(new MouseEvent("click", { bubbles: true })));
 };
 
+const interruptAudioTimeline = async (state: AudioContextState) => {
+  await act(async () => {
+    audioState = state;
+    Array.from(audioStateListeners).forEach((listener) => listener());
+  });
+};
+
 beforeEach(() => {
   vi.useFakeTimers();
+  audioState = "running";
+  frozenAudioTimeSeconds = null;
+  audioStateListeners = new Set();
   document.body.replaceChildren();
 });
 
@@ -118,5 +143,102 @@ describe("Android 挂载节奏视读行为", () => {
     await act(async () => vi.advanceTimersByTime(20_000));
     expect(container.textContent).toContain("状态：尚未开始");
     expect(container.textContent).not.toContain("状态：练习中");
+  });
+
+  it.each(["suspended", "closed"] as const)("四拍预备期间 AudioContext %s 会作废本轮并阻止迟到计时器", async (interruptedState) => {
+    const results: boolean[] = [];
+    const container = document.createElement("div");
+    document.body.append(container);
+    root = createRoot(container);
+    await act(async () => root?.render(<LocalRhythmSightReadingPanel question={question} sessionSeed={0} onLocalAnswerResult={(result) => results.push(result.isCorrect)} />));
+    await click(findButton(container, "开始节奏视读"));
+    expect(container.textContent).toContain("状态：预备拍");
+
+    await act(async () => vi.advanceTimersByTime(500));
+    await interruptAudioTimeline(interruptedState);
+    expect(container.textContent).toContain("节奏视读音频时间线已中断");
+    expect(container.textContent).toContain("状态：尚未开始");
+    expect(findButton(container, "按目标点击").disabled).toBe(true);
+
+    await act(async () => vi.advanceTimersByTime(20_000));
+    expect(container.textContent).toContain("状态：尚未开始");
+    expect(container.textContent).not.toContain("逐拍非评分反馈");
+    expect(results).toEqual([]);
+  });
+
+  it("墙钟到达练习起点但 AudioContext 时间未前进时保持 fail closed", async () => {
+    frozenAudioTimeSeconds = 0;
+    const container = document.createElement("div");
+    document.body.append(container);
+    root = createRoot(container);
+    await act(async () => root?.render(<LocalRhythmSightReadingPanel question={question} sessionSeed={0} />));
+    await click(findButton(container, "开始节奏视读"));
+
+    await act(async () => vi.advanceTimersByTime(3_000));
+    expect(container.textContent).toContain("四拍预备音频时间线没有完整到达练习起点");
+    expect(container.textContent).toContain("状态：尚未开始");
+    expect(findButton(container, "按目标点击").disabled).toBe(true);
+  });
+
+  it("练习期间音频中断会清除 tap 且不生成迟到反馈或学习事实", async () => {
+    const results: boolean[] = [];
+    const container = document.createElement("div");
+    document.body.append(container);
+    root = createRoot(container);
+    await act(async () => root?.render(<LocalRhythmSightReadingPanel question={question} sessionSeed={0} onLocalAnswerResult={(result) => results.push(result.isCorrect)} />));
+    await click(findButton(container, "开始节奏视读"));
+    await act(async () => vi.advanceTimersByTime(2_950));
+    expect(container.textContent).toContain("状态：练习中");
+    await click(findButton(container, "按目标点击"));
+
+    await interruptAudioTimeline("suspended");
+    expect(container.textContent).toContain("节奏视读音频时间线已中断");
+    expect(container.textContent).toContain("状态：尚未开始");
+
+    await act(async () => vi.advanceTimersByTime(20_000));
+    expect(container.textContent).not.toContain("逐拍非评分反馈");
+    expect(results).toEqual([]);
+  });
+
+  it("墙钟自动结束但 AudioContext 未到音频终点时不生成反馈或学习事实", async () => {
+    const results: boolean[] = [];
+    const container = document.createElement("div");
+    document.body.append(container);
+    root = createRoot(container);
+    await act(async () => root?.render(<LocalRhythmSightReadingPanel question={question} sessionSeed={0} onLocalAnswerResult={(result) => results.push(result.isCorrect)} />));
+    await click(findButton(container, "开始节奏视读"));
+    await act(async () => vi.advanceTimersByTime(2_950));
+    expect(container.textContent).toContain("状态：练习中");
+    frozenAudioTimeSeconds = performance.now() / 1_000;
+    for (let index = 0; index < 4; index += 1) {
+      await click(findButton(container, "按目标点击"));
+      if (index < 3) await act(async () => vi.advanceTimersByTime(714));
+    }
+
+    await act(async () => vi.advanceTimersByTime(20_000));
+    expect(container.textContent).toContain("节奏视读音频时间线没有完整结束");
+    expect(container.textContent).toContain("状态：尚未开始");
+    expect(container.textContent).not.toContain("逐拍非评分反馈");
+    expect(results).toEqual([]);
+  });
+
+  it("清除与卸载都会移除音频状态监听和计时器", async () => {
+    const container = document.createElement("div");
+    document.body.append(container);
+    root = createRoot(container);
+    await act(async () => root?.render(<LocalRhythmSightReadingPanel question={question} sessionSeed={0} />));
+    await click(findButton(container, "开始节奏视读"));
+    expect(audioStateListeners.size).toBe(1);
+
+    await click(findButton(container, "清除并重来"));
+    expect(audioStateListeners.size).toBe(0);
+    expect(vi.getTimerCount()).toBe(0);
+
+    await click(findButton(container, "开始节奏视读"));
+    expect(audioStateListeners.size).toBe(1);
+    await act(async () => root?.unmount());
+    root = null;
+    expect(audioStateListeners.size).toBe(0);
+    expect(vi.getTimerCount()).toBe(0);
   });
 });

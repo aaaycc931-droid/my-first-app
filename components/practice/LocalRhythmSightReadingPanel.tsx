@@ -38,6 +38,8 @@ import { useLocalAudioPlayback } from "./useLocalAudioPlayback";
 
 type RuntimeMode = "practice" | "calibration" | null;
 
+const AUDIO_TIMELINE_EARLY_TOLERANCE_SECONDS = 0.02;
+
 const scheduleClick = (
   context: AudioContext,
   channel: BrowserAudioChannel,
@@ -90,6 +92,7 @@ export function LocalRhythmSightReadingPanel({
   const [notice, setNotice] = useState("");
   const timerIdsRef = useRef<number[]>([]);
   const intervalIdRef = useRef<number | null>(null);
+  const audioStateCleanupRef = useRef<(() => void) | null>(null);
   const runtimeTokenRef = useRef(0);
   const tapIdRef = useRef(0);
   const practiceStartTimeMsRef = useRef<number | null>(null);
@@ -117,6 +120,8 @@ export function LocalRhythmSightReadingPanel({
     timerIdsRef.current = [];
     if (intervalIdRef.current !== null) window.clearInterval(intervalIdRef.current);
     intervalIdRef.current = null;
+    audioStateCleanupRef.current?.();
+    audioStateCleanupRef.current = null;
   }, []);
 
   const setRuntimePhase = useCallback((next: RhythmPracticePhase) => {
@@ -247,6 +252,7 @@ export function LocalRhythmSightReadingPanel({
       const practiceBeatCount = runtimeMode === "calibration" ? 8 : question.beatsPerMeasure;
       const startDelayMs = 80;
       const audioStart = context.currentTime + startDelayMs / 1000;
+      const expectedPracticeStart = audioStart + countInDurationMs / 1_000;
       const clockStart = performance.now() + startDelayMs;
       const practiceStartTimeMs = clockStart + countInDurationMs;
       practiceStartTimeMsRef.current = practiceStartTimeMs;
@@ -276,15 +282,52 @@ export function LocalRhythmSightReadingPanel({
       }
       modeRef.current = runtimeMode;
       setMode(runtimeMode);
+      const handleAudioStateChange = () => {
+        if (
+          token === runtimeTokenRef.current
+          && (phaseRef.current === "count-in" || phaseRef.current === "practice")
+          && context.state !== "running"
+        ) {
+          clearRuntime(
+            "节奏视读音频时间线已中断，本轮已作废；请重新开始。",
+            runtimeMode === "practice",
+          );
+        }
+      };
+      context.addEventListener("statechange", handleAudioStateChange);
+      audioStateCleanupRef.current = () =>
+        context.removeEventListener("statechange", handleAudioStateChange);
       setRuntimePhase("count-in");
       setNowMs(performance.now());
       intervalIdRef.current = window.setInterval(() => setNowMs(performance.now()), 50);
       timerIdsRef.current.push(window.setTimeout(() => {
-        if (token === runtimeTokenRef.current) setRuntimePhase("practice");
+        if (token !== runtimeTokenRef.current) return;
+        if (
+          context.state !== "running"
+          || context.currentTime + AUDIO_TIMELINE_EARLY_TOLERANCE_SECONDS < expectedPracticeStart
+        ) {
+          clearRuntime(
+            "四拍预备音频时间线没有完整到达练习起点，本轮已作废；请重新开始。",
+            runtimeMode === "practice",
+          );
+          return;
+        }
+        setRuntimePhase("practice");
       }, startDelayMs + countInDurationMs));
       const practiceDurationMs = practiceBeatCount * beatDurationMs;
+      const expectedAudioEnd = expectedPracticeStart + practiceDurationMs / 1_000;
       timerIdsRef.current.push(window.setTimeout(() => {
         if (token !== runtimeTokenRef.current) return;
+        if (
+          context.state !== "running"
+          || context.currentTime + AUDIO_TIMELINE_EARLY_TOLERANCE_SECONDS < expectedAudioEnd
+        ) {
+          clearRuntime(
+            "节奏视读音频时间线没有完整结束，本轮已作废；请重新开始。",
+            runtimeMode === "practice",
+          );
+          return;
+        }
         finishRuntime();
       }, startDelayMs + countInDurationMs + practiceDurationMs + rhythmMatchWindowMs));
       return startDelayMs + countInDurationMs + practiceDurationMs + rhythmMatchWindowMs + 200;
