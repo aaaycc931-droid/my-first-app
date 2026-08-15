@@ -33,8 +33,10 @@ export function LocalRhythmErrorFindingPanel({
   const [hasHeardComplete, setHasHeardComplete] = useState(false);
   const [notice, setNotice] = useState("");
   const completionTimerRef = useRef<number | null>(null);
+  const audioStateCleanupRef = useRef<(() => void) | null>(null);
   const playbackTokenRef = useRef(0);
   const playbackActiveRef = useRef(false);
+  const hasPlaybackQualificationRef = useRef(false);
   const reportedAttemptRef = useRef<string | null>(null);
   const { isPlaying, playbackState, play, stop: stopPlayback } = useLocalAudioPlayback();
 
@@ -43,21 +45,28 @@ export function LocalRhythmErrorFindingPanel({
     completionTimerRef.current = null;
   }, []);
 
+  const clearAudioStateWatch = useCallback(() => {
+    audioStateCleanupRef.current?.();
+    audioStateCleanupRef.current = null;
+  }, []);
+
   const invalidatePlayback = useCallback((message: string, restartAttempt = true) => {
     playbackTokenRef.current += 1;
     playbackActiveRef.current = false;
+    hasPlaybackQualificationRef.current = false;
     clearCompletionTimer();
+    clearAudioStateWatch();
     stopPlayback();
     setHasHeardComplete(false);
     answerLock.reset();
     if (restartAttempt) activity.restartIfDirty();
     reportedAttemptRef.current = null;
     setNotice(message);
-  }, [activity, answerLock, clearCompletionTimer, stopPlayback]);
+  }, [activity, answerLock, clearAudioStateWatch, clearCompletionTimer, stopPlayback]);
 
   useEffect(() => {
     const unsubscribe = subscribeBrowserAudioStopAll(() => {
-      if (playbackActiveRef.current) {
+      if (playbackActiveRef.current || hasPlaybackQualificationRef.current) {
         invalidatePlayback("播放已因页面切换、后台或全局停止而作废，请重新播放。", true);
       }
     });
@@ -66,14 +75,19 @@ export function LocalRhythmErrorFindingPanel({
 
   useEffect(() => () => {
     playbackTokenRef.current += 1;
+    playbackActiveRef.current = false;
+    hasPlaybackQualificationRef.current = false;
     clearCompletionTimer();
-  }, [clearCompletionTimer]);
+    clearAudioStateWatch();
+  }, [clearAudioStateWatch, clearCompletionTimer]);
 
   const playChangedVersion = async () => {
     playbackTokenRef.current += 1;
     const token = playbackTokenRef.current;
     playbackActiveRef.current = false;
+    hasPlaybackQualificationRef.current = false;
     clearCompletionTimer();
+    clearAudioStateWatch();
     stopPlayback();
     setHasHeardComplete(false);
     answerLock.reset();
@@ -101,10 +115,32 @@ export function LocalRhythmErrorFindingPanel({
         channel.trackSource(oscillator, [gain]);
       });
       playbackActiveRef.current = true;
+      const expectedAudioEnd = audioStart
+        + question.beatsPerMeasure * beatDurationSeconds;
+      const handleAudioStateChange = () => {
+        if (
+          token === playbackTokenRef.current
+          && (playbackActiveRef.current || hasPlaybackQualificationRef.current)
+          && context.state !== "running"
+        ) {
+          invalidatePlayback("变化版本的音频时间线已中断，本轮完整播放资格已作废；请重新播放。", true);
+        }
+      };
+      context.addEventListener("statechange", handleAudioStateChange);
+      audioStateCleanupRef.current = () =>
+        context.removeEventListener("statechange", handleAudioStateChange);
       const durationMs = startDelayMs + Math.ceil(question.beatsPerMeasure * 60_000 / question.bpm);
       completionTimerRef.current = window.setTimeout(() => {
         if (token !== playbackTokenRef.current || !playbackActiveRef.current) return;
+        if (
+          context.state !== "running"
+          || context.currentTime + 0.02 < expectedAudioEnd
+        ) {
+          invalidatePlayback("变化版本的音频时间线未完整结束，本轮没有获得标记资格；请重新播放。", true);
+          return;
+        }
         playbackActiveRef.current = false;
+        hasPlaybackQualificationRef.current = true;
         stopPlayback();
         setHasHeardComplete(true);
       }, durationMs);
