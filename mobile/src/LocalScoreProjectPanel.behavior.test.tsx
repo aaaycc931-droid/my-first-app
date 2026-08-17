@@ -33,6 +33,14 @@ import {
   type LocalScoreProjectMusicXmlImportFile,
 } from "../../lib/music/localScoreProjectMusicXmlImportController";
 import {
+  confirmLocalScoreProjectMusicXmlExportDraft,
+  createLocalScoreProjectMusicXmlExportDraft,
+} from "../../lib/music/localScoreProjectMusicXmlExport";
+import {
+  createLocalScoreProjectMusicXmlExportController,
+  type LocalScoreProjectMusicXmlExportDownloadRequest,
+} from "../../lib/music/localScoreProjectMusicXmlExportController";
+import {
   createBrowserLocalScoreProjectMusicXmlImportFilePort,
 } from "../../lib/platform/browserLocalScoreProjectMusicXmlImportFile";
 import {
@@ -43,6 +51,9 @@ import { useLocalScoreProjectAutosave } from "./useLocalScoreProjectAutosave";
 import {
   createLocalScoreProjectMusicXmlImportControllerLifecycle,
 } from "./useLocalScoreProjectMusicXmlImportController";
+import {
+  createLocalScoreProjectMusicXmlExportControllerLifecycle,
+} from "./useLocalScoreProjectMusicXmlExportController";
 import {
   LocalScoreProjectStorageError,
   type LocalScoreProjectStore,
@@ -850,6 +861,216 @@ describe("浏览器本机谱项目 MusicXML 文件 adapter", () => {
   });
 });
 
+const createExportControllerHarness = ({
+  download = (_request: LocalScoreProjectMusicXmlExportDownloadRequest) => {},
+  createDraft = createLocalScoreProjectMusicXmlExportDraft,
+  confirmDraft = confirmLocalScoreProjectMusicXmlExportDraft,
+}: {
+  download?: (request: LocalScoreProjectMusicXmlExportDownloadRequest) => void;
+  createDraft?: typeof createLocalScoreProjectMusicXmlExportDraft;
+  confirmDraft?: typeof confirmLocalScoreProjectMusicXmlExportDraft;
+} = {}) => {
+  const notices: Array<string | null> = [];
+  const downloadCall = vi.fn(download);
+  const controller = createLocalScoreProjectMusicXmlExportController({
+    downloadPort: { download: downloadCall },
+    publishNotice: (notice) => notices.push(notice),
+    createDraft,
+    confirmDraft,
+  });
+  return { controller, downloadCall, notices };
+};
+
+describe("本机谱项目 MusicXML 导出 controller", () => {
+  it("候选检查不下载，明确确认同步下载一次且成功后保留候选", () => {
+    const requests: LocalScoreProjectMusicXmlExportDownloadRequest[] = [];
+    let confirmReturned = false;
+    const harness = createExportControllerHarness({
+      download: (request) => {
+        expect(confirmReturned).toBe(false);
+        requests.push(request);
+      },
+    });
+    const project = createSupportedMusicXmlExportProject();
+
+    expect(harness.controller.inspect(project)).toBe(true);
+    const inspectedDraft = harness.controller.getSnapshot().draft;
+    expect(inspectedDraft?.status).toBe("ready");
+    expect(harness.downloadCall).not.toHaveBeenCalled();
+    expect(harness.notices.at(-1)).toContain(
+      "MusicXML 导出候选已就绪：1 小节、1 个事件",
+    );
+
+    expect(harness.controller.confirmAndDownload(project)).toBe(true);
+    confirmReturned = true;
+    expect(harness.downloadCall).toHaveBeenCalledTimes(1);
+    expect(requests[0]).toMatchObject({
+      fileName: "受支持导出.musicxml",
+      mimeType: "application/vnd.recordare.musicxml+xml",
+    });
+    expect(harness.controller.getSnapshot().draft).toBe(inspectedDraft);
+    expect(harness.notices.at(-1)).toBe(
+      "受支持导出.musicxml 已在本机生成下载；项目、修订和历史没有变化。",
+    );
+
+    requests[0]?.onCleanupError?.(new Error("URL 回收失败"));
+    expect(harness.notices.at(-1)).toBe(
+      "无法回收导出下载 URL：URL 回收失败；候选和项目均保持不变。",
+    );
+    harness.controller.changeFormat("mxl");
+    const noticeAfterFormatChange = harness.notices.at(-1);
+    requests[0]?.onCleanupError?.(new Error("迟到 URL 回收失败"));
+    expect(harness.notices.at(-1)).toBe(noticeAfterFormatChange);
+    expect(harness.controller.getSnapshot()).toEqual({
+      format: "mxl",
+      draft: null,
+    });
+  });
+
+  it("格式切换、清除和静默失效保持各自既有语义", () => {
+    const harness = createExportControllerHarness();
+    const project = createSupportedMusicXmlExportProject();
+
+    harness.controller.inspect(project);
+    harness.controller.changeFormat("mxl");
+    expect(harness.controller.getSnapshot()).toEqual({
+      format: "mxl",
+      draft: null,
+    });
+    expect(harness.notices.at(-1)).toBe(
+      "导出格式已切换，请重新检查当前已保存修订。",
+    );
+
+    harness.controller.inspect(project);
+    expect(harness.notices.at(-1)).toContain("MXL 导出候选已就绪");
+    harness.controller.clear();
+    expect(harness.controller.getSnapshot().draft).toBeNull();
+    expect(harness.notices.at(-1)).toBe(
+      "导出候选已清除；没有生成下载或修改项目。",
+    );
+
+    harness.controller.inspect(project);
+    const noticeCount = harness.notices.length;
+    harness.controller.invalidate();
+    expect(harness.controller.getSnapshot().draft).toBeNull();
+    expect(harness.notices).toHaveLength(noticeCount);
+  });
+
+  it("blocking 候选保留 ledger 且不能调用下载 port", () => {
+    const harness = createExportControllerHarness();
+    const emptyProject = createLocalScoreProject({
+      projectId: "blocked-export-controller-project",
+      title: "空白导出",
+      now: "2026-08-17T03:00:00.000Z",
+    });
+
+    expect(harness.controller.inspect(emptyProject)).toBe(true);
+    expect(harness.controller.getSnapshot().draft).toMatchObject({
+      status: "blocked",
+      issues: [{ code: "missing-events" }],
+    });
+    expect(harness.notices.at(-1)).toBe(
+      "当前项目包含本切片无法无损往返的内容，已阻止下载。",
+    );
+    expect(harness.controller.confirmAndDownload(emptyProject)).toBe(false);
+    expect(harness.downloadCall).not.toHaveBeenCalled();
+    expect(harness.controller.getSnapshot().draft).not.toBeNull();
+  });
+
+  it("候选生成失败保留原始错误，随后可重新检查", () => {
+    let shouldFail = true;
+    const harness = createExportControllerHarness({
+      createDraft: (args) => {
+        if (shouldFail) throw new Error("无法检查当前保存修订。");
+        return createLocalScoreProjectMusicXmlExportDraft(args);
+      },
+    });
+    const project = createSupportedMusicXmlExportProject();
+
+    expect(harness.controller.inspect(project)).toBe(false);
+    expect(harness.controller.getSnapshot().draft).toBeNull();
+    expect(harness.notices.at(-1)).toBe("无法检查当前保存修订。");
+
+    shouldFail = false;
+    expect(harness.controller.inspect(project)).toBe(true);
+    expect(harness.controller.getSnapshot().draft?.status).toBe("ready");
+  });
+
+  it("下载失败和 stale project 都保留候选并允许安全重试", () => {
+    let failDownload = true;
+    const harness = createExportControllerHarness({
+      download: () => {
+        if (failDownload) throw new Error("浏览器拒绝创建下载。");
+      },
+    });
+    const project = createSupportedMusicXmlExportProject();
+    harness.controller.inspect(project);
+    const inspectedDraft = harness.controller.getSnapshot().draft;
+
+    expect(harness.controller.confirmAndDownload(project)).toBe(false);
+    expect(harness.controller.getSnapshot().draft).toBe(inspectedDraft);
+    expect(harness.notices.at(-1)).toBe("浏览器拒绝创建下载。");
+
+    failDownload = false;
+    expect(harness.controller.confirmAndDownload(project)).toBe(true);
+    expect(harness.downloadCall).toHaveBeenCalledTimes(2);
+    expect(harness.controller.getSnapshot().draft).toBe(inspectedDraft);
+
+    const changedProject = {
+      ...project,
+      updatedAt: "2026-08-17T03:01:00.000Z",
+      document: {
+        ...project.document,
+        revision: project.document.revision + 1,
+      },
+    };
+    expect(harness.controller.confirmAndDownload(changedProject)).toBe(false);
+    expect(harness.downloadCall).toHaveBeenCalledTimes(2);
+    expect(harness.controller.getSnapshot().draft).toBe(inspectedDraft);
+    expect(harness.notices.at(-1)).toContain("本机谱项目已变化");
+  });
+
+  it.each(["clear", "invalidate", "detach"] as const)(
+    "%s 后忽略旧下载的迟到 cleanup 错误",
+    (action) => {
+      const requestState: {
+        request?: LocalScoreProjectMusicXmlExportDownloadRequest;
+      } = {};
+      const harness = createExportControllerHarness({
+        download: (nextRequest) => {
+          requestState.request = nextRequest;
+        },
+      });
+      const project = createSupportedMusicXmlExportProject();
+      harness.controller.inspect(project);
+      harness.controller.confirmAndDownload(project);
+
+      if (action === "clear") harness.controller.clear();
+      else if (action === "invalidate") harness.controller.invalidate();
+      else harness.controller.detach();
+      const noticesBeforeCleanup = [...harness.notices];
+      requestState.request?.onCleanupError?.(new Error("迟到 cleanup 错误"));
+      expect(harness.notices).toEqual(noticesBeforeCleanup);
+    },
+  );
+
+  it("StrictMode effect replay 不会提前 detach export controller", async () => {
+    const harness = createExportControllerHarness();
+    const lifecycle = createLocalScoreProjectMusicXmlExportControllerLifecycle(
+      harness.controller,
+    );
+    const project = createSupportedMusicXmlExportProject();
+
+    lifecycle.mount();
+    lifecycle.unmount();
+    lifecycle.mount();
+    await Promise.resolve();
+    expect(harness.controller.inspect(project)).toBe(true);
+    expect(harness.controller.confirmAndDownload(project)).toBe(true);
+    expect(harness.downloadCall).toHaveBeenCalledTimes(1);
+  });
+});
+
 describe("S1 本机谱项目面板", () => {
   it("浏览器下载端口同步点击并只写入 Uint8Array view 的有效字节", async () => {
     const scheduledCleanups: Array<() => void> = [];
@@ -1329,6 +1550,47 @@ describe("S1 本机谱项目面板", () => {
       projectId: project.projectId,
       snapshot,
     });
+  });
+
+  it("切换格式或清除时使已检查导出候选失效并要求重新检查", async () => {
+    const store = new MemoryProjectStore();
+    const project = createSupportedMusicXmlExportProject({
+      projectId: "export-reset-project",
+      title: "导出候选失效",
+    });
+    await store.put(project, null);
+    const container = await renderPanel(store);
+    await click(findButton(container, "打开"));
+    await click(findButton(container, "检查 MusicXML/MXL 导出"));
+    await waitFor(
+      () => container.querySelector(
+        "[data-testid='local-score-project-musicxml-export-draft']",
+      ) !== null,
+      "生成待失效的导出候选",
+    );
+
+    await change(findSelectExact(container, "导出格式"), "mxl");
+    expect(container.querySelector(
+      "[data-testid='local-score-project-musicxml-export-draft']",
+    )).toBeNull();
+    expect(container.textContent).toContain(
+      "导出格式已切换，请重新检查当前已保存修订。",
+    );
+
+    await click(findButton(container, "检查 MusicXML/MXL 导出"));
+    await waitFor(
+      () => container.querySelector(
+        "[data-testid='local-score-project-musicxml-export-draft']",
+      ) !== null,
+      "重新生成 MXL 导出候选",
+    );
+    await click(findButton(container, "清除导出候选"));
+    expect(container.querySelector(
+      "[data-testid='local-score-project-musicxml-export-draft']",
+    )).toBeNull();
+    expect(container.textContent).toContain(
+      "导出候选已清除；没有生成下载或修改项目。",
+    );
   });
 
   it("名称自动保存 dirty 期间禁用导出检查，且不会创建下载资源", async () => {

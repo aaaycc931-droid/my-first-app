@@ -56,9 +56,6 @@ import {
   confirmLocalScoreProjectMusicXmlImportDraft,
 } from "../../lib/music/localScoreProjectMusicXmlImport";
 import {
-  confirmLocalScoreProjectMusicXmlExportDraft,
-  createLocalScoreProjectMusicXmlExportDraft,
-  type LocalScoreProjectMusicXmlExportDraft,
   type LocalScoreProjectMusicXmlExportFormat,
   type LocalScoreProjectMusicXmlExportIssue,
 } from "../../lib/music/localScoreProjectMusicXmlExport";
@@ -99,6 +96,9 @@ import { useLocalScoreProjectAutosave } from "./useLocalScoreProjectAutosave";
 import {
   useLocalScoreProjectMusicXmlImportController,
 } from "./useLocalScoreProjectMusicXmlImportController";
+import {
+  useLocalScoreProjectMusicXmlExportController,
+} from "./useLocalScoreProjectMusicXmlExportController";
 
 const formatMusicXmlExportIssueLocation = (
   issue: LocalScoreProjectMusicXmlExportIssue,
@@ -569,10 +569,13 @@ export function LocalScoreProjectPanel({
   const musicXmlImportDraft = musicXmlImport.draft;
   const musicXmlImportStatus = musicXmlImport.status;
   const musicXmlImportNotice = musicXmlImport.notice;
-  const [musicXmlExportDraft, setMusicXmlExportDraft] =
-    useState<LocalScoreProjectMusicXmlExportDraft | null>(null);
-  const [musicXmlExportFormat, setMusicXmlExportFormat] =
-    useState<LocalScoreProjectMusicXmlExportFormat>("musicxml");
+  const musicXmlExport = useLocalScoreProjectMusicXmlExportController({
+    downloadPort: fileDownloadPort,
+    publishNotice: setNotice,
+  });
+  const musicXmlExportDraft = musicXmlExport.draft;
+  const musicXmlExportFormat = musicXmlExport.format;
+  const invalidateMusicXmlExport = musicXmlExport.invalidate;
 
   const refreshProjects = useCallback(async () => {
     setIsBusy(true);
@@ -618,7 +621,7 @@ export function LocalScoreProjectPanel({
     const nextMeasures = getVoiceMeasures(project, nextLocation);
     const nextEvents = getVoiceEvents(project, nextLocation);
     setCurrentProject(project);
-    setMusicXmlExportDraft(null);
+    invalidateMusicXmlExport();
     selectedVoiceLocationRef.current = nextLocation;
     setSelectedVoiceLocation(nextLocation);
     setPartNameDraft(
@@ -673,7 +676,7 @@ export function LocalScoreProjectPanel({
       project,
       ...previous.filter((candidate) => candidate.projectId !== project.projectId),
     ]);
-  }, []);
+  }, [invalidateMusicXmlExport]);
 
   const handleAutosaveProject = useCallback((
     project: LocalScoreProjectV1,
@@ -776,68 +779,6 @@ export function LocalScoreProjectPanel({
       );
     } finally {
       setIsBusy(false);
-    }
-  };
-
-  const inspectMusicXmlExport = () => {
-    if (!currentProject || structureMutationDisabled) return;
-    setNotice(null);
-    try {
-      const draft = createLocalScoreProjectMusicXmlExportDraft({
-        project: currentProject,
-      });
-      setMusicXmlExportDraft(draft);
-      const formatLabel = musicXmlExportFormat === "mxl"
-        ? "MXL"
-        : "MusicXML";
-      setNotice(
-        draft.status === "ready"
-          ? `${formatLabel} 导出候选已就绪：${draft.summary.measureCount} 小节、${draft.summary.eventCount} 个事件。当前候选仅保存在内存中，确认前不会创建下载文件。`
-          : "当前项目包含本切片无法无损往返的内容，已阻止下载。",
-      );
-    } catch (error) {
-      setMusicXmlExportDraft(null);
-      setNotice(
-        error instanceof Error
-          ? error.message
-          : "无法生成 MusicXML/MXL 导出候选。",
-      );
-    }
-  };
-
-  const downloadMusicXmlExport = (
-    format: LocalScoreProjectMusicXmlExportFormat,
-  ) => {
-    if (
-      !currentProject
-      || !musicXmlExportDraft
-      || structureMutationDisabled
-    ) return;
-    try {
-      const confirmed = confirmLocalScoreProjectMusicXmlExportDraft({
-        draft: musicXmlExportDraft,
-        currentProject,
-        format,
-      });
-      fileDownloadPort.download({
-        data: confirmed.data,
-        fileName: confirmed.fileName,
-        mimeType: confirmed.mimeType,
-        onCleanupError: (error) => {
-          setNotice(
-            `无法回收导出下载 URL：${error.message}；候选和项目均保持不变。`,
-          );
-        },
-      });
-      setNotice(
-        `${confirmed.fileName} 已在本机生成下载；项目、修订和历史没有变化。`,
-      );
-    } catch (error) {
-      setNotice(
-        error instanceof Error
-          ? error.message
-          : "本机下载启动失败；导出候选和项目均保持不变。",
-      );
     }
   };
 
@@ -1569,7 +1510,7 @@ export function LocalScoreProjectPanel({
           <button
             type="button"
             disabled={structureMutationDisabled}
-            onClick={inspectMusicXmlExport}
+            onClick={() => musicXmlExport.inspect(currentProject)}
             className="mt-3 min-h-11 rounded-xl bg-cyan-800 px-4 py-2 text-sm font-bold text-white disabled:bg-slate-300"
           >
             检查 MusicXML/MXL 导出
@@ -1580,11 +1521,9 @@ export function LocalScoreProjectPanel({
               value={musicXmlExportFormat}
               disabled={structureMutationDisabled}
               onChange={(event) => {
-                setMusicXmlExportFormat(
+                musicXmlExport.changeFormat(
                   event.target.value as LocalScoreProjectMusicXmlExportFormat,
                 );
-                setMusicXmlExportDraft(null);
-                setNotice("导出格式已切换，请重新检查当前已保存修订。");
               }}
               className="mt-2 min-h-11 w-full rounded-xl border border-cyan-200 bg-white px-3 py-2 disabled:bg-slate-100"
             >
@@ -1646,7 +1585,8 @@ export function LocalScoreProjectPanel({
                     structureMutationDisabled
                     || musicXmlExportDraft.status !== "ready"
                   }
-                  onClick={() => downloadMusicXmlExport(musicXmlExportFormat)}
+                  onClick={() =>
+                    musicXmlExport.confirmAndDownload(currentProject)}
                   className="min-h-11 rounded-xl bg-cyan-800 px-4 py-2 text-sm font-bold text-white disabled:bg-slate-300"
                 >
                   确认下载 {musicXmlExportFormat === "mxl"
@@ -1656,10 +1596,7 @@ export function LocalScoreProjectPanel({
                 <button
                   type="button"
                   disabled={isBusy}
-                  onClick={() => {
-                    setMusicXmlExportDraft(null);
-                    setNotice("导出候选已清除；没有生成下载或修改项目。");
-                  }}
+                  onClick={musicXmlExport.clear}
                   className="min-h-11 rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-bold text-slate-700 disabled:text-slate-400"
                 >
                   清除导出候选
@@ -2808,7 +2745,7 @@ export function LocalScoreProjectPanel({
             setSelectedVoiceLocation(null);
             setSelectedEvent(null);
             setCopiedEvent(null);
-            setMusicXmlExportDraft(null);
+            invalidateMusicXmlExport();
             setTargetMeasureNumber(1);
             setTransportMode("idle");
             setNotice(null);
