@@ -19,6 +19,7 @@ const requiredSources = [
   "mobile/src/LocalExplainablePracticeRecommendationPanel.tsx",
   "mobile/src/LocalLearningOverviewPanel.tsx",
   "mobile/src/LocalScoreProjectPanel.tsx",
+  "mobile/src/useLocalScoreProjectLibraryController.ts",
   "mobile/src/useLocalScoreProjectMusicXmlImportController.ts",
   "mobile/src/useLocalScoreProjectMusicXmlExportController.ts",
   "mobile/src/runtime/localScoreProjectStorage.ts",
@@ -47,6 +48,7 @@ const requiredSources = [
   "lib/activity/melodySightSingingActivityAdapter.ts",
   "lib/music/scoreDocument.ts",
   "lib/music/localScoreProject.ts",
+  "lib/music/localScoreProjectLibraryController.ts",
   "lib/music/localScoreProjectMusicXmlImport.ts",
   "lib/music/localScoreProjectMusicXmlImportController.ts",
   "lib/music/localScoreProjectMusicXmlExport.ts",
@@ -394,6 +396,14 @@ const pianoLearningPanelSource = readFileSync(
 );
 const localScoreProjectPanelSource = readFileSync(
   join(root, "mobile/src/LocalScoreProjectPanel.tsx"),
+  "utf8",
+);
+const localScoreProjectLibraryControllerSource = readFileSync(
+  join(root, "lib/music/localScoreProjectLibraryController.ts"),
+  "utf8",
+);
+const localScoreProjectLibraryHookSource = readFileSync(
+  join(root, "mobile/src/useLocalScoreProjectLibraryController.ts"),
   "utf8",
 );
 const localScoreProjectMusicXmlImportControllerSource = readFileSync(
@@ -943,6 +953,35 @@ if (
   || pianoTimbreManifest.timbres?.find((item) => item.id === "splendid-grand-profile-pack-v1")?.profileCount !== 6
 ) {
   throw new Error("Android 本地参考钢琴缺少音域、多指、延音或残音清理边界");
+}
+if (
+  !localScoreProjectLibraryControllerSource.includes(
+    "const runGeneration = startOperation()",
+  )
+  || !localScoreProjectLibraryControllerSource.includes(
+    "attached && generation === runGeneration",
+  )
+  || !localScoreProjectLibraryControllerSource.includes(
+    "snapshot.pendingDeleteProjectId !== project.projectId",
+  )
+  || !localScoreProjectLibraryControllerSource.includes(
+    "candidate.projectId !== project.projectId",
+  )
+  || !localScoreProjectLibraryHookSource.includes("useSyncExternalStore")
+  || !localScoreProjectLibraryHookSource.includes("listLocalScoreProjects")
+  || !localScoreProjectLibraryHookSource.includes("loadLocalScoreProject")
+  || !localScoreProjectLibraryHookSource.includes("deleteLocalScoreProject")
+  || !localScoreProjectPanelSource.includes(
+    "useLocalScoreProjectLibraryController",
+  )
+  || !localScoreProjectPanelSource.includes(
+    "isPanelBusy || isProjectLibraryBusy",
+  )
+  || localScoreProjectPanelSource.includes("listLocalScoreProjects({")
+  || localScoreProjectPanelSource.includes("loadLocalScoreProject({")
+  || localScoreProjectPanelSource.includes("deleteLocalScoreProject({")
+) {
+  throw new Error("本机谱项目列表、打开或显式删除缺少 controller、storage port 或 stale guard");
 }
 if (
   !localScoreProjectMusicXmlImportControllerSource.includes(

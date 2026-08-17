@@ -41,6 +41,12 @@ import {
   type LocalScoreProjectMusicXmlExportDownloadRequest,
 } from "../../lib/music/localScoreProjectMusicXmlExportController";
 import {
+  createLocalScoreProjectLibraryController,
+  type LocalScoreProjectLibraryDeleteResult,
+  type LocalScoreProjectLibraryListResult,
+  type LocalScoreProjectLibraryLoadResult,
+} from "../../lib/music/localScoreProjectLibraryController";
+import {
   createBrowserLocalScoreProjectMusicXmlImportFilePort,
 } from "../../lib/platform/browserLocalScoreProjectMusicXmlImportFile";
 import {
@@ -48,6 +54,9 @@ import {
 } from "../../lib/platform/browserFileDownload";
 import { LocalScoreProjectPanel } from "./LocalScoreProjectPanel";
 import { useLocalScoreProjectAutosave } from "./useLocalScoreProjectAutosave";
+import {
+  createLocalScoreProjectLibraryControllerLifecycle,
+} from "./useLocalScoreProjectLibraryController";
 import {
   createLocalScoreProjectMusicXmlImportControllerLifecycle,
 } from "./useLocalScoreProjectMusicXmlImportController";
@@ -606,6 +615,351 @@ const createReadyImportDraft = (
   sourceFormat: args.sourceFormat,
   fileName: args.fileName,
   fingerprint: "test-fingerprint",
+});
+
+const createDeferred = <T,>() => {
+  let resolve!: (value: T) => void;
+  let reject!: (error: Error) => void;
+  const promise = new Promise<T>((nextResolve, nextReject) => {
+    resolve = nextResolve;
+    reject = nextReject;
+  });
+  return { promise, resolve, reject };
+};
+
+const createLibraryControllerHarness = ({
+  list = async () => ({
+    projects: [],
+    sourceStatus: "available" as const,
+    notice: null,
+  }),
+  load = async () => ({
+    project: null,
+    notice: null,
+    status: "not-found",
+  }),
+  deleteProject = async () => ({ deleted: true, notice: null }),
+}: {
+  list?: () => Promise<LocalScoreProjectLibraryListResult>;
+  load?: (projectId: string) => Promise<LocalScoreProjectLibraryLoadResult>;
+  deleteProject?: (
+    project: LocalScoreProjectV1,
+  ) => Promise<LocalScoreProjectLibraryDeleteResult>;
+} = {}) => {
+  const notices: Array<string | null> = [];
+  const listCall = vi.fn(list);
+  const loadCall = vi.fn(load);
+  const deleteCall = vi.fn(deleteProject);
+  const controller = createLocalScoreProjectLibraryController({
+    port: {
+      list: listCall,
+      load: loadCall,
+      delete: deleteCall,
+    },
+    publishNotice: (notice) => notices.push(notice),
+  });
+  return { controller, notices, listCall, loadCall, deleteCall };
+};
+
+describe("本机谱项目库 controller", () => {
+  it("列表读取 latest-wins，旧成功不能覆盖最新项目、来源或通知", async () => {
+    const oldList = createDeferred<LocalScoreProjectLibraryListResult>();
+    const newList = createDeferred<LocalScoreProjectLibraryListResult>();
+    let listSequence = 0;
+    const harness = createLibraryControllerHarness({
+      list: () => (++listSequence === 1 ? oldList.promise : newList.promise),
+    });
+    const oldProject = createLocalScoreProject({
+      projectId: "old-list-project",
+      title: "旧列表项目",
+      now: "2026-08-17T04:00:00.000Z",
+    });
+    const newProject = createLocalScoreProject({
+      projectId: "new-list-project",
+      title: "最新列表项目",
+      now: "2026-08-17T04:01:00.000Z",
+    });
+
+    const oldRun = harness.controller.refresh();
+    const newRun = harness.controller.refresh();
+    newList.resolve({
+      projects: [newProject],
+      sourceStatus: "available",
+      notice: "最新列表通知",
+    });
+    expect(await newRun).toBe(true);
+    oldList.resolve({
+      projects: [oldProject],
+      sourceStatus: "unavailable",
+      notice: "过期列表通知",
+    });
+    expect(await oldRun).toBe(false);
+
+    expect(harness.controller.getSnapshot()).toMatchObject({
+      projects: [newProject],
+      sourceStatus: "available",
+      isBusy: false,
+    });
+    expect(harness.notices.at(-1)).toBe("最新列表通知");
+    expect(harness.notices).not.toContain("过期列表通知");
+  });
+
+  it("列表旧 rejection 被忽略，当前 rejection 关闭 loading 并保留只读失败语义", async () => {
+    const oldList = createDeferred<LocalScoreProjectLibraryListResult>();
+    const currentList = createDeferred<LocalScoreProjectLibraryListResult>();
+    let listSequence = 0;
+    const harness = createLibraryControllerHarness({
+      list: () => (++listSequence === 1 ? oldList.promise : currentList.promise),
+    });
+
+    const oldRun = harness.controller.refresh();
+    const currentRun = harness.controller.refresh();
+    oldList.reject(new Error("过期读取失败"));
+    expect(await oldRun).toBe(false);
+    expect(harness.notices).not.toContain("过期读取失败");
+    currentList.reject(new Error("当前读取失败"));
+    expect(await currentRun).toBe(false);
+    expect(harness.controller.getSnapshot()).toMatchObject({
+      projects: [],
+      sourceStatus: "unavailable",
+      isBusy: false,
+    });
+    expect(harness.notices.at(-1)).toBe(
+      "本机谱项目列表无法读取，原记录未被覆盖或清除。",
+    );
+  });
+
+  it("打开项目 latest-wins，只有当前结果发布且 upsert 精确去重置顶", async () => {
+    const oldLoad = createDeferred<LocalScoreProjectLibraryLoadResult>();
+    const newLoad = createDeferred<LocalScoreProjectLibraryLoadResult>();
+    const oldProject = createLocalScoreProject({
+      projectId: "old-open-project",
+      title: "旧打开项目",
+      now: "2026-08-17T04:02:00.000Z",
+    });
+    const newProject = createLocalScoreProject({
+      projectId: "new-open-project",
+      title: "最新打开项目",
+      now: "2026-08-17T04:03:00.000Z",
+    });
+    const harness = createLibraryControllerHarness({
+      list: async () => ({
+        projects: [oldProject, newProject],
+        sourceStatus: "available",
+        notice: null,
+      }),
+      load: (projectId) => projectId === oldProject.projectId
+        ? oldLoad.promise
+        : newLoad.promise,
+    });
+    await harness.controller.refresh();
+    const onLoaded = vi.fn();
+
+    const oldRun = harness.controller.openProject(
+      oldProject.projectId,
+      onLoaded,
+    );
+    const newRun = harness.controller.openProject(
+      newProject.projectId,
+      onLoaded,
+    );
+    newLoad.resolve({ project: newProject, notice: null, status: "loaded" });
+    expect(await newRun).toBe(true);
+    oldLoad.reject(new Error("过期打开失败"));
+    expect(await oldRun).toBe(false);
+    expect(onLoaded).toHaveBeenCalledOnce();
+    expect(onLoaded).toHaveBeenCalledWith(newProject);
+    expect(harness.notices.at(-1)).toBe("已重新打开本机保存的谱项目。");
+
+    const updatedProject = {
+      ...newProject,
+      title: "更新后项目",
+      updatedAt: "2026-08-17T04:04:00.000Z",
+    };
+    expect(harness.controller.upsertProject(updatedProject)).toBe(true);
+    expect(harness.controller.getSnapshot().projects).toEqual([
+      updatedProject,
+      oldProject,
+    ]);
+  });
+
+  it("not-found 与当前打开失败不改来源状态并允许重试", async () => {
+    const project = createLocalScoreProject({
+      projectId: "retry-open-project",
+      title: "重试打开项目",
+      now: "2026-08-17T04:05:00.000Z",
+    });
+    let attempt = 0;
+    const harness = createLibraryControllerHarness({
+      list: async () => ({
+        projects: [project],
+        sourceStatus: "available",
+        notice: null,
+      }),
+      load: async () => {
+        attempt += 1;
+        if (attempt === 1) {
+          return { project: null, notice: null, status: "not-found" };
+        }
+        if (attempt === 2) throw new Error("读取失败");
+        return { project, notice: null, status: "loaded" };
+      },
+    });
+    await harness.controller.refresh();
+    const onLoaded = vi.fn();
+
+    expect(await harness.controller.openProject(
+      project.projectId,
+      onLoaded,
+    )).toBe(false);
+    expect(harness.controller.getSnapshot()).toMatchObject({
+      sourceStatus: "available",
+      isBusy: false,
+    });
+    expect(harness.notices.at(-1)).toBe("未找到这份本机谱项目。");
+    expect(onLoaded).not.toHaveBeenCalled();
+
+    expect(await harness.controller.openProject(
+      project.projectId,
+      onLoaded,
+    )).toBe(false);
+    expect(harness.notices.at(-1)).toBe(
+      "本机乐谱项目无法读取；原记录未被覆盖或清除。",
+    );
+    expect(onLoaded).not.toHaveBeenCalled();
+
+    expect(await harness.controller.openProject(
+      project.projectId,
+      onLoaded,
+    )).toBe(true);
+    expect(onLoaded).toHaveBeenCalledOnce();
+  });
+
+  it("删除必须显式确认，失败保留确认与项目，重试只移除目标", async () => {
+    const firstProject = createLocalScoreProject({
+      projectId: "delete-project-1",
+      title: "待删除项目",
+      now: "2026-08-17T04:06:00.000Z",
+    });
+    const secondProject = createLocalScoreProject({
+      projectId: "delete-project-2",
+      title: "保留项目",
+      now: "2026-08-17T04:07:00.000Z",
+    });
+    let shouldFail = true;
+    const harness = createLibraryControllerHarness({
+      list: async () => ({
+        projects: [firstProject, secondProject],
+        sourceStatus: "available",
+        notice: null,
+      }),
+      deleteProject: async () => shouldFail
+        ? { deleted: false, notice: "删除事务失败，请重试。" }
+        : { deleted: true, notice: null },
+    });
+    await harness.controller.refresh();
+
+    expect(await harness.controller.confirmDelete(firstProject)).toBe(false);
+    expect(harness.deleteCall).not.toHaveBeenCalled();
+    expect(harness.controller.requestDelete(firstProject.projectId)).toBe(true);
+    expect(harness.controller.cancelDelete()).toBe(true);
+    expect(harness.deleteCall).not.toHaveBeenCalled();
+    expect(harness.controller.requestDelete(firstProject.projectId)).toBe(true);
+    expect(await harness.controller.confirmDelete(firstProject)).toBe(false);
+    expect(harness.controller.getSnapshot()).toMatchObject({
+      projects: [firstProject, secondProject],
+      pendingDeleteProjectId: firstProject.projectId,
+      isBusy: false,
+    });
+    expect(harness.notices.at(-1)).toBe("删除事务失败，请重试。");
+
+    shouldFail = false;
+    expect(await harness.controller.confirmDelete(firstProject)).toBe(true);
+    expect(harness.deleteCall).toHaveBeenCalledTimes(2);
+    expect(harness.controller.getSnapshot()).toMatchObject({
+      projects: [secondProject],
+      pendingDeleteProjectId: null,
+      isBusy: false,
+    });
+    expect(harness.notices.at(-1)).toBe(
+      "本机谱项目已删除，释放的应用容量可用于新建或保存。",
+    );
+  });
+
+  it.each(["list", "open", "delete"] as const)(
+    "detach 后忽略迟到的 %s 结果",
+    async (operation) => {
+      const project = createLocalScoreProject({
+        projectId: `detach-${operation}-project`,
+        title: "卸载项目",
+        now: "2026-08-17T04:08:00.000Z",
+      });
+      const lateList = createDeferred<LocalScoreProjectLibraryListResult>();
+      const lateLoad = createDeferred<LocalScoreProjectLibraryLoadResult>();
+      const lateDelete = createDeferred<LocalScoreProjectLibraryDeleteResult>();
+      let initialListComplete = false;
+      const harness = createLibraryControllerHarness({
+        list: () => initialListComplete
+          ? lateList.promise
+          : Promise.resolve({
+            projects: [project],
+            sourceStatus: "available",
+            notice: null,
+          }),
+        load: () => lateLoad.promise,
+        deleteProject: () => lateDelete.promise,
+      });
+      await harness.controller.refresh();
+      initialListComplete = true;
+      const onLoaded = vi.fn();
+      let run: Promise<boolean>;
+      if (operation === "list") {
+        run = harness.controller.refresh();
+      } else if (operation === "open") {
+        run = harness.controller.openProject(project.projectId, onLoaded);
+      } else {
+        harness.controller.requestDelete(project.projectId);
+        run = harness.controller.confirmDelete(project);
+      }
+      const noticesBeforeDetach = [...harness.notices];
+      harness.controller.detach();
+      if (operation === "list") {
+        lateList.resolve({
+          projects: [project],
+          sourceStatus: "available",
+          notice: "卸载后的列表通知",
+        });
+      } else if (operation === "open") {
+        lateLoad.resolve({ project, notice: null, status: "loaded" });
+      } else {
+        lateDelete.resolve({ deleted: true, notice: null });
+      }
+
+      expect(await run).toBe(false);
+      expect(harness.controller.getSnapshot()).toEqual({
+        projects: [],
+        sourceStatus: "available",
+        pendingDeleteProjectId: null,
+        isBusy: true,
+      });
+      expect(harness.notices).toEqual(noticesBeforeDetach);
+      expect(onLoaded).not.toHaveBeenCalled();
+    },
+  );
+
+  it("StrictMode effect replay 不会提前 detach 项目库 controller", async () => {
+    const harness = createLibraryControllerHarness();
+    const lifecycle = createLocalScoreProjectLibraryControllerLifecycle(
+      harness.controller,
+    );
+
+    lifecycle.mount();
+    lifecycle.unmount();
+    lifecycle.mount();
+    await Promise.resolve();
+    expect(await harness.controller.refresh()).toBe(true);
+    expect(harness.listCall).toHaveBeenCalledOnce();
+  });
 });
 
 const createImportControllerHarness = ({
