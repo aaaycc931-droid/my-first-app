@@ -66,7 +66,8 @@ export function useLocalAudioPlayback() {
         }, durationMs);
         return null;
       } catch {
-        if (request === requestRef.current) stop();
+        if (!mountedRef.current || request !== requestRef.current) return null;
+        stop();
         return "当前手机暂时无法播放本地声音。请确认媒体音量已开启后重试。";
       }
     },
