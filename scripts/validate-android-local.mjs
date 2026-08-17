@@ -19,6 +19,7 @@ const requiredSources = [
   "mobile/src/LocalExplainablePracticeRecommendationPanel.tsx",
   "mobile/src/LocalLearningOverviewPanel.tsx",
   "mobile/src/LocalScoreProjectPanel.tsx",
+  "mobile/src/useLocalScoreProjectMusicXmlImportController.ts",
   "mobile/src/runtime/localScoreProjectStorage.ts",
   "mobile/src/stubs/supabaseBrowser.ts",
   "lib/practice/localPracticeReviewQueue.ts",
@@ -46,6 +47,7 @@ const requiredSources = [
   "lib/music/scoreDocument.ts",
   "lib/music/localScoreProject.ts",
   "lib/music/localScoreProjectMusicXmlImport.ts",
+  "lib/music/localScoreProjectMusicXmlImportController.ts",
   "lib/music/localScoreProjectMusicXmlExport.ts",
   "lib/music/localScoreProjectPlayback.ts",
   "lib/musicxml/mxlExtractor.ts",
@@ -70,6 +72,7 @@ const requiredSources = [
   "lib/piano/pianoPerformance.ts",
   "lib/piano/pianoMidi.ts",
   "lib/piano/pianoLearningScore.ts",
+  "lib/platform/browserLocalScoreProjectMusicXmlImportFile.ts",
   "lib/platform/sharedProjectCapability.ts",
   "mobile/public/piano/timbres.manifest.json",
   "components/piano/LocalPianoPanel.tsx",
@@ -389,6 +392,18 @@ const pianoLearningPanelSource = readFileSync(
 );
 const localScoreProjectPanelSource = readFileSync(
   join(root, "mobile/src/LocalScoreProjectPanel.tsx"),
+  "utf8",
+);
+const localScoreProjectMusicXmlImportControllerSource = readFileSync(
+  join(root, "lib/music/localScoreProjectMusicXmlImportController.ts"),
+  "utf8",
+);
+const browserLocalScoreProjectMusicXmlImportFileSource = readFileSync(
+  join(root, "lib/platform/browserLocalScoreProjectMusicXmlImportFile.ts"),
+  "utf8",
+);
+const localScoreProjectMusicXmlImportHookSource = readFileSync(
+  join(root, "mobile/src/useLocalScoreProjectMusicXmlImportController.ts"),
   "utf8",
 );
 const pianoProviderSource = readFileSync(join(root, "lib/piano/pianoAudioProvider.ts"), "utf8");
@@ -920,15 +935,31 @@ if (
   throw new Error("Android 本地参考钢琴缺少音域、多指、延音或残音清理边界");
 }
 if (
-  !localScoreProjectPanelSource.includes("musicXmlImportGenerationRef")
-  || !localScoreProjectPanelSource.includes(
-    "generation !== musicXmlImportGenerationRef.current",
+  !localScoreProjectMusicXmlImportControllerSource.includes(
+    "const runGeneration = ++generation",
   )
-  || !localScoreProjectPanelSource.includes(
-    "musicXmlImportGenerationRef.current += 1",
+  || !localScoreProjectMusicXmlImportControllerSource.includes(
+    "if (!isCurrent(runGeneration)) return false",
   )
+  || !localScoreProjectMusicXmlImportControllerSource.includes("generation += 1")
+  || !localScoreProjectMusicXmlImportControllerSource.includes(
+    "createLocalScoreProjectMusicXmlImportDraft",
+  )
+  || !browserLocalScoreProjectMusicXmlImportFileSource.includes("file.arrayBuffer()")
+  || !browserLocalScoreProjectMusicXmlImportFileSource.includes("file.text()")
+  || !browserLocalScoreProjectMusicXmlImportFileSource.includes(
+    "extractMusicXMLFromMxl",
+  )
+  || !localScoreProjectMusicXmlImportHookSource.includes("useSyncExternalStore")
+  || !localScoreProjectPanelSource.includes(
+    "useLocalScoreProjectMusicXmlImportController",
+  )
+  || localScoreProjectPanelSource.includes("musicXmlImportGenerationRef")
+  || localScoreProjectPanelSource.includes("file.arrayBuffer()")
+  || localScoreProjectPanelSource.includes("file.text()")
+  || localScoreProjectPanelSource.includes("extractMusicXMLFromMxl")
 ) {
-  throw new Error("本机谱项目 MusicXML/MXL 导入缺少文件读取 generation guard");
+  throw new Error("本机谱项目 MusicXML/MXL 导入缺少 controller、file adapter 或 generation guard");
 }
 if (
   !offlinePitchSource.includes('OFFLINE_PITCH_ANALYSIS_VERSION = "offline-pitch-multicandidate-v1"')

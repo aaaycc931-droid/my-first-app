@@ -24,10 +24,25 @@ import {
   type LocalScoreProjectRecoveryCandidateV1,
 } from "../../lib/music/localScoreProjectRecovery";
 import {
+  createLocalScoreProjectMusicXmlImportDraft,
+  type LocalScoreProjectMusicXmlImportDraft,
+} from "../../lib/music/localScoreProjectMusicXmlImport";
+import {
+  LOCAL_SCORE_PROJECT_MUSIC_XML_IMPORT_MAX_FILE_BYTES,
+  createLocalScoreProjectMusicXmlImportController,
+  type LocalScoreProjectMusicXmlImportFile,
+} from "../../lib/music/localScoreProjectMusicXmlImportController";
+import {
+  createBrowserLocalScoreProjectMusicXmlImportFilePort,
+} from "../../lib/platform/browserLocalScoreProjectMusicXmlImportFile";
+import {
   createBrowserFileDownloadPort,
 } from "../../lib/platform/browserFileDownload";
 import { LocalScoreProjectPanel } from "./LocalScoreProjectPanel";
 import { useLocalScoreProjectAutosave } from "./useLocalScoreProjectAutosave";
+import {
+  createLocalScoreProjectMusicXmlImportControllerLifecycle,
+} from "./useLocalScoreProjectMusicXmlImportController";
 import {
   LocalScoreProjectStorageError,
   type LocalScoreProjectStore,
@@ -564,6 +579,275 @@ afterEach(async () => {
   } else {
     Reflect.deleteProperty(URL, "revokeObjectURL");
   }
+});
+
+type ImportDraftArgs = Parameters<
+  typeof createLocalScoreProjectMusicXmlImportDraft
+>[0];
+
+const createReadyImportDraft = (
+  args: ImportDraftArgs,
+): LocalScoreProjectMusicXmlImportDraft => ({
+  status: "ready",
+  project: null,
+  issues: [],
+  summary: { measureCount: 1, eventCount: 2 },
+  sourceFormat: args.sourceFormat,
+  fileName: args.fileName,
+  fingerprint: "test-fingerprint",
+});
+
+const createImportControllerHarness = ({
+  read = async () => supportedMusicXml(),
+  createDraft = createReadyImportDraft,
+}: {
+  read?: (
+    file: LocalScoreProjectMusicXmlImportFile,
+  ) => Promise<string>;
+  createDraft?: typeof createLocalScoreProjectMusicXmlImportDraft;
+} = {}) => {
+  const fileRead = vi.fn(read);
+  const draftFactory = vi.fn(createDraft);
+  const now = vi.fn(() => "2026-08-17T00:00:00.000Z");
+  const createId = vi.fn(() => "import-project-1");
+  const controller = createLocalScoreProjectMusicXmlImportController({
+    filePort: { read: fileRead },
+    now,
+    createId,
+    createDraft: draftFactory,
+  });
+  return { controller, fileRead, draftFactory, now, createId };
+};
+
+describe("本机谱项目 MusicXML 导入 controller", () => {
+  it.each([
+    [
+      { name: "错误.txt", size: 1 },
+      "请选择 .musicxml、.xml 或 .mxl 文件。",
+    ],
+    [
+      { name: "空.musicxml", size: 0 },
+      "所选文件为空，未生成导入候选。",
+    ],
+    [
+      {
+        name: "过大.mxl",
+        size: LOCAL_SCORE_PROJECT_MUSIC_XML_IMPORT_MAX_FILE_BYTES + 1,
+      },
+      "文件超过 2 MiB 本机导入上限，未生成候选。",
+    ],
+  ])("拒绝无效文件且不读取：%s", async (file, notice) => {
+    const harness = createImportControllerHarness();
+
+    expect(await harness.controller.select(file)).toBe(false);
+    expect(harness.controller.getSnapshot()).toMatchObject({
+      draft: null,
+      status: "error",
+      notice,
+    });
+    expect(harness.fileRead).not.toHaveBeenCalled();
+    expect(harness.createId).not.toHaveBeenCalled();
+  });
+
+  it("接受恰好 2 MiB 的文件并只在读取仍为当前任务时生成候选", async () => {
+    const harness = createImportControllerHarness();
+    const file = {
+      name: "边界.musicxml",
+      size: LOCAL_SCORE_PROJECT_MUSIC_XML_IMPORT_MAX_FILE_BYTES,
+    };
+
+    expect(await harness.controller.select(file)).toBe(true);
+    expect(harness.fileRead).toHaveBeenCalledWith(file, "musicxml");
+    expect(harness.controller.getSnapshot()).toMatchObject({
+      status: "ready",
+      draft: { fileName: "边界.musicxml" },
+    });
+    expect(harness.createId).toHaveBeenCalledTimes(1);
+  });
+
+  it("替换后旧读取 rejection 不污染新候选且不解析或分配旧项目 ID", async () => {
+    const oldReadState: { reject?: (error: Error) => void } = {};
+    const oldRead = new Promise<string>((_resolve, reject) => {
+      oldReadState.reject = reject;
+    });
+    const harness = createImportControllerHarness({
+      read: (file) => file.name.startsWith("旧")
+        ? oldRead
+        : Promise.resolve(supportedMusicXml()),
+    });
+    const oldSelection = harness.controller.select({
+      name: "旧.musicxml",
+      size: 1,
+    });
+
+    expect(await harness.controller.select({
+      name: "新.musicxml",
+      size: 1,
+    })).toBe(true);
+    oldReadState.reject?.(new Error("旧读取失败"));
+    expect(await oldSelection).toBe(false);
+
+    expect(harness.controller.getSnapshot()).toMatchObject({
+      status: "ready",
+      draft: { fileName: "新.musicxml" },
+    });
+    expect(harness.draftFactory).toHaveBeenCalledTimes(1);
+    expect(harness.createId).toHaveBeenCalledTimes(1);
+  });
+
+  it("读取期间清除后忽略迟到成功且不调用 parser 或 ID 工厂", async () => {
+    const readState: { resolve?: (xml: string) => void } = {};
+    const pendingRead = new Promise<string>((resolve) => {
+      readState.resolve = resolve;
+    });
+    const harness = createImportControllerHarness({
+      read: () => pendingRead,
+    });
+    const selection = harness.controller.select({
+      name: "待清除.musicxml",
+      size: 1,
+    });
+
+    harness.controller.clear();
+    readState.resolve?.(supportedMusicXml());
+    expect(await selection).toBe(false);
+    expect(harness.controller.getSnapshot()).toMatchObject({
+      draft: null,
+      status: "idle",
+      notice: "MusicXML 导入候选已清除；没有写入或修改任何本机项目。",
+    });
+    expect(harness.draftFactory).not.toHaveBeenCalled();
+    expect(harness.createId).not.toHaveBeenCalled();
+  });
+
+  it.each(["resolve", "reject"] as const)(
+    "detach 后忽略迟到的读取 %s",
+    async (settlement) => {
+      const readState: {
+        resolve?: (xml: string) => void;
+        reject?: (error: Error) => void;
+      } = {};
+      const pendingRead = new Promise<string>((resolve, reject) => {
+        readState.resolve = resolve;
+        readState.reject = reject;
+      });
+      const harness = createImportControllerHarness({
+        read: () => pendingRead,
+      });
+      const selection = harness.controller.select({
+        name: "卸载.musicxml",
+        size: 1,
+      });
+
+      harness.controller.detach();
+      if (settlement === "resolve") readState.resolve?.(supportedMusicXml());
+      else readState.reject?.(new Error("卸载后的旧错误"));
+      expect(await selection).toBe(false);
+      expect(harness.controller.getSnapshot()).toMatchObject({
+        draft: null,
+        status: "idle",
+      });
+      expect(harness.draftFactory).not.toHaveBeenCalled();
+      expect(harness.createId).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each(["read", "parse"] as const)(
+    "当前 %s 失败时保留原始中文错误并允许重试",
+    async (failureStage) => {
+      let shouldFail = true;
+      const harness = createImportControllerHarness({
+        read: async () => {
+          if (shouldFail && failureStage === "read") {
+            throw new Error("读取失败，请重新选择文件。");
+          }
+          return supportedMusicXml();
+        },
+        createDraft: (args) => {
+          if (shouldFail && failureStage === "parse") {
+            throw new Error("解析失败，请检查文件内容。");
+          }
+          return createReadyImportDraft(args);
+        },
+      });
+      const file = { name: "可重试.musicxml", size: 1 };
+
+      expect(await harness.controller.select(file)).toBe(false);
+      expect(harness.controller.getSnapshot()).toMatchObject({
+        draft: null,
+        status: "error",
+        notice: failureStage === "read"
+          ? "读取失败，请重新选择文件。"
+          : "解析失败，请检查文件内容。",
+      });
+
+      shouldFail = false;
+      expect(await harness.controller.select(file)).toBe(true);
+      expect(harness.controller.getSnapshot()).toMatchObject({
+        status: "ready",
+        draft: { fileName: "可重试.musicxml" },
+      });
+    },
+  );
+
+  it("候选只在持久化方明确通知成功后才被消费", async () => {
+    const harness = createImportControllerHarness();
+    await harness.controller.select({ name: "待确认.musicxml", size: 1 });
+
+    expect(harness.controller.getSnapshot().draft).not.toBeNull();
+    expect(harness.controller.getSnapshot().status).toBe("ready");
+    harness.controller.consumeConfirmedDraft();
+    expect(harness.controller.getSnapshot()).toMatchObject({
+      draft: null,
+      status: "idle",
+    });
+  });
+
+  it("StrictMode effect replay 不会提前 detach controller", async () => {
+    const harness = createImportControllerHarness();
+    const lifecycle = createLocalScoreProjectMusicXmlImportControllerLifecycle(
+      harness.controller,
+    );
+
+    lifecycle.mount();
+    lifecycle.unmount();
+    lifecycle.mount();
+    await Promise.resolve();
+    expect(await harness.controller.select({
+      name: "重放.musicxml",
+      size: 1,
+    })).toBe(true);
+  });
+});
+
+describe("浏览器本机谱项目 MusicXML 文件 adapter", () => {
+  it("MusicXML 只读取 text，MXL 只读取 bytes 并交给 extractor", async () => {
+    const xmlText = vi.fn(async () => "<score-partwise/>");
+    const xmlBytes = vi.fn(async () => new Uint8Array([9]).buffer);
+    const musicXmlFile = new File(["xml"], "score.musicxml");
+    Object.defineProperty(musicXmlFile, "text", { value: xmlText });
+    Object.defineProperty(musicXmlFile, "arrayBuffer", { value: xmlBytes });
+    const mxlText = vi.fn(async () => "unused");
+    const mxlBytes = vi.fn(async () => new Uint8Array([1, 2, 3]).buffer);
+    const mxlFile = new File(["mxl"], "score.mxl");
+    Object.defineProperty(mxlFile, "text", { value: mxlText });
+    Object.defineProperty(mxlFile, "arrayBuffer", { value: mxlBytes });
+    const extractMxl = vi.fn(() => "<score-partwise id='mxl'/>");
+    const port = createBrowserLocalScoreProjectMusicXmlImportFilePort({
+      extractMxl,
+    });
+
+    await expect(port.read(musicXmlFile, "musicxml"))
+      .resolves.toBe("<score-partwise/>");
+    expect(xmlText).toHaveBeenCalledTimes(1);
+    expect(xmlBytes).not.toHaveBeenCalled();
+
+    await expect(port.read(mxlFile, "mxl"))
+      .resolves.toBe("<score-partwise id='mxl'/>");
+    expect(mxlBytes).toHaveBeenCalledTimes(1);
+    expect(mxlText).not.toHaveBeenCalled();
+    expect(extractMxl).toHaveBeenCalledWith(new Uint8Array([1, 2, 3]));
+  });
 });
 
 describe("S1 本机谱项目面板", () => {

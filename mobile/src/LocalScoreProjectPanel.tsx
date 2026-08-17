@@ -54,8 +54,6 @@ import {
 } from "../../lib/music/localScoreProjectTemplate";
 import {
   confirmLocalScoreProjectMusicXmlImportDraft,
-  createLocalScoreProjectMusicXmlImportDraft,
-  type LocalScoreProjectMusicXmlImportDraft,
 } from "../../lib/music/localScoreProjectMusicXmlImport";
 import {
   confirmLocalScoreProjectMusicXmlExportDraft,
@@ -64,7 +62,6 @@ import {
   type LocalScoreProjectMusicXmlExportFormat,
   type LocalScoreProjectMusicXmlExportIssue,
 } from "../../lib/music/localScoreProjectMusicXmlExport";
-import { extractMusicXMLFromMxl } from "../../lib/musicxml/mxlExtractor";
 import type {
   LocalScoreProjectClefV3,
   LocalScoreProjectArticulationV1,
@@ -99,6 +96,9 @@ import {
   type LocalScoreProjectStore,
 } from "./runtime/localScoreProjectStorage";
 import { useLocalScoreProjectAutosave } from "./useLocalScoreProjectAutosave";
+import {
+  useLocalScoreProjectMusicXmlImportController,
+} from "./useLocalScoreProjectMusicXmlImportController";
 
 const formatMusicXmlExportIssueLocation = (
   issue: LocalScoreProjectMusicXmlExportIssue,
@@ -124,7 +124,6 @@ type ScoreCreditsDraft = Readonly<{
 
 const DEFAULT_LOCAL_SCORE_PROJECT_TEMPLATE_ID =
   "blank-treble-staff-v1";
-const MAX_LOCAL_SCORE_PROJECT_IMPORT_FILE_BYTES = 2 * 1024 * 1024;
 
 const articulationOptions = [
   { id: "accent", label: "重音" },
@@ -562,15 +561,14 @@ export function LocalScoreProjectPanel({
     useState<"available" | "unavailable">("available");
   const [transportMode, setTransportMode] =
     useState<LocalScoreProjectTransportMode>("idle");
-  const [musicXmlImportDraft, setMusicXmlImportDraft] =
-    useState<LocalScoreProjectMusicXmlImportDraft | null>(null);
-  const [musicXmlImportStatus, setMusicXmlImportStatus] =
-    useState<"idle" | "reading" | "ready" | "blocked" | "error">("idle");
-  const [musicXmlImportNotice, setMusicXmlImportNotice] = useState(
-    "选择 MusicXML、XML 或 MXL 后会先生成内存候选；确认前不会写入项目列表。",
-  );
   const musicXmlImportInputRef = useRef<HTMLInputElement | null>(null);
-  const musicXmlImportGenerationRef = useRef(0);
+  const musicXmlImport = useLocalScoreProjectMusicXmlImportController({
+    now,
+    createId,
+  });
+  const musicXmlImportDraft = musicXmlImport.draft;
+  const musicXmlImportStatus = musicXmlImport.status;
+  const musicXmlImportNotice = musicXmlImport.notice;
   const [musicXmlExportDraft, setMusicXmlExportDraft] =
     useState<LocalScoreProjectMusicXmlExportDraft | null>(null);
   const [musicXmlExportFormat, setMusicXmlExportFormat] =
@@ -740,77 +738,9 @@ export function LocalScoreProjectPanel({
   };
 
   const clearMusicXmlImport = () => {
-    musicXmlImportGenerationRef.current += 1;
-    setMusicXmlImportDraft(null);
-    setMusicXmlImportStatus("idle");
-    setMusicXmlImportNotice(
-      "MusicXML 导入候选已清除；没有写入或修改任何本机项目。",
-    );
+    musicXmlImport.clear();
     if (musicXmlImportInputRef.current) {
       musicXmlImportInputRef.current.value = "";
-    }
-  };
-
-  const readMusicXmlImport = async (file: File | null) => {
-    const generation = ++musicXmlImportGenerationRef.current;
-    setMusicXmlImportDraft(null);
-    if (!file) {
-      setMusicXmlImportStatus("idle");
-      setMusicXmlImportNotice("未选择文件；没有写入或修改任何本机项目。");
-      return;
-    }
-    const extension = file.name.split(".").at(-1)?.toLowerCase();
-    if (
-      extension !== "musicxml"
-      && extension !== "xml"
-      && extension !== "mxl"
-    ) {
-      setMusicXmlImportStatus("error");
-      setMusicXmlImportNotice("请选择 .musicxml、.xml 或 .mxl 文件。");
-      return;
-    }
-    if (file.size === 0) {
-      setMusicXmlImportStatus("error");
-      setMusicXmlImportNotice("所选文件为空，未生成导入候选。");
-      return;
-    }
-    if (file.size > MAX_LOCAL_SCORE_PROJECT_IMPORT_FILE_BYTES) {
-      setMusicXmlImportStatus("error");
-      setMusicXmlImportNotice("文件超过 2 MiB 本机导入上限，未生成候选。");
-      return;
-    }
-    setMusicXmlImportStatus("reading");
-    setMusicXmlImportNotice("正在本机解析并检查受支持语义…");
-    try {
-      const sourceFormat = extension;
-      const xml = sourceFormat === "mxl"
-        ? extractMusicXMLFromMxl(new Uint8Array(await file.arrayBuffer()))
-        : await file.text();
-      let eventSequence = 0;
-      const draft = createLocalScoreProjectMusicXmlImportDraft({
-        xml,
-        fileName: file.name,
-        sourceFormat,
-        projectId: createId(),
-        now: now(),
-        createEventId: () => `import-event-${++eventSequence}`,
-      });
-      if (generation !== musicXmlImportGenerationRef.current) return;
-      setMusicXmlImportDraft(draft);
-      setMusicXmlImportStatus(draft.status);
-      setMusicXmlImportNotice(
-        draft.status === "ready"
-          ? `候选已就绪：${draft.summary.measureCount} 小节、${draft.summary.eventCount} 个事件。请检查问题清单和谱面后明确确认。`
-          : "该文件包含当前 canonical 无法无损表达的内容，已阻止确认和保存。",
-      );
-    } catch (error) {
-      if (generation !== musicXmlImportGenerationRef.current) return;
-      setMusicXmlImportStatus("error");
-      setMusicXmlImportNotice(
-        error instanceof Error
-          ? error.message
-          : "MusicXML/MXL 解析失败，未生成导入候选。",
-      );
     }
   };
 
@@ -828,8 +758,7 @@ export function LocalScoreProjectPanel({
       });
       if (result.status === "saved") {
         publishProject(result.project, { resetSettings: true });
-        setMusicXmlImportDraft(null);
-        setMusicXmlImportStatus("idle");
+        musicXmlImport.consumeConfirmedDraft();
         if (musicXmlImportInputRef.current) {
           musicXmlImportInputRef.current.value = "";
         }
@@ -1369,7 +1298,7 @@ export function LocalScoreProjectPanel({
               accept=".musicxml,.xml,.mxl,application/vnd.recordare.musicxml+xml,application/vnd.recordare.musicxml,application/xml,text/xml"
               disabled={isBusy}
               onChange={(event) =>
-                void readMusicXmlImport(event.target.files?.[0] ?? null)}
+                void musicXmlImport.select(event.target.files?.[0] ?? null)}
               className="mt-2 block w-full text-sm disabled:opacity-50"
             />
           </label>
