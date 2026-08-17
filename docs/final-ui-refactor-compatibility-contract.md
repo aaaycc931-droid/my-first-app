@@ -97,7 +97,7 @@ require 依赖，并阻止其反向引用 `app/`、`components/` 或 `mobile/src
 | 热点 | 当前混合职责 | 重构前目标边界 |
 | --- | --- | --- |
 | `app/practice/page.tsx` | 页面、活动会话和反馈编排；本地录音、录音解码／质量／音高／起音分析、本地旋律参考音频解码、独立节拍器、普通／谱面节奏与点击延迟校准 runtime 及目标旋律／单音播放已由 controllers／ports 承接 | 继续提取语义化页面状态；不得把 browser scheduler ownership 放回页面 |
-| `mobile/src/LocalScoreProjectPanel.tsx` | 编辑 UI、项目存储、MusicXML/MXL 候选、确认和下载 | 提取 score-project controller、exchange use-case 与 file adapter |
+| `mobile/src/LocalScoreProjectPanel.tsx` | 编辑 UI、项目存储、MusicXML/MXL 确认和下载；导入选择／读取／候选生成已由 controller、薄 hook 与 browser file adapter 承接 | 继续提取其余 score-project controller 与 export exchange 边界；不得把文件读取、MXL 解包或 import generation 放回面板 |
 | `mobile/src/App.tsx` | 导航、生命周期和学习流程编排；课程进度、学习画像与复练队列已分别注入 repository | 提取 app shell、navigation state 与 learning controller |
 | `app/recognize/page.tsx` | 文件校验、识别结果和文件选择／导入编排已由可注入 recognition workflow controller／薄 React hook 承接；API 请求、preview URL 和音符播放调度也分别由 client／preview adapter／latest-wins playback controller 承接 | 继续提取其余语义化页面职责；不得把 fetch／FormData／AudioContext 调度放回页面 |
 | 本机课程／学习概览组件 | 课程进度、学习画像与复练队列 repository 已分别通过 PR #499／#503／#505 由 composition root 注入 | 继续由上层注入 repository、snapshot 和 commands，不把 localStorage 访问放回组件 |
@@ -106,6 +106,14 @@ require 依赖，并阻止其反向引用 `app/`、`components/` 或 `mobile/src
 这些热点是可控技术债，不代表当前功能错误，也不单独阻塞 S3 或其他边界清楚的能力
 切片。不得据此宣称 UI 重构已完成；也不得继续把新的 schema、迁移、格式解析或业务
 判定堆入这些展示文件。
+
+本机谱项目 MusicXML／MXL 导入 controller 边界见
+`docs/ui-local-score-project-musicxml-import-controller-acceptance.md`。该切片把扩展名／大小
+校验、读取状态、latest-wins generation 与 canonical 导入草稿生成编排移入框架无关
+controller，并把浏览器 `File` 读取和 MXL 解包保留在 platform adapter；面板继续拥有文件
+input 值清理、候选检查展示、明确确认、IndexedDB 原子保存和保存失败重试。它不改变
+MusicXML 语义、blocking ledger、项目 schema、导出流程或表示其余 score-project 职责已经
+完成抽离。
 
 共享实时音高组件的首个 storage port 抽离边界见
 `docs/ui-realtime-pitch-local-record-storage-port-acceptance.md`，Blob 回放抽离边界见
