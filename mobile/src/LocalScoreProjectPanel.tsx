@@ -85,14 +85,14 @@ import {
 import {
   LOCAL_SCORE_PROJECT_STORAGE_LIMITS,
   createIndexedDbLocalScoreProjectStore,
-  deleteLocalScoreProject,
-  listLocalScoreProjects,
-  loadLocalScoreProject,
   persistLocalScoreProjectChange,
   persistNewLocalScoreProject,
   type LocalScoreProjectStore,
 } from "./runtime/localScoreProjectStorage";
 import { useLocalScoreProjectAutosave } from "./useLocalScoreProjectAutosave";
+import {
+  useLocalScoreProjectLibraryController,
+} from "./useLocalScoreProjectLibraryController";
 import {
   useLocalScoreProjectMusicXmlImportController,
 } from "./useLocalScoreProjectMusicXmlImportController";
@@ -507,7 +507,6 @@ export function LocalScoreProjectPanel({
   const [resolvedStore] = useState(
     () => store ?? createIndexedDbLocalScoreProjectStore(),
   );
-  const [projects, setProjects] = useState<readonly LocalScoreProjectV1[]>([]);
   const [currentProject, setCurrentProject] =
     useState<LocalScoreProjectV1 | null>(null);
   const [selectedVoiceLocation, setSelectedVoiceLocation] =
@@ -554,13 +553,25 @@ export function LocalScoreProjectPanel({
   const [copiedEvent, setCopiedEvent] =
     useState<LocalScoreProjectEventInput | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
-  const [pendingDeleteProjectId, setPendingDeleteProjectId] =
-    useState<string | null>(null);
-  const [isBusy, setIsBusy] = useState(true);
-  const [sourceStatus, setSourceStatus] =
-    useState<"available" | "unavailable">("available");
+  const [isPanelBusy, setIsBusy] = useState(false);
   const [transportMode, setTransportMode] =
     useState<LocalScoreProjectTransportMode>("idle");
+  const {
+    projects,
+    pendingDeleteProjectId,
+    sourceStatus,
+    isBusy: isProjectLibraryBusy,
+    refresh: refreshProjectLibrary,
+    upsertProject,
+    openProject: openStoredProject,
+    requestDelete: requestProjectDelete,
+    cancelDelete: cancelProjectDelete,
+    confirmDelete: confirmProjectDelete,
+  } = useLocalScoreProjectLibraryController({
+    store: resolvedStore,
+    publishNotice: setNotice,
+  });
+  const isBusy = isPanelBusy || isProjectLibraryBusy;
   const musicXmlImportInputRef = useRef<HTMLInputElement | null>(null);
   const musicXmlImport = useLocalScoreProjectMusicXmlImportController({
     now,
@@ -576,31 +587,6 @@ export function LocalScoreProjectPanel({
   const musicXmlExportDraft = musicXmlExport.draft;
   const musicXmlExportFormat = musicXmlExport.format;
   const invalidateMusicXmlExport = musicXmlExport.invalidate;
-
-  const refreshProjects = useCallback(async () => {
-    setIsBusy(true);
-    const result = await listLocalScoreProjects({ store: resolvedStore });
-    setProjects(result.projects);
-    setSourceStatus(result.sourceStatus);
-    setNotice(result.notice);
-    setIsBusy(false);
-  }, [resolvedStore]);
-
-  useEffect(() => {
-    let active = true;
-    const loadInitialProjects = async () => {
-      const result = await listLocalScoreProjects({ store: resolvedStore });
-      if (!active) return;
-      setProjects(result.projects);
-      setSourceStatus(result.sourceStatus);
-      setNotice(result.notice);
-      setIsBusy(false);
-    };
-    void loadInitialProjects();
-    return () => {
-      active = false;
-    };
-  }, [resolvedStore]);
 
   const publishProject = useCallback((
     project: LocalScoreProjectV1,
@@ -672,11 +658,8 @@ export function LocalScoreProjectPanel({
         && location.measureNumber === previous.location.measureNumber)
         ? previous
         : null);
-    setProjects((previous) => [
-      project,
-      ...previous.filter((candidate) => candidate.projectId !== project.projectId),
-    ]);
-  }, [invalidateMusicXmlExport]);
+    upsertProject(project);
+  }, [invalidateMusicXmlExport, upsertProject]);
 
   const handleAutosaveProject = useCallback((
     project: LocalScoreProjectV1,
@@ -782,41 +765,10 @@ export function LocalScoreProjectPanel({
     }
   };
 
-  const openProject = async (projectId: string) => {
-    setIsBusy(true);
-    setNotice(null);
-    const result = await loadLocalScoreProject({
-      store: resolvedStore,
-      projectId,
+  const openProject = (projectId: string) =>
+    openStoredProject(projectId, (project) => {
+      publishProject(project, { resetSettings: true });
     });
-    if (result.status === "loaded" && result.project) {
-      publishProject(result.project, { resetSettings: true });
-      setNotice("已重新打开本机保存的谱项目。");
-    } else {
-      setNotice(result.notice ?? "未找到这份本机谱项目。");
-    }
-    setIsBusy(false);
-  };
-
-  const confirmDeleteProject = async (project: LocalScoreProjectV1) => {
-    if (isBusy || pendingDeleteProjectId !== project.projectId) return;
-    setIsBusy(true);
-    setNotice(null);
-    const result = await deleteLocalScoreProject({
-      store: resolvedStore,
-      project,
-    });
-    if (result.deleted) {
-      setProjects((previous) =>
-        previous.filter((candidate) =>
-          candidate.projectId !== project.projectId));
-      setPendingDeleteProjectId(null);
-      setNotice("本机谱项目已删除，释放的应用容量可用于新建或保存。");
-    } else {
-      setNotice(result.notice);
-    }
-    setIsBusy(false);
-  };
 
   const persistMutation = async (
     createProposal: (project: LocalScoreProjectV1) => LocalScoreProjectV1,
@@ -1350,7 +1302,7 @@ export function LocalScoreProjectPanel({
             <button
               type="button"
               disabled={isBusy}
-              onClick={() => void refreshProjects()}
+              onClick={() => void refreshProjectLibrary()}
               className="min-h-11 rounded-xl border border-slate-300 px-3 py-2 text-sm font-bold disabled:text-slate-400"
             >
               重新读取
@@ -1388,10 +1340,8 @@ export function LocalScoreProjectPanel({
                       <button
                         type="button"
                         disabled={isBusy}
-                        onClick={() => {
-                          setPendingDeleteProjectId(project.projectId);
-                          setNotice(null);
-                        }}
+                        onClick={() =>
+                          requestProjectDelete(project.projectId)}
                         className="min-h-11 rounded-xl border border-rose-300 px-3 py-2 text-sm font-bold text-rose-700 disabled:text-slate-400"
                       >
                         删除项目
@@ -1407,7 +1357,7 @@ export function LocalScoreProjectPanel({
                         <button
                           type="button"
                           disabled={isBusy}
-                          onClick={() => void confirmDeleteProject(project)}
+                          onClick={() => void confirmProjectDelete(project)}
                           className="min-h-11 rounded-xl bg-rose-700 px-3 py-2 text-sm font-bold text-white disabled:bg-slate-300"
                         >
                           确认删除
@@ -1415,7 +1365,7 @@ export function LocalScoreProjectPanel({
                         <button
                           type="button"
                           disabled={isBusy}
-                          onClick={() => setPendingDeleteProjectId(null)}
+                          onClick={cancelProjectDelete}
                           className="min-h-11 rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm font-bold disabled:text-slate-400"
                         >
                           取消
@@ -2749,7 +2699,7 @@ export function LocalScoreProjectPanel({
             setTargetMeasureNumber(1);
             setTransportMode("idle");
             setNotice(null);
-            void refreshProjects();
+            void refreshProjectLibrary();
           }}
           className="min-h-11 rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-bold disabled:text-slate-400"
         >
