@@ -20,6 +20,7 @@ const requiredSources = [
   "mobile/src/LocalLearningOverviewPanel.tsx",
   "mobile/src/LocalScoreProjectPanel.tsx",
   "mobile/src/useLocalScoreProjectLibraryController.ts",
+  "mobile/src/useLocalScoreProjectMutationController.ts",
   "mobile/src/useLocalScoreProjectMusicXmlImportController.ts",
   "mobile/src/useLocalScoreProjectMusicXmlExportController.ts",
   "mobile/src/runtime/localScoreProjectStorage.ts",
@@ -49,6 +50,7 @@ const requiredSources = [
   "lib/music/scoreDocument.ts",
   "lib/music/localScoreProject.ts",
   "lib/music/localScoreProjectLibraryController.ts",
+  "lib/music/localScoreProjectMutationController.ts",
   "lib/music/localScoreProjectMusicXmlImport.ts",
   "lib/music/localScoreProjectMusicXmlImportController.ts",
   "lib/music/localScoreProjectMusicXmlExport.ts",
@@ -404,6 +406,14 @@ const localScoreProjectLibraryControllerSource = readFileSync(
 );
 const localScoreProjectLibraryHookSource = readFileSync(
   join(root, "mobile/src/useLocalScoreProjectLibraryController.ts"),
+  "utf8",
+);
+const localScoreProjectMutationControllerSource = readFileSync(
+  join(root, "lib/music/localScoreProjectMutationController.ts"),
+  "utf8",
+);
+const localScoreProjectMutationHookSource = readFileSync(
+  join(root, "mobile/src/useLocalScoreProjectMutationController.ts"),
   "utf8",
 );
 const localScoreProjectMusicXmlImportControllerSource = readFileSync(
@@ -975,13 +985,42 @@ if (
     "useLocalScoreProjectLibraryController",
   )
   || !localScoreProjectPanelSource.includes(
-    "isPanelBusy || isProjectLibraryBusy",
+    "|| isProjectLibraryBusy",
+  )
+  || !localScoreProjectPanelSource.includes(
+    "|| isProjectMutationBusy",
   )
   || localScoreProjectPanelSource.includes("listLocalScoreProjects({")
   || localScoreProjectPanelSource.includes("loadLocalScoreProject({")
   || localScoreProjectPanelSource.includes("deleteLocalScoreProject({")
 ) {
   throw new Error("本机谱项目列表、打开或显式删除缺少 controller、storage port 或 stale guard");
+}
+if (
+  !localScoreProjectMutationControllerSource.includes(
+    "if (!attached || snapshot.isBusy) return false",
+  )
+  || !localScoreProjectMutationControllerSource.includes(
+    "attached && generation === runGeneration",
+  )
+  || !localScoreProjectMutationControllerSource.includes(
+    "const proposedProject = createProposal(currentProject)",
+  )
+  || !localScoreProjectMutationHookSource.includes("useSyncExternalStore")
+  || !localScoreProjectMutationHookSource.includes(
+    "persistLocalScoreProjectChange",
+  )
+  || !localScoreProjectPanelSource.includes(
+    "useLocalScoreProjectMutationController",
+  )
+  || !localScoreProjectPanelSource.includes(
+    "persistProjectMutation({",
+  )
+  || localScoreProjectPanelSource.includes(
+    "persistLocalScoreProjectChange({",
+  )
+) {
+  throw new Error("本机谱项目编辑保存缺少 controller、storage port、串行或 detach guard");
 }
 if (
   !localScoreProjectMusicXmlImportControllerSource.includes(
