@@ -85,7 +85,6 @@ import {
 import {
   LOCAL_SCORE_PROJECT_STORAGE_LIMITS,
   createIndexedDbLocalScoreProjectStore,
-  persistLocalScoreProjectChange,
   persistNewLocalScoreProject,
   type LocalScoreProjectStore,
 } from "./runtime/localScoreProjectStorage";
@@ -93,6 +92,9 @@ import { useLocalScoreProjectAutosave } from "./useLocalScoreProjectAutosave";
 import {
   useLocalScoreProjectLibraryController,
 } from "./useLocalScoreProjectLibraryController";
+import {
+  useLocalScoreProjectMutationController,
+} from "./useLocalScoreProjectMutationController";
 import {
   useLocalScoreProjectMusicXmlImportController,
 } from "./useLocalScoreProjectMusicXmlImportController";
@@ -571,7 +573,16 @@ export function LocalScoreProjectPanel({
     store: resolvedStore,
     publishNotice: setNotice,
   });
-  const isBusy = isPanelBusy || isProjectLibraryBusy;
+  const {
+    isBusy: isProjectMutationBusy,
+    persistMutation: persistProjectMutation,
+  } = useLocalScoreProjectMutationController({
+    store: resolvedStore,
+    publishNotice: setNotice,
+  });
+  const isBusy = isPanelBusy
+    || isProjectLibraryBusy
+    || isProjectMutationBusy;
   const musicXmlImportInputRef = useRef<HTMLInputElement | null>(null);
   const musicXmlImport = useLocalScoreProjectMusicXmlImportController({
     now,
@@ -770,10 +781,10 @@ export function LocalScoreProjectPanel({
       publishProject(project, { resetSettings: true });
     });
 
-  const persistMutation = async (
+  const persistMutation = (
     createProposal: (project: LocalScoreProjectV1) => LocalScoreProjectV1,
   ) => {
-    if (!currentProject || isBusy) return;
+    if (!currentProject || isBusy) return Promise.resolve(false);
     if (
       autosave.isDirty
       || autosave.status === "saving"
@@ -781,34 +792,13 @@ export function LocalScoreProjectPanel({
       || autosave.status === "recovery-available"
     ) {
       setNotice("请先等待名称与速度自动保存，或处理恢复候选后再修改谱面。");
-      return;
+      return Promise.resolve(false);
     }
-    setIsBusy(true);
-    setNotice(null);
-    try {
-      const proposal = createProposal(currentProject);
-      const result = await persistLocalScoreProjectChange({
-        store: resolvedStore,
-        currentProject,
-        proposedProject: proposal,
-      });
-      if (result.status === "saved") {
-        publishProject(result.project);
-        setNotice("修改已保存在本机。");
-      } else if (result.status === "unchanged") {
-        setNotice("当前内容没有变化。");
-      } else {
-        setNotice(result.notice);
-      }
-    } catch (error) {
-      setNotice(
-        error instanceof Error
-          ? error.message
-          : "本次修改无效，已保留最后保存的版本。",
-      );
-    } finally {
-      setIsBusy(false);
-    }
+    return persistProjectMutation({
+      currentProject,
+      createProposal,
+      onSaved: publishProject,
+    });
   };
 
   const saveEvent = () => {

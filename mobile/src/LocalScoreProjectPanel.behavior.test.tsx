@@ -47,6 +47,10 @@ import {
   type LocalScoreProjectLibraryLoadResult,
 } from "../../lib/music/localScoreProjectLibraryController";
 import {
+  createLocalScoreProjectMutationController,
+  type LocalScoreProjectMutationResult,
+} from "../../lib/music/localScoreProjectMutationController";
+import {
   createBrowserLocalScoreProjectMusicXmlImportFilePort,
 } from "../../lib/platform/browserLocalScoreProjectMusicXmlImportFile";
 import {
@@ -57,6 +61,9 @@ import { useLocalScoreProjectAutosave } from "./useLocalScoreProjectAutosave";
 import {
   createLocalScoreProjectLibraryControllerLifecycle,
 } from "./useLocalScoreProjectLibraryController";
+import {
+  createLocalScoreProjectMutationControllerLifecycle,
+} from "./useLocalScoreProjectMutationController";
 import {
   createLocalScoreProjectMusicXmlImportControllerLifecycle,
 } from "./useLocalScoreProjectMusicXmlImportController";
@@ -959,6 +966,204 @@ describe("本机谱项目库 controller", () => {
     await Promise.resolve();
     expect(await harness.controller.refresh()).toBe(true);
     expect(harness.listCall).toHaveBeenCalledOnce();
+  });
+});
+
+const createMutationControllerHarness = ({
+  persist = async (
+    _currentProject: LocalScoreProjectV1,
+    proposedProject: LocalScoreProjectV1,
+  ): Promise<LocalScoreProjectMutationResult> => ({
+    project: proposedProject,
+    notice: null,
+    saved: true,
+    status: "saved",
+  }),
+}: {
+  persist?: (
+    currentProject: LocalScoreProjectV1,
+    proposedProject: LocalScoreProjectV1,
+  ) => Promise<LocalScoreProjectMutationResult>;
+} = {}) => {
+  const notices: Array<string | null> = [];
+  const persistCall = vi.fn(persist);
+  const controller = createLocalScoreProjectMutationController({
+    port: { persist: persistCall },
+    publishNotice: (notice) => notices.push(notice),
+  });
+  return { controller, notices, persistCall };
+};
+
+const createMutationProjects = () => {
+  const currentProject = createLocalScoreProject({
+    projectId: "mutation-project",
+    title: "修改前",
+    now: "2026-08-21T02:00:00.000Z",
+  });
+  const proposedProject = changeLocalScoreProjectSettings({
+    project: currentProject,
+    expectedRevision: currentProject.document.revision,
+    title: "修改后",
+    tempoBpm: 96,
+    now: "2026-08-21T02:01:00.000Z",
+  });
+  return { currentProject, proposedProject };
+};
+
+describe("本机谱项目编辑持久化 controller", () => {
+  it("串行保存 proposal，并只发布 storage 确认后的项目", async () => {
+    const { currentProject, proposedProject } = createMutationProjects();
+    const deferred = createDeferred<LocalScoreProjectMutationResult>();
+    const harness = createMutationControllerHarness({
+      persist: () => deferred.promise,
+    });
+    const onSaved = vi.fn();
+    const run = harness.controller.persistMutation({
+      currentProject,
+      createProposal: () => proposedProject,
+      onSaved,
+    });
+
+    expect(harness.controller.getSnapshot()).toEqual({ isBusy: true });
+    expect(harness.notices).toEqual([null]);
+    expect(await harness.controller.persistMutation({
+      currentProject,
+      createProposal: () => proposedProject,
+      onSaved,
+    })).toBe(false);
+    expect(harness.persistCall).toHaveBeenCalledOnce();
+
+    deferred.resolve({
+      project: proposedProject,
+      notice: null,
+      saved: true,
+      status: "saved",
+    });
+    expect(await run).toBe(true);
+    expect(onSaved).toHaveBeenCalledOnce();
+    expect(onSaved).toHaveBeenCalledWith(proposedProject);
+    expect(harness.notices).toEqual([null, "修改已保存在本机。"]);
+    expect(harness.controller.getSnapshot()).toEqual({ isBusy: false });
+  });
+
+  it("unchanged 保留当前发布项目并给出既有通知", async () => {
+    const { currentProject } = createMutationProjects();
+    const harness = createMutationControllerHarness({
+      persist: async () => ({
+        project: currentProject,
+        notice: null,
+        saved: true,
+        status: "unchanged",
+      }),
+    });
+    const onSaved = vi.fn();
+
+    expect(await harness.controller.persistMutation({
+      currentProject,
+      createProposal: () => currentProject,
+      onSaved,
+    })).toBe(true);
+    expect(onSaved).not.toHaveBeenCalled();
+    expect(harness.notices).toEqual([null, "当前内容没有变化。"]);
+  });
+
+  it("storage 拒绝或抛错时失败关闭，不发布未保存 proposal", async () => {
+    const { currentProject, proposedProject } = createMutationProjects();
+    const onSaved = vi.fn();
+    const rejected = createMutationControllerHarness({
+      persist: async () => ({
+        project: currentProject,
+        notice: "修订冲突，未覆盖较新项目。",
+        saved: false,
+        status: "conflict",
+      }),
+    });
+    expect(await rejected.controller.persistMutation({
+      currentProject,
+      createProposal: () => proposedProject,
+      onSaved,
+    })).toBe(false);
+    expect(rejected.notices).toEqual([
+      null,
+      "修订冲突，未覆盖较新项目。",
+    ]);
+
+    const throwing = createMutationControllerHarness({
+      persist: async () => {
+        throw new Error("存储端口异常");
+      },
+    });
+    expect(await throwing.controller.persistMutation({
+      currentProject,
+      createProposal: () => proposedProject,
+      onSaved,
+    })).toBe(false);
+    expect(throwing.notices).toEqual([null, "存储端口异常"]);
+    expect(onSaved).not.toHaveBeenCalled();
+  });
+
+  it("domain proposal 异常保留原项目且不调用 storage", async () => {
+    const { currentProject } = createMutationProjects();
+    const harness = createMutationControllerHarness();
+    const onSaved = vi.fn();
+
+    expect(await harness.controller.persistMutation({
+      currentProject,
+      createProposal: () => {
+        throw new Error("本次领域修改无效");
+      },
+      onSaved,
+    })).toBe(false);
+    expect(harness.persistCall).not.toHaveBeenCalled();
+    expect(onSaved).not.toHaveBeenCalled();
+    expect(harness.notices).toEqual([null, "本次领域修改无效"]);
+    expect(harness.controller.getSnapshot()).toEqual({ isBusy: false });
+  });
+
+  it("detach 后忽略迟到保存结果、notice 与发布 callback", async () => {
+    const { currentProject, proposedProject } = createMutationProjects();
+    const deferred = createDeferred<LocalScoreProjectMutationResult>();
+    const harness = createMutationControllerHarness({
+      persist: () => deferred.promise,
+    });
+    const onSaved = vi.fn();
+    const run = harness.controller.persistMutation({
+      currentProject,
+      createProposal: () => proposedProject,
+      onSaved,
+    });
+    const noticesBeforeDetach = [...harness.notices];
+    harness.controller.detach();
+    deferred.resolve({
+      project: proposedProject,
+      notice: null,
+      saved: true,
+      status: "saved",
+    });
+
+    expect(await run).toBe(false);
+    expect(harness.controller.getSnapshot()).toEqual({ isBusy: false });
+    expect(harness.notices).toEqual(noticesBeforeDetach);
+    expect(onSaved).not.toHaveBeenCalled();
+  });
+
+  it("StrictMode effect replay 不会提前 detach 编辑持久化 controller", async () => {
+    const { currentProject, proposedProject } = createMutationProjects();
+    const harness = createMutationControllerHarness();
+    const lifecycle = createLocalScoreProjectMutationControllerLifecycle(
+      harness.controller,
+    );
+    lifecycle.mount();
+    lifecycle.unmount();
+    lifecycle.mount();
+    await Promise.resolve();
+
+    expect(await harness.controller.persistMutation({
+      currentProject,
+      createProposal: () => proposedProject,
+      onSaved: vi.fn(),
+    })).toBe(true);
+    expect(harness.persistCall).toHaveBeenCalledOnce();
   });
 });
 
