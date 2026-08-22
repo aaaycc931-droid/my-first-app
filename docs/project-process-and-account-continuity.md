@@ -2,9 +2,9 @@
 
 文档角色：**Active process contract / 当前开发执行规范**
 
-版本：1.3
+版本：1.4
 
-最后核验：2026-08-09
+最后核验：2026-08-22
 
 入口：`docs/START-HERE.md`
 
@@ -34,6 +34,8 @@ Quality workflow 已采用保守的改动分类：
 
 关键防护：
 
+- GitHub `main-quality-gate` ruleset 对默认分支 `main` 生效：禁止删除和 force push，所有变更必须经 PR；required approvals 为 0，讨论必须解决，并要求当前 PR head 的 `quality` 成功且分支已与 `main` 同步；repository admin 只允许通过 PR bypass，不允许静默直推；
+- Vercel 不设为 required status：它继续作为 Web 部署证据，但不能替代覆盖 Web、Android、审计和策略门禁的稳定 `quality`；
 - 不使用 `paths-ignore` 让必需检查从 PR 上消失；
 - 分类器或 diff 不可判定时回退全量；
 - rename、delete、空 diff、非支持事件都有测试；
@@ -42,6 +44,8 @@ Quality workflow 已采用保守的改动分类：
 - action 使用固定 SHA，权限最小化并设置 timeout；
 - Android 仍执行资源同步、版本来源、Gradle unit test、assemble、打包与独立复核；
 - 普通 PR 只验证 APK，不上传；手动私测才保存 14 天 artifact。
+- dependency graph、Dependabot alerts／security updates、code scanning、secret scanning 与 push protection 已启用；CodeQL 默认设置的 Java／Kotlin lane 仍报告 Gradle 依赖提取与 `build-mode: none` 质量警告，在完成 manual Android build 的高级配置并重新核验前，不把它记录成完整 Android 扫描。
+- ruleset 与安全功能属于 GitHub 外部设置，不随 Git 历史自动恢复；每次修改后仍必须通过 GitHub API 或设置页重新核验，不能只依赖本文件。
 
 ## 3. PR 与提交策略
 
