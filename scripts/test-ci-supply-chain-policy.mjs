@@ -49,6 +49,23 @@ const approvedActions = new Map([
 ]);
 
 const approvedWorkflowActions = new Map([
+  ["codeql.yml", new Map([
+    ["actions/checkout", ["fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09", "v5.1.0"]],
+    ["actions/setup-node", ["a0853c24544627f65ddf259abe73b1d18a591444", "v5.0.0"]],
+    ["actions/setup-java", ["dded0888837ed1f317902acf8a20df0ad188d165", "v5.0.0"]],
+    [
+      "android-actions/setup-android",
+      ["651bceb6f9ca583f16b8d75b62c36ded2ae6fc9c", "v4.0.0"],
+    ],
+    [
+      "github/codeql-action/init",
+      ["db488ddef3bf6cb639b32c2e9a7c0a7ea8271d28", "v4.37.8"],
+    ],
+    [
+      "github/codeql-action/analyze",
+      ["db488ddef3bf6cb639b32c2e9a7c0a7ea8271d28", "v4.37.8"],
+    ],
+  ])],
   ["quality.yml", new Map([
     ["actions/checkout", ["fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09", "v5.1.0"]],
     ["actions/setup-node", ["a0853c24544627f65ddf259abe73b1d18a591444", "v5.0.0"]],
@@ -171,6 +188,30 @@ assert.match(
   /- name: Audit production dependencies\n\s+if: \$\{\{ needs\.classify\.outputs\.run_audit == 'true' \}\}\n\s+run: npm audit --omit=dev --audit-level=high/,
   "Production audit must stay behind the reviewed dependency-audit classifier",
 );
+const codeqlWorkflow = workflowByName.get("codeql.yml") ?? "";
+assert.match(codeqlWorkflow, /^\s{2}pull_request:\s*$/m);
+assert.match(codeqlWorkflow, /^\s{2}push:\s*$/m);
+assert.match(codeqlWorkflow, /^\s{2}workflow_dispatch:\s*$/m);
+assert.match(codeqlWorkflow, /^\s{2}schedule:\s*$/m);
+assert.match(codeqlWorkflow, /^permissions:\n\s{2}contents: read$/m);
+assert.match(codeqlWorkflow, /^\s{6}security-events: write$/m);
+assert.doesNotMatch(codeqlWorkflow, /^\s+packages: /m);
+assert.match(codeqlWorkflow, /^\s{10}- actions$/m);
+assert.match(codeqlWorkflow, /^\s{10}- javascript-typescript$/m);
+assert.match(codeqlWorkflow, /^\s{10}languages: java-kotlin$/m);
+assert.match(codeqlWorkflow, /^\s{10}build-mode: manual$/m);
+assert.match(codeqlWorkflow, /^\s{10}cmdline-tools-version: "12266719"$/m);
+assert.match(
+  codeqlWorkflow,
+  /npm run android:sync && npm run validate:android-local && cd android && \.\/gradlew testDebugUnitTest assembleDebug --no-daemon/,
+  "CodeQL must trace the reviewed Android sync, validation, tests, and build",
+);
+assert.ok(
+  codeqlWorkflow.indexOf("build-mode: manual")
+    < codeqlWorkflow.indexOf("./gradlew testDebugUnitTest assembleDebug --no-daemon"),
+  "CodeQL must initialize manual tracing before the Android build",
+);
+
 assert.match(
   qualityWorkflow,
   /- name: Audit dependencies including development tools\n\s+if: \$\{\{ needs\.classify\.outputs\.run_audit == 'true' \}\}\n\s+run: npm audit --include=dev --audit-level=high/,
