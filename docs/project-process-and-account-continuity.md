@@ -44,7 +44,7 @@ Quality workflow 已采用保守的改动分类：
 - action 使用固定 SHA，权限最小化并设置 timeout；
 - Android 仍执行资源同步、版本来源、Gradle unit test、assemble、打包与独立复核；
 - 普通 PR 只验证 APK，不上传；手动私测才保存 14 天 artifact。
-- dependency graph、Dependabot alerts／security updates、code scanning、secret scanning 与 push protection 已启用；CodeQL 默认设置的 Java／Kotlin lane 仍报告 Gradle 依赖提取与 `build-mode: none` 质量警告，在完成 manual Android build 的高级配置并重新核验前，不把它记录成完整 Android 扫描。
+- dependency graph、Dependabot alerts／security updates、code scanning、secret scanning 与 push protection 已启用；CodeQL 的 Java／Kotlin lane 使用 manual build，在分析前执行 Android sync、生成资源校验、Gradle unit test 和 debug assemble，避免把未解析 Gradle 依赖的 `build-mode: none` 当作完整 Android 扫描。
 - ruleset 与安全功能属于 GitHub 外部设置，不随 Git 历史自动恢复；每次修改后仍必须通过 GitHub API 或设置页重新核验，不能只依赖本文件。
 
 ## 3. PR 与提交策略
