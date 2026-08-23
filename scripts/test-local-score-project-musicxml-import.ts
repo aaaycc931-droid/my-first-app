@@ -3221,6 +3221,24 @@ for (const [element, code] of [
   );
 }
 
+let commentDecoyEventSequence = 0;
+const commentDecoyDraft = createLocalScoreProjectMusicXmlImportDraft({
+  xml: supportedXml.replace(
+    "<type>half</type></note>",
+    "<type>half</type><!-- lexical decoy: <cue/> --></note>",
+  ),
+  fileName: "comment-decoy.musicxml",
+  sourceFormat: "musicxml",
+  projectId: "comment-decoy",
+  now: "2026-07-27T08:10:01.000Z",
+  createEventId: () => `comment-decoy-event-${++commentDecoyEventSequence}`,
+});
+assert.equal(commentDecoyDraft.status, "ready");
+assert.ok(
+  !commentDecoyDraft.issues.some((issue) => issue.code === "unsupported-element"),
+  "element-looking text inside comments must remain inert",
+);
+
 for (const [invalidSlurXml, expectedCode] of [
   [
     supportedXml.replace(
