@@ -237,13 +237,6 @@ const countElements = (xml: string, tagName: string) =>
     ),
   )).length;
 
-const getElementNames = (xml: string) => Array.from(
-  xml
-    .replace(/<!--[\s\S]*?-->/g, "")
-    .matchAll(/<(?![!?/])(?:[A-Za-z_][\w.-]*:)?([A-Za-z_][\w.-]*)\b[^>]*>/g),
-  (match) => match[1].toLowerCase(),
-);
-
 type XmlStartTag = Readonly<{
   end: number;
   localName: string;
@@ -2777,7 +2770,11 @@ export const createLocalScoreProjectMusicXmlImportDraft = (
         issues.push(blockingIssue(code, message, measureNumber));
       }
     });
-    new Set(getElementNames(measureXml)).forEach((elementName) => {
+    const measureElementNames = Array.from(
+      measureElements[measureIndex]?.getElementsByTagName("*") ?? [],
+      (element) => localElementName(element),
+    );
+    new Set(measureElementNames).forEach((elementName) => {
       if (!allowedMeasureElements.has(elementName)) {
         issues.push(blockingIssue(
           "unsupported-element",

@@ -74,6 +74,11 @@ assert.ok(LOCAL_PIANO_TIMBRE_PROVIDERS.slice(1).every((provider) =>
   && provider.descriptor.license === "Public Domain",
 ));
 assert.equal(SPLENDID_GRAND_PIANO_ZONES.length, 36);
+assert.equal(
+  SPLENDID_GRAND_PIANO_ZONES.find((zone) => zone.id === "PP-A#6")?.assetPath,
+  "/piano/splendid-grand-v1/PP-A%236.ogg",
+  "sample note names must use canonical URL component encoding",
+);
 for (const midi of [21, 60, 108]) {
   for (const velocity of [0.2, 0.5, 0.9]) {
     const zone = selectPianoSampleZone(SPLENDID_GRAND_PIANO_ZONES, midi, velocity);
