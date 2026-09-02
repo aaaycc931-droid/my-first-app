@@ -251,7 +251,7 @@
     "@types/react": "19.2.17",
     "@types/react-dom": "19.2.3",
     "@vitejs/plugin-react": "^6.0.3",
-    "@xmldom/xmldom": "0.9.10",
+    "@xmldom/xmldom": "0.9.12",
     "autoprefixer": "^10.4.20",
     "axe-core": "4.12.1",
     "eslint": "9.39.5",
